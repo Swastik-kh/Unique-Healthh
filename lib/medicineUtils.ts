@@ -254,7 +254,7 @@ export const calculatePatientRequirements = (
 };
 
 export function checkDefaulter(patient: TBPatient): { isDefaulter: boolean; sinceDate?: string; treatmentStartDate?: string; daysSinceStopped?: number } {
-  if (patient.status === 'Transfer Out') return { isDefaulter: false };
+  if (patient.status && patient.status !== 'Active') return { isDefaulter: false };
   if (!patient.treatmentStartDate || !patient.dailyDoses) return { isDefaulter: false };
   
   // 1. Convert treatmentStartDate (BS) to AD for comparison
