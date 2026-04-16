@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Inventory - Professional Stock Management</title>
+    
+    <!-- Professional App Icon (Favicon) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230ea5e9'/%3E%3Cpath d='M256 120l-140 80v160l140 80 140-80V200l-140-80zm-20 255v-120l-100-57v114l120 63zm140-63l-100 57V255l120-63v114zm-120-80l-100-57 120-63 100 57-120 63z' fill='white'/%3E%3C/svg%3E" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Mukta:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              nepali: ['Mukta', 'sans-serif'],
+            },
+            colors: {
+              primary: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                200: '#bae6fd',
+                300: '#7dd3fc',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0c4a6e',
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        height: 100%;
+        margin: 0;
+        /* Removed overflow-hidden from body */
+      }
+      .font-nepali { font-family: 'Mukta', sans-serif; }
+      
+      @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+        #root { height: auto !important; overflow: visible !important; }
+        .print-full-width { 
+            width: 100% !important; 
+            max-width: none !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+        }
+        @page {
+          size: A4;
+          margin: 1cm;
+        }
+      }
+
+      /* Mobile Optimizations */
+      @media (max-width: 640px) {
+        .mobile-card-grid {
+          display: block !important;
+        }
+        .mobile-card-grid > * {
+          margin-bottom: 1rem;
+          width: 100% !important;
+        }
+        table.responsive-table {
+          display: block;
+          width: 100%;
+        }
+        table.responsive-table thead {
+          display: none;
+        }
+        table.responsive-table tbody, 
+        table.responsive-table tr, 
+        table.responsive-table td {
+          display: block;
+          width: 100%;
+        }
+        table.responsive-table tr {
+          margin-bottom: 1rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 0.75rem;
+          padding: 0.5rem;
+          background: white;
+        }
+        table.responsive-table td {
+          text-align: right;
+          padding: 0.5rem;
+          position: relative;
+          border-bottom: 1px solid #f1f5f9;
+        }
+        table.responsive-table td::before {
+          content: attr(data-label);
+          position: absolute;
+          left: 0.5rem;
+          width: 45%;
+          text-align: left;
+          font-weight: 700;
+          color: #64748b;
+          font-size: 0.75rem;
+        }
+        table.responsive-table td:last-child {
+          border-bottom: none;
+        }
+      }
+
+      /* Custom Scrollbar for better mobile feel */
+      ::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      @keyframes ecg-wave {
+        0% { stroke-dashoffset: 1000; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .animate-ecg-wave {
+        animation: ecg-wave 10s linear infinite;
+        stroke-dasharray: 1000;
+      }
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "nepali-date-converter": "https://esm.sh/nepali-date-converter",
+    "firebase/app": "https://esm.sh/firebase@^12.7.0/app",
+    "firebase/database": "https://esm.sh/firebase@^12.7.0/database",
+    "firebase/analytics": "https://esm.sh/firebase@^12.7.0/analytics",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "@google/genai": "https://esm.sh/@google/genai",
+    "path": "https://esm.sh/path@^0.12.7",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "url": "https://esm.sh/url@^0.11.4"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 text-slate-900 antialiased h-full">
+    <div id="root" class="h-full"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
+</html>

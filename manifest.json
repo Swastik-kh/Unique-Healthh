@@ -1,0 +1,16 @@
+{
+  "short_name": "SmartInv",
+  "name": "Smart Inventory Management System",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230ea5e9'/%3E%3Cpath d='M256 120l-140 80v160l140 80 140-80V200l-140-80zm-20 255v-120l-100-57v114l120 63zm140-63l-100 57V255l120-63v114zm-120-80l-100-57 120-63 100 57-120 63z' fill='white'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff"
+}

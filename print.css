@@ -1,0 +1,17 @@
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* Standard A4 settings */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: white !important;
+  }
+}
