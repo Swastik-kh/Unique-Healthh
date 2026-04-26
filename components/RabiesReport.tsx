@@ -350,56 +350,44 @@ export const RabiesReport: React.FC<RabiesReportProps> = ({ currentFiscalYear, c
             ) : (
                 /* DETAILED PATIENT LIST VIEW */
                 <div className="mb-8">
-                    <table className="w-full text-left border-collapse">
+                    {/* Landscape Detailed Table */}
+                    <table className="w-full text-left border-collapse" style={{ fontSize: '9px' }}>
                         <thead className="bg-slate-50 text-slate-700 font-bold">
                             <tr>
-                                <th className="p-2 border border-slate-300">दर्ता नं / मिति</th>
-                                <th className="p-2 border border-slate-300">बिरामीको विवरण</th>
-                                <th className="p-2 border border-slate-300">ठेगाना / सम्पर्क</th>
-                                <th className="p-2 border border-slate-300">घटना विवरण</th>
-                                <th className="p-2 border border-slate-300">उपचार विधि</th>
-                                <th className="p-2 border border-slate-300">खोप विवरण (D0, D3, D7)</th>
+                                <th className="p-1 border border-slate-300">SN</th>
+                                <th className="p-1 border border-slate-300">Reg. No</th>
+                                <th className="p-1 border border-slate-300">Patient Name</th>
+                                <th className="p-1 border border-slate-300">Address</th>
+                                <th className="p-1 border border-slate-300">Age</th>
+                                <th className="p-1 border border-slate-300">Sex</th>
+                                <th className="p-1 border border-slate-300">Prev. ARV</th>
+                                <th className="p-1 border border-slate-300">Date Of Bite</th>
+                                <th className="p-1 border border-slate-300">Animal</th>
+                                <th className="p-1 border border-slate-300">Site/Exposure</th>
+                                <th className="p-1 border border-slate-300">Phone</th>
+                                <th className="p-1 border border-slate-300">Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredPatients.map((p, idx) => (
                                 <tr key={p.id} className="hover:bg-slate-50">
-                                    <td className="p-2 border border-slate-300 text-xs">
-                                        <div className="font-mono font-bold text-indigo-700">{p.regNo}</div>
-                                        <div className="text-slate-500 mt-1">{p.regDateBs}</div>
-                                    </td>
-                                    <td className="p-2 border border-slate-300">
-                                        <div className="font-bold text-sm">{p.name}</div>
-                                        <div className="text-xs text-slate-500">{p.age} Yrs / {p.sex}</div>
-                                    </td>
-                                    <td className="p-2 border border-slate-300 text-xs">
-                                        <div>{p.address}</div>
-                                        <div className="font-mono mt-0.5">{p.phone}</div>
-                                    </td>
-                                    <td className="p-2 border border-slate-300 text-xs">
-                                        <div><span className="font-bold">Animal:</span> {p.animalType}</div>
-                                        <div><span className="font-bold">Cat:</span> {p.exposureCategory}</div>
-                                        {p.bodyPart && <div><span className="font-bold">Part:</span> {p.bodyPart}</div>}
-                                        {p.exposureDateBs && <div className="text-slate-500 mt-0.5">Exp Date: {p.exposureDateBs}</div>}
-                                    </td>
-                                    <td className="p-2 border border-slate-300 text-xs">
-                                        <span className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200">{p.regimen}</span>
-                                    </td>
-                                    <td className="p-2 border border-slate-300">
-                                        <div className="flex flex-wrap gap-1">
-                                            {p.schedule.map(d => (
-                                                <span key={d.day} className={`text-[10px] px-1.5 py-0.5 rounded border flex flex-col items-center ${d.status === 'Given' ? 'bg-green-100 border-green-300 text-green-800' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                                    <span className="font-bold">D{d.day}</span>
-                                                    <span>{d.status === 'Given' ? (d.givenDate || d.dateBs) : d.dateBs}</span>
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </td>
+                                    <td className="p-1 border border-slate-300">{idx + 1}</td>
+                                    <td className="p-1 border border-slate-300">{p.regNo}</td>
+                                    <td className="p-1 border border-slate-300 font-bold">{p.name}</td>
+                                    <td className="p-1 border border-slate-300">{p.address}</td>
+                                    <td className="p-1 border border-slate-300">{p.age}</td>
+                                    <td className="p-1 border border-slate-300">{p.sex}</td>
+                                    <td className="p-1 border border-slate-300">{p.hasPreviousVaccine ? 'Yes' : 'No'}</td>
+                                    <td className="p-1 border border-slate-300">{p.exposureDateBs}</td>
+                                    <td className="p-1 border border-slate-300">{p.animalType}</td>
+                                    <td className="p-1 border border-slate-300">{p.bodyPart}</td>
+                                    <td className="p-1 border border-slate-300">{p.phone}</td>
+                                    <td className="p-1 border border-slate-300"></td>
                                 </tr>
                             ))}
                             {filteredPatients.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="p-12 text-center text-slate-400 italic">
+                                    <td colSpan={12} className="p-12 text-center text-slate-400 italic">
                                         यो महिनामा कुनै बिरामी दर्ता भएको छैन।
                                     </td>
                                 </tr>

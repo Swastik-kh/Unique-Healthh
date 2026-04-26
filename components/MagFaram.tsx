@@ -566,7 +566,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
           )}
 
           <div className="flex justify-between items-start mb-6">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" className="w-20 h-20 object-contain" />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Emblem_of_Nepal.svg/2000px-Emblem_of_Nepal.svg.png" referrerPolicy="no-referrer" className="w-20 h-20 object-contain" />
               <div className="text-center flex-1">
                   <h1 className="text-xl font-black text-red-600 uppercase">{generalSettings.orgNameNepali}</h1>
                   {generalSettings.subTitleNepali && <h2 className="text-base font-bold">{generalSettings.subTitleNepali}</h2>}
