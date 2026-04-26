@@ -7,6 +7,8 @@ import { User, OrganizationSettings } from '../types/coreTypes';
 import { InventoryItem, MagFormEntry, DakhilaPratibedanEntry, IssueReportEntry, StockEntryRequest, Store } from '../types/inventoryTypes';
 import { PrintOptionsModal } from './PrintOptionsModal';
 import { MultiYearInventoryReport } from './MultiYearInventoryReport';
+import { ManualReport } from './ManualReport';
+import { ManualReportTrend } from './ManualReportTrend';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -42,7 +44,7 @@ export const InventoryMonthlyReport: React.FC<InventoryMonthlyReportProps> = ({
   currentFiscalYear, inventoryItems, generalSettings, currentUser, 
   dakhilaReports, issueReports, stockEntryRequests, stores
 }) => {
-  const [activeTab, setActiveTab] = useState<'monthly' | 'annual'>('monthly');
+  const [activeTab, setActiveTab] = useState<'monthly' | 'annual' | 'manual'>('monthly');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     try { return new NepaliDate().format('MM'); } catch(e) { return '01'; }
@@ -291,6 +293,7 @@ export const InventoryMonthlyReport: React.FC<InventoryMonthlyReportProps> = ({
       <div className="flex gap-2 p-1 bg-white rounded-lg border w-fit">
         <button className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'monthly' ? 'bg-indigo-600 text-white' : 'text-slate-600'}`} onClick={() => setActiveTab('monthly')}>मासिक प्रतिवेदन</button>
         <button className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'annual' ? 'bg-indigo-600 text-white' : 'text-slate-600'}`} onClick={() => setActiveTab('annual')}>वार्षिक प्रतिवेदन</button>
+        <button className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'manual' ? 'bg-indigo-600 text-white' : 'text-slate-600'}`} onClick={() => setActiveTab('manual')}>म्यानुअल प्रतिवेदन</button>
       </div>
 
       {activeTab === 'monthly' ? (
@@ -377,7 +380,7 @@ export const InventoryMonthlyReport: React.FC<InventoryMonthlyReportProps> = ({
             </div>
           </div>
         </>
-      ) : (
+      ) : activeTab === 'annual' ? (
         <MultiYearInventoryReport 
           currentFiscalYear={currentFiscalYear}
           generalSettings={generalSettings}
@@ -386,6 +389,23 @@ export const InventoryMonthlyReport: React.FC<InventoryMonthlyReportProps> = ({
           issueReports={issueReports}
           stores={stores}
         />
+      ) : (
+        <div className="space-y-4">
+             <div className="flex gap-2">
+                <button className={`px-4 py-2 rounded ${activeTab === 'manual' ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700'}`} onClick={() => setActiveTab('manual')}>म्यानुअल फारम</button>
+                <button className={`px-4 py-2 rounded ${activeTab === 'trend' ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700'}`} onClick={() => setActiveTab('trend')}>३ वर्षको प्रवृत्ति</button>
+             </div>
+             {activeTab === 'manual' ? (
+                <ManualReport 
+                    generalSettings={generalSettings} 
+                    currentFiscalYear={currentFiscalYear}
+                    inventoryItems={inventoryItems}
+                    onSave={(data) => console.log('Saving manual report:', data)} 
+                />
+             ) : (
+                <ManualReportTrend currentFiscalYear={currentFiscalYear} />
+             )}
+        </div>
       )}
 
       {showPrintModal && <PrintOptionsModal onClose={() => setShowPrintModal(false)} onPrint={handlePrint} />}

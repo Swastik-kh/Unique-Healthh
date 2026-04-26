@@ -26,6 +26,7 @@ export const MultiYearInventoryReport: React.FC<MultiYearInventoryReportProps> =
 
   const fiscalYearsToConsider = useMemo(() => {
     const currentIndex = FISCAL_YEARS.findIndex(fy => fy.value === currentFiscalYear);
+    // Take 3 years ending at current
     return FISCAL_YEARS.slice(Math.max(0, currentIndex - 2), currentIndex + 1).reverse();
   }, [currentFiscalYear]);
 
