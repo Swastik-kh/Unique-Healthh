@@ -142,27 +142,23 @@ export const RabiesReport: React.FC<RabiesReportProps> = ({ currentFiscalYear, c
             -webkit-print-color-adjust: exact; 
             print-color-adjust: exact;
           }
-          .report-container {
-             box-shadow: none !important;
-             border: none !important;
-             padding: 20px !important;
-             margin: 0 !important;
-             width: 100% !important;
-          }
+          .report-container { width: 100% !important; padding: 10px !important; }
           table { width: 100%; border-collapse: collapse; border: 1.5px solid black; margin-bottom: 20px; }
-          th, td { border: 1px solid black; padding: 6px; font-size: 11px; color: black; }
-          .no-print { display: none !important; }
-          .bg-slate-50 { background-color: #f8fafc !important; }
-          .bg-slate-100 { background-color: #f1f5f9 !important; }
-          .text-slate-800 { color: #1e293b !important; }
-          .font-black { font-weight: 900 !important; }
-          .font-bold { font-weight: 700 !important; }
+          th, td { border: 1px solid black; padding: 4px; font-size: 9px; color: black; }
+          thead { display: table-header-group; }
+          .report-header { display: block; margin-bottom: 10px; text-align: center; }
         </style>
       </head>
       <body>
-        ${printContent.innerHTML}
+        <div class="report-container">
+          <div class="report-header">
+            <p class="text-xs font-bold">NG/MOH</p>
+            <h1 class="text-lg font-black">रेबिज खोप बिरामी विवरण सूची</h1>
+            <p class="text-xs font-bold">Institution: ${currentUser.organizationName} | Month: ${currentMonthLabel} | Fiscal Year: ${selectedFiscalYear}</p>
+          </div>
+          ${printContent.innerHTML}
+        </div>
         <script>
-           // Print automatically once loaded
            window.onload = function() {
               setTimeout(function() {
                  window.print();
