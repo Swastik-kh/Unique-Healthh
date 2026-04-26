@@ -3,6 +3,15 @@
     display: none !important;
   }
 
+  /* Only show the trend report area on print */
+  body > *:not(#trend-report-print-area) {
+     display: none !important;
+  }
+  
+  #trend-report-print-area {
+    display: block !important;
+  }
+
   /* Standard A4 settings */
   @page {
     size: A4;

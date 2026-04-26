@@ -112,7 +112,7 @@ export const ManualReportTrend: React.FC<ManualReportTrendProps> = ({ currentFis
             <button onClick={fetchTrendData} className="px-4 py-2 bg-indigo-600 text-white rounded">डाटा लोड गर्नुहोस्</button>
         </div>
         
-        <div id="trend-report-print-area">
+        <div id="trend-report-print-area" className="w-full">
             {loading ? <p>लोड हुँदैछ...</p> : (
                 <div className="overflow-x-auto mb-8">
                     <table className="w-full border-collapse border">
@@ -136,7 +136,7 @@ export const ManualReportTrend: React.FC<ManualReportTrendProps> = ({ currentFis
                 </div>
             )}
             
-            <div className="border-t pt-4 mt-4">
+            <div className="border-t pt-4 mt-4 no-print">
                 <h3 className="text-lg font-bold mb-2">म्यानुअल प्रतिवेदन सम्पादन</h3>
                 <div className="w-full mb-4">
                     <SearchableSelect 
