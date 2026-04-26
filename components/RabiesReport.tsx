@@ -146,16 +146,22 @@ export const RabiesReport: React.FC<RabiesReportProps> = ({ currentFiscalYear, c
           table { width: 100%; border-collapse: collapse; border: 1.5px solid black; margin-bottom: 20px; }
           th, td { border: 1px solid black; padding: 4px; font-size: 9px; color: black; }
           thead { display: table-header-group; }
-          .report-header { display: block; margin-bottom: 10px; text-align: center; }
+          .report-header { display: table-header-group; margin-bottom: 10px; text-align: center; }
         </style>
       </head>
       <body>
         <div class="report-container">
-          <div class="report-header">
-            <p class="text-xs font-bold">NG/MOH</p>
-            <h1 class="text-lg font-black">रेबिज खोप बिरामी विवरण सूची</h1>
-            <p class="text-xs font-bold">Institution: ${currentUser.organizationName} | Month: ${currentMonthLabel} | Fiscal Year: ${selectedFiscalYear}</p>
-          </div>
+          <table>
+            <thead>
+                <tr class="report-header">
+                    <th colspan="12" style="border:none">
+                        <p class="text-xs font-bold">NG/MOH</p>
+                        <h1 class="text-lg font-black">रेबिज खोप बिरामी विवरण सूची</h1>
+                        <p class="text-xs font-bold">Institution: ${currentUser.organizationName} | Month: ${currentMonthLabel} | Fiscal Year: ${selectedFiscalYear}</p>
+                    </th>
+                </tr>
+            </thead>
+          </table>
           ${printContent.innerHTML}
         </div>
         <script>
