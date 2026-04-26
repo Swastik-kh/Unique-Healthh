@@ -3,13 +3,13 @@
     display: none !important;
   }
 
-  /* Only show the trend report area on print */
-  body > *:not(#trend-report-print-area) {
-     display: none !important;
+  .printable-area {
+    display: block !important;
   }
   
-  #trend-report-print-area {
-    display: block !important;
+  /* Hide everything else */
+  body > *:not(.printable-area) {
+     display: none !important;
   }
 
   /* Standard A4 settings */

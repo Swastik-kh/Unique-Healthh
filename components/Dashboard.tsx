@@ -45,6 +45,7 @@ import { GeneralSetting } from './GeneralSetting';
 import { VaccinationServiceTabs } from './VaccinationServiceTabs';
 import { ImmunizationTracking } from './ImmunizationTracking';
 import { ImmunizationReport } from './ImmunizationReport';
+import { Microplanning } from './Microplanning';
 import { DartaForm } from './DartaForm';
 import { ChalaniForm } from './ChalaniForm';
 import { BharmanAdesh } from './BharmanAdesh';
@@ -526,7 +527,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       label: 'रिपोर्टहरू',
       icon: <BarChart3 size={20} />,
       subItems: [
-        { id: 'report_khop', label: 'खोप रिपोर्ट', icon: <Baby size={16} /> },
+        { 
+          id: 'report_khop_group', 
+          label: 'खोप रिपोर्ट', 
+          icon: <Baby size={16} />,
+          subItems: [
+             { id: 'report_khop', label: 'खोप रिपोर्ट (Main)', icon: <Baby size={16} /> },
+             { id: 'report_microplanning', label: 'Microplanning', icon: <Calendar size={16} /> }
+          ]
+        },
         { id: 'report_rabies', label: 'रेबिज़ रिपोर्ट', icon: <Syringe size={16} /> },
         { id: 'report_cbimnci', label: 'CBIMNCI रिपोर्ट', icon: <FileText size={16} /> },
         { id: 'report_reporting_status', label: 'रिपोर्टिङ स्थिति', icon: <FileText size={16} /> },
@@ -765,6 +774,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       case 'khop_sewa': return <VaccinationServiceTabs currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} onUpdateGeneralSettings={onUpdateGeneralSettings} garbhawatiPatients={garbhawatiPatients} onAddGarbhawatiPatient={onAddGarbhawatiPatient} onUpdateGarbhawatiPatient={onUpdateGarbhawatiPatient} onDeleteGarbhawatiPatient={onDeleteGarbhawatiPatient} bachhaImmunizationRecords={bachhaImmunizationRecords} onAddBachhaImmunizationRecord={onAddBachhaImmunizationRecord} onUpdateBachhaImmunizationRecord={onUpdateBachhaImmunizationRecord} onDeleteBachhaImmunizationRecord={onDeleteBachhaImmunizationRecord} />;
       case 'immunization_tracking': return <ImmunizationTracking currentFiscalYear={currentFiscalYear} records={bachhaImmunizationRecords} generalSettings={generalSettings} />;
       case 'report_khop': return <ImmunizationReport currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} maternalRecords={garbhawatiPatients} generalSettings={generalSettings} />;
+      case 'report_microplanning': return <Microplanning currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} />;
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
       case 'change_password': return <ChangePassword currentUser={currentUser} users={users} onChangePassword={onChangePassword} onUpdateUser={onUpdateUser} />;

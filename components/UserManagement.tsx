@@ -90,6 +90,7 @@ const PERMISSION_STRUCTURE = [
             { id: 'report_tb_leprosy', label: 'क्षयरोग/कुष्ठरोग रिपोर्ट (TB/Leprosy)' },
             { id: 'report_rabies', label: 'रेबिज़ रिपोर्ट (Rabies Report)' },
             { id: 'report_khop', label: 'खोप रिपोर्ट (Immunization Report)' }, 
+            { id: 'report_microplanning', label: 'Microplanning रिपोर्ट' },
             { id: 'report_cbimnci', label: 'CBIMNCI रिपोर्ट (CBIMNCI Report)' },
             { id: 'report_reporting_status', label: 'रिपोर्टिङ स्थिति (Reporting Status)' },
             { id: 'report_pariwar_niyojan', label: 'परिवार नियोजन रिपोर्ट (Family Planning)' },
