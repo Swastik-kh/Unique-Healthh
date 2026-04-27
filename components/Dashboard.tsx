@@ -455,6 +455,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       icon: <Stethoscope size={20} />, 
       subItems: [ 
         { id: 'mul_darta', label: 'मूल दर्ता सेवा', icon: <ClipboardList size={16} /> },
+        { id: 'karyakram', label: 'कार्यक्रम (Programs)', icon: <Calendar size={16} /> },
         { id: 'opd_sewa', label: 'ओ.पी.डी. सेवा', icon: <UserPlus size={16} /> },
         { id: 'ipd_sewa', label: 'आई.पी.डी. सेवा (IPD)', icon: <Building2 size={16} /> },
         { id: 'emergency_sewa', label: 'आकस्मिक सेवा (Emergency)', icon: <Siren size={16} /> },
@@ -795,6 +796,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                   onAddInterFacilityRequest={onAddInterFacilityRequest}
                                   onUpdateInterFacilityRequest={onUpdateInterFacilityRequest}
                                 />;
+      case 'karyakram': return <div className="p-8">कार्यक्रम (Programs) खण्ड निर्माणको क्रममा छ।</div>;
       case 'rabies': return <RabiesRegistration currentFiscalYear={currentFiscalYear} patients={rabiesPatients} onAddPatient={onAddRabiesPatient} onUpdatePatient={onUpdatePatient} onDeletePatient={onDeletePatient} currentUser={currentUser} />;
       case 'report_rabies': return <RabiesReport currentFiscalYear={currentFiscalYear} currentUser={currentUser} patients={rabiesPatients} />;
       case 'report_cbimnci': return <CBIMNCIReport cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} currentFiscalYear={currentFiscalYear} />;
