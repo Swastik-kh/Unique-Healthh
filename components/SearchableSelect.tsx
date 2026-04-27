@@ -323,7 +323,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         >
           {filteredOptions.map((option, index) => (
             <li
-              key={option.id}
+              key={`${option.id}-${index}`}
               role="option"
               aria-selected={index === highlightedIndex}
               className={`

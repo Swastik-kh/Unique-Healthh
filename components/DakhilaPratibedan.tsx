@@ -374,6 +374,7 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
                         padding: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
+                        display: block !important;
                     }
                     @page {
                         size: A4 landscape;
