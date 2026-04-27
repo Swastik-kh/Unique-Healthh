@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firestore';
 import { collection, doc, getDoc, setDoc, addDoc, query, getDocs } from 'firebase/firestore';
 import { VitaminATarget, FCHV, VitaminADistributionRecord, AgeGroupData } from '../types/vitaminATypes';
-import { Save, UserPlus, Calendar, Plus } from 'lucide-react';
+import { Save, UserPlus, Plus } from 'lucide-react';
 import { NepaliDatePicker } from './NepaliDatePicker';
 
 export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ currentFiscalYear }) => {
@@ -11,9 +11,9 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
     const [newFchv, setNewFchv] = useState({ name: '', wardNumber: '' });
 
     const [distributionData, setDistributionData] = useState<Record<string, AgeGroupData>>({
-        '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, muacGreen: 0, muacYellow: 0, muacRed: 0 },
-        '12-23months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, muacGreen: 0, muacYellow: 0, muacRed: 0 },
-        '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, muacGreen: 0, muacYellow: 0, muacRed: 0 },
+        '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
+        '12-23months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
+        '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
     });
     const [selectedFchv, setSelectedFchv] = useState('');
     const [round, setRound] = useState<'1st' | '2nd'>('1st');
@@ -56,6 +56,12 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
                 newData.totalVitaminA = newData.maleVitaminA + newData.femaleVitaminA;
             } else if (field.includes('Albendazole')) {
                 newData.totalAlbendazole = newData.maleAlbendazole + newData.femaleAlbendazole;
+            } else if (field.includes('MuacGreen')) {
+                newData.totalMuacGreen = newData.maleMuacGreen + newData.femaleMuacGreen;
+            } else if (field.includes('MuacYellow')) {
+                newData.totalMuacYellow = newData.maleMuacYellow + newData.femaleMuacYellow;
+            } else if (field.includes('MuacRed')) {
+                newData.totalMuacRed = newData.maleMuacRed + newData.femaleMuacRed;
             }
             
             return { ...prev, [ageGroup]: newData };
@@ -128,22 +134,66 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
                 </div>
                 
                 {Object.keys(distributionData).map(ageGroup => (
-                    <div key={ageGroup} className="mb-4 border-t pt-4">
-                        <h4 className="font-bold mb-2">{ageGroup}</h4>
-                        <div className="grid grid-cols-4 gap-2 text-xs">
-                           <input type="number" placeholder="Male VitA" value={distributionData[ageGroup].maleVitaminA ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleVitaminA', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Female VitA" value={distributionData[ageGroup].femaleVitaminA ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleVitaminA', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Total VitA" value={distributionData[ageGroup].totalVitaminA ?? ''} readOnly className="border p-1 rounded bg-gray-100"/>
+                    <div key={ageGroup} className="mb-6 border-t pt-4">
+                        <h4 className="font-bold mb-3 text-lg">{ageGroup}</h4>
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div className="space-y-1">
+                                <label className="text-xs">Vitamin A</label>
+                                <div className="grid grid-cols-3 gap-1 text-center text-[10px] text-slate-500">
+                                    <span>Male</span><span>Female</span><span>Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                    <input type="number" placeholder="M" value={distributionData[ageGroup].maleVitaminA ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleVitaminA', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="F" value={distributionData[ageGroup].femaleVitaminA ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleVitaminA', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="T" value={distributionData[ageGroup].totalVitaminA ?? ''} readOnly className="border p-1 rounded text-xs bg-gray-100"/>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs">Albendazole</label>
+                                <div className="grid grid-cols-3 gap-1 text-center text-[10px] text-slate-500">
+                                    <span>Male</span><span>Female</span><span>Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                    <input type="number" placeholder="M" value={distributionData[ageGroup].maleAlbendazole ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleAlbendazole', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="F" value={distributionData[ageGroup].femaleAlbendazole ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleAlbendazole', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="T" value={distributionData[ageGroup].totalAlbendazole ?? ''} readOnly className="border p-1 rounded text-xs bg-gray-100"/>
+                                </div>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-2 text-xs mt-1">
-                           <input type="number" placeholder="Male Alb" value={distributionData[ageGroup].maleAlbendazole ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleAlbendazole', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Female Alb" value={distributionData[ageGroup].femaleAlbendazole ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleAlbendazole', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Total Alb" value={distributionData[ageGroup].totalAlbendazole ?? ''} readOnly className="border p-1 rounded bg-gray-100"/>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs mt-1">
-                           <input type="number" placeholder="Green" value={distributionData[ageGroup].muacGreen ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'muacGreen', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Yellow" value={distributionData[ageGroup].muacYellow ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'muacYellow', e.target.value)} className="border p-1 rounded"/>
-                           <input type="number" placeholder="Red" value={distributionData[ageGroup].muacRed ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'muacRed', e.target.value)} className="border p-1 rounded"/>
+                        <div className="grid grid-cols-3 gap-4">
+                             <div className="space-y-1">
+                                <label className="text-xs text-green-600">MUAC Green</label>
+                                <div className="grid grid-cols-3 gap-1 text-center text-[10px] text-slate-500">
+                                    <span>Male</span><span>Female</span><span>Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                    <input type="number" placeholder="M" value={distributionData[ageGroup].maleMuacGreen ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleMuacGreen', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="F" value={distributionData[ageGroup].femaleMuacGreen ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleMuacGreen', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="T" value={distributionData[ageGroup].totalMuacGreen ?? ''} readOnly className="border p-1 rounded text-xs bg-gray-100"/>
+                                </div>
+                             </div>
+                             <div className="space-y-1">
+                                <label className="text-xs text-yellow-600">MUAC Yellow</label>
+                                <div className="grid grid-cols-3 gap-1 text-center text-[10px] text-slate-500">
+                                    <span>Male</span><span>Female</span><span>Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                    <input type="number" placeholder="M" value={distributionData[ageGroup].maleMuacYellow ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleMuacYellow', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="F" value={distributionData[ageGroup].femaleMuacYellow ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleMuacYellow', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="T" value={distributionData[ageGroup].totalMuacYellow ?? ''} readOnly className="border p-1 rounded text-xs bg-gray-100"/>
+                                </div>
+                             </div>
+                             <div className="space-y-1">
+                                <label className="text-xs text-red-600">MUAC Red</label>
+                                <div className="grid grid-cols-3 gap-1 text-center text-[10px] text-slate-500">
+                                    <span>Male</span><span>Female</span><span>Total</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1">
+                                    <input type="number" placeholder="M" value={distributionData[ageGroup].maleMuacRed ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'maleMuacRed', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="F" value={distributionData[ageGroup].femaleMuacRed ?? ''} onChange={(e) => handleDataChange(ageGroup as any, 'femaleMuacRed', e.target.value)} className="border p-1 rounded text-xs"/>
+                                    <input type="number" placeholder="T" value={distributionData[ageGroup].totalMuacRed ?? ''} readOnly className="border p-1 rounded text-xs bg-gray-100"/>
+                                </div>
+                             </div>
                         </div>
                     </div>
                 ))}                

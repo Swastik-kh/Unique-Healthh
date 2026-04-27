@@ -17,25 +17,6 @@ export interface ProgramDate {
     endDate: string;
 }
 
-export interface VitaminATarget {
-    fiscalYear: string;
-    target6to11Months: number;
-    target12to23Months: number;
-    target24to59Months: number;
-}
-
-export interface FCHV {
-    id: string;
-    name: string;
-    wardNumber: string;
-}
-
-export interface ProgramDate {
-    round: '1st' | '2nd';
-    startDate: string;
-    endDate: string;
-}
-
 export interface AgeGroupData {
     maleVitaminA: number;
     femaleVitaminA: number;
@@ -43,9 +24,15 @@ export interface AgeGroupData {
     maleAlbendazole: number;
     femaleAlbendazole: number;
     totalAlbendazole: number;
-    muacGreen: number;
-    muacYellow: number;
-    muacRed: number;
+    maleMuacGreen: number;
+    femaleMuacGreen: number;
+    totalMuacGreen: number;
+    maleMuacYellow: number;
+    femaleMuacYellow: number;
+    totalMuacYellow: number;
+    maleMuacRed: number;
+    femaleMuacRed: number;
+    totalMuacRed: number;
 }
 
 export interface VitaminADistributionRecord {
@@ -58,5 +45,9 @@ export interface VitaminADistributionRecord {
         '6-11months': AgeGroupData;
         '12-23months': AgeGroupData;
         '24-59months': AgeGroupData;
+    };
+    programDates: {
+        round1: string;
+        round2: string;
     };
 }
