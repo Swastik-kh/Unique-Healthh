@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firestore';
-import { collection, doc, getDoc, setDoc, addDoc, query, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, addDoc, query, getDocs, updateDoc, where, and } from 'firebase/firestore';
 import { VitaminATarget, FCHV, VitaminADistributionRecord, AgeGroupData } from '../types/vitaminATypes';
 import { Save, UserPlus, Plus } from 'lucide-react';
 import { NepaliDatePicker } from './NepaliDatePicker';
+
+const INITIAL_DISTRIBUTION_DATA: Record<string, AgeGroupData> = {
+    '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
+    '12-23months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
+    '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
+};
 
 export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ currentFiscalYear }) => {
     const [targets, setTargets] = useState<VitaminATarget>({ fiscalYear: currentFiscalYear, target6to11Months: 0, target12to23Months: 0, target24to59Months: 0 });
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
     const [newFchv, setNewFchv] = useState({ name: '', wardNumber: '' });
+    const [editingFchvId, setEditingFchvId] = useState<string | null>(null);
 
-    const [distributionData, setDistributionData] = useState<Record<string, AgeGroupData>>({
-        '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
-        '12-23months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
-        '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
-    });
+    const [distributionData, setDistributionData] = useState<Record<string, AgeGroupData>>(INITIAL_DISTRIBUTION_DATA);
     const [selectedFchv, setSelectedFchv] = useState('');
     const [round, setRound] = useState<'1st' | '2nd'>('1st');
     const [programDates, setProgramDates] = useState({ round1: '', round2: '' });
+    const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -37,11 +41,22 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
         alert('लक्ष्य सुरक्षित भयो');
     };
 
+    const editFchv = (fchv: FCHV) => {
+        setNewFchv({ name: fchv.name, wardNumber: fchv.wardNumber });
+        setEditingFchvId(fchv.id);
+    };
+
     const addFchv = async () => {
         if(!newFchv.name) return;
-        await addDoc(collection(db, 'fchvs'), newFchv);
+        if (editingFchvId) {
+            await updateDoc(doc(db, 'fchvs', editingFchvId), newFchv);
+            alert('FCHV अपडेट भयो');
+            setEditingFchvId(null);
+        } else {
+            await addDoc(collection(db, 'fchvs'), newFchv);
+            alert('FCHV थपियो');
+        }
         setNewFchv({ name: '', wardNumber: '' });
-        alert('FCHV थपियो');
         const fchvCol = await getDocs(collection(db, 'fchvs'));
         setFchvs(fchvCol.docs.map(doc => ({ id: doc.id, ...doc.data() } as FCHV)));
     };
@@ -70,16 +85,50 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
 
     const saveDistribution = async () => {
         if (!selectedFchv) return alert('FCHV छान्नुहोस्');
-        await addDoc(collection(db, 'vitamin_a_records'), {
+        const recordData = {
             fiscalYear: currentFiscalYear,
             round,
             programDates,
             fchvId: selectedFchv,
             date: new Date().toISOString(),
             data: distributionData
-        });
-        alert('वितरण रेकर्ड सुरक्षित भयो');
+        };
+
+        if (editingRecordId) {
+            await updateDoc(doc(db, 'vitamin_a_records', editingRecordId), recordData);
+            alert('वितरण रेकर्ड अपडेट भयो');
+            setEditingRecordId(null);
+        } else {
+            await addDoc(collection(db, 'vitamin_a_records'), recordData);
+            alert('वितरण रेकर्ड सुरक्षित भयो');
+        }
+        setDistributionData(INITIAL_DISTRIBUTION_DATA);
+        setSelectedFchv('');
     };
+
+    useEffect(() => {
+        const loadExistingRecord = async () => {
+            if (!selectedFchv) {
+                setDistributionData(INITIAL_DISTRIBUTION_DATA);
+                setEditingRecordId(null);
+                return;
+            }
+            const q = query(
+                collection(db, 'vitamin_a_records'),
+                and(where('fchvId', '==', selectedFchv), where('fiscalYear', '==', currentFiscalYear), where('round', '==', round))
+            );
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const doc = querySnapshot.docs[0];
+                setDistributionData(doc.data().data);
+                setEditingRecordId(doc.id);
+            } else {
+                setDistributionData(INITIAL_DISTRIBUTION_DATA);
+                setEditingRecordId(null);
+            }
+        };
+        loadExistingRecord();
+    },[selectedFchv, round, currentFiscalYear]);
 
     return (
         <div className="p-8 space-y-6">
@@ -106,7 +155,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
                     <button onClick={addFchv} className="bg-green-600 text-white px-4 py-2 rounded flex items-center gap-2"><UserPlus size={16}/> थप्नुहोस्</button>
                 </div>
                 <ul className="space-y-1">
-                    {fchvs.map(fchv => <li key={fchv.id} className="border-b p-1 text-sm">{fchv.name} (वडा: {fchv.wardNumber})</li>)}
+                    {fchvs.map(fchv => <li key={fchv.id} className="border-b p-1 text-sm flex justify-between">{fchv.name} (वडा: {fchv.wardNumber}) <button onClick={() => editFchv(fchv)} className="text-blue-500 underline">edit</button></li>)}
                 </ul>
             </div>
             
