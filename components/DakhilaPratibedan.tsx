@@ -367,14 +367,21 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
             {/* Landscape Print Helper CSS */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    .dakhila-report-print, .dakhila-report-print * {
+                        visibility: visible;
+                    }
                     .dakhila-report-print {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
                         width: 100% !important;
-                        max-width: none !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
-                        display: block !important;
                     }
                     @page {
                         size: A4 landscape;
