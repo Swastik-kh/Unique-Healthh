@@ -367,13 +367,10 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
             {/* Landscape Print Helper CSS */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
-                    body * {
-                        visibility: hidden;
+                    body > *:not(.printable-area) {
+                        display: none !important;
                     }
-                    .dakhila-report-print, .dakhila-report-print * {
-                        visibility: visible;
-                    }
-                    .dakhila-report-print {
+                    .printable-area {
                         position: absolute;
                         left: 0;
                         top: 0;
@@ -420,7 +417,7 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
             </div>
 
             {/* FORM 403 LAYOUT */}
-            <div className="bg-white p-10 rounded-xl shadow-lg max-w-[297mm] mx-auto min-h-[210mm] text-slate-900 font-nepali text-sm print:shadow-none print:p-0 print:max-w-none print-full-width dakhila-report-print">
+            <div className="bg-white p-10 rounded-xl shadow-lg max-w-[297mm] mx-auto min-h-[210mm] text-slate-900 font-nepali text-sm print:shadow-none print:p-0 print:max-w-none print-full-width printable-area">
                 <div className="text-right font-bold text-[10px] mb-4">म.ले.प.फारम नं: ४०३</div>
 
                 <div className="mb-10">
