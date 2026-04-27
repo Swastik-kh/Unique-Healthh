@@ -12,7 +12,13 @@ const PERMISSION_STRUCTURE = [
         label: 'सेवा (Services)',
         children: [
             { id: 'mul_darta', label: 'मूल दर्ता सेवा (Main Registration)' },
-            { id: 'karyakram', label: 'कार्यक्रम (Programs)' },
+            { 
+                id: 'karyakram', 
+                label: 'कार्यक्रम (Programs)',
+                children: [
+                    { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम (Vitamin A)' },
+                ] 
+            },
             { id: 'opd_sewa', label: 'ओ.पी.डी. सेवा (OPD Service)' },
             { id: 'ipd_sewa', label: 'आई.पी.डी. सेवा (IPD Service)' },
             { id: 'service_billing', label: 'सेवा बिलिङ (Service Billing)' },
