@@ -76,6 +76,7 @@ import { GESIOPDReport } from './GESIOPDReport';
 import { GESICBIMNCIReport } from './GESICBIMNCIReport';
 import { MCHReport } from './MCHReport';
 import { MedicineStatusReport } from './MedicineStatusReport';
+import { DHISReport } from './DHISReport';
 import { VitaminAProgram } from './VitaminAProgram';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -555,6 +556,14 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'report_mch', label: 'MCH रिपोर्ट', icon: <Baby size={16} /> },
         { id: 'report_tb_dst', label: 'TBDST रिपोर्ट', icon: <FileText size={16} /> },
         { id: 'report_inventory_monthly', label: 'जिन्सी मासिक रिपोर्ट', icon: <FileText size={16} /> },
+        { 
+          id: 'report_dhis', 
+          label: 'DHIS रिपोर्ट',
+          icon: <BarChart3 size={16} />,
+          subItems: [
+              { id: 'report_dhis_general', label: 'DHIS सामान्य रिपोर्ट', icon: <FileText size={16} /> }
+          ]
+        }
       ]
     },
     {
@@ -1280,6 +1289,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                               stockEntryRequests={stockEntryRequests} 
                                               stores={stores} 
                                             />;
+      case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
       case 'service_settings': return <ServiceSettings 

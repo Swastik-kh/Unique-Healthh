@@ -106,7 +106,14 @@ const PERMISSION_STRUCTURE = [
             { id: 'report_gesi_cbimnci', label: 'GESI CBIMNCI रिपोर्ट (GESI CBIMNCI Report)' },
             { id: 'report_mch', label: 'MCH रिपोर्ट (MCH Report)' },
             { id: 'report_tb_dst', label: 'TBDST रिपोर्ट (TBDST Report)' },
-            { id: 'report_inventory_monthly', label: 'जिन्सी मासिक प्रतिवेदन (Monthly Report)' }
+            { id: 'report_inventory_monthly', label: 'जिन्सी मासिक प्रतिवेदन (Monthly Report)' },
+            { 
+                id: 'report_dhis', 
+                label: 'DHIS रिपोर्ट (DHIS Report)',
+                children: [
+                    { id: 'report_dhis_general', label: 'DHIS सामान्य रिपोर्ट (DHIS General Report)' }
+                ]
+            }
         ]
     },
     {
