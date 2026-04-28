@@ -21,6 +21,8 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
     const [file, setFile] = useState<File | null>(null);
     const [activeTab, setActiveTab] = useState<'upload' | 'report'>('upload');
     const [showSettings, setShowSettings] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadSuccess, setUploadSuccess] = useState(false);
     const [mappings, setMappings] = useState<Mapping[]>([]);
     const [newMapping, setNewMapping] = useState<Mapping>({ disease: '', alias: '' });
 
@@ -64,6 +66,7 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
             return;
         }
 
+        setIsUploading(true);
         try {
             const fileRef = storageRef(storage, `orgData/${safeOrgName}/dhisReports/${currentFiscalYear}/${selectedMonth}/${file.name}`);
             await uploadBytes(fileRef, file);
@@ -77,9 +80,13 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
 
             alert(`${selectedMonth} को लागि रिपोर्ट सुरक्षित गरियो।`);
             setActiveTab('report');
+            setUploadSuccess(true);
+            setTimeout(() => setUploadSuccess(false), 5000);
         } catch (error) {
             console.error("Upload error", error);
-            alert("अपलोडमा त्रुटि भयो।");
+            alert("अपलोडमा त्रुटि भयो: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -168,10 +175,14 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
 
                     <button 
                         onClick={handleUpload}
-                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700"
+                        disabled={isUploading}
+                        className={`px-6 py-2 rounded-lg font-bold ${isUploading ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
                     >
-                        अपलोड गर्नुहोस्
+                        {isUploading ? 'अपलोड हुँदै...' : 'अपलोड गर्नुहोस्'}
                     </button>
+                    {uploadSuccess && (
+                        <p className="text-green-600 font-bold mt-2">रिपोर्ट सफलतापूर्वक अपलोड भयो!</p>
+                    )}
                 </div>
             )}
 
