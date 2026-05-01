@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db, storage } from '../firebase';
-import { ref as dbRef, onValue, set } from "firebase/database";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { FileText, Settings, X, Upload } from 'lucide-react';
+import { db } from '../firebase';
+import { ref as dbRef, onValue, set, push } from "firebase/database";
+import { FileText, Settings, X, Plus } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
 import { Option } from '../types/coreTypes';
 
@@ -17,14 +16,37 @@ interface DHISReportProps {
 }
 
 export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, currentUser }) => {
-    const [selectedMonth, setSelectedMonth] = useState('');
-    const [file, setFile] = useState<File | null>(null);
-    const [activeTab, setActiveTab] = useState<'upload' | 'report'>('upload');
+    const [uploadMonth, setUploadMonth] = useState('');
+    const [reportMonth, setReportMonth] = useState('');
+    const [selectedDataset, setSelectedDataset] = useState<'progress' | 'vaccination' | 'report'>('progress');
     const [showSettings, setShowSettings] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadSuccess, setUploadSuccess] = useState(false);
     const [mappings, setMappings] = useState<Mapping[]>([]);
     const [newMapping, setNewMapping] = useState<Mapping>({ disease: '', alias: '' });
+    
+    // Form states
+    const [progressReport, setProgressReport] = useState({
+        ageGroups: {
+            '०-९': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+            '१०-१४': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+            '१५-१९': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+            '२०-५९': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+            '६०-६९': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+            '>= ७०': { maleNew: 0, femaleNew: 0, maleTotal: 0, femaleTotal: 0, maleReferred: 0, femaleReferred: 0 },
+        },
+        healthLocations: {
+            'गाउँघर क्लिनिक': { expected: 0, actual: 0, totalService: 0 },
+            'खोप क्लिनिक': { expected: 0, actual: 0, totalService: 0 },
+            'खोप सेसन': { expected: 0, actual: 0, totalService: 0 },
+            'सरसफाई सेसन (पटक)': { expected: 0, actual: 0, totalService: 0 },
+            'म.स्वा.स्व.से.': { expected: 0, actual: 0, totalService: 0 },
+        }
+    });
+
+    const [vaccinationReport, setVaccinationReport] = useState({
+        rows: ['खोप पाएका बच्चाहरुको संख्या', 'यस महिनामा प्राप्त भएको', 'खोप दिन खोलिएको', 'अन्य कारणले बिग्रेको', 'फिर्ता'],
+        columns: ['BCG', 'Rota1', 'Rota2', 'OPV1', 'OPV2', 'OPV3', 'FIPV1', 'FIPV2', 'PCV1', 'PCV2', 'PCV3', 'DPT1', 'DPT2', 'DPT3', 'MR1', 'MR2', 'JE', 'TCV', 'HPV1', 'HPV2'],
+        data: {} as Record<string, Record<string, number>>
+    });
 
     // Known diseases for the searchable select (based on the image provided)
     const diseaseOptions: Option[] = [
@@ -60,33 +82,25 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
         });
     }, [safeOrgName]);
 
-    const handleUpload = async () => {
-        if (!selectedMonth || !file) {
-            alert('कृपया महिना छान्नुहोस् र फाइल अपलोड गर्नुहोस्।');
+    const handleSave = async () => {
+        if (!uploadMonth) {
+            alert('कृपया महिना छान्नुहोस्।');
             return;
         }
 
-        setIsUploading(true);
         try {
-            const fileRef = storageRef(storage, `orgData/${safeOrgName}/dhisReports/${currentFiscalYear}/${selectedMonth}/${file.name}`);
-            await uploadBytes(fileRef, file);
-            const downloadURL = await getDownloadURL(fileRef);
-            
-            await set(dbRef(db, `orgData/${safeOrgName}/dhisReports/${currentFiscalYear}/${selectedMonth}`), {
-                fileName: file.name,
-                url: downloadURL,
+            await push(dbRef(db, `orgData/${safeOrgName}/dhisReports/${currentFiscalYear}/${uploadMonth}`), {
+                progressReport,
+                vaccinationReport,
                 uploadedAt: new Date().toISOString()
             });
 
-            alert(`${selectedMonth} को लागि रिपोर्ट सुरक्षित गरियो।`);
+            alert(`${uploadMonth} को लागि रिपोर्ट सुरक्षित गरियो।`);
             setActiveTab('report');
-            setUploadSuccess(true);
-            setTimeout(() => setUploadSuccess(false), 5000);
+            setReportMonth(uploadMonth);
         } catch (error) {
-            console.error("Upload error", error);
-            alert("अपलोडमा त्रुटि भयो: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
-        } finally {
-            setIsUploading(false);
+            console.error("Save error details:", error);
+            alert("सेभ गर्दा त्रुटि भयो: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
         }
     };
 
@@ -128,71 +142,146 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                 </div>
             )}
 
-            <div className="flex space-x-4 mb-4 border-b">
-                <button 
-                    onClick={() => setActiveTab('upload')}
-                    className={`py-2 px-4 ${activeTab === 'upload' ? 'border-b-2 border-indigo-600 font-bold' : 'text-slate-500'}`}
-                >
-                    अपलोड (Upload)
-                </button>
-                <button 
-                    onClick={() => setActiveTab('report')}
-                    className={`py-2 px-4 ${activeTab === 'report' ? 'border-b-2 border-indigo-600 font-bold' : 'text-slate-500'}`}
-                >
-                    रिपोर्ट (Report)
-                </button>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label className="block text-sm text-slate-600 mb-1">महिना छान्नुहोस्</label>
+                    <select 
+                        value={uploadMonth} 
+                        onChange={(e) => setUploadMonth(e.target.value)}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        <option value="">महिना छान्नुहोस्</option>
+                        {['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत'].map(m => (
+                            <option key={m} value={m}>{m}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm text-slate-600 mb-1">डाटासेट छान्नुहोस् (Dataset)</label>
+                    <select 
+                        value={selectedDataset} 
+                        onChange={(e) => setSelectedDataset(e.target.value as any)}
+                        className="w-full border rounded-lg p-2"
+                    >
+                        <option value="progress">मासिक प्रगती (Progress)</option>
+                        <option value="vaccination">खोप कार्यक्रम (Vaccination)</option>
+                        <option value="report">रिपोर्ट (Report)</option>
+                    </select>
+                </div>
             </div>
 
-            {activeTab === 'upload' && (
-                <div className="p-4 border-2 border-dashed border-slate-300 rounded-xl space-y-4">
-                    <h3 className="font-bold text-slate-700">रिपोर्ट अपलोड गर्नुहोस् (Upload Report)</h3>
+            {selectedDataset === 'progress' && (
+                <div className="p-4 bg-white rounded-xl space-y-4">
+                    <h3 className="font-bold text-slate-700">मासिक प्रगती प्रतिवेदन (Monthly Progress Report)</h3>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-slate-600 mb-1">महिना छान्नुहोस्</label>
-                            <select 
-                                value={selectedMonth} 
-                                onChange={(e) => setSelectedMonth(e.target.value)}
-                                className="w-full border rounded-lg p-2"
-                            >
-                                <option value="">महिना छान्नुहोस्</option>
-                                {['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत'].map(m => (
-                                    <option key={m} value={m}>{m}</option>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full border text-xs">
+                            <thead className="bg-slate-100 italic">
+                                <tr>
+                                    <th className="border p-2" rowSpan={2}>उमेर समूह</th>
+                                    <th className="border p-2" colSpan={2}>नयाँ</th>
+                                    <th className="border p-2" colSpan={2}>जम्मा</th>
+                                    <th className="border p-2" colSpan={2}>प्रेषण</th>
+                                </tr>
+                                <tr>
+                                    <th className="border p-2">म.</th>
+                                    <th className="border p-2">पु.</th>
+                                    <th className="border p-2">म.</th>
+                                    <th className="border p-2">पु.</th>
+                                    <th className="border p-2">म.</th>
+                                    <th className="border p-2">पु.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(progressReport.ageGroups).map(([age, metrics]) => (
+                                    <tr key={age}>
+                                        <td className="border p-2 font-bold">{age}</td>
+                                        {[ {key: 'maleNew', val: metrics.maleNew}, {key: 'femaleNew', val: metrics.femaleNew}, {key: 'maleTotal', val: metrics.maleTotal}, {key: 'femaleTotal', val: metrics.femaleTotal}, {key: 'maleReferred', val: metrics.maleReferred}, {key: 'femaleReferred', val: metrics.femaleReferred} ].map(m => (
+                                            <td key={m.key} className="border p-1"><input type="number" className="w-full p-1" value={m.val} onChange={e => setProgressReport({...progressReport, ageGroups: {...progressReport.ageGroups, [age]: {...metrics, [m.key]: parseInt(e.target.value) || 0}}})} /></td>
+                                        ))}
+                                    </tr>
                                 ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm text-slate-600 mb-1">फाइल छान्नुहोस् (PDF/Excel)</label>
-                            <input 
-                                type="file" 
-                                accept=".pdf, .xlsx, .xls"
-                                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                                className="w-full border rounded-lg p-2 text-sm"
-                            />
-                        </div>
+                            </tbody>
+                        </table>
                     </div>
 
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full border text-xs">
+                            <thead className="bg-slate-100 italic">
+                                <tr>
+                                    <th className="border p-2">कार्यक्षेत्र भित्र पर्ने निकाय</th>
+                                    <th className="border p-2">संचालन/प्रतिवेदन हुनुपर्ने</th>
+                                    <th className="border p-2">संचालन/प्रतिवेदन भएको</th>
+                                    <th className="border p-2">सेवा पाएका जम्मा</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.entries(progressReport.healthLocations).map(([loc, stats]) => (
+                                    <tr key={loc}>
+                                        <td className="border p-2 font-bold">{loc}</td>
+                                        <td><input type="number" className="w-full p-1" value={stats.expected} onChange={e => setProgressReport({...progressReport, healthLocations: {...progressReport.healthLocations, [loc]: {...stats, expected: parseInt(e.target.value) || 0}}})} /></td>
+                                        <td><input type="number" className="w-full p-1" value={stats.actual} onChange={e => setProgressReport({...progressReport, healthLocations: {...progressReport.healthLocations, [loc]: {...stats, actual: parseInt(e.target.value) || 0}}})} /></td>
+                                        <td><input type="number" className="w-full p-1" value={stats.totalService} onChange={e => setProgressReport({...progressReport, healthLocations: {...progressReport.healthLocations, [loc]: {...stats, totalService: parseInt(e.target.value) || 0}}})} /></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                     <button 
-                        onClick={handleUpload}
-                        disabled={isUploading}
-                        className={`px-6 py-2 rounded-lg font-bold ${isUploading ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
+                        onClick={handleSave}
+                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 mt-4"
                     >
-                        {isUploading ? 'अपलोड हुँदै...' : 'अपलोड गर्नुहोस्'}
+                        Save Report
                     </button>
-                    {uploadSuccess && (
-                        <p className="text-green-600 font-bold mt-2">रिपोर्ट सफलतापूर्वक अपलोड भयो!</p>
-                    )}
                 </div>
             )}
 
-            {activeTab === 'report' && (
+            {selectedDataset === 'vaccination' && (
+                <div className="p-4 bg-white rounded-xl space-y-4">
+                    <h3 className="font-bold text-slate-700">१. खोप कार्यक्रम (Vaccination Program)</h3>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full border text-xs">
+                            <thead className="bg-slate-100 italic">
+                                <tr>
+                                    <th className="border p-2">खोपको प्रकार</th>
+                                    {vaccinationReport.columns.map(col => <th key={col} className="border p-2">{col}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {vaccinationReport.rows.map(row => (
+                                    <tr key={row}>
+                                        <td className="border p-2 font-bold whitespace-nowrap">{row}</td>
+                                        {vaccinationReport.columns.map(col => (
+                                            <td key={col} className="border p-1">
+                                                <input 
+                                                    type="number" 
+                                                    className="w-full p-1" 
+                                                    value={vaccinationReport.data[row]?.[col] || 0} 
+                                                    onChange={e => setVaccinationReport({...vaccinationReport, data: {...vaccinationReport.data, [row]: {...vaccinationReport.data[row], [col]: parseInt(e.target.value) || 0}}})} 
+                                                />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                     <button 
+                        onClick={handleSave}
+                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 mt-4"
+                    >
+                        Save Entire Report
+                    </button>
+                </div>
+            )}
+
+            {selectedDataset === 'report' && (
                 <div className="space-y-4">
                     <div className="flex items-center gap-4">
                         <label className="block text-sm text-slate-600">महिना छान्नुहोस्</label>
                         <select 
-                            value={selectedMonth} 
-                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            value={reportMonth} 
+                            onChange={(e) => setReportMonth(e.target.value)}
                             className="border rounded-lg p-2"
                         >
                             <option value="">महिना छान्नुहोस्</option>
@@ -201,10 +290,10 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                             ))}
                         </select>
                     </div>
-                    {selectedMonth ? (
+                    {reportMonth ? (
                         <div className="p-4 border rounded-xl bg-slate-50">
                             {/* Placeholder for report display */}
-                            <p className="text-slate-600">{selectedMonth} को लागि {selectedMonth} मा अपलोड गरिएका रिपोर्टहरू यहाँ देखिनेछन्।</p>
+                            <p className="text-slate-600">{reportMonth} को लागि {reportMonth} मा अपलोड गरिएका रिपोर्टहरू यहाँ देखिनेछन्।</p>
                         </div>
                     ) : (
                         <p className="text-slate-500 italic">कृपया रिपोर्ट हेर्न एक महिना छान्नुहोस्।</p>
