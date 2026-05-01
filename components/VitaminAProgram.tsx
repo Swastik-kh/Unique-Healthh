@@ -11,7 +11,8 @@ const INITIAL_DISTRIBUTION_DATA: Record<string, AgeGroupData> = {
     '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
 };
 
-export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ currentFiscalYear }) => {
+export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string }> = ({ currentFiscalYear, activeOrgName }) => {
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_");
     const [targets, setTargets] = useState<VitaminATarget>({ fiscalYear: currentFiscalYear, target6to11Months: 0, target12to23Months: 0, target24to59Months: 0 });
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
     const [newFchv, setNewFchv] = useState({ name: '', wardNumber: '' });
@@ -26,10 +27,10 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
     useEffect(() => {
         const fetchData = async () => {
             const sanitizedFiscalYear = currentFiscalYear.replace(/\//g, '_');
-            const targetDoc = await getDoc(doc(db, 'vitamin_a_targets', sanitizedFiscalYear));
+            const targetDoc = await getDoc(doc(db, 'orgData', safeOrgName, 'vitamin_a_targets', sanitizedFiscalYear));
             if (targetDoc.exists()) setTargets(targetDoc.data() as VitaminATarget);
             
-            const fchvCol = await getDocs(collection(db, 'fchvs'));
+            const fchvCol = await getDocs(collection(db, 'orgData', safeOrgName, 'fchvs'));
             setFchvs(fchvCol.docs.map(doc => ({ id: doc.id, ...doc.data() } as FCHV)));
         };
         fetchData();
@@ -37,7 +38,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
 
     const saveTargets = async () => {
         const sanitizedFiscalYear = currentFiscalYear.replace(/\//g, '_');
-        await setDoc(doc(db, 'vitamin_a_targets', sanitizedFiscalYear), targets);
+        await setDoc(doc(db, 'orgData', safeOrgName, 'vitamin_a_targets', sanitizedFiscalYear), targets);
         alert('लक्ष्य सुरक्षित भयो');
     };
 
@@ -49,15 +50,15 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
     const addFchv = async () => {
         if(!newFchv.name) return;
         if (editingFchvId) {
-            await updateDoc(doc(db, 'fchvs', editingFchvId), newFchv);
+            await updateDoc(doc(db, 'orgData', safeOrgName, 'fchvs', editingFchvId), newFchv);
             alert('FCHV अपडेट भयो');
             setEditingFchvId(null);
         } else {
-            await addDoc(collection(db, 'fchvs'), newFchv);
+            await addDoc(collection(db, 'orgData', safeOrgName, 'fchvs'), newFchv);
             alert('FCHV थपियो');
         }
         setNewFchv({ name: '', wardNumber: '' });
-        const fchvCol = await getDocs(collection(db, 'fchvs'));
+        const fchvCol = await getDocs(collection(db, 'orgData', safeOrgName, 'fchvs'));
         setFchvs(fchvCol.docs.map(doc => ({ id: doc.id, ...doc.data() } as FCHV)));
     };
 
@@ -95,11 +96,11 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
         };
 
         if (editingRecordId) {
-            await updateDoc(doc(db, 'vitamin_a_records', editingRecordId), recordData);
+            await updateDoc(doc(db, 'orgData', safeOrgName, 'vitamin_a_records', editingRecordId), recordData);
             alert('वितरण रेकर्ड अपडेट भयो');
             setEditingRecordId(null);
         } else {
-            await addDoc(collection(db, 'vitamin_a_records'), recordData);
+            await addDoc(collection(db, 'orgData', safeOrgName, 'vitamin_a_records'), recordData);
             alert('वितरण रेकर्ड सुरक्षित भयो');
         }
         setDistributionData(INITIAL_DISTRIBUTION_DATA);
@@ -114,7 +115,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string }> = ({ curre
                 return;
             }
             const q = query(
-                collection(db, 'vitamin_a_records'),
+                collection(db, 'orgData', safeOrgName, 'vitamin_a_records'),
                 and(where('fchvId', '==', selectedFchv), where('fiscalYear', '==', currentFiscalYear), where('round', '==', round))
             );
             const querySnapshot = await getDocs(q);

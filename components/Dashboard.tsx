@@ -813,7 +813,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                   onAddInterFacilityRequest={onAddInterFacilityRequest}
                                   onUpdateInterFacilityRequest={onUpdateInterFacilityRequest}
                                 />;
-      case 'vitamin_a': return <VitaminAProgram currentFiscalYear={currentFiscalYear} />;
+      case 'vitamin_a': return <VitaminAProgram currentFiscalYear={currentFiscalYear} activeOrgName={activeOrgName} />;
       case 'rabies': return <RabiesRegistration currentFiscalYear={currentFiscalYear} patients={rabiesPatients} onAddPatient={onAddRabiesPatient} onUpdatePatient={onUpdatePatient} onDeletePatient={onDeletePatient} currentUser={currentUser} />;
       case 'report_rabies': return <RabiesReport currentFiscalYear={currentFiscalYear} currentUser={currentUser} patients={rabiesPatients} />;
       case 'report_cbimnci': return <CBIMNCIReport cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} currentFiscalYear={currentFiscalYear} />;
