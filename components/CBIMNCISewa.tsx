@@ -1806,6 +1806,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         classifications.push('Severe Anemia');
       } else if (assessmentData.pallor === 'Some') {
         classifications.push('Anemia');
+      } else if (assessmentData.pallor === 'None') {
+        classifications.push('NO Anaemia');
       }
 
       // Ear Infection
