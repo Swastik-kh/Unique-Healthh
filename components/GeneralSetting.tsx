@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2 } from 'lucide-react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -195,19 +193,18 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                            const storageRef = ref(storage, `logos/${localSettings.orgNameEnglish || 'default'}_logo_${Date.now()}`);
-                            const uploadTask = uploadBytesResumable(storageRef, file);
-                            uploadTask.on('state_changed', 
-                            null, 
-                            (error) => alert('लोगो अपलोड गर्न समस्या भयो'),
-                            () => {
-                                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                                const updatedSettings = { ...localSettings, logoUrl: downloadURL };
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                const base64String = reader.result as string;
+                                const updatedSettings = { ...localSettings, logoUrl: base64String };
                                 setLocalSettings(updatedSettings);
                                 onUpdateSettings(updatedSettings);
-                                alert('लोगो सफलतापूर्वक अपलोड भयो र सबै फारमहरूमा लागू गरियो!');
-                            });
-                            });
+                                alert('लोगो सफलतापूर्वक सेट भयो!');
+                            };
+                            reader.onerror = () => {
+                                alert('लोगो लोड गर्न समस्या भयो');
+                            }
+                            reader.readAsDataURL(file);
                         }
                     }} />
                     <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">

@@ -5,6 +5,7 @@ import { ServiceSeekerRecord, BillingRecord, ServiceItem, LabReport, LabTestResu
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
+import { LogoDisplay } from './LogoDisplay'; 
 
 interface PrayogsalaSewaProps {
   serviceSeekerRecords: ServiceSeekerRecord[];
@@ -705,12 +706,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
         <div ref={printRef} className="p-8 bg-white text-slate-900 print:block font-sans">
           {/* Header */}
           <div className="flex justify-between items-center border-b-2 border-slate-800 pb-4 mb-6">
-            <img 
-              src={generalSettings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'} 
-              style={{ width: '80px', height: '80px' }} 
-              alt="Logo" 
-              referrerPolicy="no-referrer"
-            />
+            <LogoDisplay settings={generalSettings} />
             <div className="text-center flex-1">
               <h1 className="text-2xl font-bold">{generalSettings?.orgNameNepali || generalSettings?.orgNameEnglish || 'आधारभूत नगर अस्पताल'}</h1>
               <p className="text-sm font-medium">{generalSettings?.subTitleNepali || ''}</p>
