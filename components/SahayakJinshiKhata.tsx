@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { SearchableSelect } from './SearchableSelect';
 import { Printer, BookOpen, User as UserIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LogoDisplay } from './LogoDisplay';
 // Corrected import paths for User, InventoryItem, IssueReportEntry, ReturnEntry, OrganizationSettings, DakhilaPratibedanEntry, PropertyUseRow
 import { User, OrganizationSettings } from '../types/coreTypes';
 import { InventoryItem, IssueReportEntry, ReturnEntry, DakhilaPratibedanEntry, PropertyUseRow } from '../types/inventoryTypes';
@@ -197,7 +198,7 @@ export const SahayakJinshiKhata: React.FC<SahayakJinshiKhataProps> = ({
                 <div className="text-right font-bold text-[10px] mb-2">म.ले.प.फारम नं: ४०१</div>
                 <div className="flex items-start justify-between">
                     <div className="w-24 flex justify-start pt-1">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" alt="Nepal Emblem" className="h-20 w-20 object-contain" />
+                        <LogoDisplay settings={generalSettings} />
                     </div>
                     <div className="flex-1 text-center space-y-1 text-xs">
                         <h1 className="text-base font-bold text-red-600">{generalSettings.orgNameNepali}</h1>

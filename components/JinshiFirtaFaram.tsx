@@ -4,6 +4,7 @@ import { RotateCcw, Plus, Trash2, Printer, Save, ArrowLeft, CheckCircle2, Send, 
 /* Added Signature to the imports to resolve type conflicts */
 import { User, OrganizationSettings, Signature } from '../types/coreTypes';
 import { InventoryItem, ReturnEntry, ReturnItem, IssueReportEntry } from '../types/inventoryTypes';
+import { LogoDisplay } from './LogoDisplay';
 import { SearchableSelect } from './SearchableSelect';
 import { NepaliDatePicker } from './NepaliDatePicker';
 // @ts-ignore
@@ -192,6 +193,7 @@ export const JinshiFirtaFaram: React.FC<JinshiFirtaFaramProps> = ({
 
         <div className="bg-white p-8 rounded-xl shadow-lg max-w-[210mm] mx-auto min-h-[297mm]">
             <div className="text-center mb-8">
+                <LogoDisplay settings={generalSettings} />
                 <h1 className="text-xl font-bold">{generalSettings.orgNameNepali}</h1>
                 <h2 className="text-lg font-bold underline">जिन्सी फिर्ता फाराम</h2>
             </div>

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Wrench, Plus, Trash2, Printer, Save, ArrowLeft, Clock, CheckCircle2, Send, Eye } from 'lucide-react';
+import { LogoDisplay } from './LogoDisplay';
 import { useReactToPrint } from 'react-to-print';
 import { User, OrganizationSettings } from '../types/coreTypes';
 import { MarmatEntry, MarmatItem, InventoryItem } from '../types/inventoryTypes';
@@ -309,11 +310,7 @@ export const MarmatAdesh: React.FC<MarmatAdeshProps> = ({
              <div className="flex items-start justify-between">
                  {/* Left: Logo */}
                  <div className="w-24 flex justify-start pt-2">
-                     <img 
-                       src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" 
-                       alt="Nepal Emblem" 
-                       className="h-24 w-24 object-contain"
-                     />
+                     <LogoDisplay settings={generalSettings} />
                  </div>
                  
                  {/* Center: Text */}

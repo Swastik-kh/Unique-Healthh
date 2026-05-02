@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Calendar, Printer, Search, BookOpen, Layers, ShieldCheck, Warehouse } from 'lucide-react';
 import { Select } from './Select';
 import { SearchableSelect } from './SearchableSelect';
+import { LogoDisplay } from './LogoDisplay';
 import { InventoryItem, IssueReportEntry, DakhilaPratibedanEntry, ReturnEntry, StockEntryRequest, Store } from '../types/inventoryTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { FISCAL_YEARS } from '../constants';
@@ -190,6 +191,7 @@ export const JinshiKhata: React.FC<JinshiKhataProps> = ({
 
       <div className="bg-white p-8 rounded-xl shadow-lg w-full overflow-x-auto print:shadow-none">
         <div className="text-center mb-8">
+            <LogoDisplay settings={generalSettings} />
             <h1 className="text-xl font-bold text-red-600">{generalSettings.orgNameNepali}</h1>
             <h2 className="text-lg font-bold underline mt-4">{ledgerType === 'Expendable' ? 'जिन्सी मालसामान खाता (विवरण)' : 'सम्पत्ति खाता (विवरण)'}</h2>
             {tableData && <h3 className="text-base font-bold mt-2">सामान: {tableData.itemName} - ब्याच: {tableData.batchNo}</h3>}

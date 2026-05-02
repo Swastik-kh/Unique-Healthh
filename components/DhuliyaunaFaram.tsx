@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Trash2, Plus, Printer, Save, ArrowLeft, Clock, CheckCircle2, Send, AlertTriangle, Search, X, Eye } from 'lucide-react';
-import { User } from '../types/coreTypes'; // Changed import
+import { User, OrganizationSettings } from '../types/coreTypes'; // Changed import
 import { DhuliyaunaEntry, DhuliyaunaItem, InventoryItem, Store } from '../types/inventoryTypes'; // Changed import
+import { LogoDisplay } from './LogoDisplay';
 import { SearchableSelect } from './SearchableSelect';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -12,6 +13,7 @@ import NepaliDate from 'nepali-date-converter';
 interface DhuliyaunaFaramProps {
   currentFiscalYear: string;
   currentUser: User;
+  generalSettings: OrganizationSettings;
   inventoryItems: InventoryItem[];
   dhuliyaunaEntries: DhuliyaunaEntry[];
   onSaveDhuliyaunaEntry: (entry: DhuliyaunaEntry) => void;
@@ -21,6 +23,7 @@ interface DhuliyaunaFaramProps {
 export const DhuliyaunaFaram: React.FC<DhuliyaunaFaramProps> = ({
   currentFiscalYear,
   currentUser,
+  generalSettings,
   inventoryItems,
   dhuliyaunaEntries,
   onSaveDhuliyaunaEntry,
@@ -307,7 +310,7 @@ export const DhuliyaunaFaram: React.FC<DhuliyaunaFaramProps> = ({
         {/* Header Section */}
         <div className="mb-8">
              <div className="flex items-start justify-between">
-                 <div className="w-24 pt-2"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" alt="Nepal Emblem" className="h-24 w-24 object-contain" /></div>
+                 <div className="w-24 pt-2"><LogoDisplay settings={generalSettings} /></div>
                  <div className="flex-1 text-center space-y-1">
                      <h1 className="text-xl font-bold text-red-600">{currentUser.organizationName}</h1>
                      <h2 className="text-lg font-bold underline underline-offset-4">जिन्सी मालसामान मिनाहा / लिलाम / धुल्याउने आदेश</h2>
