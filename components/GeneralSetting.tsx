@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -189,7 +191,23 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Image size={18} className="text-primary-600"/>लोगो सेटिङ</h3>
-                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group">
+                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('logo-upload')?.click()}>
+                    <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                            const storageRef = ref(storage, `logos/${localSettings.orgNameEnglish || 'default'}_logo_${Date.now()}`);
+                            const uploadTask = uploadBytesResumable(storageRef, file);
+                            uploadTask.on('state_changed', 
+                            null, 
+                            (error) => alert('लोगो अपलोड गर्न समस्या भयो'),
+                            () => {
+                                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                                    handleChange('logoUrl', downloadURL);
+                                    alert('लोगो सफलतापूर्वक अपलोड भयो!');
+                                });
+                            });
+                        }
+                    }} />
                     <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform"><img src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Emblem" className="w-16 h-16 object-contain opacity-80" /></div>
                     <span className="text-sm font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
                 </div>
