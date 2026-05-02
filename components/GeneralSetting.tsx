@@ -208,7 +208,16 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                             });
                         }
                     }} />
-                    <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform"><img src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Emblem" className="w-16 h-16 object-contain opacity-80" /></div>
+                    <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">
+                        <img 
+                            src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                            alt="Logo" 
+                            className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
+                            लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                        </div>
+                    </div>
                     <span className="text-sm font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
                 </div>
             </div>
