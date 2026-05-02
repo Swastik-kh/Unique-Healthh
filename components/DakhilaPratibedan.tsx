@@ -427,7 +427,7 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
                 <div className="mb-10">
                     <div className="flex items-start justify-between">
                         <div className="w-24 pt-2">
-                            <LogoDisplay settings={generalSettings} />
+                            <LogoDisplay settings={generalSettings} width={100} height={100} />
                         </div>
                         <div className="flex-1 text-center space-y-1">
                             <h1 className="text-xl font-bold text-red-600">{generalSettings.orgNameNepali}</h1>
