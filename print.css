@@ -7,14 +7,17 @@
     display: block !important;
   }
   
-  /* Hide everything else */
-  body > *:not(.printable-area) {
-     display: none !important;
+  /* Reset overflow for printing full pages */
+  html, body, #root, main, .overflow-hidden, .overflow-y-auto, .overflow-auto {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
   }
 
   /* Standard A4 settings */
   @page {
-    size: A4;
+    size: auto;
     margin: 10mm;
   }
 
