@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { BharmanAdeshEntry, User, OrganizationSettings, LeaveBalance } from '../types/coreTypes';
 import { Plus, Printer, Save, X, Eye, Trash2 } from 'lucide-react';
+import { LogoDisplay } from './LogoDisplay';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
 // @ts-ignore
@@ -403,7 +404,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
               >
                 <div className="text-center mb-6 relative">
                   <div className="absolute left-0 top-0">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" alt="Emblem" className="w-20 h-20 object-contain" referrerPolicy="no-referrer" />
+                    <LogoDisplay settings={generalSettings} />
                   </div>
                   <div className="font-bold text-xs">अनुसूची - १</div>
                   <div className="text-[10px]">(नियम ३ को उपनियम (४) सँग सम्बन्धित)</div>

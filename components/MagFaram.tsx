@@ -4,6 +4,7 @@ import { Plus, Trash2, Printer, Save, Calendar, CheckCircle2, Send, Clock, FileT
 import { User, Option, OrganizationSettings } from '../types/coreTypes';
 import { MagItem, MagFormEntry, InventoryItem, Store, StoreKeeperSignature, ItemEntry } from '../types/inventoryTypes';
 import { SearchableSelect } from './SearchableSelect';
+import { LogoDisplay } from './LogoDisplay';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -566,7 +567,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
           )}
 
           <div className="flex justify-between items-start mb-6">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Emblem_of_Nepal.svg/2000px-Emblem_of_Nepal.svg.png" referrerPolicy="no-referrer" className="w-20 h-20 object-contain" />
+              <LogoDisplay settings={generalSettings} />
               <div className="text-center flex-1">
                   <h1 className="text-xl font-black text-red-600 uppercase">{generalSettings.orgNameNepali}</h1>
                   {generalSettings.subTitleNepali && <h2 className="text-base font-bold">{generalSettings.subTitleNepali}</h2>}

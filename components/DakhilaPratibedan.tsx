@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Archive, Printer, ArrowLeft, Eye, X, FileText, ClipboardCheck, ShieldCheck, Warehouse, User as UserIcon, CheckCircle2, Search, Clock, ShieldAlert } from 'lucide-react';
 // Corrected import path to use the types folder's index file explicitly to avoid shadowing by root types.ts
 import { User, OrganizationSettings, DakhilaPratibedanEntry, StockEntryRequest, Store, DakhilaItem, InventoryItem } from '../types/index';
+import { LogoDisplay } from './LogoDisplay';                
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -426,7 +427,7 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
                 <div className="mb-10">
                     <div className="flex items-start justify-between">
                         <div className="w-24 pt-2">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" alt="Emblem" className="h-24 w-24 object-contain"/>
+                            <LogoDisplay settings={generalSettings} />
                         </div>
                         <div className="flex-1 text-center space-y-1">
                             <h1 className="text-xl font-bold text-red-600">{generalSettings.orgNameNepali}</h1>

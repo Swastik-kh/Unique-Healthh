@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { FileOutput, ArrowLeft, Printer, CheckCircle2, X, Clock, Eye, Send, AlertCircle } from 'lucide-react';
 // Corrected import path to use the types folder's index file explicitly to avoid shadowing by root types.ts
 import { IssueReportEntry, MagItem, User, OrganizationSettings, Store, InventoryItem } from '../types/index';
+import { LogoDisplay } from './LogoDisplay';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -145,11 +146,7 @@ export const NikashaPratibedan: React.FC<NikashaPratibedanProps> = ({ reports, o
                     <div className="flex justify-between items-start mb-2">
                         {/* Logo */}
                         <div className="w-32 pt-2">
-                            <img 
-                                src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
-                                alt="Emblem" 
-                                className="h-28 w-28 object-contain"
-                            />
+                             <LogoDisplay settings={generalSettings} />
                         </div>
 
                         {/* Center Text */}
