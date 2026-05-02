@@ -202,14 +202,17 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                             (error) => alert('लोगो अपलोड गर्न समस्या भयो'),
                             () => {
                                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                                    handleChange('logoUrl', downloadURL);
-                                    alert('लोगो सफलतापूर्वक अपलोड भयो!');
-                                });
+                                const updatedSettings = { ...localSettings, logoUrl: downloadURL };
+                                setLocalSettings(updatedSettings);
+                                onUpdateSettings(updatedSettings);
+                                alert('लोगो सफलतापूर्वक अपलोड भयो र सबै फारमहरूमा लागू गरियो!');
+                            });
                             });
                         }
                     }} />
                     <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">
                         <img 
+                            key={localSettings.logoUrl}
                             src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
                             alt="Logo" 
                             className="w-full h-full object-cover" 
