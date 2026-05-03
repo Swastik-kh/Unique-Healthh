@@ -2360,7 +2360,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 value={tempChildInfo.ageWeeks || ''}
                 onChange={(e) => {
                     const val = parseInt(e.target.value) || 0;
-                    if (val <= 8) setTempChildInfo({...tempChildInfo, ageWeeks: val});
+                    if (val >= 0 && val <= 8) setTempChildInfo({...tempChildInfo, ageWeeks: val});
+                    else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageWeeks: 0});
                 }}
               />
               )}
@@ -2371,7 +2372,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                   value={tempChildInfo.ageDays || ''}
                   onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
-                      if (val <= 60) setTempChildInfo({...tempChildInfo, ageDays: val});
+                      if (val >= 0 && val <= 60) setTempChildInfo({...tempChildInfo, ageDays: val});
+                      else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageDays: 0});
                   }}
                 />
               )}
