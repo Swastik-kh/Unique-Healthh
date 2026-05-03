@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { ServiceSeekerRecord, CBIMNCIRecord, PrescriptionItem, ServiceItem, OrganizationSettings, LabReport } from '../types/coreTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { Input } from './Input';
@@ -98,8 +98,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   inventoryItems = [],
   generalSettings
 }) => {
-  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, weight: 0 });
-  const [viewMode, setViewMode] = useState<'search' | 'entry'>('search');
+  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+  const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>('search');
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
   const [moduleType, setModuleType] = useState<'Infant' | 'Child'>('Child');
@@ -2332,8 +2332,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               बिरामी खोज्नुहोस् (Search Patient)
             </button>
             <button 
-              onClick={() => setViewMode('entry')} 
-              className={`px-4 py-2 font-bold text-sm ${viewMode === 'entry' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
+              onClick={() => setViewMode('selection')} 
+              className={`px-4 py-2 font-bold text-sm ${viewMode === 'selection' || viewMode === 'entry' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
             >
               प्रत्यक्ष प्रविष्टि (Direct Entry)
             </button>
@@ -2341,18 +2341,40 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
           {viewMode === 'entry' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              {(moduleType === 'Child') && (
+                <Input 
+                  label="उमेर (महिनामा)" 
+                  type="number"
+                  value={tempChildInfo.ageMonths || ''}
+                  onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      if (val >= 2 && val <= 60) setTempChildInfo({...tempChildInfo, ageMonths: val});
+                      else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageMonths: 0});
+                  }}
+                />
+              )}
+              {moduleType === 'Infant' && (
               <Input 
-                label="उमेर (महिनामा)" 
-                type="number"
-                value={tempChildInfo.ageMonths || ''}
-                onChange={(e) => setTempChildInfo({...tempChildInfo, ageMonths: parseInt(e.target.value) || 0})}
-              />
-              <Input 
-                label="उमेर (हप्तामा)" 
+                label="उमेर (हप्तामा)"
                 type="number"
                 value={tempChildInfo.ageWeeks || ''}
-                onChange={(e) => setTempChildInfo({...tempChildInfo, ageWeeks: parseInt(e.target.value) || 0})}
+                onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0;
+                    if (val <= 8) setTempChildInfo({...tempChildInfo, ageWeeks: val});
+                }}
               />
+              )}
+              {moduleType === 'Infant' && (
+                <Input 
+                  label="उमेर (दिनमा)"
+                  type="number"
+                  value={tempChildInfo.ageDays || ''}
+                  onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      if (val <= 60) setTempChildInfo({...tempChildInfo, ageDays: val});
+                  }}
+                />
+              )}
               <Input 
                 label="तौल (kg)" 
                 type="number"
@@ -2367,8 +2389,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       registrationNumber: 'TEMP',
                       date: new NepaliDate().format('YYYY-MM-DD'),
                       name: 'अस्थायी बिरामी',
-                      age: (tempChildInfo.ageMonths || 0) + ' महिना, ' + (tempChildInfo.ageWeeks || 0) + ' हप्ता',
-                      ageMonths: (tempChildInfo.ageMonths || 0) + Math.floor((tempChildInfo.ageWeeks || 0) / 4),
+                      age: moduleType === 'Infant' ? 
+                           ((tempChildInfo.ageWeeks || 0) + ' हप्ता, ' + (tempChildInfo.ageDays || 0) + ' दिन') : 
+                           ((tempChildInfo.ageMonths || 0) + ' महिना, ' + (tempChildInfo.ageWeeks || 0) + ' हप्ता'),
+                      ageMonths: moduleType === 'Infant' ? 
+                           (Math.floor((tempChildInfo.ageWeeks || 0) * 7 / 30) + Math.floor((tempChildInfo.ageDays || 0) / 30)) :
+                           ((tempChildInfo.ageMonths || 0) + Math.floor((tempChildInfo.ageWeeks || 0) / 4)),
                       gender: 'Other',
                       address: 'नखुलेको',
                       phone: '',
@@ -2383,6 +2409,33 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm"
               >
                 परीक्षण सुरू गर्नुहोस्
+              </button>
+            </div>
+          ) : viewMode === 'selection' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+              <button 
+                onClick={() => { setModuleType('Infant'); setViewMode('entry'); }}
+                className="bg-white p-6 rounded-2xl border-2 border-blue-200 hover:border-blue-400 flex items-center gap-6 shadow-sm transition-all"
+              >
+                <div className="bg-blue-100 p-4 rounded-full text-blue-600">
+                  <Baby size={48} />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-xl font-bold text-blue-900 font-nepali">२ महिना मुनिका बच्चा</h3>
+                  <p className="text-sm text-blue-600">अति आवश्यक हेरचाह</p>
+                </div>
+              </button>
+              <button 
+                onClick={() => { setModuleType('Child'); setViewMode('entry'); }}
+                className="bg-white p-6 rounded-2xl border-2 border-green-200 hover:border-green-400 flex items-center gap-6 shadow-sm transition-all"
+              >
+                <div className="bg-green-100 p-4 rounded-full text-green-600">
+                  <User size={48} />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-xl font-bold text-green-900 font-nepali">२ महिनादेखि ५ वर्षसम्म</h3>
+                  <p className="text-sm text-green-600">बालबालिका हेरचाह</p>
+                </div>
               </button>
             </div>
           ) : (
@@ -2579,6 +2632,14 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           )}
 
           <div className={`${isDirectEntry ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-6`}>
+            {isDirectEntry && (
+              <button 
+                onClick={() => { setCurrentPatient(null); setIsDirectEntry(false); setViewMode('selection'); }} 
+                className="text-primary-600 hover:text-primary-800 flex items-center gap-1 mb-2 font-bold"
+              >
+                  <ArrowLeft size={16} /> फिर्ता (Back)
+              </button>
+            )}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="flex border-b border-slate-200 bg-slate-50/50">
                 <button
