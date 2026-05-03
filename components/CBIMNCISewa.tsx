@@ -2149,32 +2149,6 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         } else {
           treatments.push('Note: Amoxicillin not required as Ciprofloxacin is given for Dysentery');
         }
-
-        treatments.push('Dry the ear by wicking if there is discharge');
-        treatments.push('Follow-up in 5 days');
-      }
-      if (classifications.includes('Mastoiditis')) {
-        const ampDose = weight > 0 ? `${(weight * 50).toFixed(0)}mg IM` : '50mg/kg IM';
-        treatments.push(`Give first dose of IM Ampicillin: ${ampDose}`);
-        treatments.push('Give one dose of Paracetamol for pain relief');
-        treatments.push('Refer URGENTLY to hospital/health facility');
-      }
-      if (classifications.includes('Chronic Ear Infection')) {
-        treatments.push('Dry the ear by wicking if there is discharge');
-        treatments.push('Treat with topical antibiotic drops (e.g. Ciprofloxacin) for 14 days');
-        treatments.push('Follow-up in 5 days');
-      }
-      if (classifications.includes('Severe Acute Malnutrition')) {
-        // Already handled in the combined block above
-      }
-      if (classifications.includes('Severe Complicated Measles')) {
-        treatments.push('Give Vitamin A');
-        // Already handled in the combined block above
-      }
-      if (classifications.includes('Measles with Eye/Mouth Complications')) {
-        treatments.push('Give Vitamin A');
-        treatments.push('Apply Tetracycline eye ointment if eye complications');
-        treatments.push('Treat mouth ulcers with Gentian Violet');
         treatments.push('Follow-up in 3 days');
       }
       if (classifications.includes('Severe Anemia')) {
@@ -2414,30 +2388,24 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               </button>
             </div>
           ) : viewMode === 'selection' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-100 rounded-3xl border border-slate-200">
               <button 
                 onClick={() => { setModuleType('Infant'); setViewMode('entry'); }}
-                className="bg-white p-6 rounded-2xl border-2 border-blue-200 hover:border-blue-400 flex items-center gap-6 shadow-sm transition-all"
+                className="bg-white p-8 rounded-3xl border-4 border-blue-400 hover:border-blue-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
-                <div className="bg-blue-100 p-4 rounded-full text-blue-600">
-                  <Baby size={48} />
+                <div className="bg-blue-500 p-6 rounded-3xl text-white shadow-inner">
+                  <Baby size={64} />
                 </div>
-                <div className="text-left">
-                  <h3 className="text-xl font-bold text-blue-900 font-nepali">२ महिना मुनिका बच्चा</h3>
-                  <p className="text-sm text-blue-600">अति आवश्यक हेरचाह</p>
-                </div>
+                <h3 className="text-3xl font-black text-blue-900 font-nepali">२ महिना मुनिका बच्चा</h3>
               </button>
               <button 
                 onClick={() => { setModuleType('Child'); setViewMode('entry'); }}
-                className="bg-white p-6 rounded-2xl border-2 border-green-200 hover:border-green-400 flex items-center gap-6 shadow-sm transition-all"
+                className="bg-white p-8 rounded-3xl border-4 border-green-400 hover:border-green-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
-                <div className="bg-green-100 p-4 rounded-full text-green-600">
-                  <User size={48} />
+                <div className="bg-green-500 p-6 rounded-3xl text-white shadow-inner">
+                  <User size={64} />
                 </div>
-                <div className="text-left">
-                  <h3 className="text-xl font-bold text-green-900 font-nepali">२ महिनादेखि ५ वर्षसम्म</h3>
-                  <p className="text-sm text-green-600">बालबालिका हेरचाह</p>
-                </div>
+                <h3 className="text-3xl font-black text-green-900 font-nepali">२ महिनादेखि ५ वर्षसम्म</h3>
               </button>
             </div>
           ) : (
