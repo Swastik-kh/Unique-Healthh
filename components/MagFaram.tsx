@@ -343,7 +343,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
             <div class="header-container">
                <!-- Logo -->
                <div class="logo-container">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" style="width: 90px; height: auto;" />
+                  <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 90px; height: auto;" />
                </div>
 
                <!-- Center Text -->
