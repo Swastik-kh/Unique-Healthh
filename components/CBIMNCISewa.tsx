@@ -2322,7 +2322,10 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                   value={tempChildInfo.ageMonths || ''}
                   onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
-                      if (val >= 2 && val <= 60) setTempChildInfo({...tempChildInfo, ageMonths: val});
+                      if (val < 2) {
+                          setModuleType('Infant');
+                          setTempChildInfo({...tempChildInfo, ageMonths: val, ageWeeks: Math.floor(val * 4)});
+                      } else if (val <= 60) setTempChildInfo({...tempChildInfo, ageMonths: val});
                       else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageMonths: 0});
                   }}
                 />
