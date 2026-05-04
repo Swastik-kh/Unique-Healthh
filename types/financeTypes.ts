@@ -25,6 +25,7 @@ export interface FinancialTransaction {
   dateAd: string;
   category: 'Ambulance' | 'Lab' | 'General' | 'Program Payment';
   type: 'Income' | 'Expense';
+  incomeSource?: 'Nagarpalika' | 'Wada' | 'Internal' | 'Other';
   amount: number;
   remarks: string;
   partyId?: string;

@@ -109,7 +109,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amount: Number(formData.get('amount')),
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear,
-      referenceNo: (formData.get('referenceNo') as string) || txnRefNo
+      referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
+      incomeSource: formData.get('incomeSource') as any || undefined,
+      programId: formData.get('programId') as string || undefined,
     });
     setShowForm(false);
   };
@@ -374,9 +376,24 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const printWin = window.open('', '', 'width=900,height=600');
       if (!printWin) return;
       
-      const title = reportFilter.type === 'Daily' ? `Daily Report - ${reportFilter.date}` : 
-                    reportFilter.type === 'Monthly' ? `Monthly Report - ${reportFilter.month}` : 
-                    `Yearly Report - ${reportFilter.date.split('-')[0]}`;
+      const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
+                    reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
+                    `वार्षिक आय-व्यय विवरण (${reportFilter.date.split('-')[0]})`;
+
+      const getProgramName = (id?: string) => {
+        if (!id) return '-';
+        return programs.find(p => p.id === id)?.name || '-';
+      };
+
+      const getSourceLabel = (source?: string) => {
+        switch (source) {
+          case 'Nagarpalika': return 'नगरपालिका';
+          case 'Wada': return 'वडा';
+          case 'Internal': return 'आन्तरिक';
+          case 'Other': return 'अन्य';
+          default: return '-';
+        }
+      };
 
       const content = `
         <html>
@@ -385,46 +402,86 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <style>
               @body { font-family: 'Tahoma', sans-serif; padding: 20px; }
               table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-              th { background: #f4f4f4; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .summary { margin-top: 20px; display: flex; justify-content: flex-end; gap: 20px; }
-              .total { font-weight: bold; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; font-family: 'Tahoma', sans-serif; }
+              th { background: #f8fafc; font-weight: bold; }
+              .header { text-align: center; margin-bottom: 20px; }
+              .header h1 { margin: 0; font-size: 20px; }
+              .header h2 { margin: 0; font-size: 18px; }
+              .header h3 { margin: 5px 0; font-size: 16px; }
+              .header h4 { margin: 0; font-size: 14px; }
+              .report-info { text-align: center; margin-bottom: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+              .summary { margin-top: 30px; border-top: 2px solid #333; padding-top: 10px; }
+              .summary-row { display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 5px; font-weight: bold; font-size: 15px; }
+              .total-label { width: 150px; }
+              .total-value { width: 150px; text-align: right; }
+              @media print {
+                .no-print { display: none; }
+              }
             </style>
           </head>
           <body>
             <div class="header">
-              <h2>${generalSettings.orgName}</h2>
-              <p>${generalSettings.address}, ${generalSettings.phone}</p>
-              <h3>आय-व्यय विवरण (${reportFilter.type})</h3>
-              <p>मिति/अवधि: ${reportFilter.type === 'Monthly' ? reportFilter.month : reportFilter.date} | आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
+              <h1>${generalSettings.heading1 || ''}</h1>
+              <h2>${generalSettings.heading2 || ''}</h2>
+              <h3>${generalSettings.heading3 || ''}</h3>
+              <h4>${generalSettings.heading4 || ''}</h4>
+              <p>${generalSettings.address || ''} | फोन: ${generalSettings.phone || ''}</p>
             </div>
+            
+            <div class="report-info">
+              <h2 style="margin: 10px 0;">${title}</h2>
+              <p>आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
+            </div>
+
             <table>
               <thead>
                 <tr>
-                  <th>मिति</th>
-                  <th>विवरण</th>
-                  <th>वर्ग</th>
-                  <th>प्रकार</th>
-                  <th>रकम (रू)</th>
+                  <th style="width: 50px;">क्र.सं.</th>
+                  <th>कार्यक्रमको नाम</th>
+                  <th>आम्दानीको श्रोत</th>
+                  <th style="text-align: right;">आम्दानी रकम (रू)</th>
+                  <th style="text-align: right;">खर्च रकम (रू)</th>
                 </tr>
               </thead>
               <tbody>
-                ${reportData.map(t => `
+                ${reportData.map((t, idx) => `
                   <tr>
-                    <td>${t.dateBs}</td>
-                    <td>${t.remarks}</td>
-                    <td>${t.category}</td>
-                    <td>${t.type}</td>
-                    <td>${t.amount}</td>
+                    <td>${idx + 1}</td>
+                    <td>${getProgramName(t.programId)} <br/><small>${t.remarks}</small></td>
+                    <td>${t.type === 'Income' ? getSourceLabel(t.incomeSource) : '-'}</td>
+                    <td style="text-align: right;">${t.type === 'Income' ? t.amount.toLocaleString() : '0'}</td>
+                    <td style="text-align: right;">${t.type === 'Expense' ? t.amount.toLocaleString() : '0'}</td>
                   </tr>
                 `).join('')}
               </tbody>
+              <tfoot>
+                <tr style="background: #f1f5f9; font-weight: bold;">
+                  <td colspan="3" style="text-align: right;">कुल जम्मा:</td>
+                  <td style="text-align: right;">${reportIncome.toLocaleString()}</td>
+                  <td style="text-align: right;">${reportExpense.toLocaleString()}</td>
+                </tr>
+              </tfoot>
             </table>
+
             <div class="summary">
-              <p class="total">कुल आम्दानी: रू ${reportIncome}</p>
-              <p class="total">कुल खर्च: रू ${reportExpense}</p>
-              <p class="total">मौज्दात: रू ${reportIncome - reportExpense}</p>
+              <div class="summary-row">
+                <span class="total-label">कुल आम्दानी:</span>
+                <span class="total-value">रू ${reportIncome.toLocaleString()}</span>
+              </div>
+              <div class="summary-row">
+                <span class="total-label">कुल खर्च:</span>
+                <span class="total-value">रू ${reportExpense.toLocaleString()}</span>
+              </div>
+              <div class="summary-row" style="color: ${reportIncome - reportExpense >= 0 ? '#059669' : '#e11d48'}">
+                <span class="total-label">मौज्दात रकम:</span>
+                <span class="total-value">रू ${(reportIncome - reportExpense).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 100px; display: flex; justify-content: space-between;">
+              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">तयार गर्ने</div>
+              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">चेक गर्ने</div>
+              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">सदर गर्ने</div>
             </div>
           </body>
         </html>
@@ -695,7 +752,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     </>
                   )}
 
-                  {formType === 'transaction' && (
+                    {formType === 'transaction' && (
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
@@ -712,8 +769,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <Select label="वर्ग (Category)" name="category" options={[
                           {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
                           {label: 'ल्याब (Lab Service)', value: 'Lab'},
-                          {label: 'साधारण (General)', value: 'General'}
+                          {label: 'साधारण (General)', value: 'General'},
+                          {label: 'कार्यक्रम भुक्तानी (Program Payment)', value: 'Program Payment'}
                         ]} required />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Select 
+                          label="आम्दानीको श्रोत (Income Source)" 
+                          name="incomeSource" 
+                          options={[
+                            {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
+                            {label: 'वडा (Wada)', value: 'Wada'},
+                            {label: 'आन्तरिक (Internal)', value: 'Internal'},
+                            {label: 'अन्य (Other)', value: 'Other'}
+                          ]} 
+                        />
+                         <Select 
+                          label="सम्बन्धित कार्यक्रम (Optional Program)" 
+                          name="programId" 
+                          options={programs.map(p => ({ label: p.name, value: p.id }))} 
+                        />
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
                       <Input label="विवरण (Remarks)" name="remarks" required />
