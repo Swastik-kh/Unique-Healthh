@@ -30,6 +30,103 @@ interface LekhaPrashasanProps {
   isAdmin: boolean;
 }
 
+const Combobox = ({ label, options, defaultValue, name, required, placeholder, onSelect, value }: any) => {
+  const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [selectedLabel, setSelectedLabel] = useState('');
+
+  React.useEffect(() => {
+    if (value) {
+      const found = options.find((o: any) => o.value === value);
+      if (found) {
+        setSelectedLabel(found.label);
+        setQuery(found.label);
+      } else if (typeof value === 'string') {
+        setSelectedLabel(value);
+        setQuery(value);
+      }
+    } else if (defaultValue) {
+        const found = options.find((o: any) => o.value === defaultValue);
+        if (found) {
+          setSelectedLabel(found.label);
+          setQuery(found.label);
+        } else if (typeof defaultValue === 'string') {
+          setSelectedLabel(defaultValue);
+          setQuery(defaultValue);
+        }
+    }
+  }, [value, defaultValue, options]);
+
+  React.useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const filtered = query === '' 
+    ? options 
+    : options.filter((opt: any) => 
+        (typeof opt === 'string' ? opt : opt.label).toLowerCase().includes(query.toLowerCase())
+      );
+
+  return (
+    <div className="space-y-1 relative" ref={containerRef}>
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
+        onFocus={() => setIsOpen(true)}
+        className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all outline-none"
+        autoComplete="off"
+        required={required}
+      />
+      <input 
+        type="hidden" 
+        name={name} 
+        value={
+          (() => {
+            const selectedOption = options.find((o: any) => (typeof o === 'string' ? o : o.label) === query);
+            if (selectedOption) {
+              return typeof selectedOption === 'string' ? selectedOption : selectedOption.value;
+            }
+            return query;
+          })()
+        } 
+      />
+      
+      {isOpen && filtered.length > 0 && (
+        <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-48 overflow-y-auto no-scrollbar">
+          {filtered.map((opt: any, i: number) => {
+            const labelText = typeof opt === 'string' ? opt : opt.label;
+            const valueText = typeof opt === 'string' ? opt : opt.value;
+            return (
+              <div 
+                key={i}
+                onClick={() => {
+                  setQuery(labelText);
+                  setSelectedLabel(labelText);
+                  setIsOpen(false);
+                  if (onSelect) onSelect(valueText);
+                }}
+                className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0"
+              >
+                {labelText}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   programs = [],
   parties = [],
@@ -625,25 +722,31 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             ]} 
                           />
                         ) : (
-                          <Select 
+                          <Combobox 
                             label="पार्टी (Selecting Party)" 
                             name="partyId" 
                             defaultValue={editingItem?.partyId}
-                            options={[
-                              {label: '-- Select Party --', value: ''},
-                              ...parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))
-                            ]} 
+                            options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))}
+                            placeholder="पार्टी खोज्नुहोस्..."
                           />
                         )}
-                         <Select 
+                        <Combobox 
                           label="सम्बन्धित कार्यक्रम (Optional Program)" 
                           name="programId" 
                           defaultValue={editingItem?.programId}
-                          options={programs.map(p => ({ label: p.name, value: p.id }))} 
+                          options={programs.map(p => ({ label: p.name, value: p.id }))}
+                          placeholder="कार्यक्रम खोज्नुहोस्..."
                         />
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
-                      <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
+                      <Combobox 
+                        label="विवरण (Remarks/Category)" 
+                        name="remarks" 
+                        defaultValue={editingItem?.remarks} 
+                        options={Array.from(new Set(transactions.map(t => t.remarks).filter(Boolean)))}
+                        placeholder="विवरण लेख्नुहोस् वा छान्नुहोस्..."
+                        required 
+                      />
                     </>
                   )}
 
