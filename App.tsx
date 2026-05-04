@@ -902,10 +902,24 @@ const App: React.FC = () => {
       }
   };
 
-  const handleDeletePartyPayment = async (id: string) => {
+  const handleDeletePartyPayment = async (id: string, amount: number, partyId: string, programId: string) => {
       if (!currentUser) return;
       try {
-          await remove(getOrgRef(`payments/${id}`));
+          await remove(getOrgRef(`partyPayments/${id}`));
+          
+          // Update party's total paid amount
+          const party = listedParties.find(p => p.id === partyId);
+          if (party) {
+              const newTotalPaid = (party.totalPaidAmount || 0) - amount;
+              await update(getOrgRef(`listedParties/${partyId}`), { totalPaidAmount: newTotalPaid });
+          }
+
+          // Update program's spent amount
+          const program = financialPrograms.find(p => p.id === programId);
+          if (program) {
+              const newSpent = (program.spentAmount || 0) - amount;
+              await update(getOrgRef(`financialPrograms/${programId}`), { spentAmount: newSpent });
+          }
       } catch (error) {
           alert("भुक्तानी विवरण हटाउन सकिएन।");
       }

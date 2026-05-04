@@ -25,7 +25,7 @@ interface LekhaPrashasanProps {
   onSaveTransaction: (transaction: any) => void;
   onSavePayment: (payment: Omit<PartyPaymentRecord, 'id'>) => void;
   onDeleteTransaction: (id: string) => void;
-  onDeletePayment: (id: string) => void;
+  onDeletePayment: (id: string, amount: number, partyId: string, programId: string) => void;
   generalSettings: OrganizationSettings;
   currentFiscalYear: string;
   isAdmin: boolean;
@@ -492,7 +492,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                        <td className="px-4 py-4 text-right">
                          <div className="flex items-center justify-end gap-2">
                            <button onClick={() => openEditForm(item, 'payment')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                           <button onClick={() => onDeletePayment(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                            <button onClick={() => onDeletePayment(item.id, item.amount, item.partyId, item.programId)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
                          </div>
                        </td>
                     </>}
