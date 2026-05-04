@@ -30,103 +30,6 @@ interface LekhaPrashasanProps {
   isAdmin: boolean;
 }
 
-const Combobox = ({ label, options, defaultValue, name, required, placeholder, onSelect, value }: any) => {
-  const [query, setQuery] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [selectedLabel, setSelectedLabel] = useState('');
-
-  React.useEffect(() => {
-    if (value) {
-      const found = options.find((o: any) => o.value === value);
-      if (found) {
-        setSelectedLabel(found.label);
-        setQuery(found.label);
-      } else if (typeof value === 'string') {
-        setSelectedLabel(value);
-        setQuery(value);
-      }
-    } else if (defaultValue) {
-        const found = options.find((o: any) => o.value === defaultValue);
-        if (found) {
-          setSelectedLabel(found.label);
-          setQuery(found.label);
-        } else if (typeof defaultValue === 'string') {
-          setSelectedLabel(defaultValue);
-          setQuery(defaultValue);
-        }
-    }
-  }, [value, defaultValue, options]);
-
-  React.useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const filtered = query === '' 
-    ? options 
-    : options.filter((opt: any) => 
-        (typeof opt === 'string' ? opt : opt.label).toLowerCase().includes(query.toLowerCase())
-      );
-
-  return (
-    <div className="space-y-1 relative" ref={containerRef}>
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
-        onFocus={() => setIsOpen(true)}
-        className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all outline-none"
-        autoComplete="off"
-        required={required}
-      />
-      <input 
-        type="hidden" 
-        name={name} 
-        value={
-          (() => {
-            const selectedOption = options.find((o: any) => (typeof o === 'string' ? o : o.label) === query);
-            if (selectedOption) {
-              return typeof selectedOption === 'string' ? selectedOption : selectedOption.value;
-            }
-            return query;
-          })()
-        } 
-      />
-      
-      {isOpen && filtered.length > 0 && (
-        <div className="absolute z-[110] w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-48 overflow-y-auto no-scrollbar">
-          {filtered.map((opt: any, i: number) => {
-            const labelText = typeof opt === 'string' ? opt : opt.label;
-            const valueText = typeof opt === 'string' ? opt : opt.value;
-            return (
-              <div 
-                key={i}
-                onClick={() => {
-                  setQuery(labelText);
-                  setSelectedLabel(labelText);
-                  setIsOpen(false);
-                  if (onSelect) onSelect(valueText);
-                }}
-                className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0"
-              >
-                {labelText}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
 export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   programs = [],
   parties = [],
@@ -146,11 +49,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<'program' | 'party' | 'transaction'>('program');
+  const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment'>('program');
   const [editingItem, setEditingItem] = useState<any>(null);
-  
-  const [selectedTxnType, setSelectedTxnType] = useState<'Income' | 'Expense'>('Income');
-  const [selectedPartyId, setSelectedPartyId] = useState<string>('');
   
   // Date Filters for Reports
   const today = new NepaliDate().format('YYYY-MM-DD');
@@ -216,20 +116,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const type = formData.get('type') as any;
     onSaveTransaction({
       ...editingItem,
       dateBs: txnFormDate,
       dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: formData.get('category') as any,
-      type,
+      type: formData.get('type') as any,
       amount: Number(formData.get('amount')),
       remarks: formData.get('remarks') as string,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
       incomeSource: formData.get('incomeSource') as any || undefined,
       programId: formData.get('programId') as string || undefined,
-      partyId: type === 'Expense' ? (formData.get('partyId') as string || undefined) : undefined,
     });
     setShowForm(false);
     setEditingItem(null);
@@ -251,13 +149,48 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setEditingItem(null);
   };
 
+  const handlePaymentSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const amount = Number(formData.get('amount'));
+    const partyId = formData.get('partyId') as string;
+    const programId = formData.get('programId') as string;
+
+    onSavePayment({
+      partyId,
+      programId,
+      amount,
+      dateBs: txnFormDate,
+      fiscalYear: currentFiscalYear,
+      paymentMethod: formData.get('method') as string,
+      remarks: formData.get('remarks') as string
+    });
+
+    // Also record as an expense transaction
+    const party = parties.find(p => p.id === partyId);
+    const program = programs.find(p => p.id === programId);
+    onSaveTransaction({
+      dateBs: txnFormDate,
+      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+      category: 'Program Payment',
+      type: 'Expense',
+      amount,
+      remarks: `Payment to ${party?.name} for ${program?.name}`,
+      partyId,
+      programId,
+      fiscalYear: currentFiscalYear,
+      referenceNo: generateReferenceNo()
+    });
+
+    setShowForm(false);
+  };
+
   const openEditForm = (item: any, type: typeof formType) => {
     setEditingItem(item);
     setFormType(type);
     if (type === 'transaction') {
       setTxnFormDate(item.dateBs);
       setTxnRefNo(item.referenceNo);
-      setSelectedTxnType(item.type || 'Income');
     }
     setShowForm(true);
   };
@@ -472,11 +405,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredData.map((item: any) => (
-                  <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${
-                    activeTab === 'vendors' && (item.totalContractAmount - (item.totalPaidAmount || 0) <= 0) 
-                    ? 'bg-emerald-50/70 hover:bg-emerald-100/70' 
-                    : ''
-                  }`}>
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                     {activeTab === 'programs' && <>
                       <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
                       <td className="px-6 py-4 font-mono text-sm">रू {item.totalBudget.toLocaleString()}</td>
@@ -497,19 +426,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => { 
-                              setFormType('transaction'); 
-                              setTxnFormDate(today);
-                              setTxnRefNo(generateReferenceNo());
-                              setSelectedTxnType('Expense');
-                              setEditingItem({ type: 'Expense', partyId: item.id, remarks: `Payment to ${item.name}` });
-                              setShowForm(true); 
-                            }} 
-                            className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-colors uppercase"
-                          >
-                            Pay
-                          </button>
                           <button onClick={() => { setEditingItem(item); setFormType('party'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
                           <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
                         </div>
@@ -575,16 +491,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             )}
             {activeTab === 'vendors' && (
               <button 
-                onClick={() => { 
-                  setFormType('transaction'); 
-                  setTxnFormDate(today);
-                  setTxnRefNo(generateReferenceNo());
-                  setSelectedTxnType('Expense');
-                  setShowForm(true); 
-                }}
+                onClick={() => { setFormType('payment'); setShowForm(true); }}
                 className="bg-slate-800 text-white px-6 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-900 shadow-lg shadow-slate-100 transition-all active:scale-95"
               >
-                <CreditCard size={20} /> <span className="font-nepali">भुक्तानी (Payment)</span>
+                <CreditCard size={20} /> <span className="font-nepali">भुक्तानी</span>
               </button>
             )}
           </div>
@@ -653,7 +563,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <h2 className="text-xl font-bold text-slate-800 font-nepali">
                     {formType === 'program' && 'नयाँ कार्यक्रम थप्नुहोस्'}
                     {formType === 'party' && 'नयाँ पार्टी थप्नुहोस् (Add Party/Vendor)'}
-                    {formType === 'transaction' && 'आम्दानी/खर्च/भुक्तानी प्रविष्टि (Transaction/Payment)'}
+                    {formType === 'transaction' && 'आम्दानी/खर्च प्रविष्टि (Add Transaction)'}
+                    {formType === 'payment' && 'भुक्तानी गर्नुहोस् (Party Payment)'}
                   </h2>
                   <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
                 </div>
@@ -661,7 +572,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <form className="p-6 space-y-4" onSubmit={
                   formType === 'program' ? handleProgramSave : 
                   formType === 'party' ? handlePartySave : 
-                  handleTransactionSave
+                  formType === 'transaction' ? handleTransactionSave : 
+                  handlePaymentSave
                 }>
                   {formType === 'program' && (
                     <>
@@ -693,14 +605,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <Select 
-                          label="प्रकार (Type)" 
-                          name="type" 
-                          defaultValue={editingItem?.type || selectedTxnType} 
-                          onChange={(val) => setSelectedTxnType(val as any)}
-                          options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} 
-                          required 
-                        />
+                        <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
                         <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category} options={[
                           {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
                           {label: 'ल्याब (Lab Service)', value: 'Lab'},
@@ -709,44 +614,52 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         ]} required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        {selectedTxnType === 'Income' ? (
-                          <Select 
-                            label="आम्दानीको श्रोत (Income Source)" 
-                            name="incomeSource" 
-                            defaultValue={editingItem?.incomeSource}
-                            options={[
-                              {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
-                              {label: 'वडा (Wada)', value: 'Wada'},
-                              {label: 'आन्तरिक (Internal)', value: 'Internal'},
-                              {label: 'अन्य (Other)', value: 'Other'}
-                            ]} 
-                          />
-                        ) : (
-                          <Combobox 
-                            label="पार्टी (Selecting Party)" 
-                            name="partyId" 
-                            defaultValue={editingItem?.partyId}
-                            options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))}
-                            placeholder="पार्टी खोज्नुहोस्..."
-                          />
-                        )}
-                        <Combobox 
+                        <Select 
+                          label="आम्दानीको श्रोत (Income Source)" 
+                          name="incomeSource" 
+                          defaultValue={editingItem?.incomeSource}
+                          options={[
+                            {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
+                            {label: 'वडा (Wada)', value: 'Wada'},
+                            {label: 'आन्तरिक (Internal)', value: 'Internal'},
+                            {label: 'अन्य (Other)', value: 'Other'}
+                          ]} 
+                        />
+                         <Select 
                           label="सम्बन्धित कार्यक्रम (Optional Program)" 
                           name="programId" 
                           defaultValue={editingItem?.programId}
-                          options={programs.map(p => ({ label: p.name, value: p.id }))}
-                          placeholder="कार्यक्रम खोज्नुहोस्..."
+                          options={programs.map(p => ({ label: p.name, value: p.id }))} 
                         />
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
-                      <Combobox 
-                        label="विवरण (Remarks/Category)" 
-                        name="remarks" 
-                        defaultValue={editingItem?.remarks} 
-                        options={Array.from(new Set(transactions.map(t => t.remarks).filter(Boolean)))}
-                        placeholder="विवरण लेख्नुहोस् वा छान्नुहोस्..."
+                      <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
+                    </>
+                  )}
+
+                  {formType === 'payment' && (
+                    <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
+                        <NepaliDatePicker 
+                          value={txnFormDate}
+                          onChange={(val) => setTxnFormDate(val)}
+                        />
+                      </div>
+                      <Select 
+                        label="पार्टी (Party)" 
+                        name="partyId" 
                         required 
+                        options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))} 
                       />
+                      <Select 
+                        label="कार्यक्रम (Program)" 
+                        name="programId" 
+                        required 
+                        options={programs.map(p => ({ label: p.name, value: p.id }))} 
+                      />
+                      <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" required />
+                      <Input label="विवरण (Remarks)" name="remarks" />
                     </>
                   )}
 

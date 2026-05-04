@@ -853,46 +853,7 @@ const App: React.FC = () => {
       if (!currentUser) return;
       try {
           const id = transaction.id || push(getOrgRef('financialTransactions')).key;
-          const oldTransaction = financialTransactions.find(t => t.id === id);
-          
           await set(getOrgRef(`financialTransactions/${id}`), { ...transaction, id });
-
-          // If it's an expense with a partyId, update the party's total paid amount
-          if (transaction.type === 'Expense' && transaction.partyId) {
-              const party = listedParties.find(p => p.id === transaction.partyId);
-              if (party) {
-                  const diff = transaction.amount - (oldTransaction?.amount || 0);
-                  const newTotalPaid = (party.totalPaidAmount || 0) + diff;
-                  await update(getOrgRef(`listedParties/${transaction.partyId}`), { totalPaidAmount: newTotalPaid });
-              }
-          }
-          
-          // Also handle if the partyId was changed from an old one
-          if (oldTransaction && oldTransaction.partyId && oldTransaction.partyId !== transaction.partyId) {
-              const oldParty = listedParties.find(p => p.id === oldTransaction.partyId);
-              if (oldParty) {
-                  const newTotalPaidOld = (oldParty.totalPaidAmount || 0) - oldTransaction.amount;
-                  await update(getOrgRef(`listedParties/${oldTransaction.partyId}`), { totalPaidAmount: newTotalPaidOld });
-              }
-          }
-
-          // Handle Program Spent Amount
-          if (transaction.type === 'Expense' && transaction.programId) {
-              const program = financialPrograms.find(p => p.id === transaction.programId);
-              if (program) {
-                  const diff = transaction.amount - (oldTransaction?.amount || 0);
-                  const newSpent = (program.spentAmount || 0) + diff;
-                  await update(getOrgRef(`financialPrograms/${transaction.programId}`), { spentAmount: newSpent });
-              }
-          }
-
-          if (oldTransaction && oldTransaction.programId && oldTransaction.programId !== transaction.programId) {
-              const oldProgram = financialPrograms.find(p => p.id === oldTransaction.programId);
-              if (oldProgram) {
-                  const newSpentOld = (oldProgram.spentAmount || 0) - oldTransaction.amount;
-                  await update(getOrgRef(`financialPrograms/${oldTransaction.programId}`), { spentAmount: newSpentOld });
-              }
-          }
       } catch (error) {
           alert("कारोबार सुरक्षित गर्न सकिएन।");
       }
@@ -902,21 +863,6 @@ const App: React.FC = () => {
       if (!currentUser) return;
       if (!window.confirm("के तपाईं यो कारोबार हटाउन चाहनुहुन्छ?")) return;
       try {
-          const transaction = financialTransactions.find(t => t.id === id);
-          if (transaction && transaction.type === 'Expense' && transaction.partyId) {
-              const party = listedParties.find(p => p.id === transaction.partyId);
-              if (party) {
-                  const newTotalPaid = (party.totalPaidAmount || 0) - transaction.amount;
-                  await update(getOrgRef(`listedParties/${transaction.partyId}`), { totalPaidAmount: newTotalPaid });
-              }
-          }
-          if (transaction && transaction.type === 'Expense' && transaction.programId) {
-              const program = financialPrograms.find(p => p.id === transaction.programId);
-              if (program) {
-                  const newSpent = (program.spentAmount || 0) - transaction.amount;
-                  await update(getOrgRef(`financialPrograms/${transaction.programId}`), { spentAmount: newSpent });
-              }
-          }
           await remove(getOrgRef(`financialTransactions/${id}`));
       } catch (error) {
           alert("कारोबार हटाउन सकिएन।");
