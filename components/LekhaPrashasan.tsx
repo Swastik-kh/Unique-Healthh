@@ -381,9 +381,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <tr className="bg-slate-50 border-b border-slate-100">
                   {activeTab === 'programs' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रमको नाम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कुल बजेट</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">खर्च</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">कुल बजेट</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">आम्दानी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
                     <th className="px-1 py-1"></th>
                   </>}
                   {activeTab === 'vendors' && <>
@@ -408,9 +408,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                     {activeTab === 'programs' && <>
                       <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
-                      <td className="px-6 py-4 font-mono text-sm">रू {item.totalBudget.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-rose-600 text-right">रू {(item.spentAmount || 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalBudget - (item.spentAmount || 0)).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalBudget.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {transactions.filter(t => t.programId === item.id && t.type === 'Income').reduce((s, t) => s + t.amount, 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-rose-600 text-right">रू {payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0).toLocaleString()}</td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
