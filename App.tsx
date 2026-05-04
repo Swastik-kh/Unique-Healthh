@@ -95,6 +95,12 @@ const App: React.FC = () => {
   const [ipdRecords, setIpdRecords] = useState<IPDRecord[]>([]);
   const [interFacilityRequests, setInterFacilityRequests] = useState<InterFacilityRequest[]>([]);
   const [itemList, setItemList] = useState<ItemEntry[]>([]);
+  
+  // Financial State
+  const [financialPrograms, setFinancialPrograms] = useState<any[]>([]);
+  const [listedParties, setListedParties] = useState<any[]>([]);
+  const [financialTransactions, setFinancialTransactions] = useState<any[]>([]);
+  const [partyPayments, setPartyPayments] = useState<any[]>([]);
 
   const managedOrgs = useMemo(() => {
       if (currentUser?.role !== 'HEALTH_SECTION') return [];
@@ -234,6 +240,12 @@ const App: React.FC = () => {
     setupOrgListener('physiotherapyRecords', setPhysiotherapyRecords);
     setupOrgListener('ipdRecords', setIpdRecords);
     setupOrgListener('itemList', setItemList);
+
+    // Financial Listeners
+    setupOrgListener('financialPrograms', setFinancialPrograms);
+    setupOrgListener('listedParties', setListedParties);
+    setupOrgListener('financialTransactions', setFinancialTransactions);
+    setupOrgListener('partyPayments', setPartyPayments);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -795,6 +807,70 @@ const App: React.FC = () => {
       }
   };
 
+  // Financial Handlers
+  const handleSaveFinancialProgram = async (program: any) => {
+      if (!currentUser) return;
+      try {
+          const id = program.id || push(getOrgRef('financialPrograms')).key;
+          await set(getOrgRef(`financialPrograms/${id}`), { ...program, id });
+      } catch (error) {
+          alert("कार्यक्रम सुरक्षित गर्न सकिएन।");
+      }
+  };
+
+  const handleSaveListedParty = async (party: any) => {
+      if (!currentUser) return;
+      try {
+          const id = party.id || push(getOrgRef('listedParties')).key;
+          await set(getOrgRef(`listedParties/${id}`), { ...party, id });
+      } catch (error) {
+          alert("पार्टी विवरण सुरक्षित गर्न सकिएन।");
+      }
+  };
+
+  const handleSaveFinancialTransaction = async (transaction: any) => {
+      if (!currentUser) return;
+      try {
+          const id = transaction.id || push(getOrgRef('financialTransactions')).key;
+          await set(getOrgRef(`financialTransactions/${id}`), { ...transaction, id });
+      } catch (error) {
+          alert("कारोबार सुरक्षित गर्न सकिएन।");
+      }
+  };
+
+  const handleDeleteFinancialTransaction = async (id: string) => {
+      if (!currentUser) return;
+      try {
+          await remove(getOrgRef(`financialTransactions/${id}`));
+      } catch (error) {
+          alert("कारोबार हटाउन सकिएन।");
+      }
+  };
+
+  const handleSavePartyPayment = async (payment: any) => {
+      if (!currentUser) return;
+      try {
+          const id = payment.id || push(getOrgRef('partyPayments')).key;
+          await set(getOrgRef(`partyPayments/${id}`), { ...payment, id });
+          
+          // Update party's total paid amount
+          const party = listedParties.find(p => p.id === payment.partyId);
+          if (party) {
+              const newTotalPaid = (party.totalPaidAmount || 0) + payment.amount;
+              await update(getOrgRef(`listedParties/${payment.partyId}`), { totalPaidAmount: newTotalPaid });
+          }
+
+          // Update program's spent amount
+          const program = financialPrograms.find(p => p.id === payment.programId);
+          if (program) {
+              const newSpent = (program.spentAmount || 0) + payment.amount;
+              await update(getOrgRef(`financialPrograms/${payment.programId}`), { spentAmount: newSpent });
+          }
+      } catch (error) {
+          alert("भुक्तानी सुरक्षित गर्न सकिएन।");
+      }
+  };
+
   const handleDeleteInventoryItem = async (itemId: string) => {
       if (!currentUser) return;
       try {
@@ -1260,6 +1336,16 @@ const App: React.FC = () => {
     activeOrgName={activeOrgName}
     onSetActiveOrgName={setActiveOrgName}
     allUsers={allUsers}
+    // Financial Props
+    financialPrograms={financialPrograms}
+    listedParties={listedParties}
+    financialTransactions={financialTransactions}
+    partyPayments={partyPayments}
+    onSaveFinancialProgram={handleSaveFinancialProgram}
+    onSaveListedParty={handleSaveListedParty}
+    onSaveFinancialTransaction={handleSaveFinancialTransaction}
+    onDeleteFinancialTransaction={handleDeleteFinancialTransaction}
+    onSavePartyPayment={handleSavePartyPayment}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">

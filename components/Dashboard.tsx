@@ -15,6 +15,8 @@ import { ref, onValue } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
 import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest } from '../types';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from '../types/financeTypes';
+import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
 import { Conference } from './Conference';
 import { ChangePassword } from './ChangePassword';
@@ -141,6 +143,17 @@ interface ExtendedDashboardProps extends DashboardProps {
   activeOrgName: string;
   onSetActiveOrgName: (orgName: string) => void;
   allUsers: User[];
+
+  // Finance Props
+  financialPrograms: FinancialProgram[];
+  listedParties: ListedParty[];
+  financialTransactions: FinancialTransaction[];
+  partyPayments: PartyPaymentRecord[];
+  onSaveFinancialProgram: (p: any) => void;
+  onSaveListedParty: (p: any) => void;
+  onSaveFinancialTransaction: (t: any) => void;
+  onDeleteFinancialTransaction: (id: string) => void;
+  onSavePartyPayment: (p: any) => void;
 }
 
 interface AppNotification {
@@ -192,7 +205,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   ipdRecords = [], onSaveIPDRecord, onDeleteIPDRecord, onDeleteAllIPDRecords,
   interFacilityRequests = [], onAddInterFacilityRequest, onUpdateInterFacilityRequest,
   onUpdateReadNotifications,
-  activeOrgName, onSetActiveOrgName, allUsers = []
+  activeOrgName, onSetActiveOrgName, allUsers = [],
+  financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
+  onSaveFinancialProgram, onSaveListedParty, onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -485,6 +500,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
             { id: 'darta', label: 'दर्ता', icon: <FileText size={16} /> },
             { id: 'chalani', label: 'चलानी', icon: <Send size={16} /> },
             { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता', icon: <MapPin size={16} /> },
+            { id: 'lekha_prashasan', label: 'लेखा प्रशासन', icon: <Calculator size={16} /> },
             { id: 'bida_abedan', label: 'बिदा आवेदन', icon: <Calendar size={16} /> },
           ]
         },
@@ -1083,6 +1099,21 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           </div>
         );
       }
+      case 'lekha_prashasan': return (
+        <LekhaPrashasan 
+          programs={financialPrograms || []}
+          parties={listedParties || []}
+          transactions={financialTransactions || []}
+          payments={partyPayments || []}
+          onSaveProgram={onSaveFinancialProgram}
+          onSaveParty={onSaveListedParty}
+          onSaveTransaction={onSaveFinancialTransaction}
+          onDeleteTransaction={onDeleteFinancialTransaction}
+          onSavePayment={onSavePartyPayment}
+          generalSettings={generalSettings}
+          currentFiscalYear={currentFiscalYear}
+        />
+      );
       case 'bida_abedan': return <BidaAbedan 
         currentUser={currentUser} 
         users={users} 
