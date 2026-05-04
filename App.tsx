@@ -818,13 +818,34 @@ const App: React.FC = () => {
       }
   };
 
+  const handleDeleteFinancialProgram = async (id: string) => {
+      if (!currentUser) return;
+      if (!window.confirm("के तपाईं यो कार्यक्रम हटाउन चाहनुहुन्छ?")) return;
+      try {
+          await remove(getOrgRef(`financialPrograms/${id}`));
+      } catch (error) {
+          alert("कार्यक्रम हटाउन सकिएन।");
+      }
+  };
+
   const handleSaveListedParty = async (party: any) => {
       if (!currentUser) return;
       try {
           const id = party.id || push(getOrgRef('listedParties')).key;
-          await set(getOrgRef(`listedParties/${id}`), { ...party, id });
+          const currentTotalPaid = party.totalPaidAmount || 0;
+          await set(getOrgRef(`listedParties/${id}`), { ...party, id, totalPaidAmount: currentTotalPaid });
       } catch (error) {
           alert("पार्टी विवरण सुरक्षित गर्न सकिएन।");
+      }
+  };
+
+  const handleDeleteListedParty = async (id: string) => {
+      if (!currentUser) return;
+      if (!window.confirm("के तपाईं यो पार्टी विवरण हटाउन चाहनुहुन्छ?")) return;
+      try {
+          await remove(getOrgRef(`listedParties/${id}`));
+      } catch (error) {
+          alert("पार्टी विवरण हटाउन सकिएन।");
       }
   };
 
@@ -840,6 +861,7 @@ const App: React.FC = () => {
 
   const handleDeleteFinancialTransaction = async (id: string) => {
       if (!currentUser) return;
+      if (!window.confirm("के तपाईं यो कारोबार हटाउन चाहनुहुन्छ?")) return;
       try {
           await remove(getOrgRef(`financialTransactions/${id}`));
       } catch (error) {
@@ -1342,7 +1364,9 @@ const App: React.FC = () => {
     financialTransactions={financialTransactions}
     partyPayments={partyPayments}
     onSaveFinancialProgram={handleSaveFinancialProgram}
+    onDeleteFinancialProgram={handleDeleteFinancialProgram}
     onSaveListedParty={handleSaveListedParty}
+    onDeleteListedParty={handleDeleteListedParty}
     onSaveFinancialTransaction={handleSaveFinancialTransaction}
     onDeleteFinancialTransaction={handleDeleteFinancialTransaction}
     onSavePartyPayment={handleSavePartyPayment}

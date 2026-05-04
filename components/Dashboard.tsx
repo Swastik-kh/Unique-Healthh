@@ -150,7 +150,9 @@ interface ExtendedDashboardProps extends DashboardProps {
   financialTransactions: FinancialTransaction[];
   partyPayments: PartyPaymentRecord[];
   onSaveFinancialProgram: (p: any) => void;
+  onDeleteFinancialProgram: (id: string) => void;
   onSaveListedParty: (p: any) => void;
+  onDeleteListedParty: (id: string) => void;
   onSaveFinancialTransaction: (t: any) => void;
   onDeleteFinancialTransaction: (id: string) => void;
   onSavePartyPayment: (p: any) => void;
@@ -207,7 +209,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onUpdateReadNotifications,
   activeOrgName, onSetActiveOrgName, allUsers = [],
   financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
-  onSaveFinancialProgram, onSaveListedParty, onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment
+  onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
+  onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -1106,12 +1109,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           transactions={financialTransactions || []}
           payments={partyPayments || []}
           onSaveProgram={onSaveFinancialProgram}
+          onDeleteProgram={onDeleteFinancialProgram}
           onSaveParty={onSaveListedParty}
+          onDeleteParty={onDeleteListedParty}
           onSaveTransaction={onSaveFinancialTransaction}
           onDeleteTransaction={onDeleteFinancialTransaction}
           onSavePayment={onSavePartyPayment}
           generalSettings={generalSettings}
           currentFiscalYear={currentFiscalYear}
+          isAdmin={currentUser?.role === 'ADMIN'}
         />
       );
       case 'bida_abedan': return <BidaAbedan 
