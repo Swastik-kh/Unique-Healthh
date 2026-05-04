@@ -49,8 +49,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment'>('program');
+  const [formType, setFormType] = useState<'program' | 'party' | 'transaction'>('program');
   const [editingItem, setEditingItem] = useState<any>(null);
+  
+  const [selectedTxnType, setSelectedTxnType] = useState<'Income' | 'Expense'>('Income');
+  const [selectedPartyId, setSelectedPartyId] = useState<string>('');
   
   // Date Filters for Reports
   const today = new NepaliDate().format('YYYY-MM-DD');
@@ -78,9 +81,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
     const expense = fyTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
     const balance = income - expense;
+
+    // Vendor Totals
+    const totalContract = parties.reduce((sum, p) => sum + (p.totalContractAmount || 0), 0);
+    const totalPaid = parties.reduce((sum, p) => sum + (p.totalPaidAmount || 0), 0);
+    const totalRemaining = totalContract - totalPaid;
     
-    return { income, expense, balance };
-  }, [transactions, currentFiscalYear]);
+    return { income, expense, balance, totalContract, totalPaid, totalRemaining };
+  }, [transactions, parties, currentFiscalYear]);
 
   const filteredData = useMemo(() => {
     const term = searchTerm.toLowerCase();
@@ -111,18 +119,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const type = formData.get('type') as any;
     onSaveTransaction({
       ...editingItem,
       dateBs: txnFormDate,
       dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: formData.get('category') as any,
-      type: formData.get('type') as any,
+      type,
       amount: Number(formData.get('amount')),
       remarks: formData.get('remarks') as string,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
       incomeSource: formData.get('incomeSource') as any || undefined,
       programId: formData.get('programId') as string || undefined,
+      partyId: type === 'Expense' ? (formData.get('partyId') as string || undefined) : undefined,
     });
     setShowForm(false);
     setEditingItem(null);
@@ -144,48 +154,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setEditingItem(null);
   };
 
-  const handlePaymentSave = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const amount = Number(formData.get('amount'));
-    const partyId = formData.get('partyId') as string;
-    const programId = formData.get('programId') as string;
-
-    onSavePayment({
-      partyId,
-      programId,
-      amount,
-      dateBs: txnFormDate,
-      fiscalYear: currentFiscalYear,
-      paymentMethod: formData.get('method') as string,
-      remarks: formData.get('remarks') as string
-    });
-
-    // Also record as an expense transaction
-    const party = parties.find(p => p.id === partyId);
-    const program = programs.find(p => p.id === programId);
-    onSaveTransaction({
-      dateBs: txnFormDate,
-      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
-      category: 'Program Payment',
-      type: 'Expense',
-      amount,
-      remarks: `Payment to ${party?.name} for ${program?.name}`,
-      partyId,
-      programId,
-      fiscalYear: currentFiscalYear,
-      referenceNo: generateReferenceNo()
-    });
-
-    setShowForm(false);
-  };
-
   const openEditForm = (item: any, type: typeof formType) => {
     setEditingItem(item);
     setFormType(type);
     if (type === 'transaction') {
       setTxnFormDate(item.dateBs);
       setTxnRefNo(item.referenceNo);
+      setSelectedTxnType(item.type || 'Income');
     }
     setShowForm(true);
   };
@@ -292,127 +267,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     </div>
   );
 
-  const renderTable = () => {
-    if (activeTab === 'dashboard') return renderDashboard();
-    if (activeTab === 'reports') return renderReports();
-
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                {activeTab === 'programs' && <>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रमको नाम</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कुल बजेट</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">खर्च भएको</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मौज्दात</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">प्रगति</th>
-                  <th className="px-1 py-1"></th>
-                </>}
-                {activeTab === 'vendors' && <>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टी/फर्मको नाम</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">PAN नं</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">कुल सम्झौता</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी भएको</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी</th>
-                  <th className="px-1 py-1"></th>
-                </>}
-                {activeTab === 'transactions' && <>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण (Remarks)</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">वर्ग (Category)</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">प्रकार</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
-                  <th className="px-1 py-1"></th>
-                </>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredData.map((item: any) => {
-                const remainingPayment = item.totalContractAmount - (item.totalPaidAmount || 0);
-                const isFullyPaid = remainingPayment <= 0 && activeTab === 'vendors';
-
-                return (
-                <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${isFullyPaid ? 'bg-emerald-50/30' : ''}`}>
-                  {activeTab === 'programs' && <>
-                    <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
-                    <td className="px-6 py-4 font-mono text-sm">रू {item.totalBudget.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-mono text-sm text-rose-600">रू {(item.spentAmount || 0).toLocaleString()}</td>
-                    <td className="px-6 py-4 font-mono text-sm text-emerald-600">रू {(item.totalBudget - (item.spentAmount || 0)).toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${Math.min(((item.spentAmount || 0) / item.totalBudget) * 100, 100)}%` }}></div>
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400">{((item.spentAmount || 0) / item.totalBudget * 100).toFixed(0)}%</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEditForm(item, 'program')} className="text-slate-300 hover:text-blue-500 transition-colors"><Edit size={16} /></button>
-                        <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </>}
-                  {activeTab === 'vendors' && <>
-                    <td className="px-6 py-4 flex flex-col">
-                      <span className="font-bold text-slate-700 font-nepali">{item.name}</span>
-                      {isFullyPaid && <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-100 px-2 rounded-full w-fit mt-1">Paid in Full</span>}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
-                    <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
-                    <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
-                    <td className={`px-6 py-4 font-black font-mono text-sm text-right ${remainingPayment > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      रू {remainingPayment.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEditForm(item, 'party')} title="Edit Party Info" className="text-slate-300 hover:text-blue-500 transition-colors"><Edit size={16} /></button>
-                        <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </>}
-                  {activeTab === 'transactions' && <>
-                    <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
-                    <td className="px-6 py-4 text-xs font-bold uppercase text-slate-400">{item.category}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className={`px-6 py-4 text-right font-black font-mono text-sm ${item.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      रू {item.amount.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEditForm(item, 'transaction')} className="text-slate-300 hover:text-blue-500 transition-colors"><Edit size={16} /></button>
-                        <button onClick={() => onDeleteTransaction(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </>}
-                </tr>
-              )})}
-            </tbody>
-          </table>
-          {filteredData.length === 0 && (
-            <div className="p-12 text-center text-slate-400 italic font-nepali">
-              कुनै तथ्याङ्क फेला परेन।
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const renderReports = () => {
     const reportData = transactions.filter(t => {
       if (t.fiscalYear !== reportFilter.fiscalYear) return false;
-      
       if (reportFilter.type === 'Daily') return t.dateBs === reportFilter.date;
       if (reportFilter.type === 'Monthly') return t.dateBs.startsWith(reportFilter.month);
-      return true; // For Yearly, we just show everything in the selected fiscal year
+      return true;
     });
 
     const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
@@ -421,145 +281,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const handlePrint = () => {
       const printWin = window.open('', '', 'width=900,height=600');
       if (!printWin) return;
-      
       const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
                     reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
                     `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
 
-      const getProgramName = (id?: string) => {
-        if (!id) return '-';
-        return programs.find(p => p.id === id)?.name || '-';
-      };
+      const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
+      const getSourceLabel = (s?: string) => s === 'Nagarpalika' ? 'नगरपालिका' : s === 'Wada' ? 'वडा' : s === 'Internal' ? 'आन्तरिक' : s === 'Other' ? 'अन्य' : '-';
 
-      const getSourceLabel = (source?: string) => {
-        switch (source) {
-          case 'Nagarpalika': return 'नगरपालिका';
-          case 'Wada': return 'वडा';
-          case 'Internal': return 'आन्तरिक';
-          case 'Other': return 'अन्य';
-          default: return '-';
-        }
-      };
-
-      const content = `
-        <html>
-          <head>
-            <title>${title}</title>
-            <style>
-              @page { size: A4 portrait; margin: 10mm; }
-              body { font-family: 'Tahoma', sans-serif; padding: 0; margin: 0; color: #000; }
-              .header-red { color: #dc2626 !important; }
-              
-              /* Header Specifics */
-              .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; position: relative; }
-              .logo-container { width: 15%; text-align: left; }
-              .center-text { text-align: center; width: 70%; }
-              .form-no-container { width: 15%; text-align: right; }
-              
-              .org-name { font-size: 24px; font-weight: 900; line-height: 1.2; margin: 0; margin-bottom: 5px; }
-              .office-name { font-size: 16px; font-weight: 700; margin: 2px 0; }
-              .sub-title { font-size: 14px; font-weight: 600; margin: 2px 0; }
-              .sub-title-3 { font-size: 13px; font-weight: 600; margin: 2px 0; }
-              .address-text { font-size: 13px; margin-top: 4px; font-weight: 500; }
-              
-              .report-title { margin-top: 15px; font-size: 20px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
-              
-              table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1.5px solid black; }
-              th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 13px; }
-              th { background-color: #f3f4f6; font-weight: 800; font-size: 14px; }
-              
-              .report-info { text-align: center; margin-bottom: 15px; font-weight: bold; }
-              .summary { margin-top: 25px; border-top: 2px solid #333; padding-top: 10px; }
-              .summary-row { display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 5px; font-weight: bold; font-size: 15px; }
-              .total-label { width: 150px; }
-              .total-value { width: 150px; text-align: right; }
-              
-              @media print {
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div style="width: 100%; max-width: 210mm; margin: 0 auto; padding: 20px;">
-              
-              <!-- Header Section -->
-              <div class="header-container">
-                 <div class="logo-container">
-                    <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px; height: auto;" />
-                 </div>
-
-                 <div class="center-text">
-                    <h1 class="header-red org-name">${generalSettings.orgNameNepali}</h1>
-                    ${generalSettings.subTitleNepali ? `<h2 class="office-name">${generalSettings.subTitleNepali}</h2>` : ''}
-                    ${generalSettings.subTitleNepali2 ? `<h3 class="sub-title">${generalSettings.subTitleNepali2}</h3>` : ''}
-                    ${generalSettings.subTitleNepali3 ? `<h4 class="sub-title-3">${generalSettings.subTitleNepali3}</h4>` : ''}
-                    <div class="address-text">${[generalSettings.address, generalSettings.phone ? `फोन: ${generalSettings.phone}` : '', generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''].filter(Boolean).join(' | ')}</div>
-                    <div class="report-title">${title}</div>
-                 </div>
-
-                 <div class="form-no-container"></div>
-              </div>
-              
-              <div class="report-info">
-                आर्थिक वर्ष: ${reportFilter.fiscalYear} 
-                ${reportFilter.type === 'Daily' ? `| मिति: ${reportFilter.date}` : ''}
-                ${reportFilter.type === 'Monthly' ? `| महिना: ${reportFilter.month}` : ''}
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width: 50px;">क्र.सं.</th>
-                    <th>विवरण</th>
-                    <th>आम्दानीको श्रोत</th>
-                    <th style="text-align: right;">आम्दानी रकम (रू)</th>
-                    <th style="text-align: right;">खर्च रकम (रू)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${reportData.map((t, idx) => `
-                    <tr>
-                      <td>${idx + 1}</td>
-                      <td>${getProgramName(t.programId)}${t.remarks ? ` (${t.remarks})` : ''}</td>
-                      <td>${t.type === 'Income' ? getSourceLabel(t.incomeSource) : '-'}</td>
-                      <td style="text-align: right;">${t.type === 'Income' ? t.amount.toLocaleString() : '0'}</td>
-                      <td style="text-align: right;">${t.type === 'Expense' ? t.amount.toLocaleString() : '0'}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-                <tfoot>
-                  <tr style="background: #f1f5f9; font-weight: bold;">
-                    <td colspan="3" style="text-align: right;">कुल जम्मा:</td>
-                    <td style="text-align: right;">${reportIncome.toLocaleString()}</td>
-                    <td style="text-align: right;">${reportExpense.toLocaleString()}</td>
-                  </tr>
-                </tfoot>
-              </table>
-
-              <div class="summary">
-                <div class="summary-row">
-                  <span class="total-label">कुल आम्दानी:</span>
-                  <span class="total-value">रू ${reportIncome.toLocaleString()}</span>
-                </div>
-                <div class="summary-row">
-                  <span class="total-label">कुल खर्च:</span>
-                  <span class="total-value">रू ${reportExpense.toLocaleString()}</span>
-                </div>
-                <div class="summary-row" style="color: ${reportIncome - reportExpense >= 0 ? '#059669' : '#e11d48'}">
-                  <span class="total-label">मौज्दात रकम:</span>
-                  <span class="total-value">रू ${(reportIncome - reportExpense).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div style="margin-top: 80px; display: flex; justify-content: space-between;">
-                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">तयार गर्ने</div>
-                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">चेक गर्ने</div>
-                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">सदर गर्ने</div>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
+      const content = `<html><head><title>${title}</title><style>@page { size: A4 portrait; margin: 10mm; } body { font-family: 'Tahoma', sans-serif; } table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1.5px solid black; } th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 13px; } th { background: #f3f4f6; }</style></head><body><div style="padding: 20px;"><h1 style="text-align: center; color: #dc2626;">${generalSettings.orgNameNepali}</h1><h2 style="text-align: center;">${title}</h2><p style="text-align: center;">आर्थिक वर्ष: ${reportFilter.fiscalYear}</p><table><thead><tr><th>S.N.</th><th>विवरण</th><th>स्रोत</th><th>आम्दानी</th><th>खर्च</th></tr></thead><tbody>${reportData.map((t, idx) => `<tr><td>${idx + 1}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td>${getSourceLabel(t.incomeSource)}</td><td>${t.type === 'Income' ? t.amount : 0}</td><td>${t.type === 'Expense' ? t.amount : 0}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight: bold;"><td colspan="3" style="text-align: right;">Total:</td><td>${reportIncome}</td><td>${reportExpense}</td></tr></tfoot></table></div></body></html>`;
       printWin.document.write(content);
       printWin.document.close();
       printWin.print();
@@ -570,113 +299,136 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Report Type</label>
-            <select 
-              className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-              value={reportFilter.type}
-              onChange={e => setReportFilter({...reportFilter, type: e.target.value as any})}
-            >
-              <option value="Daily">Daily Report</option>
-              <option value="Monthly">Monthly Report</option>
-              <option value="Yearly">Yearly Report</option>
+            <select className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold" value={reportFilter.type} onChange={e => setReportFilter({...reportFilter, type: e.target.value as any})}>
+              <option value="Daily">Daily</option>
+              <option value="Monthly">Monthly</option>
+              <option value="Yearly">Yearly</option>
             </select>
           </div>
-          
-          {reportFilter.type === 'Daily' && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label>
-              <NepaliDatePicker 
-                value={reportFilter.date}
-                onChange={(val) => setReportFilter({...reportFilter, date: val})}
-              />
-            </div>
-          )}
-
-          {reportFilter.type === 'Monthly' && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Month</label>
-              <div className="flex gap-2">
-                <select 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-                  value={reportFilter.month.split('-')[0]}
-                  onChange={e => setReportFilter({...reportFilter, month: `${e.target.value}-${reportFilter.month.split('-')[1]}`})}
-                >
-                   {Array.from({length: 10}, (_, i) => 2075 + i).map(year => (
-                     <option key={year} value={year}>{year}</option>
-                   ))}
-                </select>
-                <select 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-                  value={reportFilter.month.split('-')[1]}
-                  onChange={e => setReportFilter({...reportFilter, month: `${reportFilter.month.split('-')[0]}-${e.target.value}`})}
-                >
-                   {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
-                     <option key={m} value={m}>{m}</option>
-                   ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {reportFilter.type === 'Yearly' && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Fiscal Year</label>
-              <select 
-                className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-                value={reportFilter.fiscalYear}
-                onChange={e => setReportFilter({...reportFilter, fiscalYear: e.target.value})}
-              >
-                 {Array.from({length: 10}, (_, i) => 2075 + i).map(year => {
-                   const fy = `${year}-${(year + 1).toString().slice(-2)}`;
-                   return <option key={fy} value={fy}>{fy}</option>
-                 })}
-              </select>
-            </div>
-          )}
-          
-          <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 ml-auto">
-            <Printer size={18} /> रिपोर्ट प्रिन्ट गर्नुहोस्
-          </button>
+          {reportFilter.type === 'Daily' && <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label><NepaliDatePicker value={reportFilter.date} onChange={val => setReportFilter({...reportFilter, date: val})} /></div>}
+          <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 ml-auto"><Printer size={18} /> Print Report</button>
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 bg-slate-50 border-b flex justify-between items-center">
-            <h2 className="font-bold text-xl text-slate-800 font-nepali">विस्तृत रिपोर्ट</h2>
-            <div className="flex gap-6">
-              <div className="text-right">
-                <p className="text-[10px] text-slate-400 uppercase font-black">Income</p>
-                <p className="font-black text-emerald-600">रू {reportIncome}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-slate-400 uppercase font-black">Expense</p>
-                <p className="font-black text-rose-600">रू {reportExpense}</p>
-              </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="font-bold text-xl text-slate-800">Summary Report</h2>
+            <div className="flex gap-4">
+              <div className="text-right"><p className="text-[10px] text-slate-400 uppercase font-black">Income</p><p className="font-black text-emerald-600">रू {reportIncome}</p></div>
+              <div className="text-right"><p className="text-[10px] text-slate-400 uppercase font-black">Expense</p><p className="font-black text-rose-600">रू {reportExpense}</p></div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTable = () => {
+    if (activeTab === 'dashboard') return renderDashboard();
+    if (activeTab === 'reports') return renderReports();
+
+    return (
+      <div className="space-y-6">
+        {activeTab === 'vendors' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">कुल सम्झौता रकम (Total Contract)</p>
+              <h4 className="text-xl font-black text-slate-800 font-mono">रू {stats.totalContract.toLocaleString()}</h4>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm">
+              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">कुल भुक्तानी रकम (Total Paid)</p>
+              <h4 className="text-xl font-black text-emerald-600 font-mono">रू {stats.totalPaid.toLocaleString()}</h4>
+            </div>
+            <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm">
+              <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">भुक्तानी हुन बाँकी (Total Pending)</p>
+              <h4 className="text-xl font-black text-rose-600 font-mono">रू {stats.totalRemaining.toLocaleString()}</h4>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 border-b text-left">
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">S.N.</th>
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण</th>
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase font-nepali">प्रकार</th>
-                  <th className="px-6 py-3 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  {activeTab === 'programs' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रमको नाम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कुल बजेट</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">खर्च</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी</th>
+                    <th className="px-1 py-1"></th>
+                  </>}
+                  {activeTab === 'vendors' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टीको नाम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">PAN</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">सम्झौता</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी</th>
+                    <th className="px-1 py-1"></th>
+                  </>}
+                  {activeTab === 'transactions' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">प्रकार</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                    <th className="px-1 py-1"></th>
+                  </>}
                 </tr>
               </thead>
-              <tbody className="divide-y">
-                {reportData.map((t, i) => (
-                  <tr key={t.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 text-xs font-mono">{i + 1}</td>
-                    <td className="px-6 py-3 text-xs font-mono">{t.dateBs}</td>
-                    <td className="px-6 py-3 text-sm font-nepali">{t.remarks}</td>
-                    <td className="px-6 py-3">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${t.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {t.type}
-                      </span>
-                    </td>
-                    <td className={`px-6 py-3 text-right font-black font-mono ${t.type === 'Income' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {t.amount.toLocaleString()}
-                    </td>
+              <tbody className="divide-y divide-slate-50">
+                {filteredData.map((item: any) => (
+                  <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${
+                    activeTab === 'vendors' && (item.totalContractAmount - (item.totalPaidAmount || 0) <= 0) 
+                    ? 'bg-emerald-50/70 hover:bg-emerald-100/70' 
+                    : ''
+                  }`}>
+                    {activeTab === 'programs' && <>
+                      <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
+                      <td className="px-6 py-4 font-mono text-sm">रू {item.totalBudget.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-rose-600 text-right">रू {(item.spentAmount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalBudget - (item.spentAmount || 0)).toLocaleString()}</td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                          <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </>}
+                    {activeTab === 'vendors' && <>
+                      <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
+                      <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
+                      <td className="px-4 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => { 
+                              setFormType('transaction'); 
+                              setTxnFormDate(today);
+                              setTxnRefNo(generateReferenceNo());
+                              setSelectedTxnType('Expense');
+                              setEditingItem({ type: 'Expense', partyId: item.id, remarks: `Payment to ${item.name}` });
+                              setShowForm(true); 
+                            }} 
+                            className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition-colors uppercase"
+                          >
+                            Pay
+                          </button>
+                          <button onClick={() => { setEditingItem(item); setFormType('party'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                          <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </>}
+                    {activeTab === 'transactions' && <>
+                      <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
+                      <td className="px-4 py-4 text-right">
+                        <button onClick={() => onDeleteTransaction(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                      </td>
+                    </>}
                   </tr>
                 ))}
               </tbody>
@@ -726,10 +478,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             )}
             {activeTab === 'vendors' && (
               <button 
-                onClick={() => { setFormType('payment'); setShowForm(true); }}
+                onClick={() => { 
+                  setFormType('transaction'); 
+                  setTxnFormDate(today);
+                  setTxnRefNo(generateReferenceNo());
+                  setSelectedTxnType('Expense');
+                  setShowForm(true); 
+                }}
                 className="bg-slate-800 text-white px-6 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-900 shadow-lg shadow-slate-100 transition-all active:scale-95"
               >
-                <CreditCard size={20} /> <span className="font-nepali">भुक्तानी</span>
+                <CreditCard size={20} /> <span className="font-nepali">भुक्तानी (Payment)</span>
               </button>
             )}
           </div>
@@ -798,8 +556,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <h2 className="text-xl font-bold text-slate-800 font-nepali">
                     {formType === 'program' && 'नयाँ कार्यक्रम थप्नुहोस्'}
                     {formType === 'party' && 'नयाँ पार्टी थप्नुहोस् (Add Party/Vendor)'}
-                    {formType === 'transaction' && 'आम्दानी/खर्च प्रविष्टि (Add Transaction)'}
-                    {formType === 'payment' && 'भुक्तानी गर्नुहोस् (Party Payment)'}
+                    {formType === 'transaction' && 'आम्दानी/खर्च/भुक्तानी प्रविष्टि (Transaction/Payment)'}
                   </h2>
                   <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
                 </div>
@@ -807,8 +564,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <form className="p-6 space-y-4" onSubmit={
                   formType === 'program' ? handleProgramSave : 
                   formType === 'party' ? handlePartySave : 
-                  formType === 'transaction' ? handleTransactionSave : 
-                  handlePaymentSave
+                  handleTransactionSave
                 }>
                   {formType === 'program' && (
                     <>
@@ -840,7 +596,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
+                        <Select 
+                          label="प्रकार (Type)" 
+                          name="type" 
+                          defaultValue={editingItem?.type || selectedTxnType} 
+                          onChange={(val) => setSelectedTxnType(val as any)}
+                          options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} 
+                          required 
+                        />
                         <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category} options={[
                           {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
                           {label: 'ल्याब (Lab Service)', value: 'Lab'},
@@ -849,17 +612,29 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         ]} required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <Select 
-                          label="आम्दानीको श्रोत (Income Source)" 
-                          name="incomeSource" 
-                          defaultValue={editingItem?.incomeSource}
-                          options={[
-                            {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
-                            {label: 'वडा (Wada)', value: 'Wada'},
-                            {label: 'आन्तरिक (Internal)', value: 'Internal'},
-                            {label: 'अन्य (Other)', value: 'Other'}
-                          ]} 
-                        />
+                        {selectedTxnType === 'Income' ? (
+                          <Select 
+                            label="आम्दानीको श्रोत (Income Source)" 
+                            name="incomeSource" 
+                            defaultValue={editingItem?.incomeSource}
+                            options={[
+                              {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
+                              {label: 'वडा (Wada)', value: 'Wada'},
+                              {label: 'आन्तरिक (Internal)', value: 'Internal'},
+                              {label: 'अन्य (Other)', value: 'Other'}
+                            ]} 
+                          />
+                        ) : (
+                          <Select 
+                            label="पार्टी (Selecting Party)" 
+                            name="partyId" 
+                            defaultValue={editingItem?.partyId}
+                            options={[
+                              {label: '-- Select Party --', value: ''},
+                              ...parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))
+                            ]} 
+                          />
+                        )}
                          <Select 
                           label="सम्बन्धित कार्यक्रम (Optional Program)" 
                           name="programId" 
@@ -869,32 +644,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
-                    </>
-                  )}
-
-                  {formType === 'payment' && (
-                    <>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
-                        <NepaliDatePicker 
-                          value={txnFormDate}
-                          onChange={(val) => setTxnFormDate(val)}
-                        />
-                      </div>
-                      <Select 
-                        label="पार्टी (Party)" 
-                        name="partyId" 
-                        required 
-                        options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))} 
-                      />
-                      <Select 
-                        label="कार्यक्रम (Program)" 
-                        name="programId" 
-                        required 
-                        options={programs.map(p => ({ label: p.name, value: p.id }))} 
-                      />
-                      <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" required />
-                      <Input label="विवरण (Remarks)" name="remarks" />
                     </>
                   )}
 
