@@ -9,6 +9,7 @@ import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
+import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
 
@@ -46,11 +47,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   
   // Date Filters for Reports
   const today = new NepaliDate().format('YYYY-MM-DD');
+  const currentMonth = today.substring(0, 7); // YYYY-MM
   const [reportFilter, setReportFilter] = useState({
     type: 'Daily' as 'Daily' | 'Monthly' | 'Yearly',
     date: today,
+    month: currentMonth,
     fiscalYear: currentFiscalYear
   });
+
+  const generateReferenceNo = () => {
+    const prefix = 'TXN';
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
+  const [txnFormDate, setTxnFormDate] = useState(today);
+  const [txnRefNo, setTxnRefNo] = useState('');
 
   // Derived State
   const stats = useMemo(() => {
@@ -89,14 +102,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     onSaveTransaction({
-      dateBs: formData.get('dateBs') as string,
-      dateAd: new NepaliDate(formData.get('dateBs') as string).toJsDate().toISOString(),
+      dateBs: txnFormDate,
+      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: formData.get('category') as any,
       type: formData.get('type') as any,
       amount: Number(formData.get('amount')),
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear,
-      referenceNo: formData.get('referenceNo') as string
+      referenceNo: (formData.get('referenceNo') as string) || txnRefNo
     });
     setShowForm(false);
   };
@@ -125,7 +138,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       partyId,
       programId,
       amount,
-      dateBs: formData.get('dateBs') as string,
+      dateBs: txnFormDate,
       fiscalYear: currentFiscalYear,
       paymentMethod: formData.get('method') as string,
       remarks: formData.get('remarks') as string
@@ -135,15 +148,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const party = parties.find(p => p.id === partyId);
     const program = programs.find(p => p.id === programId);
     onSaveTransaction({
-      dateBs: formData.get('dateBs') as string,
-      dateAd: new NepaliDate(formData.get('dateBs') as string).toJsDate().toISOString(),
+      dateBs: txnFormDate,
+      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: 'Program Payment',
       type: 'Expense',
       amount,
       remarks: `Payment to ${party?.name} for ${program?.name}`,
       partyId,
       programId,
-      fiscalYear: currentFiscalYear
+      fiscalYear: currentFiscalYear,
+      referenceNo: generateReferenceNo()
     });
 
     setShowForm(false);
@@ -244,7 +258,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </p>
               </div>
             ))}
-            {transactions.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कारोबार रेkord गरिएको छैन।</div>}
+            {transactions.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कारोबार रेकर्ड गरिएको छैन।</div>}
           </div>
         </div>
       </div>
@@ -348,8 +362,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const filterParts = reportFilter.date.split('-');
       
       if (reportFilter.type === 'Daily') return t.dateBs === reportFilter.date;
-      if (reportFilter.type === 'Monthly') return dateParts[0] === filterParts[0] && dateParts[1] === filterParts[1];
-      if (reportFilter.type === 'Yearly') return dateParts[0] === filterParts[0];
+      if (reportFilter.type === 'Monthly') return t.dateBs.startsWith(reportFilter.month);
+      if (reportFilter.type === 'Yearly') return t.dateBs.startsWith(reportFilter.date.split('-')[0]);
       return true;
     });
 
@@ -360,10 +374,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const printWin = window.open('', '', 'width=900,height=600');
       if (!printWin) return;
       
+      const title = reportFilter.type === 'Daily' ? `Daily Report - ${reportFilter.date}` : 
+                    reportFilter.type === 'Monthly' ? `Monthly Report - ${reportFilter.month}` : 
+                    `Yearly Report - ${reportFilter.date.split('-')[0]}`;
+
       const content = `
         <html>
           <head>
-            <title>Account Report - ${reportFilter.date}</title>
+            <title>${title}</title>
             <style>
               @body { font-family: 'Tahoma', sans-serif; padding: 20px; }
               table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -379,7 +397,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <h2>${generalSettings.orgName}</h2>
               <p>${generalSettings.address}, ${generalSettings.phone}</p>
               <h3>आय-व्यय विवरण (${reportFilter.type})</h3>
-              <p>मिति: ${reportFilter.date} | आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
+              <p>मिति/अवधि: ${reportFilter.type === 'Monthly' ? reportFilter.month : reportFilter.date} | आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
             </div>
             <table>
               <thead>
@@ -431,18 +449,60 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <option value="Yearly">Yearly Report</option>
             </select>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Reference Date</label>
-            <input 
-              type="text" 
-              className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-              value={reportFilter.date}
-              onChange={e => setReportFilter({...reportFilter, date: e.target.value})}
-              placeholder="YYYY-MM-DD"
-            />
-          </div>
+          
+          {reportFilter.type === 'Daily' && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label>
+              <NepaliDatePicker 
+                value={reportFilter.date}
+                onChange={(val) => setReportFilter({...reportFilter, date: val})}
+              />
+            </div>
+          )}
+
+          {reportFilter.type === 'Monthly' && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Month</label>
+              <div className="flex gap-2">
+                <select 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
+                  value={reportFilter.month.split('-')[0]}
+                  onChange={e => setReportFilter({...reportFilter, month: `${e.target.value}-${reportFilter.month.split('-')[1]}`})}
+                >
+                   {Array.from({length: 10}, (_, i) => 2075 + i).map(year => (
+                     <option key={year} value={year}>{year}</option>
+                   ))}
+                </select>
+                <select 
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
+                  value={reportFilter.month.split('-')[1]}
+                  onChange={e => setReportFilter({...reportFilter, month: `${reportFilter.month.split('-')[0]}-${e.target.value}`})}
+                >
+                   {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+                     <option key={m} value={m}>{m}</option>
+                   ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {reportFilter.type === 'Yearly' && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Year</label>
+              <select 
+                className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
+                value={reportFilter.date.split('-')[0]}
+                onChange={e => setReportFilter({...reportFilter, date: `${e.target.value}-01-01`})}
+              >
+                 {Array.from({length: 10}, (_, i) => 2075 + i).map(year => (
+                   <option key={year} value={year}>{year}</option>
+                 ))}
+              </select>
+            </div>
+          )}
+          
           <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 ml-auto">
-            <Printer size={18} /> प्रिन्ट गर्नुहोस्
+            <Printer size={18} /> रिपोर्ट प्रिन्ट गर्नुहोस्
           </button>
         </div>
 
@@ -520,7 +580,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 onClick={() => {
                   if (activeTab === 'programs') setFormType('program');
                   else if (activeTab === 'vendors') setFormType('party');
-                  else if (activeTab === 'transactions') setFormType('transaction');
+                  else if (activeTab === 'transactions') {
+                    setFormType('transaction');
+                    setTxnFormDate(today);
+                    setTxnRefNo(generateReferenceNo());
+                  }
                   setShowForm(true);
                 }}
                 className="bg-primary-600 text-white px-6 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-primary-700 shadow-lg shadow-primary-100 transition-all active:scale-95"
@@ -634,7 +698,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   {formType === 'transaction' && (
                     <>
                       <div className="grid grid-cols-2 gap-4">
-                        <Input label="मिति (BS)" name="dateBs" defaultValue={today} required />
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
+                          <NepaliDatePicker 
+                            value={txnFormDate}
+                            onChange={(val) => setTxnFormDate(val)}
+                          />
+                        </div>
                         <Input label="रकम (Amount)" name="amount" type="number" required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -645,19 +715,25 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           {label: 'साधारण (General)', value: 'General'}
                         ]} required />
                       </div>
-                      <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" />
+                      <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
                       <Input label="विवरण (Remarks)" name="remarks" required />
                     </>
                   )}
 
                   {formType === 'payment' && (
                     <>
-                      <Input label="मिति (BS)" name="dateBs" defaultValue={today} required />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
+                        <NepaliDatePicker 
+                          value={txnFormDate}
+                          onChange={(val) => setTxnFormDate(val)}
+                        />
+                      </div>
                       <Select 
                         label="पार्टी (Party)" 
                         name="partyId" 
                         required 
-                        options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - p.totalPaidAmount})`, value: p.id }))} 
+                        options={parties.map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))} 
                       />
                       <Select 
                         label="कार्यक्रम (Program)" 

@@ -77,11 +77,10 @@ export const Select: React.FC<SelectExtendedProps> = ({
           `}
           onKeyDown={handleKeyDown} // Add onKeyDown handler
           {...props}
-          value={props.value || ''}
         >
-          <option value="" disabled>-- {placeholder || 'छान्नुहोस्'} --</option>
-          {options.map((opt) => (
-            <option key={opt.id} value={opt.value}>
+          <option key="default-empty" value="" disabled>-- {placeholder || 'छान्नुहोस्'} --</option>
+          {options.map((opt, idx) => (
+            <option key={opt.value || idx} value={opt.value}>
               {opt.label}
             </option>
           ))}
