@@ -229,6 +229,15 @@ const App: React.FC = () => {
       }
   };
 
+  const handleDeletePartyPayment = async (id: string) => {
+      if (!currentUser) return;
+      try {
+          await remove(getOrgRef(`payments/${id}`));
+      } catch (error) {
+          alert("भुक्तानी विवरण हटाउन सकिएन।");
+      }
+  };
+
   const handleSaveMagForm = async (f: MagFormEntry) => {
       if (!currentUser) return;
       try {

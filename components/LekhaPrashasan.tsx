@@ -25,6 +25,7 @@ interface LekhaPrashasanProps {
   onSaveTransaction: (transaction: any) => void;
   onSavePayment: (payment: Omit<PartyPaymentRecord, 'id'>) => void;
   onDeleteTransaction: (id: string) => void;
+  onDeletePayment: (id: string) => void;
   generalSettings: OrganizationSettings;
   currentFiscalYear: string;
   isAdmin: boolean;
@@ -42,6 +43,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   onSaveTransaction,
   onSavePayment,
   onDeleteTransaction,
+  onDeletePayment,
   generalSettings,
   currentFiscalYear,
   isAdmin
@@ -488,7 +490,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                        <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{programs.find(p => p.id === item.programId)?.name}</td>
                        <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
                        <td className="px-4 py-4 text-right">
-                         <button onClick={() => openEditForm(item, 'payment')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                         <div className="flex items-center justify-end gap-2">
+                           <button onClick={() => openEditForm(item, 'payment')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                           <button onClick={() => onDeletePayment(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                         </div>
                        </td>
                     </>}
                   </tr>

@@ -902,6 +902,15 @@ const App: React.FC = () => {
       }
   };
 
+  const handleDeletePartyPayment = async (id: string) => {
+      if (!currentUser) return;
+      try {
+          await remove(getOrgRef(`payments/${id}`));
+      } catch (error) {
+          alert("भुक्तानी विवरण हटाउन सकिएन।");
+      }
+  };
+
   const handleSaveMagForm = async (f: MagFormEntry) => {
       if (!currentUser) return;
       try {
@@ -1370,6 +1379,7 @@ const App: React.FC = () => {
     onSaveFinancialTransaction={handleSaveFinancialTransaction}
     onDeleteFinancialTransaction={handleDeleteFinancialTransaction}
     onSavePartyPayment={handleSavePartyPayment}
+    onDeletePartyPayment={handleDeletePartyPayment}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
