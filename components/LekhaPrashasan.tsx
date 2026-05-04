@@ -360,13 +360,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const renderReports = () => {
     const reportData = transactions.filter(t => {
       if (t.fiscalYear !== reportFilter.fiscalYear) return false;
-      const dateParts = t.dateBs.split('-');
-      const filterParts = reportFilter.date.split('-');
       
       if (reportFilter.type === 'Daily') return t.dateBs === reportFilter.date;
       if (reportFilter.type === 'Monthly') return t.dateBs.startsWith(reportFilter.month);
-      if (reportFilter.type === 'Yearly') return t.dateBs.startsWith(reportFilter.date.split('-')[0]);
-      return true;
+      return true; // For Yearly, we just show everything in the selected fiscal year
     });
 
     const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
@@ -378,7 +375,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       
       const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
                     reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
-                    `वार्षिक आय-व्यय विवरण (${reportFilter.date.split('-')[0]})`;
+                    `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
 
       const getProgramName = (id?: string) => {
         if (!id) return '-';
@@ -466,6 +463,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th style="width: 50px;">क्र.सं.</th>
                     <th>कार्यक्रमको नाम</th>
                     <th>आम्दानीको श्रोत</th>
+                    <th>खर्चको विवरण</th>
                     <th style="text-align: right;">आम्दानी रकम (रू)</th>
                     <th style="text-align: right;">खर्च रकम (रू)</th>
                   </tr>
@@ -474,8 +472,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   ${reportData.map((t, idx) => `
                     <tr>
                       <td>${idx + 1}</td>
-                      <td>${getProgramName(t.programId)} <br/><small>${t.remarks}</small></td>
+                      <td>${getProgramName(t.programId)}</td>
                       <td>${t.type === 'Income' ? getSourceLabel(t.incomeSource) : '-'}</td>
+                      <td>${t.type === 'Expense' ? t.remarks : '-'}</td>
                       <td style="text-align: right;">${t.type === 'Income' ? t.amount.toLocaleString() : '0'}</td>
                       <td style="text-align: right;">${t.type === 'Expense' ? t.amount.toLocaleString() : '0'}</td>
                     </tr>
@@ -483,7 +482,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </tbody>
                 <tfoot>
                   <tr style="background: #f1f5f9; font-weight: bold;">
-                    <td colspan="3" style="text-align: right;">कुल जम्मा:</td>
+                    <td colspan="4" style="text-align: right;">कुल जम्मा:</td>
                     <td style="text-align: right;">${reportIncome.toLocaleString()}</td>
                     <td style="text-align: right;">${reportExpense.toLocaleString()}</td>
                   </tr>
@@ -573,15 +572,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
           {reportFilter.type === 'Yearly' && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Year</label>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Fiscal Year</label>
               <select 
                 className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold"
-                value={reportFilter.date.split('-')[0]}
-                onChange={e => setReportFilter({...reportFilter, date: `${e.target.value}-01-01`})}
+                value={reportFilter.fiscalYear}
+                onChange={e => setReportFilter({...reportFilter, fiscalYear: e.target.value})}
               >
-                 {Array.from({length: 10}, (_, i) => 2075 + i).map(year => (
-                   <option key={year} value={year}>{year}</option>
-                 ))}
+                 {Array.from({length: 10}, (_, i) => 2075 + i).map(year => {
+                   const fy = `${year}-${(year + 1).toString().slice(-2)}`;
+                   return <option key={fy} value={fy}>{fy}</option>
+                 })}
               </select>
             </div>
           )}
