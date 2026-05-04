@@ -72,6 +72,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [txnFormDate, setTxnFormDate] = useState(today);
   const [txnRefNo, setTxnRefNo] = useState('');
 
+  // Derived State
+  const stats = useMemo(() => {
+    const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
+    const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const expense = fyTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    const balance = income - expense;
+    
+    return { income, expense, balance };
+  }, [transactions, currentFiscalYear]);
+
+  const filteredData = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    switch (activeTab) {
+      case 'programs': return programs.filter(p => p.name.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
+      case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
+      case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
+      default: return [];
+    }
+  }, [activeTab, programs, parties, transactions, searchTerm, currentFiscalYear]);
+
   // Handle Saves
   const handleProgramSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
