@@ -400,88 +400,116 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <head>
             <title>${title}</title>
             <style>
-              @body { font-family: 'Tahoma', sans-serif; padding: 20px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; font-family: 'Tahoma', sans-serif; }
-              th { background: #f8fafc; font-weight: bold; }
-              .header { text-align: center; margin-bottom: 20px; }
-              .header h1 { margin: 0; font-size: 20px; }
-              .header h2 { margin: 0; font-size: 18px; }
-              .header h3 { margin: 5px 0; font-size: 16px; }
-              .header h4 { margin: 0; font-size: 14px; }
-              .report-info { text-align: center; margin-bottom: 20px; border-top: 1px solid #eee; padding-top: 10px; }
-              .summary { margin-top: 30px; border-top: 2px solid #333; padding-top: 10px; }
+              @page { size: A4 portrait; margin: 10mm; }
+              body { font-family: 'Tahoma', sans-serif; padding: 0; margin: 0; color: #000; }
+              .header-red { color: #dc2626 !important; }
+              
+              /* Header Specifics */
+              .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; position: relative; }
+              .logo-container { width: 15%; text-align: left; }
+              .center-text { text-align: center; width: 70%; }
+              .form-no-container { width: 15%; text-align: right; }
+              
+              .org-name { font-size: 24px; font-weight: 900; line-height: 1.2; margin: 0; margin-bottom: 5px; }
+              .office-name { font-size: 16px; font-weight: 700; margin: 2px 0; }
+              .sub-title { font-size: 14px; font-weight: 600; margin: 2px 0; }
+              .sub-title-3 { font-size: 13px; font-weight: 600; margin: 2px 0; }
+              .address-text { font-size: 13px; margin-top: 4px; font-weight: 500; }
+              
+              .report-title { margin-top: 15px; font-size: 20px; font-weight: 900; text-decoration: underline; text-underline-offset: 4px; }
+              
+              table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1.5px solid black; }
+              th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 13px; }
+              th { background-color: #f3f4f6; font-weight: 800; font-size: 14px; }
+              
+              .report-info { text-align: center; margin-bottom: 15px; font-weight: bold; }
+              .summary { margin-top: 25px; border-top: 2px solid #333; padding-top: 10px; }
               .summary-row { display: flex; justify-content: flex-end; gap: 40px; margin-bottom: 5px; font-weight: bold; font-size: 15px; }
               .total-label { width: 150px; }
               .total-value { width: 150px; text-align: right; }
+              
               @media print {
                 .no-print { display: none; }
               }
             </style>
           </head>
           <body>
-            <div class="header">
-              <h1>${generalSettings.heading1 || ''}</h1>
-              <h2>${generalSettings.heading2 || ''}</h2>
-              <h3>${generalSettings.heading3 || ''}</h3>
-              <h4>${generalSettings.heading4 || ''}</h4>
-              <p>${generalSettings.address || ''} | फोन: ${generalSettings.phone || ''}</p>
-            </div>
-            
-            <div class="report-info">
-              <h2 style="margin: 10px 0;">${title}</h2>
-              <p>आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
-            </div>
+            <div style="width: 100%; max-width: 210mm; margin: 0 auto; padding: 20px;">
+              
+              <!-- Header Section -->
+              <div class="header-container">
+                 <div class="logo-container">
+                    <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px; height: auto;" />
+                 </div>
 
-            <table>
-              <thead>
-                <tr>
-                  <th style="width: 50px;">क्र.सं.</th>
-                  <th>कार्यक्रमको नाम</th>
-                  <th>आम्दानीको श्रोत</th>
-                  <th style="text-align: right;">आम्दानी रकम (रू)</th>
-                  <th style="text-align: right;">खर्च रकम (रू)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${reportData.map((t, idx) => `
+                 <div class="center-text">
+                    <h1 class="header-red org-name">${generalSettings.orgNameNepali}</h1>
+                    ${generalSettings.subTitleNepali ? `<h2 class="office-name">${generalSettings.subTitleNepali}</h2>` : ''}
+                    ${generalSettings.subTitleNepali2 ? `<h3 class="sub-title">${generalSettings.subTitleNepali2}</h3>` : ''}
+                    ${generalSettings.subTitleNepali3 ? `<h4 class="sub-title-3">${generalSettings.subTitleNepali3}</h4>` : ''}
+                    <div class="address-text">${[generalSettings.address, generalSettings.phone ? `फोन: ${generalSettings.phone}` : '', generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''].filter(Boolean).join(' | ')}</div>
+                    <div class="report-title">${title}</div>
+                 </div>
+
+                 <div class="form-no-container"></div>
+              </div>
+              
+              <div class="report-info">
+                आर्थिक वर्ष: ${reportFilter.fiscalYear} 
+                ${reportFilter.type === 'Daily' ? `| मिति: ${reportFilter.date}` : ''}
+                ${reportFilter.type === 'Monthly' ? `| महिना: ${reportFilter.month}` : ''}
+              </div>
+
+              <table>
+                <thead>
                   <tr>
-                    <td>${idx + 1}</td>
-                    <td>${getProgramName(t.programId)} <br/><small>${t.remarks}</small></td>
-                    <td>${t.type === 'Income' ? getSourceLabel(t.incomeSource) : '-'}</td>
-                    <td style="text-align: right;">${t.type === 'Income' ? t.amount.toLocaleString() : '0'}</td>
-                    <td style="text-align: right;">${t.type === 'Expense' ? t.amount.toLocaleString() : '0'}</td>
+                    <th style="width: 50px;">क्र.सं.</th>
+                    <th>कार्यक्रमको नाम</th>
+                    <th>आम्दानीको श्रोत</th>
+                    <th style="text-align: right;">आम्दानी रकम (रू)</th>
+                    <th style="text-align: right;">खर्च रकम (रू)</th>
                   </tr>
-                `).join('')}
-              </tbody>
-              <tfoot>
-                <tr style="background: #f1f5f9; font-weight: bold;">
-                  <td colspan="3" style="text-align: right;">कुल जम्मा:</td>
-                  <td style="text-align: right;">${reportIncome.toLocaleString()}</td>
-                  <td style="text-align: right;">${reportExpense.toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody>
+                  ${reportData.map((t, idx) => `
+                    <tr>
+                      <td>${idx + 1}</td>
+                      <td>${getProgramName(t.programId)} <br/><small>${t.remarks}</small></td>
+                      <td>${t.type === 'Income' ? getSourceLabel(t.incomeSource) : '-'}</td>
+                      <td style="text-align: right;">${t.type === 'Income' ? t.amount.toLocaleString() : '0'}</td>
+                      <td style="text-align: right;">${t.type === 'Expense' ? t.amount.toLocaleString() : '0'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+                <tfoot>
+                  <tr style="background: #f1f5f9; font-weight: bold;">
+                    <td colspan="3" style="text-align: right;">कुल जम्मा:</td>
+                    <td style="text-align: right;">${reportIncome.toLocaleString()}</td>
+                    <td style="text-align: right;">${reportExpense.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
 
-            <div class="summary">
-              <div class="summary-row">
-                <span class="total-label">कुल आम्दानी:</span>
-                <span class="total-value">रू ${reportIncome.toLocaleString()}</span>
+              <div class="summary">
+                <div class="summary-row">
+                  <span class="total-label">कुल आम्दानी:</span>
+                  <span class="total-value">रू ${reportIncome.toLocaleString()}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="total-label">कुल खर्च:</span>
+                  <span class="total-value">रू ${reportExpense.toLocaleString()}</span>
+                </div>
+                <div class="summary-row" style="color: ${reportIncome - reportExpense >= 0 ? '#059669' : '#e11d48'}">
+                  <span class="total-label">मौज्दात रकम:</span>
+                  <span class="total-value">रू ${(reportIncome - reportExpense).toLocaleString()}</span>
+                </div>
               </div>
-              <div class="summary-row">
-                <span class="total-label">कुल खर्च:</span>
-                <span class="total-value">रू ${reportExpense.toLocaleString()}</span>
-              </div>
-              <div class="summary-row" style="color: ${reportIncome - reportExpense >= 0 ? '#059669' : '#e11d48'}">
-                <span class="total-label">मौज्दात रकम:</span>
-                <span class="total-value">रू ${(reportIncome - reportExpense).toLocaleString()}</span>
-              </div>
-            </div>
 
-            <div style="margin-top: 100px; display: flex; justify-content: space-between;">
-              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">तयार गर्ने</div>
-              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">चेक गर्ने</div>
-              <div style="text-align: center; width: 200px; border-top: 1px solid #000; padding-top: 5px;">सदर गर्ने</div>
+              <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">तयार गर्ने</div>
+                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">चेक गर्ने</div>
+                <div style="text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; font-weight: bold;">सदर गर्ने</div>
+              </div>
             </div>
           </body>
         </html>
