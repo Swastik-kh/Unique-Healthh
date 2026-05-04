@@ -168,20 +168,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     });
 
     // Also record as an expense transaction
-    const party = parties.find(p => p.id === partyId);
-    const program = programs.find(p => p.id === programId);
-    onSaveTransaction({
-      dateBs: txnFormDate,
-      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
-      category: 'Program Payment',
-      type: 'Expense',
-      amount,
-      remarks: `Payment to ${party?.name} for ${program?.name}`,
-      partyId,
-      programId,
-      fiscalYear: currentFiscalYear,
-      referenceNo: generateReferenceNo()
-    });
+    // const party = parties.find(p => p.id === partyId);
+    // const program = programs.find(p => p.id === programId);
+    // onSaveTransaction({
+    //   dateBs: txnFormDate,
+    //   dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+    //   category: 'Program Payment',
+    //   type: 'Expense',
+    //   amount,
+    //   remarks: `Payment to ${party?.name} for ${program?.name}`,
+    //   partyId,
+    //   programId,
+    //   fiscalYear: currentFiscalYear,
+    //   referenceNo: generateReferenceNo()
+    // });
 
     setShowForm(false);
   };
