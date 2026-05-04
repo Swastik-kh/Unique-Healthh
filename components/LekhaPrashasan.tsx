@@ -46,7 +46,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment'>('program');
@@ -93,6 +93,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'programs': return programs.filter(p => p.name.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
+      case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       default: return [];
     }
   }, [activeTab, programs, parties, transactions, searchTerm, currentFiscalYear]);
@@ -402,6 +403,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
                     <th className="px-1 py-1"></th>
                   </>}
+                  {activeTab === 'payments' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                    <th className="px-1 py-1"></th>
+                  </>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -468,8 +476,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       </td>
                       <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
                       <td className="px-4 py-4 text-right">
-                        <button onClick={() => onDeleteTransaction(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => openEditForm(item, 'transaction')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                          <button onClick={() => onDeleteTransaction(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                        </div>
                       </td>
+                    </>}
+                    {activeTab === 'payments' && <>
+                       <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
+                       <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{parties.find(p => p.id === item.partyId)?.name}</td>
+                       <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{programs.find(p => p.id === item.programId)?.name}</td>
+                       <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
+                       <td className="px-4 py-4 text-right">
+                         <button onClick={() => openEditForm(item, 'payment')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                       </td>
                     </>}
                   </tr>
                 ))}
@@ -537,6 +557,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               { id: 'programs', label: 'Programs (बजेट)', icon: <Briefcase size={18} /> },
               { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
               { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
+              { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
               { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
             ].map(tab => (
               <button
