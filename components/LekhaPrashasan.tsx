@@ -300,6 +300,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const renderReports = () => {
     const reportData = transactions.filter(t => {
       if (t.fiscalYear !== reportFilter.fiscalYear) return false;
+      if (t.category === 'Program Payment') return false;
+      
       if (reportFilter.type === 'Daily') return t.dateBs === reportFilter.date;
       if (reportFilter.type === 'Monthly') return t.dateBs.startsWith(reportFilter.month);
       return true;
@@ -381,9 +383,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <tr className="bg-slate-50 border-b border-slate-100">
                   {activeTab === 'programs' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रमको नाम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">कुल बजेट</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">आम्दानी</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बजेट/आम्दानी/खर्च/भुक्तानी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">प्रगति (Budget/Income | Income/Expense | Expense/Payment)</th>
                     <th className="px-1 py-1"></th>
                   </>}
                   {activeTab === 'vendors' && <>
@@ -406,18 +407,46 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <tbody className="divide-y divide-slate-50">
                 {filteredData.map((item: any) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    {activeTab === 'programs' && <>
-                      <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalBudget.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {transactions.filter(t => t.programId === item.id && t.type === 'Income').reduce((s, t) => s + t.amount, 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-rose-600 text-right">रू {payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0).toLocaleString()}</td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                          <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </>}
+                    {activeTab === 'programs' && (() => {
+                      const programTransactions = transactions.filter(t => t.programId === item.id);
+                      const income = programTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+                      const expense = programTransactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+                      const payment = payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
+                      
+                      const p1 = item.totalBudget > 0 ? Math.min((income / item.totalBudget) * 100, 100) : 0;
+                      const p2 = income > 0 ? Math.min((expense / income) * 100, 100) : 0;
+                      const p3 = expense > 0 ? Math.min((payment / expense) * 100, 100) : 0;
+
+                      return (<>
+                        <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
+                        <td className="px-6 py-4 font-mono text-sm text-right">
+                          <div className="text-[10px] text-slate-400">Budget: रू {item.totalBudget.toLocaleString()}</div>
+                          <div className="text-[10px] text-emerald-600">Income: रू {income.toLocaleString()}</div>
+                          <div className="text-[10px] text-rose-600">Exp: रू {expense.toLocaleString()}</div>
+                          <div className="text-[10px] text-blue-600">Pay: रू {payment.toLocaleString()}</div>
+                        </td>
+                        <td className="px-6 py-4 space-y-2 min-w-[200px]">
+                          <div className="flex items-center gap-2">
+                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${p1}%` }}></div></div>
+                             <span className="text-[10px] w-8 font-black text-slate-500">{p1.toFixed(0)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${p2}%` }}></div></div>
+                             <span className="text-[10px] w-8 font-black text-emerald-600">{p2.toFixed(0)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-rose-500 rounded-full" style={{ width: `${p3}%` }}></div></div>
+                             <span className="text-[10px] w-8 font-black text-rose-600">{p3.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                            <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </>);
+                    })()}
                     {activeTab === 'vendors' && <>
                       <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
                       <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
