@@ -78,7 +78,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const stats = useMemo(() => {
     const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
     const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const expense = fyTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    
+    // Filter out Program Payment from expense to avoid double counting, and add payments instead
+    const expense = fyTransactions.filter(t => t.type === 'Expense' && t.category !== 'Program Payment').reduce((sum, t) => sum + t.amount, 0) +
+                    payments.filter(p => p.fiscalYear === currentFiscalYear).reduce((sum, p) => sum + p.amount, 0);
+
     const balance = income - expense;
 
     // Vendor Totals
@@ -301,9 +305,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   );
 
   const renderReports = () => {
-    const reportData = transactions.filter(t => {
+    const allRecords = [
+      ...transactions.filter(t => t.category !== 'Program Payment').map(t => ({ ...t, isPayment: false })),
+      ...payments.map(p => ({ 
+        ...p, 
+        isPayment: true, 
+        type: 'Expense', 
+        category: 'Program Payment', 
+        incomeSource: undefined,
+        amount: p.amount 
+      }))
+    ];
+
+    const reportData = allRecords.filter(t => {
       if (t.fiscalYear !== reportFilter.fiscalYear) return false;
-      if (t.category === 'Program Payment') return false;
       
       if (reportFilter.type === 'Daily') return t.dateBs === reportFilter.date;
       if (reportFilter.type === 'Monthly') return t.dateBs.startsWith(reportFilter.month);
@@ -351,6 +366,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <div className="text-right"><p className="text-[10px] text-slate-400 uppercase font-black">Expense</p><p className="font-black text-rose-600">रू {reportExpense}</p></div>
             </div>
           </div>
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-2">मिति</th>
+                <th className="px-4 py-2">विवरण</th>
+                <th className="px-4 py-2 text-right">आम्दानी</th>
+                <th className="px-4 py-2 text-right">खर्च</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {reportData.map((t, idx) => (
+                <tr key={idx}>
+                  <td className="px-4 py-2">{t.dateBs}</td>
+                  <td className="px-4 py-2">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
+                  <td className="px-4 py-2 text-right text-emerald-600 font-bold">{t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td>
+                  <td className="px-4 py-2 text-right text-rose-600 font-bold">{t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -420,7 +455,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     {activeTab === 'programs' && (() => {
                       const programTransactions = transactions.filter(t => t.programId === item.id);
                       const income = programTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-                      const expense = programTransactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+                      const expense = programTransactions.filter(t => t.type === 'Expense' && t.category !== 'Program Payment').reduce((s, t) => s + t.amount, 0) + 
+                                     payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
                       const payment = payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
                       
                       const p1 = item.totalBudget > 0 ? Math.min((income / item.totalBudget) * 100, 100) : 0;
