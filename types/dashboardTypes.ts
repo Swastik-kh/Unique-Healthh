@@ -6,6 +6,7 @@ import {
   MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry
 } from './inventoryTypes';
 import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord } from './healthTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from './financeTypes';
 
 export interface LoginFormProps {
   users: User[];

@@ -117,6 +117,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     onSaveProgram({
       ...editingItem,
       name: formData.get('name') as string,
+      source: formData.get('source') as any,
       totalBudget: Number(formData.get('budget')),
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       createdAt: editingItem?.createdAt || today,
@@ -548,49 +549,70 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredData.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    {activeTab === 'programs' && (() => {
-                      const programTransactions = transactions.filter(t => t.programId === item.id);
-                      const income = programTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-                      const expense = programTransactions.filter(t => t.type === 'Expense' && t.category !== 'Program Payment').reduce((s, t) => s + t.amount, 0) + 
-                                     payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
-                      const payment = payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
-                      
-                      const p1 = item.totalBudget > 0 ? Math.min((income / item.totalBudget) * 100, 100) : 0;
-                      const p2 = income > 0 ? Math.min((expense / income) * 100, 100) : 0;
-                      const p3 = expense > 0 ? Math.min((payment / expense) * 100, 100) : 0;
+                {activeTab === 'programs' ? (() => {
+                  const groupedPrograms: Record<string, any[]> = {};
+                  const sources = ['Nagarpalika', 'Wada', 'Internal', 'Other', 'Unknown'];
+                  
+                  filteredData.forEach((p: any) => {
+                    const s = p.source || 'Unknown';
+                    if (!groupedPrograms[s]) groupedPrograms[s] = [];
+                    groupedPrograms[s].push(p);
+                  });
 
-                      return (<>
-                        <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
-                        <td className="px-6 py-4 font-mono text-sm text-right">
-                          <div className="text-[10px] text-slate-400">Budget: रू {item.totalBudget.toLocaleString()}</div>
-                          <div className="text-[10px] text-emerald-600">Income: रू {income.toLocaleString()}</div>
-                          <div className="text-[10px] text-rose-600">Exp: रू {expense.toLocaleString()}</div>
-                          <div className="text-[10px] text-blue-600">Pay: रू {payment.toLocaleString()}</div>
+                  return sources.filter(s => groupedPrograms[s]).map(source => (
+                    <React.Fragment key={source}>
+                      <tr className="bg-slate-100/50">
+                        <td colSpan={4} className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          {source === 'Nagarpalika' ? 'नगरपालिका' : source === 'Wada' ? 'वडा' : source === 'Internal' ? 'आन्तरिक' : source === 'Other' ? 'अन्य' : 'अन्य/नबुझेको'} श्रोत
                         </td>
-                        <td className="px-6 py-4 space-y-2 min-w-[200px]">
-                          <div className="flex items-center gap-2">
-                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${p1}%` }}></div></div>
-                             <span className="text-[10px] w-8 font-black text-slate-500">{p1.toFixed(0)}%</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${p2}%` }}></div></div>
-                             <span className="text-[10px] w-8 font-black text-emerald-600">{p2.toFixed(0)}%</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-rose-500 rounded-full" style={{ width: `${p3}%` }}></div></div>
-                             <span className="text-[10px] w-8 font-black text-rose-600">{p3.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                            <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </>);
-                    })()}
+                      </tr>
+                      {groupedPrograms[source].map((item: any) => {
+                        const programTransactions = transactions.filter(t => t.programId === item.id);
+                        const income = programTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+                        const expense = programTransactions.filter(t => t.type === 'Expense' && t.category !== 'Program Payment').reduce((s, t) => s + t.amount, 0) + 
+                                       payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
+                        const payment = payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
+                        
+                        const p1 = item.totalBudget > 0 ? Math.min((income / item.totalBudget) * 100, 100) : 0;
+                        const p2 = income > 0 ? Math.min((expense / income) * 100, 100) : 0;
+                        const p3 = expense > 0 ? Math.min((payment / expense) * 100, 100) : 0;
+
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
+                            <td className="px-6 py-4 font-mono text-sm text-right">
+                              <div className="text-[10px] text-slate-400">Budget: रू {item.totalBudget.toLocaleString()}</div>
+                              <div className="text-[10px] text-emerald-600">Income: रू {income.toLocaleString()}</div>
+                              <div className="text-[10px] text-rose-600">Exp: रू {expense.toLocaleString()}</div>
+                              <div className="text-[10px] text-blue-600">Pay: रू {payment.toLocaleString()}</div>
+                            </td>
+                            <td className="px-6 py-4 space-y-2 min-w-[200px]">
+                              <div className="flex items-center gap-2">
+                                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-slate-500 rounded-full" style={{ width: `${p1}%` }}></div></div>
+                                 <span className="text-[10px] w-8 font-black text-slate-500">{p1.toFixed(0)}%</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${p2}%` }}></div></div>
+                                 <span className="text-[10px] w-8 font-black text-emerald-600">{p2.toFixed(0)}%</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex-1"><div className="h-full bg-rose-500 rounded-full" style={{ width: `${p3}%` }}></div></div>
+                                 <span className="text-[10px] w-8 font-black text-rose-600">{p3.toFixed(0)}%</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => { setEditingItem(item); setFormType('program'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                                <button onClick={() => onDeleteProgram(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ));
+                })() : filteredData.map((item: any) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                     {activeTab === 'vendors' && <>
                       <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
                       <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
@@ -767,6 +789,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   {formType === 'program' && (
                     <>
                       <Input label="कार्यक्रमको नाम (Program Name)" name="name" defaultValue={editingItem?.name} required />
+                      <Select 
+                        label="बजेट श्रोत (Budget Source)" 
+                        name="source" 
+                        defaultValue={editingItem?.source}
+                        options={[
+                          {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
+                          {label: 'वडा (Wada)', value: 'Wada'},
+                          {label: 'आन्तरिक (Internal)', value: 'Internal'},
+                          {label: 'अन्य (Other)', value: 'Other'}
+                        ]} 
+                      />
                       <Input label="कुल बजेट (Total Budget)" name="budget" type="number" defaultValue={editingItem?.totalBudget} required />
                     </>
                   )}

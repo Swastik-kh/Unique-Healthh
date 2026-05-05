@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 export interface FinancialProgram {
   id: string;
   name: string;
+  source?: 'Nagarpalika' | 'Wada' | 'Internal' | 'Other';
   totalBudget: number;
   spentAmount: number;
   fiscalYear: string;
