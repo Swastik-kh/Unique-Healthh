@@ -157,6 +157,20 @@ export interface DashboardProps {
   onClearData: (sectionId: string) => void; 
   onUploadData?: (sectionId: string, data: any[]) => void;
 
+  // Financial Management
+  financialPrograms: FinancialProgram[];
+  listedParties: ListedParty[];
+  financialTransactions: FinancialTransaction[];
+  partyPayments: PartyPaymentRecord[];
+  onSaveFinancialProgram: (program: any) => void;
+  onDeleteFinancialProgram: (id: string) => void;
+  onSaveListedParty: (party: any) => void;
+  onDeleteListedParty: (id: string) => void;
+  onSaveFinancialTransaction: (transaction: any) => void;
+  onDeleteFinancialTransaction: (id: string) => void;
+  onSavePartyPayment: (payment: any) => void;
+  onDeletePartyPayment: (id: string, amount: number, partyId: string, programId: string) => void;
+
   // Subscription Management
   subscriptionRequests: SubscriptionRequest[];
   onSendSubscriptionRequest: (request: SubscriptionRequest) => Promise<void>;

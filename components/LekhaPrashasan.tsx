@@ -74,6 +74,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [txnFormDate, setTxnFormDate] = useState(today);
   const [txnRefNo, setTxnRefNo] = useState('');
 
+  const getNepaliMonthName = (dateBs: string) => {
+    const monthNo = parseInt(dateBs.split('-')[1]);
+    const months = ['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत'];
+    return months[monthNo-1] || dateBs;
+  }
+
   // Derived State
   const stats = useMemo(() => {
     const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
@@ -306,7 +312,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const renderReports = () => {
     const allRecords = [
-      ...transactions.filter(t => t.category !== 'Program Payment').map(t => ({ ...t, isPayment: false })),
+      ...transactions.filter(t => !(t.type === 'Expense' && t.category === 'Program Payment')).map(t => ({ ...t, isPayment: false })),
       ...payments.map(p => ({ 
         ...p, 
         isPayment: true, 
@@ -332,13 +338,71 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const printWin = window.open('', '', 'width=900,height=600');
       if (!printWin) return;
       const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
-                    reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
+                    reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month.split('-')[0]} ${getNepaliMonthName(reportFilter.month + '-01')})` : 
                     `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
 
       const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
       const getSourceLabel = (s?: string) => s === 'Nagarpalika' ? 'नगरपालिका' : s === 'Wada' ? 'वडा' : s === 'Internal' ? 'आन्तरिक' : s === 'Other' ? 'अन्य' : '-';
 
-      const content = `<html><head><title>${title}</title><style>@page { size: A4 portrait; margin: 10mm; } body { font-family: 'Tahoma', sans-serif; } table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1.5px solid black; } th, td { border: 1px solid black; padding: 8px; text-align: left; font-size: 13px; } th { background: #f3f4f6; }</style></head><body><div style="padding: 20px;"><h1 style="text-align: center; color: #dc2626;">${generalSettings.orgNameNepali}</h1><h2 style="text-align: center;">${title}</h2><p style="text-align: center;">आर्थिक वर्ष: ${reportFilter.fiscalYear}</p><table><thead><tr><th>S.N.</th><th>विवरण</th><th>स्रोत</th><th>आम्दानी</th><th>खर्च</th></tr></thead><tbody>${reportData.map((t, idx) => `<tr><td>${idx + 1}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td>${getSourceLabel(t.incomeSource)}</td><td>${t.type === 'Income' ? t.amount : 0}</td><td>${t.type === 'Expense' ? t.amount : 0}</td></tr>`).join('')}</tbody><tfoot><tr style="font-weight: bold;"><td colspan="3" style="text-align: right;">Total:</td><td>${reportIncome}</td><td>${reportExpense}</td></tr></tfoot></table></div></body></html>`;
+      const content = `
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+             @page { size: A4 portrait; margin: 10mm; } 
+             body { font-family: 'Mukta', sans-serif; } 
+             table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
+             th, td { border: 1px solid black; padding: 10px; text-align: left; } 
+             th { background: #f3f4f6; }
+             .text-right { text-align: right; }
+             .summary { margin-top: 20px; display: flex; gap: 20px; }
+             .box { border: 1px solid #ccc; padding: 15px; flex: 1; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <table style="width: 100%; border: none;">
+            <tr>
+              <td style="width: 100px; border: none; vertical-align: middle;">
+                <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px;">
+              </td>
+              <td style="border: none; text-align: center;">
+                <h1 style="color: #e11d48; margin: 0;">${generalSettings.orgNameNepali}</h1>
+                <div style="font-size: 14px; font-weight: bold; margin: 5px 0;">
+                    ${generalSettings.subTitleNepali || ''} ${generalSettings.subTitleNepali2 ? '| ' + generalSettings.subTitleNepali2 : ''} ${generalSettings.subTitleNepali3 ? '| ' + generalSettings.subTitleNepali3 : ''}
+                </div>
+                <h2 style="margin: 0;">${title}</h2>
+                <p style="margin: 5px 0;">आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
+              </td>
+              <td style="width: 100px; border: none;"></td>
+            </tr>
+          </table>
+          <table>
+            <thead>
+              <tr><th>मिति</th><th>विवरण</th><th>आम्दानी</th><th>खर्च</th></tr>
+            </thead>
+            <tbody>
+              ${reportData.map(t => `<tr><td>${t.dateBs}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td>${t.type === 'Income' ? t.amount : '-'}</td><td>${t.type === 'Expense' ? t.amount : '-'}</td></tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="font-weight: bold;">
+                <td colspan="2" style="text-align: right;">Total</td>
+                <td>${reportIncome}</td>
+                <td>${reportExpense}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="summary">
+            <div class="box">
+              <p>मौज्दात रकम</p>
+              <h3>रू ${stats.balance.toLocaleString()}</h3>
+            </div>
+            <div class="box">
+              <p>भुक्तानी गर्न बाँकी</p>
+              <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
+            </div>
+          </div>
+        </body>
+      </html>`;
       printWin.document.write(content);
       printWin.document.close();
       printWin.print();
@@ -358,34 +422,68 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           {reportFilter.type === 'Daily' && <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label><NepaliDatePicker value={reportFilter.date} onChange={val => setReportFilter({...reportFilter, date: val})} /></div>}
           <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 ml-auto"><Printer size={18} /> Print Report</button>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="font-bold text-xl text-slate-800">Summary Report</h2>
-            <div className="flex gap-4">
-              <div className="text-right"><p className="text-[10px] text-slate-400 uppercase font-black">Income</p><p className="font-black text-emerald-600">रू {reportIncome}</p></div>
-              <div className="text-right"><p className="text-[10px] text-slate-400 uppercase font-black">Expense</p><p className="font-black text-rose-600">रू {reportExpense}</p></div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8 animate-in fade-in">
+          <div className="flex items-center gap-6 mb-8 border-b pb-6">
+            <img 
+              src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+              alt="Logo" 
+              className="h-24 w-24 object-contain"
+            />
+            <div className="flex-1 text-center">
+              <h1 className="text-3xl font-black text-rose-600 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
+              <div className="flex justify-center gap-2 text-xs text-slate-600 font-bold mt-1">
+                  {generalSettings.subTitleNepali && <span>{generalSettings.subTitleNepali}</span>}
+                  {generalSettings.subTitleNepali2 && <span>| {generalSettings.subTitleNepali2}</span>}
+                  {generalSettings.subTitleNepali3 && <span>| {generalSettings.subTitleNepali3}</span>}
+              </div>
+              <h2 className="text-xl font-black underline underline-offset-8 mt-4">
+                {reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
+                 reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month.split('-')[0]} ${getNepaliMonthName(reportFilter.month + '-01')})` : 
+                 `वार्षिक आय-व्यय विवरण (${reportFilter.fiscalYear})`}
+              </h2>
+              <p className="font-bold mt-2 text-slate-500 text-sm">आर्थिक वर्ष: {reportFilter.fiscalYear}</p>
             </div>
+            <div className="w-24"></div>
           </div>
+          
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-2">मिति</th>
-                <th className="px-4 py-2">विवरण</th>
-                <th className="px-4 py-2 text-right">आम्दानी</th>
-                <th className="px-4 py-2 text-right">खर्च</th>
+                <th className="px-4 py-3 text-left">मिति</th>
+                <th className="px-4 py-3 text-left">विवरण</th>
+                <th className="px-4 py-3 text-right">आम्दानी</th>
+                <th className="px-4 py-3 text-right">खर्च</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {reportData.map((t, idx) => (
-                <tr key={idx}>
-                  <td className="px-4 py-2">{t.dateBs}</td>
-                  <td className="px-4 py-2">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
-                  <td className="px-4 py-2 text-right text-emerald-600 font-bold">{t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td>
-                  <td className="px-4 py-2 text-right text-rose-600 font-bold">{t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td>
+                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs">{t.dateBs}</td>
+                  <td className="px-4 py-3 font-nepali font-bold text-slate-700">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
+                  <td className="px-4 py-3 text-right text-emerald-600 font-black">{t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td>
+                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="bg-slate-100 font-black">
+                <td colSpan={2} className="px-4 py-3 text-right">Total</td>
+                <td className="px-4 py-3 text-right text-emerald-700">रू {reportIncome.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right text-rose-700">रू {reportExpense.toLocaleString()}</td>
+              </tr>
+            </tfoot>
           </table>
+
+          <div className="grid grid-cols-2 gap-4 mt-8 border-t pt-6">
+             <div className="bg-blue-50 p-4 rounded-xl">
+               <p className="text-xs font-black text-blue-400 uppercase">मौज्दात रकम (Available Fund)</p>
+               <p className="text-2xl font-black text-blue-700">रू {stats.balance.toLocaleString()}</p>
+             </div>
+             <div className="bg-rose-50 p-4 rounded-xl">
+               <p className="text-xs font-black text-rose-400 uppercase">भुक्तानी गर्न बाँकी (Pending Payments)</p>
+               <p className="text-2xl font-black text-rose-700">रू {stats.totalRemaining.toLocaleString()}</p>
+             </div>
+          </div>
         </div>
       </div>
     );

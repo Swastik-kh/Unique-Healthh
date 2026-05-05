@@ -156,7 +156,7 @@ interface ExtendedDashboardProps extends DashboardProps {
   onSaveFinancialTransaction: (t: any) => void;
   onDeleteFinancialTransaction: (id: string) => void;
   onSavePartyPayment: (p: any) => void;
-  onDeletePartyPayment: (id: string) => void;
+  onDeletePartyPayment: (id: string, amount: number, partyId: string, programId: string) => void;
 }
 
 interface AppNotification {
@@ -1501,11 +1501,29 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 no-print">
-          <div className="flex items-center gap-2 md:gap-4">
+        <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 no-print">
+          <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg">
               <Menu size={20} />
             </button>
+            <div className="flex items-center gap-3">
+              <img 
+                src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                alt="Logo" 
+                className="h-12 w-12 object-contain"
+              />
+              <div className="flex flex-col">
+                <h1 className="font-black text-slate-800 text-lg leading-tight">{generalSettings.orgNameNepali}</h1>
+                <div className="flex flex-wrap gap-2 text-[10px] text-slate-600 font-bold">
+                    {generalSettings.subTitleNepali && <span>{generalSettings.subTitleNepali}</span>}
+                    {generalSettings.subTitleNepali2 && <span>| {generalSettings.subTitleNepali2}</span>}
+                    {generalSettings.subTitleNepali3 && <span>| {generalSettings.subTitleNepali3}</span>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-200">
               <Calendar size={14} className="text-slate-400" />
               <span className="text-[11px] font-bold text-slate-600 font-nepali">आ.व. {currentFiscalYear}</span>
@@ -1525,9 +1543,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                 </select>
               </div>
             )}
-          </div>
-
-          <div className="flex items-center gap-4">
+            
             <div className="relative" ref={notifRef}>
                 <button 
                     onClick={() => setShowNotifications(!showNotifications)}
