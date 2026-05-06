@@ -39,6 +39,7 @@ export interface PartyPaymentRecord {
   id: string;
   partyId: string;
   programId: string;
+  transactionId?: string;
   amount: number;
   dateBs: string;
   fiscalYear: string;
