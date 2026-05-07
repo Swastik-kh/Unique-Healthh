@@ -392,6 +392,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <p>मौज्दात रकम</p>
               <h3>रू ${stats.balance.toLocaleString()}</h3>
             </div>
+            <div class="box">
+              <p>भुक्तानी गर्न बाँकी</p>
+              <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
+            </div>
           </div>
         </body>
       </html>`;
@@ -466,10 +470,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             </tfoot>
           </table>
 
-          <div className="grid grid-cols-1 gap-4 mt-8 border-t pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 border-t pt-6">
              <div className="bg-blue-50 p-4 rounded-xl">
                <p className="text-xs font-black text-blue-400 uppercase">मौज्दात रकम (Available Fund)</p>
                <p className="text-2xl font-black text-blue-700">रू {stats.balance.toLocaleString()}</p>
+             </div>
+             <div className="bg-rose-50 p-4 rounded-xl">
+               <p className="text-xs font-black text-rose-400 uppercase">भुक्तानी गर्न बाँकी (Pending Payments)</p>
+               <p className="text-2xl font-black text-rose-700">रू {stats.totalRemaining.toLocaleString()}</p>
              </div>
           </div>
         </div>
