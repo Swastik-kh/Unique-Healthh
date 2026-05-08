@@ -3,8 +3,9 @@ import {
   Calculator, Plus, Search, Printer, Trash2, Edit, Save, 
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
-  Filter, Calendar, ExternalLink, X, DollarSign, CreditCard
+  Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download
 } from 'lucide-react';
+import { utils, writeFile } from 'xlsx';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from '../types/financeTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
@@ -404,6 +405,34 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       printWin.print();
     };
 
+    const handleDownloadExcel = () => {
+      const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
+                    reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
+                    `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
+
+      const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
+
+      const data = reportData.map(t => ({
+        'मिति': t.dateBs,
+        'विवरण': `${getProgramName(t.programId)} (${t.remarks || ''})`,
+        'आम्दानी': t.type === 'Income' ? t.amount : 0,
+        'खर्च': t.type === 'Expense' ? t.amount : 0
+      }));
+
+      // Add totals
+      data.push({
+        'मिति': 'जम्मा (Total)',
+        'विवरण': '',
+        'आम्दानी': reportIncome,
+        'खर्च': reportExpense
+      });
+
+      const ws = utils.json_to_sheet(data);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Report");
+      writeFile(wb, `${title}.xlsx`);
+    };
+
     return (
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
@@ -416,7 +445,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             </select>
           </div>
           {reportFilter.type === 'Daily' && <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label><NepaliDatePicker value={reportFilter.date} onChange={val => setReportFilter({...reportFilter, date: val})} /></div>}
-          <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 ml-auto"><Printer size={18} /> Print Report</button>
+          <div className="flex gap-2 ml-auto">
+            <button onClick={handleDownloadExcel} className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700"><Download size={18} /> Excel</button>
+            <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900"><Printer size={18} /> Print</button>
+          </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8 animate-in fade-in">
           <div className="flex items-center gap-6 mb-8 border-b pb-6">
