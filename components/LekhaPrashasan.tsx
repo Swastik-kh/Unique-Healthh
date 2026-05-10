@@ -6,6 +6,9 @@ import {
   Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from '../types/financeTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
@@ -110,6 +113,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       default: return [];
     }
   }, [activeTab, programs, parties, transactions, searchTerm, currentFiscalYear]);
+
+  const budgetPatternData = useMemo(() => {
+    // Get unique fiscal years from programs
+    const allFYs = Array.from(new Set(programs.map(p => p.fiscalYear))).sort().reverse();
+    // Take top 3
+    const top3FYs = allFYs.slice(0, 3).reverse();
+    
+    return top3FYs.map(fy => ({
+      fy,
+      budget: programs.filter(p => p.fiscalYear === fy).reduce((sum, p) => sum + p.totalBudget, 0)
+    }));
+  }, [programs]);
 
   // Handle Saves
   const handleProgramSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -577,6 +592,44 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </tr>
             </tfoot>
           </table>
+
+          {budgetPatternData.length > 0 && (
+            <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 print:hidden overflow-hidden">
+              <h3 className="text-sm font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <TrendingUp size={16} />
+                ३ वर्षको बजेट ढाँचा (3 Year Budget Pattern)
+              </h3>
+              <div className="h-[300px] w-full min-h-[300px]">
+                <ResponsiveContainer width="99%" height="100%" minHeight={300}>
+                  <BarChart data={budgetPatternData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis 
+                      dataKey="fy" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      tickFormatter={(value) => `रू ${value.toLocaleString()}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      formatter={(value: number) => [`रू ${value.toLocaleString()}`, 'कुल बजेट']}
+                    />
+                    <Bar 
+                      dataKey="budget" 
+                      fill="#e11d48" 
+                      radius={[6, 6, 0, 0]} 
+                      barSize={60}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 border-t pt-6">
              <div className="bg-blue-50 p-4 rounded-xl">
