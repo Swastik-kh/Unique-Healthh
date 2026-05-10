@@ -23,7 +23,7 @@ export const ManualReportTrend: React.FC<ManualReportTrendProps> = ({ currentFis
     const yearsToFetch = FISCAL_YEARS.slice(Math.max(0, currentIndex - 2), currentIndex + 1);
     
     // Aggregate data by item
-    const aggregatedData: { [name: string]: { unit: string; [fy: string]: number } } = {};
+    const aggregatedData: { [name: string]: { unit: string; [fy: string]: any } } = {};
     
     for (const fy of yearsToFetch) {
         const fyKey = fy.value.replace('/', '_');

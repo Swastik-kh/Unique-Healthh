@@ -202,6 +202,82 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setShowForm(false);
   };
 
+  const handlePrintParties = () => {
+    const printWin = window.open('', '', 'width=900,height=600');
+    if (!printWin) return;
+    const title = "पार्टी विवरण (Party Details)";
+
+    const content = `
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+           @page { size: A4 portrait; margin: 10mm; } 
+           body { font-family: 'Mukta', sans-serif; } 
+           table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
+           th, td { border: 1px solid black; padding: 10px; text-align: left; font-size: 12px; } 
+           th { background: #f3f4f6; text-align: center; }
+           .text-right { text-align: right; }
+           .text-xs { font-size: 10px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <h2 style="text-align: center;">${title}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>पार्टीको नाम र खर्च विवरण</th>
+              <th>PAN</th>
+              <th>सम्झौता</th>
+              <th>भुक्तानी</th>
+              <th>बाँकी</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${parties.map(p => {
+              const partyTxns = transactions.filter(t => t.partyId === p.id);
+              return `
+                <tr>
+                  <td>
+                    <div><strong>${p.name}</strong></div>
+                    ${partyTxns.map(t => `<div class="text-xs">- ${t.remarks} (रू ${t.amount})</div>`).join('')}
+                  </td>
+                  <td>${p.panNumber}</td>
+                  <td class="text-right">रू ${p.totalContractAmount.toLocaleString()}</td>
+                  <td class="text-right">रू ${(p.totalPaidAmount || 0).toLocaleString()}</td>
+                  <td class="text-right">रू ${(p.totalContractAmount - (p.totalPaidAmount || 0)).toLocaleString()}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>`;
+    printWin.document.write(content);
+    printWin.document.close();
+    printWin.print();
+  };
+
+  const handleDownloadPartiesExcel = () => {
+    const data = parties.map(p => {
+      const partyTxns = transactions.filter(t => t.partyId === p.id);
+      const bibaran = partyTxns.map(t => `${t.remarks} (रू ${t.amount})`).join(', ');
+      return {
+        'पार्टीको नाम': p.name,
+        'खर्च विवरण': bibaran,
+        'PAN': p.panNumber,
+        'सम्झौता रकम': p.totalContractAmount,
+        'भुक्तानी रकम': p.totalPaidAmount || 0,
+        'बाँकी रकम': p.totalContractAmount - (p.totalPaidAmount || 0)
+      };
+    });
+
+    const ws = utils.json_to_sheet(data);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Parties");
+    writeFile(wb, "Party_Details.xlsx");
+  };
+
   const openEditForm = (item: any, type: typeof formType) => {
     setEditingItem(item);
     setFormType(type);
@@ -639,19 +715,36 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   ));
                 })() : filteredData.map((item: any) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    {activeTab === 'vendors' && <>
-                      <td className="px-6 py-4 font-bold text-slate-700 font-nepali">{item.name}</td>
-                      <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => { setEditingItem(item); setFormType('party'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                          <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </>}
+                    {activeTab === 'vendors' && (() => {
+                      const partyTxns = transactions.filter(t => t.partyId === item.id);
+                      return (
+                        <>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-700 font-nepali">{item.name}</div>
+                            {partyTxns.length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {partyTxns.slice(0, 3).map(t => (
+                                  <div key={t.id} className="text-[10px] text-slate-500 italic font-nepali">
+                                    - {t.remarks} (रू {t.amount.toLocaleString()})
+                                  </div>
+                                ))}
+                                {partyTxns.length > 3 && <div className="text-[9px] text-slate-400 font-bold tracking-widest">+ {partyTxns.length - 3} more...</div>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
+                          <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
+                          <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
+                          <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
+                          <td className="px-4 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => { setEditingItem(item); setFormType('party'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
+                              <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        </>
+                      );
+                    })()}
                     {activeTab === 'transactions' && <>
                       <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
@@ -737,16 +830,30 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </button>
             )}
             {activeTab === 'vendors' && (
-              <button 
-                onClick={() => { 
-                  setFormType('payment'); 
-                  setPaymentSelectedProgram('');
-                  setShowForm(true); 
-                }}
-                className="bg-slate-800 text-white px-6 py-2.5 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-900 shadow-lg shadow-slate-100 transition-all active:scale-95"
-              >
-                <CreditCard size={20} /> <span className="font-nepali">भुक्तानी</span>
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleDownloadPartiesExcel} 
+                  className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all text-sm"
+                >
+                  <Download size={16} /> Excel
+                </button>
+                <button 
+                  onClick={handlePrintParties} 
+                  className="bg-slate-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all text-sm"
+                >
+                  <Printer size={16} /> Print
+                </button>
+                <button 
+                  onClick={() => { 
+                    setFormType('payment'); 
+                    setPaymentSelectedProgram('');
+                    setShowForm(true); 
+                  }}
+                  className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 shadow-lg shadow-slate-100 transition-all active:scale-95 text-sm"
+                >
+                  <CreditCard size={18} /> <span className="font-nepali">भुक्तानी</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

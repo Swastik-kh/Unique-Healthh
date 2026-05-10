@@ -96,7 +96,7 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
             });
 
             alert(`${uploadMonth} को लागि रिपोर्ट सुरक्षित गरियो।`);
-            setActiveTab('report');
+            setSelectedDataset('report');
             setReportMonth(uploadMonth);
         } catch (error) {
             console.error("Save error details:", error);
@@ -193,7 +193,7 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(progressReport.ageGroups).map(([age, metrics]) => (
+                                {(Object.entries(progressReport.ageGroups) as [string, any][]).map(([age, metrics]) => (
                                     <tr key={age}>
                                         <td className="border p-2 font-bold">{age}</td>
                                         {[ {key: 'maleNew', val: metrics.maleNew}, {key: 'femaleNew', val: metrics.femaleNew}, {key: 'maleTotal', val: metrics.maleTotal}, {key: 'femaleTotal', val: metrics.femaleTotal}, {key: 'maleReferred', val: metrics.maleReferred}, {key: 'femaleReferred', val: metrics.femaleReferred} ].map(m => (
@@ -216,7 +216,7 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.entries(progressReport.healthLocations).map(([loc, stats]) => (
+                                {(Object.entries(progressReport.healthLocations) as [string, any][]).map(([loc, stats]) => (
                                     <tr key={loc}>
                                         <td className="border p-2 font-bold">{loc}</td>
                                         <td><input type="number" className="w-full p-1" value={stats.expected} onChange={e => setProgressReport({...progressReport, healthLocations: {...progressReport.healthLocations, [loc]: {...stats, expected: parseInt(e.target.value) || 0}}})} /></td>
