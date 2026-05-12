@@ -101,6 +101,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     return months[monthNo-1] || dateBs;
   }
 
+  const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
+
   // Derived State
   const stats = useMemo(() => {
     const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
@@ -172,8 +174,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleNagarpalikaPaymentRequestSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const progId = formData.get('programId') as string;
     const payload = {
-      programId: formData.get('programId') as string,
+      programId: progId,
+      customProgramName: progId === 'other' ? formData.get('customProgramName') as string : undefined,
       amountRequested: Number(formData.get('amountRequested')),
       amountPaid: Number(formData.get('amountPaid')),
       status: formData.get('status') as any,
@@ -188,13 +192,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     }
     setShowForm(false);
     setEditingItem(null);
+    setIsOtherProgramSelected(false);
   };
 
   const handleAllowanceSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const progId = formData.get('programId') as string;
     const payload = {
-      programId: formData.get('programId') as string,
+      programId: progId,
+      customProgramName: progId === 'other' ? formData.get('customProgramName') as string : undefined,
       employeeName: formData.get('employeeName') as string,
       amount: Number(formData.get('amount')),
       dateBs: txnFormDate,
@@ -209,6 +216,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     }
     setShowForm(false);
     setEditingItem(null);
+    setIsOtherProgramSelected(false);
   };
 
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -776,7 +784,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 {activeTab === 'nagarpalika' ? filteredData.map((item: any) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-700 font-nepali">{programs.find(p => p.id === item.programId)?.name}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-slate-700 font-nepali">
+                          {item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}
+                        </td>
                         <td className="px-6 py-4 text-sm font-nepali text-slate-600">
                            {item.employeeName || item.remarks}
                            {item.hasOwnProperty('isPaid') && (
@@ -792,6 +802,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                setEditingItem(item);
                                setFormType(item._type === 'PaymentRequest' ? 'nagarpalika_payment' : 'allowance');
                                setTxnFormDate(item.dateBs);
+                               setIsOtherProgramSelected(item.programId === 'other');
                                setShowForm(true);
                              }}
                              className="p-1 text-sky-600 hover:bg-sky-50 rounded transition-colors mr-2"
@@ -1017,13 +1028,25 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             {activeTab === 'nagarpalika' && (
               <div className="flex gap-2">
                 <button 
-                  onClick={() => { setFormType('nagarpalika_payment'); setEditingItem(null); setTxnFormDate(today); setShowForm(true); }}
+                  onClick={() => { 
+                    setFormType('nagarpalika_payment'); 
+                    setEditingItem(null); 
+                    setTxnFormDate(today); 
+                    setIsOtherProgramSelected(false);
+                    setShowForm(true); 
+                  }}
                   className="bg-primary-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all text-sm"
                 >
                   <Plus size={16} /> भुक्तानी माग
                 </button>
                 <button 
-                  onClick={() => { setFormType('allowance'); setEditingItem(null); setTxnFormDate(today); setShowForm(true); }}
+                  onClick={() => { 
+                    setFormType('allowance'); 
+                    setEditingItem(null); 
+                    setTxnFormDate(today); 
+                    setIsOtherProgramSelected(false);
+                    setShowForm(true); 
+                  }}
                   className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm"
                 >
                   <Plus size={16} /> भत्ता रेकर्ड
@@ -1242,7 +1265,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           onChange={(val) => setTxnFormDate(val)}
                         />
                       </div>
-                      <Select label="कार्यक्रम (Program)" name="programId" defaultValue={editingItem?.programId} required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Select 
+                        label="कार्यक्रम (Program)" 
+                        name="programId" 
+                        defaultValue={editingItem?.programId} 
+                        required 
+                        onChange={(e) => setIsOtherProgramSelected(e.target.value === 'other')}
+                        options={[
+                          ...programs.map(p => ({ label: p.name, value: p.id })),
+                          { label: 'अन्य (Other)', value: 'other' }
+                        ]} 
+                      />
+                      {(isOtherProgramSelected || editingItem?.programId === 'other') && (
+                        <Input label="कार्यक्रमको नाम (Custom Program Name)" name="customProgramName" defaultValue={editingItem?.customProgramName} required />
+                      )}
                       <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" defaultValue={editingItem?.amountRequested} required />
                       <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" defaultValue={editingItem?.amountPaid} required />
                       <Select label="अवस्था (Status)" name="status" defaultValue={editingItem?.status} options={[
@@ -1263,7 +1299,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           onChange={(val) => setTxnFormDate(val)}
                         />
                       </div>
-                      <Select label="कार्यक्रम (Program)" name="programId" defaultValue={editingItem?.programId} required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Select 
+                        label="कार्यक्रम (Program)" 
+                        name="programId" 
+                        defaultValue={editingItem?.programId} 
+                        required 
+                        onChange={(e) => setIsOtherProgramSelected(e.target.value === 'other')}
+                        options={[
+                          ...programs.map(p => ({ label: p.name, value: p.id })),
+                          { label: 'अन्य (Other)', value: 'other' }
+                        ]} 
+                      />
+                      {(isOtherProgramSelected || editingItem?.programId === 'other') && (
+                        <Input label="कार्यक्रमको नाम (Custom Program Name)" name="customProgramName" defaultValue={editingItem?.customProgramName} required />
+                      )}
                       <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" defaultValue={editingItem?.employeeName} required />
                       <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       <div className="flex items-center gap-2">

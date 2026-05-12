@@ -50,6 +50,7 @@ export interface PartyPaymentRecord {
 export interface PaymentRequest {
   id: string;
   programId: string;
+  customProgramName?: string;
   amountRequested: number;
   amountPaid: number;
   status: 'Submitted' | 'Partial' | 'Paid';
@@ -61,6 +62,7 @@ export interface PaymentRequest {
 export interface AllowanceRecord {
   id: string;
   programId: string;
+  customProgramName?: string;
   employeeName: string;
   amount: number;
   dateBs: string;
