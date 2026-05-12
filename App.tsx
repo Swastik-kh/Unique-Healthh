@@ -119,12 +119,22 @@ const App: React.FC = () => {
     await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
   };
 
+  const cleanObject = (obj: any) => {
+    const clean: any = {};
+    Object.keys(obj).forEach(key => {
+      if (obj[key] !== undefined) {
+        clean[key] = obj[key];
+      }
+    });
+    return clean;
+  };
+
   const handleUpdatePaymentRequest = async (id: string, r: Partial<PaymentRequest>) => {
     if (!currentUser) return;
     const item = paymentRequests.find(p => p.id === id);
     const targetOrg = item?._orgName || activeOrgName;
     const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
-    await update(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), r);
+    await update(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), cleanObject(r));
   };
 
   const handleUpdateAllowance = async (id: string, a: Partial<AllowanceRecord>) => {
@@ -132,7 +142,7 @@ const App: React.FC = () => {
     const item = allowances.find(al => al.id === id);
     const targetOrg = item?._orgName || activeOrgName;
     const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
-    await update(ref(db, `orgData/${safeOrgName}/allowances/${id}`), a);
+    await update(ref(db, `orgData/${safeOrgName}/allowances/${id}`), cleanObject(a));
   };
 
   const handleDeletePaymentRequest = async (id: string) => {

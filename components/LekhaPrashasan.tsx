@@ -3,7 +3,8 @@ import {
   Calculator, Plus, Search, Printer, Trash2, Edit, Save, 
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
-  Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download
+  Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download,
+  ClipboardList, Building2
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { 
@@ -68,8 +69,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'nagarpalika' | 'reports'>('dashboard');
-  const [nagarpalikaSubTab, setNagarpalikaSubTab] = useState<'PaymentRequest' | 'Allowance'>('PaymentRequest');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
@@ -129,29 +129,28 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
       case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
-      case 'nagarpalika': {
-        if (nagarpalikaSubTab === 'PaymentRequest') {
-          return paymentRequests
-            .filter(p => 
-              ((p.remarks || '').toLowerCase().includes(term) || 
-               (p.customProgramName || '').toLowerCase().includes(term) ||
-               (programs.find(prog => prog.id === p.programId)?.name || '').toLowerCase().includes(term)) && 
-              p.fiscalYear === currentFiscalYear
-            )
-            .map(p => ({ ...p, _type: 'PaymentRequest' }))
-            .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
-        } else {
-          return allowances
-            .filter(a => 
-              ((a.remarks || '').toLowerCase().includes(term) || 
-               a.employeeName.toLowerCase().includes(term) || 
-               (a.customProgramName || '').toLowerCase().includes(term) ||
-               (programs.find(prog => prog.id === a.programId)?.name || '').toLowerCase().includes(term)) && 
-              a.fiscalYear === currentFiscalYear
-            )
-            .map(a => ({ ...a, _type: 'Allowance' }))
-            .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
-        }
+      case 'payment_requests': {
+        return paymentRequests
+          .filter(p => 
+            ((p.remarks || '').toLowerCase().includes(term) || 
+              (p.customProgramName || '').toLowerCase().includes(term) ||
+              (programs.find(prog => prog.id === p.programId)?.name || '').toLowerCase().includes(term)) && 
+            p.fiscalYear === currentFiscalYear
+          )
+          .map(p => ({ ...p, _type: 'PaymentRequest' }))
+          .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+      }
+      case 'allowances': {
+        return allowances
+          .filter(a => 
+            ((a.remarks || '').toLowerCase().includes(term) || 
+              a.employeeName.toLowerCase().includes(term) || 
+              (a.customProgramName || '').toLowerCase().includes(term) ||
+              (programs.find(prog => prog.id === a.programId)?.name || '').toLowerCase().includes(term)) && 
+            a.fiscalYear === currentFiscalYear
+          )
+          .map(a => ({ ...a, _type: 'Allowance' }))
+          .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
       }
       default: return [];
     }
@@ -770,34 +769,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </div>
         )}
 
-        {activeTab === 'nagarpalika' && (
-          <div className="flex justify-between items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex">
-              <button 
-                onClick={() => setNagarpalikaSubTab('PaymentRequest')}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'PaymentRequest' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                भुक्तानी माग (Payment Request)
-              </button>
-              <button 
-                onClick={() => setNagarpalikaSubTab('Allowance')}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'Allowance' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
-              >
-                भत्ता रेकर्ड (Allowance Record)
-              </button>
-            </div>
-            
+        {(activeTab === 'payment_requests' || activeTab === 'allowances') && (
+          <div className="flex justify-end bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
             <button 
               onClick={() => { 
-                setFormType(nagarpalikaSubTab === 'PaymentRequest' ? 'nagarpalika_payment' : 'allowance'); 
+                setFormType(activeTab === 'payment_requests' ? 'nagarpalika_payment' : 'allowance'); 
                 setEditingItem(null); 
                 setTxnFormDate(today); 
                 setIsOtherProgramSelected(false);
                 setShowForm(true); 
               }}
-              className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm mx-2"
+              className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm"
             >
-              <Plus size={16} /> {nagarpalikaSubTab === 'PaymentRequest' ? 'नयाँ भुक्तानी माग' : 'नयाँ भत्ता रेकर्ड'}
+              <Plus size={16} /> {activeTab === 'payment_requests' ? 'नयाँ भुक्तानी माग' : 'नयाँ भत्ता रेकर्ड'}
             </button>
           </div>
         )}
@@ -807,112 +791,41 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali whitespace-nowrap">ID / मिति</th>
                   {activeTab === 'programs' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रमको नाम</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बजेट/आम्दानी/खर्च/भुक्तानी</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">प्रगति (Budget/Income | Income/Expense | Expense/Payment)</th>
-                    <th className="px-1 py-1"></th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">प्रगति</th>
                   </>}
                   {activeTab === 'vendors' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टीको नाम</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">PAN</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">सम्झौता</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी</th>
-                    <th className="px-1 py-1"></th>
                   </>}
                   {activeTab === 'transactions' && <>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">प्रकार</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
-                    <th className="px-1 py-1"></th>
                   </>}
-                  {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'PaymentRequest' && <>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">विवरण</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">माग</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
-                    <th className="px-1 py-1"></th>
+                  {activeTab === 'payment_requests' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण (Payment Result)</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">माग</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                   </>}
-                  {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'Allowance' && <>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">नाम</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
-                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
-                    <th className="px-1 py-1"></th>
+                  {activeTab === 'allowances' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कर्मचारी र विवरण</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भत्ता रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                   </>}
+                  <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">कार्य</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {activeTab === 'nagarpalika' ? filteredData.map((item: any) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
-                        <td className="px-4 py-3 font-mono text-[10px] whitespace-nowrap">{item.dateBs}</td>
-                        <td className="px-4 py-3 text-xs font-bold text-slate-700 font-nepali max-w-[150px] truncate" title={item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}>
-                          {item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}
-                        </td>
-                        
-                        {nagarpalikaSubTab === 'PaymentRequest' ? (
-                          <>
-                            <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.remarks}>
-                               {item.remarks}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-500 whitespace-nowrap">रू {(item.amountRequested || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amountPaid || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
-                                item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
-                                item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
-                              }`}>
-                                {item.status === 'Paid' ? 'भुक्तानी' : item.status === 'Partial' ? 'आंशिक' : 'पेश'}
-                              </span>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={`${item.employeeName}${item.remarks ? ` - ${item.remarks}` : ''}`}>
-                               <div className="font-bold">{item.employeeName}</div>
-                               {item.remarks && <div className="text-[9px] opacity-70 truncate">{item.remarks}</div>}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amount || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                                 {item.isPaid ? 'भुक्तानी' : 'बाँकी'}
-                               </span>
-                            </td>
-                          </>
-                        )}
-                        
-                        <td className="px-4 py-4 text-right">
-                           <button 
-                             onClick={() => {
-                               setEditingItem(item);
-                               setFormType(item._type === 'PaymentRequest' ? 'nagarpalika_payment' : 'allowance');
-                               setTxnFormDate(item.dateBs);
-                               setIsOtherProgramSelected(item.programId === 'other');
-                               setShowForm(true);
-                             }}
-                             className="p-1 text-sky-600 hover:bg-sky-50 rounded transition-colors mr-2"
-                           >
-                              <Edit size={16} />
-                           </button>
-                           <button 
-                             onClick={() => {
-                               if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
-                                 if (item._type === 'PaymentRequest') onDeletePaymentRequest(item.id);
-                                 else if (item._type === 'Allowance') onDeleteAllowance(item.id);
-                               }
-                             }}
-                             className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                           >
-                              <Trash2 size={16} />
-                           </button>
-                        </td>
-                    </tr>
-                )) : activeTab === 'programs' ? (() => {
+                {activeTab === 'programs' ? (() => {
                   const groupedPrograms: Record<string, any[]> = {};
                   const sources = ['Nagarpalika', 'Wada', 'Internal', 'Other', 'Unknown'];
                   
@@ -974,72 +887,136 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     </React.Fragment>
                   ));
                 })() : filteredData.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    {activeTab === 'vendors' && (() => {
-                      const partyTxns = transactions.filter(t => t.partyId === item.id);
-                      return (
-                        <>
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-slate-700 font-nepali">{item.name}</div>
-                            {partyTxns.length > 0 && (
-                              <div className="mt-1 space-y-1">
-                                {partyTxns.slice(0, 3).map(t => (
-                                  <div key={t.id} className="text-[10px] text-slate-500 italic font-nepali">
-                                    - {t.remarks} (रू {t.amount.toLocaleString()})
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                        <td className="px-6 py-3 whitespace-nowrap">
+                            <span className="text-[10px] text-slate-300 block font-mono">{item.id.slice(0, 10)}</span>
+                            <span className="text-xs font-bold text-slate-600 font-mono tracking-tight">{item.dateBs}</span>
+                        </td>
+
+                        {activeTab === 'payment_requests' && item._type === 'PaymentRequest' && (
+                          <>
+                             <td className="px-6 py-3 text-xs font-nepali font-bold text-slate-700">
+                                {item.programId === 'other' ? item.customProgramName : (programs.find(p => p.id === item.programId)?.name || 'Unknown')}
+                             </td>
+                             <td className="px-6 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.remarks}>
+                                {item.remarks}
+                             </td>
+                             <td className="px-6 py-3 text-sm font-black text-slate-900 border-l border-slate-50 text-right">
+                                <div className="text-[9px] text-slate-400">माग: रू {(item.amountRequested || 0).toLocaleString()}</div>
+                                <div>रू {(item.amountPaid || 0).toLocaleString()}</div>
+                             </td>
+                             <td className="px-6 py-3 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
+                                  item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
+                                  item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                                }`}>
+                                  {item.status === 'Paid' ? 'भुक्तानी' : item.status === 'Partial' ? 'आंशिक' : 'पेश'}
+                                </span>
+                             </td>
+                          </>
+                        )}
+
+                        {activeTab === 'allowances' && item._type === 'Allowance' && (
+                          <>
+                             <td className="px-6 py-3 text-[11px] font-nepali text-slate-700">
+                                <div className="font-bold">{item.programId === 'other' ? item.customProgramName : (programs.find(p => p.id === item.programId)?.name || 'Unknown')}</div>
+                                <div className="text-slate-500 mt-0.5 italic">{item.employeeName}</div>
+                             </td>
+                             <td className="px-6 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.remarks}>
+                                {item.remarks || '-'}
+                             </td>
+                             <td className="px-6 py-3 text-sm font-black text-slate-900 text-right">रू {(item.amount || 0).toLocaleString()}</td>
+                             <td className="px-6 py-3 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                  {item.isPaid ? 'भुक्तानी' : 'बाँकी'}
+                                </span>
+                             </td>
+                          </>
+                        )}
+
+                        {activeTab === 'vendors' && (() => {
+                          const partyTxns = transactions.filter(t => t.partyId === item.id);
+                          return (
+                            <>
+                              <td className="px-6 py-4">
+                                <div className="font-bold text-slate-700 font-nepali">{item.name}</div>
+                                {partyTxns.length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    {partyTxns.slice(0, 3).map(t => (
+                                      <div key={t.id} className="text-[10px] text-slate-500 italic font-nepali">
+                                        - {t.remarks} (रू {t.amount.toLocaleString()})
+                                      </div>
+                                    ))}
+                                    {partyTxns.length > 3 && <div className="text-[9px] text-slate-400 font-bold tracking-widest">+ {partyTxns.length - 3} more...</div>}
                                   </div>
-                                ))}
-                                {partyTxns.length > 3 && <div className="text-[9px] text-slate-400 font-bold tracking-widest">+ {partyTxns.length - 3} more...</div>}
-                              </div>
-                            )}
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
+                              <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
+                              <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
+                              <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600 hidden lg:table-cell">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
+                            </>
+                          );
+                        })()}
+
+                        {activeTab === 'transactions' && <>
+                          <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
-                          <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
-                          <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
-                          <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
-                          <td className="px-4 py-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => { setEditingItem(item); setFormType('party'); setShowForm(true); }} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                              <button onClick={() => onDeleteParty(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                            </div>
-                          </td>
-                        </>
-                      );
-                    })()}
-                    {activeTab === 'transactions' && <>
-                      <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
-                      <td className="px-4 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => openEditForm(item, 'transaction')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                          <button onClick={() => onDeleteTransaction(item.id)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                        </div>
-                      </td>
-                    </>}
-                    {activeTab === 'payments' && (() => {
-                       const txn = transactions.find(t => t.id === item.transactionId);
-                       return (
-                         <>
-                           <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
-                           <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{parties.find(p => p.id === item.partyId)?.name}</td>
-                           <td className="px-6 py-4 text-xs font-nepali">
-                             <div className="font-bold text-slate-700">{programs.find(p => p.id === item.programId)?.name}</div>
-                             {txn && <div className="text-slate-400 mt-1 italic">({txn.remarks})</div>}
-                           </td>
-                           <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
-                           <td className="px-4 py-4 text-right">
-                             <div className="flex items-center justify-end gap-2">
-                               <button onClick={() => openEditForm(item, 'payment')} className="text-slate-300 hover:text-blue-500"><Edit size={16} /></button>
-                                <button onClick={() => onDeletePayment(item.id, item.amount, item.partyId, item.programId)} className="text-slate-300 hover:text-rose-500"><Trash2 size={16} /></button>
-                             </div>
-                           </td>
-                         </>
-                       );
-                    })()}
-                  </tr>
+                          <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
+                        </>}
+
+                        {activeTab === 'payments' && (() => {
+                           const txn = transactions.find(t => t.id === item.transactionId);
+                           return (
+                             <>
+                               <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{parties.find(p => p.id === item.partyId)?.name}</td>
+                               <td className="px-6 py-4 text-xs font-nepali">
+                                 <div className="font-bold text-slate-700">{programs.find(p => p.id === item.programId)?.name}</div>
+                                 {txn && <div className="text-slate-400 mt-1 italic">({txn.remarks})</div>}
+                               </td>
+                               <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
+                             </>
+                           );
+                        })()}
+
+                        <td className="px-4 py-4 text-right">
+                           <div className="flex items-center justify-end gap-2">
+                             <button 
+                               onClick={() => {
+                                 setEditingItem(item);
+                                 if (item._type === 'PaymentRequest') setFormType('nagarpalika_payment');
+                                 else if (item._type === 'Allowance') setFormType('allowance');
+                                 else if (activeTab === 'vendors') setFormType('party');
+                                 else if (activeTab === 'transactions') setFormType('transaction');
+                                 else if (activeTab === 'payments') setFormType('payment');
+                                 
+                                 setTxnFormDate(item.dateBs);
+                                 setIsOtherProgramSelected(item.programId === 'other');
+                                 setShowForm(true);
+                               }}
+                               className="p-1 text-sky-600 hover:bg-sky-50 rounded transition-colors"
+                             >
+                                <Edit size={16} />
+                             </button>
+                             <button 
+                               onClick={() => {
+                                 if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
+                                   if (item._type === 'PaymentRequest') onDeletePaymentRequest(item.id);
+                                   else if (item._type === 'Allowance') onDeleteAllowance(item.id);
+                                   else if (activeTab === 'vendors') onDeleteParty(item.id);
+                                   else if (activeTab === 'transactions') onDeleteTransaction(item.id);
+                                   else if (activeTab === 'payments') onDeletePayment(item.id, item.amount, item.partyId, item.programId);
+                                 }
+                               }}
+                               className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                             >
+                                <Trash2 size={16} />
+                             </button>
+                           </div>
+                        </td>
+                    </tr>
                 ))}
               </tbody>
             </table>
@@ -1069,7 +1046,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <p className="text-sm font-black text-slate-800 leading-tight">{currentFiscalYear}</p>
               </div>
             </div>
-            {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'nagarpalika' && (
+            {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'payment_requests' && activeTab !== 'allowances' && (
               <button 
                 onClick={() => {
                   if (activeTab === 'programs') setFormType('program');
@@ -1115,11 +1092,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </button>
               </div>
             )}
-            {activeTab === 'nagarpalika' && (
-              <div className="flex gap-2">
-                {/* Removed the 'Add New' buttons from header as requested */}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1128,11 +1100,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <div className="flex-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex overflow-x-auto no-scrollbar">
             {[
               { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+              { id: 'payment_requests', label: 'Payment (भुक्तानी माग)', icon: <ClipboardList size={18} /> },
+              { id: 'allowances', label: 'Allowance (भत्ता रेकर्ड)', icon: <Briefcase size={18} /> },
               { id: 'programs', label: 'Programs (बजेट)', icon: <Briefcase size={18} /> },
               { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
               { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
               { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
-              { id: 'nagarpalika', label: 'Nagarpalika (नगरपालिका)', icon: <Briefcase size={18} /> },
               { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
             ].map(tab => (
               <button
