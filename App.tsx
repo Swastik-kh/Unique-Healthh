@@ -10,7 +10,8 @@ import {
   IssueReportEntry, FirmEntry, QuotationEntry, InventoryItem, Store, StockEntryRequest, 
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry,
-  GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest
+  GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest,
+  PaymentRequest, AllowanceRecord
 } from './types';
 import { db } from './firebase';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push } from "firebase/database";
@@ -116,6 +117,18 @@ const App: React.FC = () => {
     const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
     const id = `ALW-${Date.now()}`;
     await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
+  };
+
+  const handleDeletePaymentRequest = async (id: string) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await remove(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`));
+  };
+
+  const handleDeleteAllowance = async (id: string) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await remove(ref(db, `orgData/${safeOrgName}/allowances/${id}`));
   };
 
   const managedOrgs = useMemo(() => {
@@ -1416,6 +1429,8 @@ const App: React.FC = () => {
     onDeletePartyPayment={handleDeletePartyPayment}
     onSavePaymentRequest={handleSavePaymentRequest}
     onSaveAllowance={handleSaveAllowance}
+    onDeletePaymentRequest={handleDeletePaymentRequest}
+    onDeleteAllowance={handleDeleteAllowance}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">

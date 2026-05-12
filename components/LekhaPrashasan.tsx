@@ -32,6 +32,8 @@ interface LekhaPrashasanProps {
   onSavePayment: (payment: Omit<PartyPaymentRecord, 'id'>) => void;
   onSavePaymentRequest: (request: Omit<PaymentRequest, 'id'>) => void;
   onSaveAllowance: (allowance: Omit<AllowanceRecord, 'id'>) => void;
+  onDeletePaymentRequest: (id: string) => void;
+  onDeleteAllowance: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
   onDeletePayment: (id: string, amount: number, partyId: string, programId: string) => void;
   generalSettings: OrganizationSettings;
@@ -54,6 +56,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   onSavePayment,
   onSavePaymentRequest,
   onSaveAllowance,
+  onDeletePaymentRequest,
+  onDeleteAllowance,
   onDeleteTransaction,
   onDeletePayment,
   generalSettings,
@@ -118,10 +122,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
       case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
-      case 'nagarpalika': return paymentRequests.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
+      case 'nagarpalika': {
+        const combined = [
+          ...paymentRequests.map(p => ({ ...p, _type: 'PaymentRequest' })),
+          ...allowances.map(a => ({ ...a, _type: 'Allowance' }))
+        ];
+        return combined.filter(item => 
+          ((item.remarks || '').toLowerCase().includes(term) || ((item as any).employeeName || '').toLowerCase().includes(term)) && 
+          item.fiscalYear === currentFiscalYear
+        ).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+      }
       default: return [];
     }
-  }, [activeTab, programs, parties, transactions, payments, paymentRequests, searchTerm, currentFiscalYear]);
+  }, [activeTab, programs, parties, transactions, payments, paymentRequests, allowances, searchTerm, currentFiscalYear]);
 
   const budgetPatternData = useMemo(() => {
     // Get unique fiscal years from programs
@@ -758,7 +771,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         </td>
                         <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amountRequested ? item.amountRequested.toLocaleString() : item.amount.toLocaleString()}</td>
                         <td className="px-4 py-4 text-right">
-                           {/* Add edit/delete buttons if needed */}
+                           <button 
+                             onClick={() => {
+                               if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
+                                 if (item._type === 'PaymentRequest') onDeletePaymentRequest(item.id);
+                                 else if (item._type === 'Allowance') onDeleteAllowance(item.id);
+                               }
+                             }}
+                             className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                           >
+                              <Trash2 size={16} />
+                           </button>
                         </td>
                     </tr>
                 )) : activeTab === 'programs' ? (() => {
@@ -1181,6 +1204,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
                   {formType === 'nagarpalika_payment' && (
                     <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
+                        <NepaliDatePicker 
+                          value={txnFormDate}
+                          onChange={(val) => setTxnFormDate(val)}
+                        />
+                      </div>
                       <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
                       <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" required />
                       <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" required />
@@ -1195,6 +1225,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
                   {formType === 'allowance' && (
                     <>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">मिति (BS)</label>
+                        <NepaliDatePicker 
+                          value={txnFormDate}
+                          onChange={(val) => setTxnFormDate(val)}
+                        />
+                      </div>
                       <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
                       <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" required />
                       <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" required />

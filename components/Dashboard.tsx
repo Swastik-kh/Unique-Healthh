@@ -161,6 +161,8 @@ interface ExtendedDashboardProps extends DashboardProps {
   onDeletePartyPayment: (id: string, amount: number, partyId: string, programId: string) => void;
   onSavePaymentRequest: (r: any) => void;
   onSaveAllowance: (a: any) => void;
+  onDeletePaymentRequest: (id: string) => void;
+  onDeleteAllowance: (id: string) => void;
 }
 
 interface AppNotification {
@@ -217,7 +219,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   paymentRequests = [], allowances = [],
   onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
   onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
-  onSavePaymentRequest, onSaveAllowance
+  onSavePaymentRequest, onSaveAllowance,
+  onDeletePaymentRequest, onDeleteAllowance
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -1127,6 +1130,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           onDeletePayment={onDeletePartyPayment}
           onSavePaymentRequest={onSavePaymentRequest}
           onSaveAllowance={onSaveAllowance}
+          onDeletePaymentRequest={onDeletePaymentRequest}
+          onDeleteAllowance={onDeleteAllowance}
           generalSettings={generalSettings}
           currentFiscalYear={currentFiscalYear}
           isAdmin={currentUser?.role === 'ADMIN'}
