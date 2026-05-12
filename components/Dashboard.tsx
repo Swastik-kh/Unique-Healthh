@@ -161,6 +161,8 @@ interface ExtendedDashboardProps extends DashboardProps {
   onDeletePartyPayment: (id: string, amount: number, partyId: string, programId: string) => void;
   onSavePaymentRequest: (r: any) => void;
   onSaveAllowance: (a: any) => void;
+  onUpdatePaymentRequest: (id: string, r: any) => void;
+  onUpdateAllowance: (id: string, a: any) => void;
   onDeletePaymentRequest: (id: string) => void;
   onDeleteAllowance: (id: string) => void;
 }
@@ -220,6 +222,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
   onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
   onSavePaymentRequest, onSaveAllowance,
+  onUpdatePaymentRequest, onUpdateAllowance,
   onDeletePaymentRequest, onDeleteAllowance
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
@@ -1130,6 +1133,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           onDeletePayment={onDeletePartyPayment}
           onSavePaymentRequest={onSavePaymentRequest}
           onSaveAllowance={onSaveAllowance}
+          onUpdatePaymentRequest={onUpdatePaymentRequest}
+          onUpdateAllowance={onUpdateAllowance}
           onDeletePaymentRequest={onDeletePaymentRequest}
           onDeleteAllowance={onDeleteAllowance}
           generalSettings={generalSettings}

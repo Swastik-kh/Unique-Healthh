@@ -32,6 +32,8 @@ interface LekhaPrashasanProps {
   onSavePayment: (payment: Omit<PartyPaymentRecord, 'id'>) => void;
   onSavePaymentRequest: (request: Omit<PaymentRequest, 'id'>) => void;
   onSaveAllowance: (allowance: Omit<AllowanceRecord, 'id'>) => void;
+  onUpdatePaymentRequest: (id: string, request: Partial<PaymentRequest>) => void;
+  onUpdateAllowance: (id: string, allowance: Partial<AllowanceRecord>) => void;
   onDeletePaymentRequest: (id: string) => void;
   onDeleteAllowance: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
@@ -56,6 +58,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   onSavePayment,
   onSavePaymentRequest,
   onSaveAllowance,
+  onUpdatePaymentRequest,
+  onUpdateAllowance,
   onDeletePaymentRequest,
   onDeleteAllowance,
   onDeleteTransaction,
@@ -168,7 +172,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleNagarpalikaPaymentRequestSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    onSavePaymentRequest({
+    const payload = {
       programId: formData.get('programId') as string,
       amountRequested: Number(formData.get('amountRequested')),
       amountPaid: Number(formData.get('amountPaid')),
@@ -176,14 +180,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       dateBs: txnFormDate,
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear
-    });
+    };
+    if (editingItem) {
+      onUpdatePaymentRequest(editingItem.id, payload);
+    } else {
+      onSavePaymentRequest(payload);
+    }
     setShowForm(false);
+    setEditingItem(null);
   };
 
   const handleAllowanceSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    onSaveAllowance({
+    const payload = {
       programId: formData.get('programId') as string,
       employeeName: formData.get('employeeName') as string,
       amount: Number(formData.get('amount')),
@@ -191,8 +201,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       isPaid: formData.get('isPaid') === 'on',
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear
-    });
+    };
+    if (editingItem) {
+      onUpdateAllowance(editingItem.id, payload);
+    } else {
+      onSaveAllowance(payload);
+    }
     setShowForm(false);
+    setEditingItem(null);
   };
 
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -773,6 +789,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <td className="px-4 py-4 text-right">
                            <button 
                              onClick={() => {
+                               setEditingItem(item);
+                               setFormType(item._type === 'PaymentRequest' ? 'nagarpalika_payment' : 'allowance');
+                               setTxnFormDate(item.dateBs);
+                               setShowForm(true);
+                             }}
+                             className="p-1 text-sky-600 hover:bg-sky-50 rounded transition-colors mr-2"
+                           >
+                              <Edit size={16} />
+                           </button>
+                           <button 
+                             onClick={() => {
                                if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
                                  if (item._type === 'PaymentRequest') onDeletePaymentRequest(item.id);
                                  else if (item._type === 'Allowance') onDeleteAllowance(item.id);
@@ -990,13 +1017,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             {activeTab === 'nagarpalika' && (
               <div className="flex gap-2">
                 <button 
-                  onClick={() => { setFormType('nagarpalika_payment'); setShowForm(true); }}
+                  onClick={() => { setFormType('nagarpalika_payment'); setEditingItem(null); setTxnFormDate(today); setShowForm(true); }}
                   className="bg-primary-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all text-sm"
                 >
                   <Plus size={16} /> भुक्तानी माग
                 </button>
                 <button 
-                  onClick={() => { setFormType('allowance'); setShowForm(true); }}
+                  onClick={() => { setFormType('allowance'); setEditingItem(null); setTxnFormDate(today); setShowForm(true); }}
                   className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm"
                 >
                   <Plus size={16} /> भत्ता रेकर्ड
@@ -1069,14 +1096,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               >
                 <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
                   <h2 className="text-xl font-bold text-slate-800 font-nepali">
-                    {formType === 'program' && 'नयाँ कार्यक्रम थप्नुहोस्'}
-                    {formType === 'party' && 'नयाँ पार्टी थप्नुहोस् (Add Party/Vendor)'}
-                    {formType === 'transaction' && 'आम्दानी/खर्च प्रविष्टि (Add Transaction)'}
-                    {formType === 'payment' && 'भुक्तानी गर्नुहोस् (Party Payment)'}
-                    {formType === 'nagarpalika_payment' && 'नगरपालिका भुक्तानी माग (Nagarpalika Payment Request)'}
-                    {formType === 'allowance' && 'कर्मचारी भत्ता रेकर्ड (Allowance Record)'}
+                    {editingItem ? 'विवरण सम्पादन गर्नुहोस्' : (
+                      <>
+                        {formType === 'program' && 'नयाँ कार्यक्रम थप्नुहोस्'}
+                        {formType === 'party' && 'नयाँ पार्टी थप्नुहोस् (Add Party/Vendor)'}
+                        {formType === 'transaction' && 'आम्दानी/खर्च प्रविष्टि (Add Transaction)'}
+                        {formType === 'payment' && 'भुक्तानी गर्नुहोस् (Party Payment)'}
+                        {formType === 'nagarpalika_payment' && 'नगरपालिका भुक्तानी माग (Nagarpalika Payment Request)'}
+                        {formType === 'allowance' && 'कर्मचारी भत्ता रेकर्ड (Allowance Record)'}
+                      </>
+                    )}
                   </h2>
-                  <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
+                  <button onClick={() => { setShowForm(false); setEditingItem(null); }} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
                 </div>
 
                 <form className="p-6 space-y-4" onSubmit={
@@ -1211,15 +1242,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           onChange={(val) => setTxnFormDate(val)}
                         />
                       </div>
-                      <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
-                      <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" required />
-                      <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" required />
-                      <Select label="अवस्था (Status)" name="status" options={[
+                      <Select label="कार्यक्रम (Program)" name="programId" defaultValue={editingItem?.programId} required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" defaultValue={editingItem?.amountRequested} required />
+                      <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" defaultValue={editingItem?.amountPaid} required />
+                      <Select label="अवस्था (Status)" name="status" defaultValue={editingItem?.status} options={[
                         {label: 'Submitted (पेश गरिएको)', value: 'Submitted'},
                         {label: 'Partial (आंशिक भुक्तानी)', value: 'Partial'},
                         {label: 'Paid (भुक्तानी भएको)', value: 'Paid'}
                       ]} required />
-                      <Input label="विवरण (Remarks)" name="remarks" />
+                      <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} />
                     </>
                   )}
 
@@ -1232,21 +1263,21 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           onChange={(val) => setTxnFormDate(val)}
                         />
                       </div>
-                      <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
-                      <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" required />
-                      <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" required />
+                      <Select label="कार्यक्रम (Program)" name="programId" defaultValue={editingItem?.programId} required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" defaultValue={editingItem?.employeeName} required />
+                      <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       <div className="flex items-center gap-2">
-                        <input type="checkbox" name="isPaid" id="isPaid" className="form-checkbox h-5 w-5 text-primary-600 rounded" />
+                        <input type="checkbox" name="isPaid" id="isPaid" defaultChecked={editingItem?.isPaid} className="form-checkbox h-5 w-5 text-primary-600 rounded" />
                         <label htmlFor="isPaid" className="text-sm font-bold text-slate-700">भुक्तानी भयो (Paid)</label>
                       </div>
-                      <Input label="विवरण (Remarks)" name="remarks" />
+                      <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} />
                     </>
                   )}
 
                   <div className="flex gap-4 pt-4">
-                    <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors">रद्द गर्नुहोस्</button>
+                    <button type="button" onClick={() => { setShowForm(false); setEditingItem(null); }} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors">रद्द गर्नुहोस्</button>
                     <button type="submit" className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-2xl shadow-lg shadow-primary-100 hover:bg-primary-700 transition-all flex items-center justify-center gap-2">
-                       <Save size={18} /> सुरक्षित गर्नुहोस्
+                       <Save size={18} /> {editingItem ? 'अपडेट गर्नुहोस्' : 'सुरक्षित गर्नुहोस्'}
                     </button>
                   </div>
                 </form>

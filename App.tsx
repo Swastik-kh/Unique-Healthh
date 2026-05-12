@@ -119,6 +119,18 @@ const App: React.FC = () => {
     await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
   };
 
+  const handleUpdatePaymentRequest = async (id: string, r: Partial<PaymentRequest>) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await update(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), r);
+  };
+
+  const handleUpdateAllowance = async (id: string, a: Partial<AllowanceRecord>) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await update(ref(db, `orgData/${safeOrgName}/allowances/${id}`), a);
+  };
+
   const handleDeletePaymentRequest = async (id: string) => {
     if (!currentUser) return;
     const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
@@ -1429,6 +1441,8 @@ const App: React.FC = () => {
     onDeletePartyPayment={handleDeletePartyPayment}
     onSavePaymentRequest={handleSavePaymentRequest}
     onSaveAllowance={handleSaveAllowance}
+    onUpdatePaymentRequest={handleUpdatePaymentRequest}
+    onUpdateAllowance={handleUpdateAllowance}
     onDeletePaymentRequest={handleDeletePaymentRequest}
     onDeleteAllowance={handleDeleteAllowance}
         />
