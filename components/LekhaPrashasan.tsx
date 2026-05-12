@@ -130,14 +130,28 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
       case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       case 'nagarpalika': {
-        const combined = nagarpalikaSubTab === 'PaymentRequest' 
-          ? paymentRequests.map(p => ({ ...p, _type: 'PaymentRequest' }))
-          : allowances.map(a => ({ ...a, _type: 'Allowance' }));
-          
-        return combined.filter(item => 
-          ((item.remarks || '').toLowerCase().includes(term) || ((item as any).employeeName || '').toLowerCase().includes(term)) && 
-          item.fiscalYear === currentFiscalYear
-        ).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+        if (nagarpalikaSubTab === 'PaymentRequest') {
+          return paymentRequests
+            .filter(p => 
+              ((p.remarks || '').toLowerCase().includes(term) || 
+               (p.customProgramName || '').toLowerCase().includes(term) ||
+               (programs.find(prog => prog.id === p.programId)?.name || '').toLowerCase().includes(term)) && 
+              p.fiscalYear === currentFiscalYear
+            )
+            .map(p => ({ ...p, _type: 'PaymentRequest' }))
+            .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+        } else {
+          return allowances
+            .filter(a => 
+              ((a.remarks || '').toLowerCase().includes(term) || 
+               a.employeeName.toLowerCase().includes(term) || 
+               (a.customProgramName || '').toLowerCase().includes(term) ||
+               (programs.find(prog => prog.id === a.programId)?.name || '').toLowerCase().includes(term)) && 
+              a.fiscalYear === currentFiscalYear
+            )
+            .map(a => ({ ...a, _type: 'Allowance' }))
+            .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+        }
       }
       default: return [];
     }
@@ -840,11 +854,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <td className="px-4 py-3 text-xs font-bold text-slate-700 font-nepali max-w-[150px] truncate" title={item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}>
                           {item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}
                         </td>
-                        <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.employeeName || item.remarks}>
-                           {item.employeeName || item.remarks}
-                        </td>
+                        
                         {nagarpalikaSubTab === 'PaymentRequest' ? (
                           <>
+                            <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.remarks}>
+                               {item.remarks}
+                            </td>
                             <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-500 whitespace-nowrap">रू {(item.amountRequested || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amountPaid || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-center">
@@ -858,6 +873,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           </>
                         ) : (
                           <>
+                            <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={`${item.employeeName}${item.remarks ? ` - ${item.remarks}` : ''}`}>
+                               <div className="font-bold">{item.employeeName}</div>
+                               {item.remarks && <div className="text-[9px] opacity-70 truncate">{item.remarks}</div>}
+                            </td>
                             <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amount || 0).toLocaleString()}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
@@ -866,6 +885,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             </td>
                           </>
                         )}
+                        
                         <td className="px-4 py-4 text-right">
                            <button 
                              onClick={() => {
