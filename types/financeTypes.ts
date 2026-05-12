@@ -46,3 +46,25 @@ export interface PartyPaymentRecord {
   paymentMethod: string;
   remarks: string;
 }
+
+export interface PaymentRequest {
+  id: string;
+  programId: string;
+  amountRequested: number;
+  amountPaid: number;
+  status: 'Submitted' | 'Partial' | 'Paid';
+  dateBs: string;
+  remarks: string;
+  fiscalYear: string;
+}
+
+export interface AllowanceRecord {
+  id: string;
+  programId: string;
+  employeeName: string;
+  amount: number;
+  dateBs: string;
+  isPaid: boolean;
+  remarks: string;
+  fiscalYear: string;
+}

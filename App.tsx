@@ -101,6 +101,22 @@ const App: React.FC = () => {
   const [listedParties, setListedParties] = useState<any[]>([]);
   const [financialTransactions, setFinancialTransactions] = useState<any[]>([]);
   const [partyPayments, setPartyPayments] = useState<any[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [allowances, setAllowances] = useState<AllowanceRecord[]>([]);
+
+  const handleSavePaymentRequest = async (r: Omit<PaymentRequest, 'id'>) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const id = `PR-${Date.now()}`;
+    await set(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), { ...r, id });
+  };
+
+  const handleSaveAllowance = async (a: Omit<AllowanceRecord, 'id'>) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const id = `ALW-${Date.now()}`;
+    await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
+  };
 
   const managedOrgs = useMemo(() => {
       if (currentUser?.role !== 'HEALTH_SECTION') return [];
@@ -246,6 +262,8 @@ const App: React.FC = () => {
     setupOrgListener('listedParties', setListedParties);
     setupOrgListener('financialTransactions', setFinancialTransactions);
     setupOrgListener('partyPayments', setPartyPayments);
+    setupOrgListener('paymentRequests', setPaymentRequests);
+    setupOrgListener('allowances', setAllowances);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -1386,6 +1404,8 @@ const App: React.FC = () => {
     listedParties={listedParties}
     financialTransactions={financialTransactions}
     partyPayments={partyPayments}
+    paymentRequests={paymentRequests}
+    allowances={allowances}
     onSaveFinancialProgram={handleSaveFinancialProgram}
     onDeleteFinancialProgram={handleDeleteFinancialProgram}
     onSaveListedParty={handleSaveListedParty}
@@ -1394,6 +1414,8 @@ const App: React.FC = () => {
     onDeleteFinancialTransaction={handleDeleteFinancialTransaction}
     onSavePartyPayment={handleSavePartyPayment}
     onDeletePartyPayment={handleDeletePartyPayment}
+    onSavePaymentRequest={handleSavePaymentRequest}
+    onSaveAllowance={handleSaveAllowance}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">

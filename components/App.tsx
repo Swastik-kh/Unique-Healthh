@@ -13,6 +13,7 @@ import {
   DispensaryRecord, ServiceItem, LabReport, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord,
   LeaveApplication, LeaveBalance
 } from '../types';
+import { PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { db } from '../firebase';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off } from "firebase/database";
 // @ts-ignore
@@ -84,6 +85,20 @@ const App: React.FC = () => {
   const [uttarPrasutiRecords, setUttarPrasutiRecords] = useState<UttarPrasutiRecord[]>([]);
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [allowances, setAllowances] = useState<AllowanceRecord[]>([]);
+
+  const handleSavePaymentRequest = async (r: Omit<PaymentRequest, 'id'>) => {
+    if (!currentUser) return;
+    const id = `PR-${Date.now()}`;
+    await set(getOrgRef(`paymentRequests/${id}`), { ...r, id });
+  };
+
+  const handleSaveAllowance = async (a: Omit<AllowanceRecord, 'id'>) => {
+    if (!currentUser) return;
+    const id = `ALW-${Date.now()}`;
+    await set(getOrgRef(`allowances/${id}`), { ...a, id });
+  };
 
   useEffect(() => {
     const connectedRef = ref(db, ".info/connected");
@@ -179,6 +194,8 @@ const App: React.FC = () => {
     setupOrgListener('uttarPrasutiRecords', setUttarPrasutiRecords);
     setupOrgListener('leaveApplications', setLeaveApplications);
     setupOrgListener('leaveBalances', setLeaveBalances);
+    setupOrgListener('paymentRequests', setPaymentRequests);
+    setupOrgListener('allowances', setAllowances);
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [currentUser]);
@@ -613,6 +630,8 @@ const App: React.FC = () => {
           }}
           onDeleteLeaveApplication={(id) => remove(getOrgRef(`leaveApplications/${id}`))}
           leaveBalances={leaveBalances} onSaveLeaveBalance={(b) => set(getOrgRef(`leaveBalances/${b.id}`), b)}
+          paymentRequests={paymentRequests} onSavePaymentRequest={handleSavePaymentRequest}
+          allowances={allowances} onSaveAllowance={handleSaveAllowance}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">

@@ -1789,6 +1789,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       // Malnutrition
       const muacVal = parseInt(assessmentData.muac);
       const currentZScore = zScore ? parseFloat(zScore) : null;
+      console.log('Malnutrition Debug:', {
+        weight: assessmentData.weight,
+        zScore: currentZScore,
+        muac: muacVal,
+        nutritionSigns: assessmentData.nutritionSigns
+      });
       
       if (assessmentData.nutritionSigns?.includes("दुवै खुट्टा सुन्निएको (Oedema both feet)") || 
           (muacVal > 0 && muacVal < 115) || 
@@ -2315,65 +2321,58 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
           {viewMode === 'entry' ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              {(moduleType === 'Child') && (
-                <Input 
-                  label="उमेर (महिनामा)" 
-                  type="number"
-                  value={tempChildInfo.ageMonths || ''}
-                  onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      if (val < 2) {
-                          setModuleType('Infant');
-                          setTempChildInfo({...tempChildInfo, ageMonths: val, ageWeeks: Math.floor(val * 4)});
-                      } else if (val <= 60) setTempChildInfo({...tempChildInfo, ageMonths: val});
-                      else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageMonths: 0});
-                  }}
-                />
-              )}
-              {moduleType === 'Infant' && (
-              <Input 
-                label="उमेर (हप्तामा)"
-                type="number"
-                value={tempChildInfo.ageWeeks || ''}
-                onChange={(e) => {
-                    const val = parseInt(e.target.value) || 0;
-                    if (val >= 0 && val <= 8) setTempChildInfo({...tempChildInfo, ageWeeks: val});
-                    else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageWeeks: 0});
-                }}
-              />
-              )}
-              {moduleType === 'Infant' && (
-                <Input 
-                  label="उमेर (दिनमा)"
-                  type="number"
-                  value={tempChildInfo.ageDays || ''}
-                  onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      if (val >= 0 && val <= 60) setTempChildInfo({...tempChildInfo, ageDays: val});
-                      else if (e.target.value === '') setTempChildInfo({...tempChildInfo, ageDays: 0});
-                  }}
-                />
-              )}
-              <Input 
-                label="तौल (kg)" 
-                type="number"
-                value={tempChildInfo.weight || ''}
-                onChange={(e) => setTempChildInfo({...tempChildInfo, weight: parseFloat(e.target.value) || 0})}
-              />
-              <button 
+              {/* Simplified Input Section */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <Input 
+              label="उमेर (महिनामा)" 
+              type="number"
+              value={tempChildInfo.ageMonths || ''}
+              onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setTempChildInfo({...tempChildInfo, ageMonths: val});
+              }}
+            />
+            <Input 
+              label="उमेर (हप्तामा)"
+              type="number"
+              value={tempChildInfo.ageWeeks || ''}
+              onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setTempChildInfo({...tempChildInfo, ageWeeks: val});
+              }}
+            />
+            <Input 
+              label="उमेर (दिनमा)"
+              type="number"
+              value={tempChildInfo.ageDays || ''}
+              onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setTempChildInfo({...tempChildInfo, ageDays: val});
+              }}
+            />
+            <Input 
+              label="तौल (kg)" 
+              type="number"
+              value={tempChildInfo.weight || ''}
+              onChange={(e) => setTempChildInfo({...tempChildInfo, weight: parseFloat(e.target.value) || 0})}
+            />
+          </div>
+          <button 
                 onClick={() => {
+                  const months = tempChildInfo.ageMonths || 0;
+                  const isInfant = months < 2;
+                  
+                  // Set module type before calling selectPatient
+                  setModuleType(isInfant ? 'Infant' : 'Child');
+                  
                   const dummyPatient: any = {
                       id: 'temp-' + Date.now(),
                       uniquePatientId: 'TEMP-' + Date.now().toString().slice(-6),
                       registrationNumber: 'TEMP',
                       date: new NepaliDate().format('YYYY-MM-DD'),
                       name: 'अस्थायी बिरामी',
-                      age: moduleType === 'Infant' ? 
-                           ((tempChildInfo.ageWeeks || 0) + ' हप्ता, ' + (tempChildInfo.ageDays || 0) + ' दिन') : 
-                           ((tempChildInfo.ageMonths || 0) + ' महिना, ' + (tempChildInfo.ageWeeks || 0) + ' हप्ता'),
-                      ageMonths: moduleType === 'Infant' ? 
-                           (Math.floor((tempChildInfo.ageWeeks || 0) * 7 / 30) + Math.floor((tempChildInfo.ageDays || 0) / 30)) :
-                           ((tempChildInfo.ageMonths || 0) + Math.floor((tempChildInfo.ageWeeks || 0) / 4)),
+                      age: (months + ' महिना, ' + (tempChildInfo.ageWeeks || 0) + ' हप्ता'),
+                      ageMonths: months + Math.floor((tempChildInfo.ageWeeks || 0) / 4),
                       gender: 'Other',
                       address: 'नखुलेको',
                       phone: '',
@@ -2385,7 +2384,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                   setAssessmentData({...assessmentData, weight: tempChildInfo.weight.toString()});
                   setViewMode('search'); 
                 }}
-                className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm"
+                className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm mt-4"
               >
                 परीक्षण सुरू गर्नुहोस्
               </button>

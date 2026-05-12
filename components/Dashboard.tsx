@@ -15,7 +15,7 @@ import { ref, onValue } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
 import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest } from '../types';
-import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from '../types/financeTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
 import { Conference } from './Conference';
@@ -149,6 +149,8 @@ interface ExtendedDashboardProps extends DashboardProps {
   listedParties: ListedParty[];
   financialTransactions: FinancialTransaction[];
   partyPayments: PartyPaymentRecord[];
+  paymentRequests: PaymentRequest[];
+  allowances: AllowanceRecord[];
   onSaveFinancialProgram: (p: any) => void;
   onDeleteFinancialProgram: (id: string) => void;
   onSaveListedParty: (p: any) => void;
@@ -157,6 +159,8 @@ interface ExtendedDashboardProps extends DashboardProps {
   onDeleteFinancialTransaction: (id: string) => void;
   onSavePartyPayment: (p: any) => void;
   onDeletePartyPayment: (id: string, amount: number, partyId: string, programId: string) => void;
+  onSavePaymentRequest: (r: any) => void;
+  onSaveAllowance: (a: any) => void;
 }
 
 interface AppNotification {
@@ -210,8 +214,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onUpdateReadNotifications,
   activeOrgName, onSetActiveOrgName, allUsers = [],
   financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
+  paymentRequests = [], allowances = [],
   onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
-  onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment
+  onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
+  onSavePaymentRequest, onSaveAllowance
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -1109,6 +1115,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           parties={listedParties || []}
           transactions={financialTransactions || []}
           payments={partyPayments || []}
+          paymentRequests={paymentRequests || []}
+          allowances={allowances || []}
           onSaveProgram={onSaveFinancialProgram}
           onDeleteProgram={onDeleteFinancialProgram}
           onSaveParty={onSaveListedParty}
@@ -1117,6 +1125,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           onDeleteTransaction={onDeleteFinancialTransaction}
           onSavePayment={onSavePartyPayment}
           onDeletePayment={onDeletePartyPayment}
+          onSavePaymentRequest={onSavePaymentRequest}
+          onSaveAllowance={onSaveAllowance}
           generalSettings={generalSettings}
           currentFiscalYear={currentFiscalYear}
           isAdmin={currentUser?.role === 'ADMIN'}

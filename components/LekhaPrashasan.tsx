@@ -9,7 +9,7 @@ import { utils, writeFile } from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from '../types/financeTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -22,12 +22,16 @@ interface LekhaPrashasanProps {
   parties: ListedParty[];
   transactions: FinancialTransaction[];
   payments: PartyPaymentRecord[];
+  paymentRequests: PaymentRequest[];
+  allowances: AllowanceRecord[];
   onSaveProgram: (program: any) => void;
   onDeleteProgram: (id: string) => void;
   onSaveParty: (party: any) => void;
   onDeleteParty: (id: string) => void;
   onSaveTransaction: (transaction: any) => void;
   onSavePayment: (payment: Omit<PartyPaymentRecord, 'id'>) => void;
+  onSavePaymentRequest: (request: Omit<PaymentRequest, 'id'>) => void;
+  onSaveAllowance: (allowance: Omit<AllowanceRecord, 'id'>) => void;
   onDeleteTransaction: (id: string) => void;
   onDeletePayment: (id: string, amount: number, partyId: string, programId: string) => void;
   generalSettings: OrganizationSettings;
@@ -40,22 +44,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   parties = [],
   transactions = [],
   payments = [],
+  paymentRequests = [],
+  allowances = [],
   onSaveProgram,
   onDeleteProgram,
   onSaveParty,
   onDeleteParty,
   onSaveTransaction,
   onSavePayment,
+  onSavePaymentRequest,
+  onSaveAllowance,
   onDeleteTransaction,
   onDeletePayment,
   generalSettings,
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'nagarpalika' | 'reports'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment'>('program');
+  const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [paymentSelectedProgram, setPaymentSelectedProgram] = useState('');
   
@@ -110,9 +118,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
       case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
+      case 'nagarpalika': return paymentRequests.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       default: return [];
     }
-  }, [activeTab, programs, parties, transactions, searchTerm, currentFiscalYear]);
+  }, [activeTab, programs, parties, transactions, payments, paymentRequests, searchTerm, currentFiscalYear]);
 
   const budgetPatternData = useMemo(() => {
     // Get unique fiscal years from programs
@@ -141,6 +150,36 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     });
     setShowForm(false);
     setEditingItem(null);
+  };
+
+  const handleNagarpalikaPaymentRequestSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    onSavePaymentRequest({
+      programId: formData.get('programId') as string,
+      amountRequested: Number(formData.get('amountRequested')),
+      amountPaid: Number(formData.get('amountPaid')),
+      status: formData.get('status') as any,
+      dateBs: txnFormDate,
+      remarks: formData.get('remarks') as string,
+      fiscalYear: currentFiscalYear
+    });
+    setShowForm(false);
+  };
+
+  const handleAllowanceSave = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    onSaveAllowance({
+      programId: formData.get('programId') as string,
+      employeeName: formData.get('employeeName') as string,
+      amount: Number(formData.get('amount')),
+      dateBs: txnFormDate,
+      isPaid: formData.get('isPaid') === 'on',
+      remarks: formData.get('remarks') as string,
+      fiscalYear: currentFiscalYear
+    });
+    setShowForm(false);
   };
 
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -695,17 +734,34 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
                     <th className="px-1 py-1"></th>
                   </>}
-                  {activeTab === 'payments' && <>
+                  {activeTab === 'nagarpalika' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टी</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण/कर्मचारी</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
                     <th className="px-1 py-1"></th>
                   </>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {activeTab === 'programs' ? (() => {
+                {activeTab === 'nagarpalika' ? filteredData.map((item: any) => (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-slate-700 font-nepali">{programs.find(p => p.id === item.programId)?.name}</td>
+                        <td className="px-6 py-4 text-sm font-nepali text-slate-600">
+                           {item.employeeName || item.remarks}
+                           {item.hasOwnProperty('isPaid') && (
+                             <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                               {item.isPaid ? 'भुक्तानी भएको' : 'बाँकी'}
+                             </span>
+                           )}
+                        </td>
+                        <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amountRequested ? item.amountRequested.toLocaleString() : item.amount.toLocaleString()}</td>
+                        <td className="px-4 py-4 text-right">
+                           {/* Add edit/delete buttons if needed */}
+                        </td>
+                    </tr>
+                )) : activeTab === 'programs' ? (() => {
                   const groupedPrograms: Record<string, any[]> = {};
                   const sources = ['Nagarpalika', 'Wada', 'Internal', 'Other', 'Unknown'];
                   
@@ -908,6 +964,22 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </button>
               </div>
             )}
+            {activeTab === 'nagarpalika' && (
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { setFormType('nagarpalika_payment'); setShowForm(true); }}
+                  className="bg-primary-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all text-sm"
+                >
+                  <Plus size={16} /> भुक्तानी माग
+                </button>
+                <button 
+                  onClick={() => { setFormType('allowance'); setShowForm(true); }}
+                  className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm"
+                >
+                  <Plus size={16} /> भत्ता रेकर्ड
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -920,6 +992,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
               { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
               { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
+              { id: 'nagarpalika', label: 'Nagarpalika (नगरपालिका)', icon: <Briefcase size={18} /> },
               { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
             ].map(tab => (
               <button
@@ -977,6 +1050,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     {formType === 'party' && 'नयाँ पार्टी थप्नुहोस् (Add Party/Vendor)'}
                     {formType === 'transaction' && 'आम्दानी/खर्च प्रविष्टि (Add Transaction)'}
                     {formType === 'payment' && 'भुक्तानी गर्नुहोस् (Party Payment)'}
+                    {formType === 'nagarpalika_payment' && 'नगरपालिका भुक्तानी माग (Nagarpalika Payment Request)'}
+                    {formType === 'allowance' && 'कर्मचारी भत्ता रेकर्ड (Allowance Record)'}
                   </h2>
                   <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
                 </div>
@@ -985,6 +1060,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   formType === 'program' ? handleProgramSave : 
                   formType === 'party' ? handlePartySave : 
                   formType === 'transaction' ? handleTransactionSave : 
+                  formType === 'nagarpalika_payment' ? handleNagarpalikaPaymentRequestSave :
+                  formType === 'allowance' ? handleAllowanceSave :
                   handlePaymentSave
                 }>
                   {formType === 'program' && (
@@ -1099,6 +1176,33 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       )}
                       <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} />
+                    </>
+                  )}
+
+                  {formType === 'nagarpalika_payment' && (
+                    <>
+                      <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" required />
+                      <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" required />
+                      <Select label="अवस्था (Status)" name="status" options={[
+                        {label: 'Submitted (पेश गरिएको)', value: 'Submitted'},
+                        {label: 'Partial (आंशिक भुक्तानी)', value: 'Partial'},
+                        {label: 'Paid (भुक्तानी भएको)', value: 'Paid'}
+                      ]} required />
+                      <Input label="विवरण (Remarks)" name="remarks" />
+                    </>
+                  )}
+
+                  {formType === 'allowance' && (
+                    <>
+                      <Select label="कार्यक्रम (Program)" name="programId" required options={programs.map(p => ({ label: p.name, value: p.id }))} />
+                      <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" required />
+                      <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" required />
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" name="isPaid" id="isPaid" className="form-checkbox h-5 w-5 text-primary-600 rounded" />
+                        <label htmlFor="isPaid" className="text-sm font-bold text-slate-700">भुक्तानी भयो (Paid)</label>
+                      </div>
+                      <Input label="विवरण (Remarks)" name="remarks" />
                     </>
                   )}
 
