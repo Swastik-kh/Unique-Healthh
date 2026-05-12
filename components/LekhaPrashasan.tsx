@@ -968,7 +968,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <p className="text-sm font-black text-slate-800 leading-tight">{currentFiscalYear}</p>
               </div>
             </div>
-            {activeTab !== 'dashboard' && activeTab !== 'reports' && (
+            {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'nagarpalika' && (
               <button 
                 onClick={() => {
                   if (activeTab === 'programs') setFormType('program');
@@ -1092,7 +1092,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="bg-white w-full max-w-xl rounded-3xl shadow-2xl relative overflow-hidden"
+                className="bg-white w-full max-w-xl rounded-3xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
                   <h2 className="text-xl font-bold text-slate-800 font-nepali">
@@ -1110,7 +1110,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <button onClick={() => { setShowForm(false); setEditingItem(null); }} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20} /></button>
                 </div>
 
-                <form className="p-6 space-y-4" onSubmit={
+                <form className="p-6 space-y-4 overflow-y-auto" onSubmit={
                   formType === 'program' ? handleProgramSave : 
                   formType === 'party' ? handlePartySave : 
                   formType === 'transaction' ? handleTransactionSave : 
