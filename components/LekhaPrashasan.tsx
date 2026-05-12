@@ -182,12 +182,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amountPaid: Number(formData.get('amountPaid')),
       status: formData.get('status') as any,
       dateBs: txnFormDate,
-      remarks: formData.get('remarks') as string,
+      remarks: (formData.get('remarks') as string) || '',
       fiscalYear: currentFiscalYear
     };
     
     if (progId === 'other') {
-      payload.customProgramName = formData.get('customProgramName') as string;
+      const customName = formData.get('customProgramName') as string;
+      if (customName) payload.customProgramName = customName;
     }
 
     if (editingItem) {
@@ -210,12 +211,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amount: Number(formData.get('amount')),
       dateBs: txnFormDate,
       isPaid: formData.get('isPaid') === 'on',
-      remarks: formData.get('remarks') as string,
+      remarks: (formData.get('remarks') as string) || '',
       fiscalYear: currentFiscalYear
     };
 
     if (progId === 'other') {
-      payload.customProgramName = formData.get('customProgramName') as string;
+      const customName = formData.get('customProgramName') as string;
+      if (customName) payload.customProgramName = customName;
     }
 
     if (editingItem) {
@@ -755,18 +757,33 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         )}
 
         {activeTab === 'nagarpalika' && (
-          <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit">
+          <div className="flex justify-between items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex">
+              <button 
+                onClick={() => setNagarpalikaSubTab('PaymentRequest')}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'PaymentRequest' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                भुक्तानी माग (Payment Request)
+              </button>
+              <button 
+                onClick={() => setNagarpalikaSubTab('Allowance')}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'Allowance' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                भत्ता रेकर्ड (Allowance Record)
+              </button>
+            </div>
+            
             <button 
-              onClick={() => setNagarpalikaSubTab('PaymentRequest')}
-              className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'PaymentRequest' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+              onClick={() => { 
+                setFormType(nagarpalikaSubTab === 'PaymentRequest' ? 'nagarpalika_payment' : 'allowance'); 
+                setEditingItem(null); 
+                setTxnFormDate(today); 
+                setIsOtherProgramSelected(false);
+                setShowForm(true); 
+              }}
+              className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm mx-2"
             >
-               भुक्तानी माग (Payment Request)
-            </button>
-            <button 
-              onClick={() => setNagarpalikaSubTab('Allowance')}
-              className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'Allowance' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-               भत्ता रेकर्ड (Allowance Record)
+              <Plus size={16} /> {nagarpalikaSubTab === 'PaymentRequest' ? 'नयाँ भुक्तानी माग' : 'नयाँ भत्ता रेकर्ड'}
             </button>
           </div>
         )}
@@ -798,53 +815,53 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-1 py-1"></th>
                   </>}
                   {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'PaymentRequest' && <>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">माग गरिएको</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी रकम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">विवरण</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">माग</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                     <th className="px-1 py-1"></th>
                   </>}
                   {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'Allowance' && <>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कर्मचारीको नाम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भत्ता रकम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali">नाम</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                     <th className="px-1 py-1"></th>
                   </>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {activeTab === 'nagarpalika' ? filteredData.map((item: any) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-xs">{item.dateBs}</td>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-700 font-nepali">
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                        <td className="px-4 py-3 font-mono text-[10px] whitespace-nowrap">{item.dateBs}</td>
+                        <td className="px-4 py-3 text-xs font-bold text-slate-700 font-nepali max-w-[150px] truncate" title={item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}>
                           {item.programId === 'other' ? item.customProgramName : programs.find(p => p.id === item.programId)?.name}
                         </td>
-                        <td className="px-6 py-4 text-sm font-nepali text-slate-600">
+                        <td className="px-4 py-3 text-xs font-nepali text-slate-600 max-w-[200px] truncate" title={item.employeeName || item.remarks}>
                            {item.employeeName || item.remarks}
                         </td>
                         {nagarpalikaSubTab === 'PaymentRequest' ? (
                           <>
-                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-500">रू {(item.amountRequested || 0).toLocaleString()}</td>
-                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">रू {(item.amountPaid || 0).toLocaleString()}</td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-500 whitespace-nowrap">रू {(item.amountRequested || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amountPaid || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
                                 item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
                                 item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
                               }`}>
-                                {item.status === 'Paid' ? 'भुक्तानी भएको' : item.status === 'Partial' ? 'आंशिक' : 'पेश गरिएको'}
+                                {item.status === 'Paid' ? 'भुक्तानी' : item.status === 'Partial' ? 'आंशिक' : 'पेश'}
                               </span>
                             </td>
                           </>
                         ) : (
                           <>
-                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">रू {(item.amount || 0).toLocaleString()}</td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                                 {item.isPaid ? 'भुक्तानी भएको' : 'बाँकी'}
+                            <td className="px-4 py-3 text-right font-black font-mono text-xs text-slate-900 whitespace-nowrap">रू {(item.amount || 0).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                 {item.isPaid ? 'भुक्तानी' : 'बाँकी'}
                                </span>
                             </td>
                           </>
@@ -1080,30 +1097,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             )}
             {activeTab === 'nagarpalika' && (
               <div className="flex gap-2">
-                <button 
-                  onClick={() => { 
-                    setFormType('nagarpalika_payment'); 
-                    setEditingItem(null); 
-                    setTxnFormDate(today); 
-                    setIsOtherProgramSelected(false);
-                    setShowForm(true); 
-                  }}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all text-sm"
-                >
-                  <Plus size={16} /> भुक्तानी माग
-                </button>
-                <button 
-                  onClick={() => { 
-                    setFormType('allowance'); 
-                    setEditingItem(null); 
-                    setTxnFormDate(today); 
-                    setIsOtherProgramSelected(false);
-                    setShowForm(true); 
-                  }}
-                  className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-sm"
-                >
-                  <Plus size={16} /> भत्ता रेकर्ड
-                </button>
+                {/* Removed the 'Add New' buttons from header as requested */}
               </div>
             )}
           </div>

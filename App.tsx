@@ -121,25 +121,33 @@ const App: React.FC = () => {
 
   const handleUpdatePaymentRequest = async (id: string, r: Partial<PaymentRequest>) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const item = paymentRequests.find(p => p.id === id);
+    const targetOrg = item?._orgName || activeOrgName;
+    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
     await update(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), r);
   };
 
   const handleUpdateAllowance = async (id: string, a: Partial<AllowanceRecord>) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const item = allowances.find(al => al.id === id);
+    const targetOrg = item?._orgName || activeOrgName;
+    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
     await update(ref(db, `orgData/${safeOrgName}/allowances/${id}`), a);
   };
 
   const handleDeletePaymentRequest = async (id: string) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const item = paymentRequests.find(p => p.id === id);
+    const targetOrg = item?._orgName || activeOrgName;
+    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
     await remove(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`));
   };
 
   const handleDeleteAllowance = async (id: string) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const item = allowances.find(al => al.id === id);
+    const targetOrg = item?._orgName || activeOrgName;
+    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
     await remove(ref(db, `orgData/${safeOrgName}/allowances/${id}`));
   };
 
@@ -213,7 +221,11 @@ const App: React.FC = () => {
             const listenerRef = ref(db, `orgData/${safeName}/${subPath}`);
             const unsub = onValue(listenerRef, (snap) => {
                 const data = snap.val();
-                const orgData = data ? Object.keys(data).map(key => ({ ...data[key], id: key })) : [];
+                const orgData = data ? Object.keys(data).map(key => ({ 
+                    ...data[key], 
+                    id: key,
+                    _orgName: orgName 
+                })) : [];
                 orgDataMap.set(orgName, orgData);
                 
                 // Aggregate all data

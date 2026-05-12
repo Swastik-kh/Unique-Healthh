@@ -57,6 +57,7 @@ export interface PaymentRequest {
   dateBs: string;
   remarks: string;
   fiscalYear: string;
+  _orgName?: string;
 }
 
 export interface AllowanceRecord {
@@ -69,4 +70,5 @@ export interface AllowanceRecord {
   isPaid: boolean;
   remarks: string;
   fiscalYear: string;
+  _orgName?: string;
 }
