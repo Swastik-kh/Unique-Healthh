@@ -176,9 +176,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const progId = formData.get('programId') as string;
-    const payload = {
+    const payload: any = {
       programId: progId,
-      customProgramName: progId === 'other' ? formData.get('customProgramName') as string : undefined,
       amountRequested: Number(formData.get('amountRequested')),
       amountPaid: Number(formData.get('amountPaid')),
       status: formData.get('status') as any,
@@ -186,6 +185,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear
     };
+    
+    if (progId === 'other') {
+      payload.customProgramName = formData.get('customProgramName') as string;
+    }
+
     if (editingItem) {
       onUpdatePaymentRequest(editingItem.id, payload);
     } else {
@@ -200,9 +204,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const progId = formData.get('programId') as string;
-    const payload = {
+    const payload: any = {
       programId: progId,
-      customProgramName: progId === 'other' ? formData.get('customProgramName') as string : undefined,
       employeeName: formData.get('employeeName') as string,
       amount: Number(formData.get('amount')),
       dateBs: txnFormDate,
@@ -210,6 +213,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       remarks: formData.get('remarks') as string,
       fiscalYear: currentFiscalYear
     };
+
+    if (progId === 'other') {
+      payload.customProgramName = formData.get('customProgramName') as string;
+    }
+
     if (editingItem) {
       onUpdateAllowance(editingItem.id, payload);
     } else {
