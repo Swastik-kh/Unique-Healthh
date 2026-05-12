@@ -69,6 +69,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   isAdmin
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'nagarpalika' | 'reports'>('dashboard');
+  const [nagarpalikaSubTab, setNagarpalikaSubTab] = useState<'PaymentRequest' | 'Allowance'>('PaymentRequest');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
@@ -129,10 +130,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
       case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       case 'nagarpalika': {
-        const combined = [
-          ...paymentRequests.map(p => ({ ...p, _type: 'PaymentRequest' })),
-          ...allowances.map(a => ({ ...a, _type: 'Allowance' }))
-        ];
+        const combined = nagarpalikaSubTab === 'PaymentRequest' 
+          ? paymentRequests.map(p => ({ ...p, _type: 'PaymentRequest' }))
+          : allowances.map(a => ({ ...a, _type: 'Allowance' }));
+          
         return combined.filter(item => 
           ((item.remarks || '').toLowerCase().includes(term) || ((item as any).employeeName || '').toLowerCase().includes(term)) && 
           item.fiscalYear === currentFiscalYear
@@ -745,6 +746,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </div>
         )}
 
+        {activeTab === 'nagarpalika' && (
+          <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-fit">
+            <button 
+              onClick={() => setNagarpalikaSubTab('PaymentRequest')}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'PaymentRequest' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+               भुक्तानी माग (Payment Request)
+            </button>
+            <button 
+              onClick={() => setNagarpalikaSubTab('Allowance')}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all font-nepali ${nagarpalikaSubTab === 'Allowance' ? 'bg-primary-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}
+            >
+               भत्ता रेकर्ड (Allowance Record)
+            </button>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -771,12 +789,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
                     <th className="px-1 py-1"></th>
                   </>}
-                  {activeTab === 'nagarpalika' && <>
+                  {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'PaymentRequest' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण/कर्मचारी</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">माग/कुल रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">माग गरिएको</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
+                    <th className="px-1 py-1"></th>
+                  </>}
+                  {activeTab === 'nagarpalika' && nagarpalikaSubTab === 'Allowance' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कर्मचारीको नाम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भत्ता रकम</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                     <th className="px-1 py-1"></th>
                   </>}
@@ -792,24 +818,29 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <td className="px-6 py-4 text-sm font-nepali text-slate-600">
                            {item.employeeName || item.remarks}
                         </td>
-                        <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-500">रू {item.amountRequested ? item.amountRequested.toLocaleString() : item.amount.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">
-                          {item._type === 'PaymentRequest' ? `रू ${item.amountPaid.toLocaleString()}` : (item.isPaid ? `रू ${item.amount.toLocaleString()}` : '-')}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          {item._type === 'PaymentRequest' ? (
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                              item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
-                              item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
-                            }`}>
-                              {item.status === 'Paid' ? 'भुक्तानी भएको' : item.status === 'Partial' ? 'आंशिक' : 'पेश गरिएको'}
-                            </span>
-                          ) : (
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                               {item.isPaid ? 'भुक्तानी भएको' : 'बाँकी'}
-                             </span>
-                          )}
-                        </td>
+                        {nagarpalikaSubTab === 'PaymentRequest' ? (
+                          <>
+                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-500">रू {(item.amountRequested || 0).toLocaleString()}</td>
+                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">रू {(item.amountPaid || 0).toLocaleString()}</td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                                item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
+                                item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                              }`}>
+                                {item.status === 'Paid' ? 'भुक्तानी भएको' : item.status === 'Partial' ? 'आंशिक' : 'पेश गरिएको'}
+                              </span>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">रू {(item.amount || 0).toLocaleString()}</td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                 {item.isPaid ? 'भुक्तानी भएको' : 'बाँकी'}
+                               </span>
+                            </td>
+                          </>
+                        )}
                         <td className="px-4 py-4 text-right">
                            <button 
                              onClick={() => {
