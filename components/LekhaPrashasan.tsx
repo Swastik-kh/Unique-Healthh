@@ -775,7 +775,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">मिति</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण/कर्मचारी</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">माग/कुल रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">भुक्तानी रकम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-center">अवस्था</th>
                     <th className="px-1 py-1"></th>
                   </>}
                 </tr>
@@ -789,13 +791,25 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         </td>
                         <td className="px-6 py-4 text-sm font-nepali text-slate-600">
                            {item.employeeName || item.remarks}
-                           {item.hasOwnProperty('isPaid') && (
-                             <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                        </td>
+                        <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-500">रू {item.amountRequested ? item.amountRequested.toLocaleString() : item.amount.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right font-black font-mono text-sm text-slate-900">
+                          {item._type === 'PaymentRequest' ? `रू ${item.amountPaid.toLocaleString()}` : (item.isPaid ? `रू ${item.amount.toLocaleString()}` : '-')}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {item._type === 'PaymentRequest' ? (
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                              item.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 
+                              item.status === 'Partial' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800'
+                            }`}>
+                              {item.status === 'Paid' ? 'भुक्तानी भएको' : item.status === 'Partial' ? 'आंशिक' : 'पेश गरिएको'}
+                            </span>
+                          ) : (
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
                                {item.isPaid ? 'भुक्तानी भएको' : 'बाँकी'}
                              </span>
-                           )}
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amountRequested ? item.amountRequested.toLocaleString() : item.amount.toLocaleString()}</td>
                         <td className="px-4 py-4 text-right">
                            <button 
                              onClick={() => {
