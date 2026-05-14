@@ -44,6 +44,10 @@ export interface TBReport {
   dateNepali?: string;
   testDate?: string;
   grading?: string;
+  geneXpertResult?: string;
+  geneXpertLabNo?: string;
+  geneXpertDate?: string;
+  geneXpertDateNepali?: string;
   isInterFacility?: boolean;
   reportingOrgId?: string;
   reportingOrgName?: string;

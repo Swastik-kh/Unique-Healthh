@@ -71,7 +71,11 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
     testDateNepali: '',
     labNo: '',
     result: '',
-    grading: ''
+    grading: '',
+    geneXpertResult: '',
+    geneXpertLabNo: '',
+    geneXpertDate: '',
+    geneXpertDateNepali: ''
   });
 
   const [showInterFacilityModal, setShowInterFacilityModal] = useState(false);
@@ -606,13 +610,33 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
           return;
       }
 
+      // Check if at least one result is provided
+      if (!labFormData.result && !labFormData.geneXpertResult) {
+          alert("कृपया खकार परीक्षण नतिजा वा GeneXpert नतिजा मध्ये कम्तिमा एउटा भर्नुहोस्।");
+          return;
+      }
+
+      // If smear microscopy is provided, check for required fields
+      if (labFormData.result) {
+          if (!labFormData.labNo || !labFormData.testDate) {
+              alert("खकार परीक्षणको लागि ल्याब नं. र परीक्षण मिति अनिवार्य छ।");
+              return;
+          }
+      }
+
+      // If GeneXpert is provided, check for its required fields if needed (optional for now as per user request just saying "GeneXpert report rakhera save garna milos")
+
       const newReport: TBReport = {
           id: Date.now().toString(),
           month: scheduleMonth,
-          result: labFormData.result === 'Positive' ? `${labFormData.result} (${labFormData.grading})` : labFormData.result,
-          labNo: labFormData.labNo,
-          date: labFormData.testDate,
-          dateNepali: labFormData.testDateNepali || new NepaliDate(new Date(labFormData.testDate)).format('YYYY-MM-DD')
+          result: labFormData.result === 'Positive' ? `${labFormData.result} (${labFormData.grading})` : (labFormData.result || 'Not Done'),
+          labNo: labFormData.labNo || 'N/A',
+          date: labFormData.testDate || new Date().toISOString().split('T')[0],
+          dateNepali: labFormData.testDateNepali || (labFormData.testDate ? new NepaliDate(new Date(labFormData.testDate)).format('YYYY-MM-DD') : new NepaliDate().format('YYYY-MM-DD')),
+          geneXpertResult: labFormData.geneXpertResult || undefined,
+          geneXpertLabNo: labFormData.geneXpertLabNo || undefined,
+          geneXpertDate: labFormData.geneXpertDate || undefined,
+          geneXpertDateNepali: labFormData.geneXpertDateNepali || undefined
       };
 
       const updatedPatientRaw = {
@@ -729,15 +753,33 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
     const { patient, request } = selectedInterFacilityRequest;
     
+    // Check if at least one result is provided
+    if (!labFormData.result && !labFormData.geneXpertResult) {
+        alert("कृपया खकार परीक्षण नतिजा वा GeneXpert नतिजा मध्ये कम्तिमा एउटा भर्नुहोस्।");
+        return;
+    }
+
+    // If smear microscopy is provided, check for required fields
+    if (labFormData.result) {
+        if (!labFormData.labNo || !labFormData.testDate) {
+            alert("खकार परीक्षणको लागि ल्याब नं. र परीक्षण मिति अनिवार्य छ।");
+            return;
+        }
+    }
+
     const report: TBReport = {
       id: Date.now().toString(),
       month: request.month,
-      testDate: labFormData.testDate,
-      date: labFormData.testDate,
-      dateNepali: labFormData.testDateNepali || new NepaliDate(new Date(labFormData.testDate)).format('YYYY-MM-DD'),
-      labNo: labFormData.labNo,
-      result: labFormData.result === 'Positive' ? `${labFormData.result} (${labFormData.grading})` : labFormData.result,
+      testDate: labFormData.testDate || (labFormData.geneXpertDate || new Date().toISOString().split('T')[0]),
+      date: labFormData.testDate || (labFormData.geneXpertDate || new Date().toISOString().split('T')[0]),
+      dateNepali: labFormData.testDateNepali || (labFormData.geneXpertDateNepali || new NepaliDate().format('YYYY-MM-DD')),
+      labNo: labFormData.labNo || (labFormData.geneXpertLabNo || 'N/A'),
+      result: labFormData.result === 'Positive' ? `${labFormData.result} (${labFormData.grading})` : (labFormData.result || 'Not Done'),
       grading: labFormData.grading,
+      geneXpertResult: labFormData.geneXpertResult || undefined,
+      geneXpertLabNo: labFormData.geneXpertLabNo || undefined,
+      geneXpertDate: labFormData.geneXpertDate || undefined,
+      geneXpertDateNepali: labFormData.geneXpertDateNepali || undefined,
       isInterFacility: true,
       reportingOrgId: currentUser.id,
       reportingOrgName: currentUser.organizationName
@@ -778,7 +820,11 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       testDateNepali: '',
       labNo: '',
       result: '',
-      grading: ''
+      grading: '',
+      geneXpertResult: '',
+      geneXpertLabNo: '',
+      geneXpertDate: '',
+      geneXpertDateNepali: ''
     });
     alert('रिपोर्ट सफलतापूर्वक प्रविष्ट गरियो।');
   };
@@ -1202,7 +1248,14 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                       const grading = r.result.includes('Positive') ? (r.result.match(/\(([^)]+)\)/)?.[1] || 'Pos') : 'Neg';
                                       return (
                                           <span key={idx} className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${r.result.includes('Pos') ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
-                                              M{r.month}: {grading}
+                                              <div className="flex flex-col gap-0.5">
+                                                  <span>M{r.month}: {grading}</span>
+                                                  {r.geneXpertResult && (
+                                                      <span className="text-[7px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-100 truncate max-w-[50px]">
+                                                          {r.geneXpertResult.includes('Detected') && !r.geneXpertResult.includes('Not Detected') ? 'XP:Pos' : 'XP:Neg'}
+                                                      </span>
+                                                  )}
+                                              </div>
                                           </span>
                                       );
                                   })}
@@ -1356,7 +1409,22 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                           <td className="px-6 py-4 text-xs font-bold">Month {item.report.month}</td>
                                           <td className="px-6 py-4 font-mono">{item.report.labNo}</td>
                                           <td className="px-6 py-4 font-bold">
-                                              {item.report.result.includes('Positive') ? (item.report.result.match(/\(([^)]+)\)/)?.[1] || 'Pos') : 'Neg'}
+                                              <div className="flex flex-col gap-1">
+                                                  <span>{item.report.result.includes('Positive') ? (item.report.result.match(/\(([^)]+)\)/)?.[1] || 'Pos') : 'Neg'}</span>
+                                                  {item.report.geneXpertResult && (
+                                                      <div className="flex flex-col gap-0.5">
+                                                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 w-fit">
+                                                              Xpert: {item.report.geneXpertResult}
+                                                          </span>
+                                                          {(item.report.geneXpertLabNo || item.report.geneXpertDateNepali) && (
+                                                              <div className="text-[9px] text-indigo-400 font-mono">
+                                                                  {item.report.geneXpertLabNo && <span>Lab: {item.report.geneXpertLabNo}</span>}
+                                                                  {item.report.geneXpertDateNepali && <span> | Date: {item.report.geneXpertDateNepali}</span>}
+                                                              </div>
+                                                          )}
+                                                      </div>
+                                                  )}
+                                              </div>
                                           </td>
                                           <td className="px-6 py-4 text-right">
                                               <button onClick={() => handleDeleteReport(item.patient, item.report.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="हटाउनुहोस्">
@@ -1389,7 +1457,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                           <td className="px-6 py-4 text-right">
                                               <button onClick={() => {
                                                   setSelectedInterFacilityRequest(item);
-                                                  setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: ''});
+                                                  setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: '', geneXpertResult: '', geneXpertLabNo: '', geneXpertDate: '', geneXpertDateNepali: ''});
                                               }} className="bg-orange-600 text-white px-4 py-1 rounded-lg text-xs font-bold">रिपोर्ट प्रविष्ट</button>
                                           </td>
                                       </tr>
@@ -1428,7 +1496,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                     <td className="px-6 py-4 text-right">
                                         <button onClick={() => {
                                             setSelectedPatientForLab({patient: p, reason: p.reason, scheduleMonth: p.scheduleMonth});
-                                            setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: ''});
+                                            setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: '', geneXpertResult: '', geneXpertLabNo: '', geneXpertDate: '', geneXpertDateNepali: ''});
                                         }} className="bg-indigo-600 text-white px-4 py-1 rounded-lg text-xs font-bold">रिपोर्ट प्रविष्ट</button>
                                     </td>
                                 </tr>
@@ -1443,7 +1511,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                     <td className="px-6 py-4 text-right">
                                         <button onClick={() => {
                                             setSelectedInterFacilityRequest(item);
-                                            setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: ''});
+                                            setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: '', geneXpertResult: '', geneXpertLabNo: '', geneXpertDate: '', geneXpertDateNepali: ''});
                                         }} className="bg-orange-600 text-white px-4 py-1 rounded-lg text-xs font-bold">रिपोर्ट प्रविष्ट</button>
                                     </td>
                                 </tr>
@@ -1460,21 +1528,21 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       {selectedPatientForLab && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setSelectedPatientForLab(null)}></div>
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95">
-                  <div className="p-6 border-b bg-indigo-50 text-indigo-800 flex justify-between items-center">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 flex flex-col">
+                  <div className="p-6 border-b bg-indigo-50 text-indigo-800 flex justify-between items-center shrink-0">
                       <h3 className="font-bold font-nepali">ल्याब रिपोर्ट प्रविष्टि ({selectedPatientForLab.patient.name})</h3>
                       <button onClick={() => setSelectedPatientForLab(null)}><X size={20}/></button>
                   </div>
-                  <form onSubmit={handleLabSubmit} className="p-6 space-y-4">
-                      <Input label="ल्याब नं." value={labFormData.labNo} onChange={e => setLabFormData({...labFormData, labNo: e.target.value})} required icon={<FileDigit size={16}/>} />
+                  <form onSubmit={handleLabSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+                      <Input label="ल्याब नं." value={labFormData.labNo} onChange={e => setLabFormData({...labFormData, labNo: e.target.value})} required={!labFormData.geneXpertResult} icon={<FileDigit size={16}/>} />
                       
                       <div className="grid grid-cols-2 gap-4">
-                        <Input label="मिति (AD)" type="date" value={labFormData.testDate} onChange={e => setLabFormData({...labFormData, testDate: e.target.value})} required />
-                        <NepaliDatePicker label="मिति (BS)" value={labFormData.testDateNepali} onChange={val => setLabFormData({...labFormData, testDateNepali: val})} required />
+                        <Input label="मिति (AD)" type="date" value={labFormData.testDate} onChange={e => setLabFormData({...labFormData, testDate: e.target.value})} required={!labFormData.geneXpertResult} />
+                        <NepaliDatePicker label="मिति (BS)" value={labFormData.testDateNepali} onChange={val => setLabFormData({...labFormData, testDateNepali: val})} required={!labFormData.geneXpertResult} />
                       </div>
 
                       <div className="space-y-2">
-                          <label className="block text-sm font-bold text-slate-700">नतिजा</label>
+                          <label className="block text-sm font-bold text-slate-700">नतिजा (Microscopy)</label>
                           <div className="grid grid-cols-2 gap-2">
                               <button type="button" onClick={() => setLabFormData({...labFormData, result: 'Negative'})} className={`py-3 rounded-xl border-2 font-bold transition-all ${labFormData.result === 'Negative' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-100 text-slate-400'}`}>Negative</button>
                               <button type="button" onClick={() => setLabFormData({...labFormData, result: 'Positive'})} className={`py-3 rounded-xl border-2 font-bold transition-all ${labFormData.result === 'Positive' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-white border-slate-100 text-slate-400'}`}>Positive</button>
@@ -1483,6 +1551,33 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
                       {labFormData.result === 'Positive' && (
                           <Select label="ग्रेडिङ" options={[{id:'1',value:'1+',label:'1+'}, {id:'2',value:'2+',label:'2+'}, {id:'3',value:'3+ or more',label:'3+ or more'}, {id:'s',value:'Scanty',label:'Scanty'}]} value={labFormData.grading} onChange={e => setLabFormData({...labFormData, grading: e.target.value})} required />
+                      )}
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-bold text-slate-700">GeneXpert परिणाम</label>
+                        <select 
+                          value={labFormData.geneXpertResult} 
+                          onChange={e => setLabFormData({...labFormData, geneXpertResult: e.target.value})}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-bold text-sm"
+                        >
+                          <option value="">-- छान्नुहोस् --</option>
+                          <option value="MTB Detected, Rif Resistance Not Detected">MTB Detected, Rif Resistance Not Detected</option>
+                          <option value="MTB Detected, Rif Resistance Detected">MTB Detected, Rif Resistance Detected</option>
+                          <option value="MTB Detected, Rif Resistance Indeterminate">MTB Detected, Rif Resistance Indeterminate</option>
+                          <option value="MTB Not Detected">MTB Not Detected</option>
+                          <option value="Invalid / Error / No Result">Invalid / Error / No Result</option>
+                        </select>
+                      </div>
+
+                      {labFormData.geneXpertResult && (
+                        <div className="p-4 bg-indigo-50 rounded-xl space-y-3 border border-indigo-100">
+                          <h4 className="text-xs font-bold text-indigo-800 uppercase">GeneXpert थप विवरण</h4>
+                          <Input label="GeneXpert ल्याब नं." value={labFormData.geneXpertLabNo} onChange={e => setLabFormData({...labFormData, geneXpertLabNo: e.target.value})} icon={<FileDigit size={16}/>} />
+                          <div className="grid grid-cols-2 gap-4">
+                            <Input label="GeneXpert मिति (AD)" type="date" value={labFormData.geneXpertDate} onChange={e => setLabFormData({...labFormData, geneXpertDate: e.target.value})} />
+                            <NepaliDatePicker label="GeneXpert मिति (BS)" value={labFormData.geneXpertDateNepali} onChange={val => setLabFormData({...labFormData, geneXpertDateNepali: val})} />
+                          </div>
+                        </div>
                       )}
 
                       <div className="pt-4 border-t flex justify-end gap-3">
@@ -1594,6 +1689,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                                           reason: item.label, 
                                                           scheduleMonth: item.month 
                                                       });
+                                                      setLabFormData({testDate: new Date().toISOString().split('T')[0], testDateNepali: '', labNo: '', result: '', grading: '', geneXpertResult: '', geneXpertLabNo: '', geneXpertDate: '', geneXpertDateNepali: ''});
                                                       setSelectedPatientForDetails(null);
                                                   }}
                                                   className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-100 font-bold transition-colors"
@@ -1610,16 +1706,43 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                                   
                                                   if (localReport) {
                                                       return (
-                                                          <div className="flex justify-between">
-                                                              <span>Lab No: {localReport.labNo} | Result: <strong className={localReport.result === 'Positive' ? 'text-red-600' : 'text-green-600'}>{localReport.result} {localReport.grading}</strong></span>
-                                                              <span>{localReport.testDateNepali}</span>
+                                                          <div className="flex flex-col gap-1 bg-white p-2 rounded border border-slate-100">
+                                                              <div className="flex justify-between items-center">
+                                                                  <span className="font-bold">Lab No: {localReport.labNo} | Result: <strong className={localReport.result === 'Positive' ? 'text-red-600' : 'text-green-600'}>{localReport.result}</strong></span>
+                                                                  <span className="text-slate-400">{localReport.testDateNepali}</span>
+                                                              </div>
+                                                              {localReport.geneXpertResult && (
+                                                                  <div className="mt-1 pt-1 border-t border-slate-50 flex flex-col gap-0.5">
+                                                                      <span className="text-indigo-600 font-bold">GeneXpert: {localReport.geneXpertResult}</span>
+                                                                      {(localReport.geneXpertLabNo || localReport.geneXpertDateNepali) && (
+                                                                          <span className="text-indigo-400 font-mono">
+                                                                              {localReport.geneXpertLabNo && `Lab: ${localReport.geneXpertLabNo}`} 
+                                                                              {localReport.geneXpertDateNepali && ` | Date: ${localReport.geneXpertDateNepali}`}
+                                                                          </span>
+                                                                      )}
+                                                                  </div>
+                                                              )}
                                                           </div>
                                                       );
                                                   } else if (interReport) {
                                                       return (
-                                                          <div className="flex justify-between">
-                                                              <span>Lab No: {interReport.labNo} | Result: <strong className={interReport.result === 'Positive' ? 'text-red-600' : 'text-green-600'}>{interReport.result}</strong> (Inter-facility: {interReport.targetFacilityName})</span>
-                                                              <span>{interReport.completedDateBs}</span>
+                                                          <div className="flex flex-col gap-1 bg-white p-2 rounded border border-orange-100">
+                                                              <div className="flex justify-between items-center">
+                                                                  <span className="font-bold">Lab No: {interReport.labNo} | Result: <strong className={interReport.result === 'Positive' ? 'text-red-600' : 'text-green-600'}>{interReport.result}</strong></span>
+                                                                  <span className="text-slate-400">{interReport.completedDateBs}</span>
+                                                              </div>
+                                                              <div className="text-[9px] text-orange-400 italic">Inter-facility: {interReport.targetFacilityName}</div>
+                                                              {interReport.report?.geneXpertResult && (
+                                                                  <div className="mt-1 pt-1 border-t border-orange-50 flex flex-col gap-0.5">
+                                                                      <span className="text-indigo-600 font-bold">GeneXpert: {interReport.report.geneXpertResult}</span>
+                                                                      {(interReport.report.geneXpertLabNo || interReport.report.geneXpertDateNepali) && (
+                                                                          <span className="text-indigo-400 font-mono">
+                                                                              {interReport.report.geneXpertLabNo && `Lab: ${interReport.report.geneXpertLabNo}`} 
+                                                                              {interReport.report.geneXpertDateNepali && ` | Date: ${interReport.report.geneXpertDateNepali}`}
+                                                                          </span>
+                                                                      )}
+                                                                  </div>
+                                                              )}
                                                           </div>
                                                       );
                                                   }
@@ -1691,28 +1814,28 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       {selectedInterFacilityRequest && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setSelectedInterFacilityRequest(null)}></div>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95">
-                <div className="p-6 border-b bg-orange-50 text-orange-800 flex justify-between items-center">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 flex flex-col">
+                <div className="p-6 border-b bg-orange-50 text-orange-800 flex justify-between items-center shrink-0">
                     <h3 className="font-bold font-nepali">अन्तर संस्था रिपोर्ट प्रविष्टि ({selectedInterFacilityRequest.patient.name})</h3>
                     <button onClick={() => setSelectedInterFacilityRequest(null)}><X size={20}/></button>
                 </div>
-                <form onSubmit={handleInterFacilityReportSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleInterFacilityReportSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
                     <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 text-xs text-orange-800 mb-4">
                         <div className="font-bold">अनुरोध विवरण:</div>
                         <div>महिना: Month {selectedInterFacilityRequest.request.month}</div>
                         <div>पठाउने संस्था: {selectedInterFacilityRequest.request.sourceOrgName} ({selectedInterFacilityRequest.request.targetPalikaName})</div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <Input label="परीक्षण मिति (AD)" type="date" value={labFormData.testDate} onChange={e => setLabFormData({...labFormData, testDate: e.target.value})} required />
-                        <NepaliDatePicker label="परीक्षण मिति (BS)" value={labFormData.testDateNepali} onChange={val => setLabFormData({...labFormData, testDateNepali: val})} required />
+                        <Input label="परीक्षण मिति (AD)" type="date" value={labFormData.testDate} onChange={e => setLabFormData({...labFormData, testDate: e.target.value})} required={!labFormData.geneXpertResult} />
+                        <NepaliDatePicker label="परीक्षण मिति (BS)" value={labFormData.testDateNepali} onChange={val => setLabFormData({...labFormData, testDateNepali: val})} required={!labFormData.geneXpertResult} />
                     </div>
-                    <Input label="ल्याब नम्बर" placeholder="Lab No." value={labFormData.labNo} onChange={e => setLabFormData({...labFormData, labNo: e.target.value})} required />
+                    <Input label="ल्याब नम्बर" placeholder="Lab No." value={labFormData.labNo} onChange={e => setLabFormData({...labFormData, labNo: e.target.value})} required={!labFormData.geneXpertResult} />
                     <Select 
-                        label="नतिजा" 
+                        label="नतिजा (Microscopy)" 
                         options={[{id:'neg', label:'Negative', value:'Negative'}, {id:'pos', label:'Positive', value:'Positive'}]} 
                         value={labFormData.result} 
                         onChange={e => setLabFormData({...labFormData, result: e.target.value})} 
-                        required 
+                        required={!labFormData.geneXpertResult && !labFormData.result} 
                     />
                     {labFormData.result === 'Positive' && (
                         <Select 
@@ -1723,7 +1846,35 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                             required 
                         />
                     )}
-                    <div className="pt-4 border-t flex justify-between gap-3">
+
+                    <div className="space-y-2">
+                        <label className="block text-sm font-bold text-slate-700">GeneXpert परिणाम</label>
+                        <select 
+                          value={labFormData.geneXpertResult} 
+                          onChange={e => setLabFormData({...labFormData, geneXpertResult: e.target.value})}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-bold text-sm"
+                        >
+                          <option value="">-- छान्नुहोस् --</option>
+                          <option value="MTB Detected, Rif Resistance Not Detected">MTB Detected, Rif Resistance Not Detected</option>
+                          <option value="MTB Detected, Rif Resistance Detected">MTB Detected, Rif Resistance Detected</option>
+                          <option value="MTB Detected, Rif Resistance Indeterminate">MTB Detected, Rif Resistance Indeterminate</option>
+                          <option value="MTB Not Detected">MTB Not Detected</option>
+                          <option value="Invalid / Error / No Result">Invalid / Error / No Result</option>
+                        </select>
+                    </div>
+
+                    {labFormData.geneXpertResult && (
+                        <div className="p-4 bg-indigo-50 rounded-xl space-y-3 border border-indigo-100">
+                            <h4 className="text-xs font-bold text-indigo-800 uppercase">GeneXpert थप विवरण</h4>
+                            <Input label="GeneXpert ल्याब नं." value={labFormData.geneXpertLabNo} onChange={e => setLabFormData({...labFormData, geneXpertLabNo: e.target.value})} icon={<FileDigit size={16}/>} />
+                            <div className="grid grid-cols-2 gap-4">
+                            <Input label="GeneXpert मिति (AD)" type="date" value={labFormData.geneXpertDate} onChange={e => setLabFormData({...labFormData, geneXpertDate: e.target.value})} />
+                            <NepaliDatePicker label="GeneXpert मिति (BS)" value={labFormData.geneXpertDateNepali} onChange={val => setLabFormData({...labFormData, geneXpertDateNepali: val})} />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pt-4 border-t flex justify-between gap-3 shrink-0">
                         <button type="button" onClick={handleInterFacilityReportReject} className="bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-200">अस्वीकार गर्नुहोस्</button>
                         <div className="flex gap-3">
                             <button type="button" onClick={() => setSelectedInterFacilityRequest(null)} className="px-6 py-2 text-slate-500 font-bold">रद्द</button>
