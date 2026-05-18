@@ -23,7 +23,14 @@ const PERMISSION_STRUCTURE = [
             { id: 'ipd_sewa', label: 'आई.पी.डी. सेवा (IPD Service)' },
             { id: 'service_billing', label: 'सेवा बिलिङ (Service Billing)' },
             { id: 'emergency_sewa', label: 'आकस्मिक सेवा (Emergency Service)' },
-            { id: 'cbimnci_sewa', label: 'CBIMNCI सेवा (CBIMNCI Service)' },
+            { 
+                id: 'cbimnci_sewa', 
+                label: 'CBIMNCI सेवा (CBIMNCI Service)',
+                children: [
+                    { id: 'cbimnci_search', label: 'बिरामी खोज्नुहोस् (Search Patient)' },
+                    { id: 'cbimnci_direct_entry', label: 'Direct Entry (प्रत्यक्ष प्रविष्टि)' }
+                ]
+            },
             { 
                 id: 'prayogsala_sewa', 
                 label: 'प्रयोगशाला सेवा (Lab Service)',

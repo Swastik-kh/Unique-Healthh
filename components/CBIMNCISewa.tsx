@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { ServiceSeekerRecord, CBIMNCIRecord, PrescriptionItem, ServiceItem, OrganizationSettings, LabReport } from '../types/coreTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { Input } from './Input';
@@ -101,8 +101,20 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   inventoryItems = [],
   generalSettings
 }) => {
+  const canSearch = useMemo(() => {
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    return currentUser.allowedMenus?.includes('cbimnci_search');
+  }, [currentUser]);
+
+  const canDirectEntry = useMemo(() => {
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    return currentUser.allowedMenus?.includes('cbimnci_direct_entry');
+  }, [currentUser]);
+
   const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
-  const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>('search');
+  const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>(
+    canSearch ? 'search' : (canDirectEntry ? 'selection' : 'search')
+  );
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
   const [moduleType, setModuleType] = useState<'Infant' | 'Child'>('Child');
@@ -2567,21 +2579,25 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
             CBIMNCI सेवा (CBIMNCI Service)
           </h2>
           <div className="flex gap-4 mb-6 border-b pb-2">
-            <button 
-              onClick={() => setViewMode('search')} 
-              className={`px-4 py-2 font-bold text-sm ${viewMode === 'search' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
-            >
-              बिरामी खोज्नुहोस् (Search Patient)
-            </button>
-            <button 
-              onClick={() => setViewMode('selection')} 
-              className={`px-4 py-2 font-bold text-sm ${viewMode === 'selection' || viewMode === 'entry' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
-            >
-              प्रत्यक्ष प्रविष्टि (Direct Entry)
-            </button>
+            {canSearch && (
+              <button 
+                onClick={() => setViewMode('search')} 
+                className={`px-4 py-2 font-bold text-sm ${viewMode === 'search' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
+              >
+                बिरामी खोज्नुहोस् (Search Patient)
+              </button>
+            )}
+            {canDirectEntry && (
+              <button 
+                onClick={() => setViewMode('selection')} 
+                className={`px-4 py-2 font-bold text-sm ${viewMode === 'selection' || viewMode === 'entry' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-slate-500'}`}
+              >
+                प्रत्यक्ष प्रविष्टि (Direct Entry)
+              </button>
+            )}
           </div>
 
-          {viewMode === 'entry' ? (
+          {viewMode === 'entry' && canDirectEntry ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               {/* Simplified Input Section */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -2737,7 +2753,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 परीक्षण सुरू गर्नुहोस्
               </button>
             </div>
-          ) : viewMode === 'selection' ? (
+          ) : viewMode === 'selection' && canDirectEntry ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 p-4 md:p-8 bg-slate-100 rounded-3xl border border-slate-200">
               <button 
                 onClick={() => { 
@@ -2766,7 +2782,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 <h3 className="text-xl md:text-3xl font-black text-green-900 font-nepali text-center md:text-left">२ महिनादेखि ५ वर्षसम्म</h3>
               </button>
             </div>
-          ) : (
+          ) : canSearch ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">नयाँ बिरामी खोज्नुहोस् (New Patient Search)</label>
@@ -2826,9 +2842,13 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                     <button type="submit" className="bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 font-medium shadow-sm text-sm">
                       खोज्नुहोस्
                     </button>
-                    {/* (Existing Search Results UI omitted for brevity but should be here) */}
                 </form>
               </div>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-slate-400">
+              <ShieldAlert size={48} className="mx-auto mb-4 opacity-20" />
+              <p className="font-nepali text-lg">तपाईंलाई यो सेवा वा कार्यको लागि अनुमति छैन।</p>
             </div>
           )}
         </div>
