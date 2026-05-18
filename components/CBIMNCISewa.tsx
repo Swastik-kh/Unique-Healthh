@@ -3030,12 +3030,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                             <Printer size={18} /> प्रिन्ट (Print)
                           </button>
                         )}
-                        {!isDirectEntry && (
+                        {!isDirectEntry && currentUser?.hasSaveAccess !== false && (
                           <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 shadow-sm font-medium w-full sm:w-auto justify-center">
                             <Save size={18} /> {editingRecordId ? 'अपडेट गर्नुहोस्' : 'सुरक्षित गर्नुहोस्'}
                           </button>
                         )}
-                        {isDirectEntry && (
+                        {isDirectEntry && currentUser?.hasSaveAccess !== false && (
                            <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 shadow-sm font-medium w-full sm:w-auto justify-center">
                             <Save size={18} /> सुरक्षित गर्नुहोस्
                           </button>

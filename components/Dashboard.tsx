@@ -916,9 +916,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         />
                     </div>
-                    <button onClick={() => setIsChalaniFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
-                        <Send size={18} /> नयाँ चलानी
-                    </button>
+                    {currentUser?.hasSaveAccess !== false && (
+                      <button onClick={() => setIsChalaniFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
+                          <Send size={18} /> नयाँ चलानी
+                      </button>
+                    )}
                 </div>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -1033,9 +1035,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         />
                     </div>
-                    <button onClick={() => setIsDartaFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
-                        <FilePlus size={18} /> नयाँ दर्ता
-                    </button>
+                    {currentUser?.hasSaveAccess !== false && (
+                      <button onClick={() => setIsDartaFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
+                          <FilePlus size={18} /> नयाँ दर्ता
+                      </button>
+                    )}
                 </div>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">

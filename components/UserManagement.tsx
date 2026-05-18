@@ -177,6 +177,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     role: UserRole;
     allowedMenus: string[];
     serviceType: 'Permanent' | 'Temporary' | 'Contract';
+    hasSaveAccess: boolean;
     parentId?: string;
   }>({
     id: '',
@@ -189,6 +190,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
     allowedMenus: ['dashboard'],
     serviceType: 'Permanent',
+    hasSaveAccess: true,
     parentId: currentUser.id
   });
 
@@ -230,6 +232,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
         allowedMenus: ['dashboard'],
         serviceType: 'Permanent',
+        hasSaveAccess: true,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -246,6 +249,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           role: user.role,
           allowedMenus: user.allowedMenus || ['dashboard'],
           serviceType: user.serviceType || 'Permanent',
+          hasSaveAccess: user.hasSaveAccess ?? true,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -347,6 +351,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         organizationName: formData.organizationName.trim(),
         allowedMenus: finalMenus,
         serviceType: formData.serviceType,
+        hasSaveAccess: formData.hasSaveAccess,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -469,6 +474,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             )}
             <Input label="प्रयोगकर्ता नाम" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} required icon={<UserIcon size={16} />} disabled={isSaving} />
             <Input label="पासवर्ड" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required type="password" disabled={isSaving} />
+            
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-xl mt-2">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm">
+                        <Save size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">डाटा सुरक्षित (Save/Submit) गर्ने अधिकार</p>
+                        <p className="text-xs text-slate-500">यो अनुमति नभएको प्रयोगकर्ताले कुनै पनि फारम बुझाउन पाउने छैनन्।</p>
+                    </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, hasSaveAccess: !prev.hasSaveAccess }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.hasSaveAccess ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.hasSaveAccess ? 'left-7' : 'left-1'}`}></div>
+                </button>
+            </div>
 
             <div className="md:col-span-2 mt-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2"><Shield size={16} className="text-primary-600"/>मेनु र सब-मेनु पहुँच अधिकार (Permissions)</h4>

@@ -221,7 +221,11 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <span className="text-sm font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
                 </div>
             </div>
-            <div className="bg-slate-50 p-6 rounded-xl border shadow-inner"><div className="flex flex-col gap-3"><button type="submit" className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-3 rounded-lg font-medium hover:bg-slate-900">{isSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}{isSaved ? 'सुरक्षित भयो' : 'सेटिङ सुरक्षित गर्नुहोस्'}</button><button type="button" onClick={handleReset} className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-medium hover:bg-red-50"><RotateCcw size={18} />रिसेट (Reset)</button></div><p className="text-xs text-center text-slate-400 mt-4">Last updated: {new Date().toLocaleDateString()}</p></div>
+            <div className="bg-slate-50 p-6 rounded-xl border shadow-inner"><div className="flex flex-col gap-3">
+              {currentUser?.hasSaveAccess !== false && (
+                <button type="submit" className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-3 rounded-lg font-medium hover:bg-slate-900">{isSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}{isSaved ? 'सुरक्षित भयो' : 'सेटिङ सुरक्षित गर्नुहोस्'}</button>
+              )}
+              <button type="button" onClick={handleReset} className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-medium hover:bg-red-50"><RotateCcw size={18} />रिसेट (Reset)</button></div><p className="text-xs text-center text-slate-400 mt-4">Last updated: {new Date().toLocaleDateString()}</p></div>
         </div>
       </form>
     </div>

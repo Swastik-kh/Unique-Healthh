@@ -46,6 +46,7 @@ export interface User {
   subscriptionExpiryDate?: string; // ISO date string
   isSubscribed?: boolean;
   biometricCredential?: BiometricCredential;
+  hasSaveAccess?: boolean;
 }
 
 export interface WardConfig {

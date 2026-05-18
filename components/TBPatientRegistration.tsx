@@ -1183,7 +1183,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
             <div className="md:col-span-2 pt-4 border-t flex justify-end gap-3">
                 <button type="button" onClick={handleReset} className="flex items-center gap-2 px-6 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all font-bold text-sm"><RotateCcw size={16}/> {editingPatientId ? 'रद्द (Cancel)' : 'रिसेट (Reset)'}</button>
-                <button type="submit" className="flex items-center gap-2 px-8 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 transition-all font-bold text-sm"><Save size={16}/> {editingPatientId ? 'अपडेट गर्नुहोस्' : 'दर्ता गर्नुहोस्'}</button>
+                {currentUser?.hasSaveAccess !== false && (
+                  <button type="submit" className="flex items-center gap-2 px-8 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 transition-all font-bold text-sm"><Save size={16}/> {editingPatientId ? 'अपडेट गर्नुहोस्' : 'दर्ता गर्नुहोस्'}</button>
+                )}
             </div>
           </form>
         )}
@@ -1582,7 +1584,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
                       <div className="pt-4 border-t flex justify-end gap-3">
                           <button type="button" onClick={() => setSelectedPatientForLab(null)} className="px-6 py-2 text-slate-500 font-bold">रद्द</button>
-                          <button type="submit" className="bg-indigo-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg">सुरक्षित गर्नुहोस्</button>
+                          {currentUser?.hasSaveAccess !== false && (
+                            <button type="submit" className="bg-indigo-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg">सुरक्षित गर्नुहोस्</button>
+                          )}
                       </div>
                   </form>
               </div>
@@ -1608,6 +1612,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                         <strong>अवस्था:</strong>
                         <select 
                           value={selectedPatientForDetails.status || 'Active'} 
+                          disabled={currentUser?.hasSaveAccess === false}
                           onChange={(e) => {
                             const newStatus = e.target.value as any;
                             const updatedPatient = { 
@@ -1636,15 +1641,19 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                       {selectedPatientForDetails.status !== 'Active' && (
                         <div className="flex items-center gap-2 mt-2">
                           <strong>अवस्था परिवर्तन मिति:</strong>
-                          <NepaliDatePicker
-                            value={selectedPatientForDetails.statusDateBs || ''}
-                            onChange={(val) => {
-                              const updatedPatient = { ...selectedPatientForDetails, statusDateBs: val || null };
-                              const sanitizedPatient = JSON.parse(JSON.stringify(updatedPatient));
-                              onUpdatePatient(sanitizedPatient);
-                              setSelectedPatientForDetails(sanitizedPatient);
-                            }}
-                          />
+                          {currentUser?.hasSaveAccess !== false ? (
+                            <NepaliDatePicker
+                              value={selectedPatientForDetails.statusDateBs || ''}
+                              onChange={(val) => {
+                                const updatedPatient = { ...selectedPatientForDetails, statusDateBs: val || null };
+                                const sanitizedPatient = JSON.parse(JSON.stringify(updatedPatient));
+                                onUpdatePatient(sanitizedPatient);
+                                setSelectedPatientForDetails(sanitizedPatient);
+                              }}
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-slate-600">{selectedPatientForDetails.statusDateBs || '-'}</span>
+                          )}
                         </div>
                       )}
                       {selectedPatientForDetails.serviceType === 'TB' && (
@@ -1803,7 +1812,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
                     <div className="pt-4 border-t flex justify-end gap-3">
                         <button type="button" onClick={() => setShowInterFacilityModal(false)} className="px-6 py-2 text-slate-500 font-bold">रद्द</button>
-                        <button type="submit" disabled={!interFacilityFormData.targetPalikaId} className="bg-indigo-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-50">अनुरोध पठाउनुहोस्</button>
+                        {currentUser?.hasSaveAccess !== false && (
+                          <button type="submit" disabled={!interFacilityFormData.targetPalikaId} className="bg-indigo-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-50">अनुरोध पठाउनुहोस्</button>
+                        )}
                     </div>
                 </form>
             </div>
@@ -1875,10 +1886,16 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                     )}
 
                     <div className="pt-4 border-t flex justify-between gap-3 shrink-0">
-                        <button type="button" onClick={handleInterFacilityReportReject} className="bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-200">अस्वीकार गर्नुहोस्</button>
+                        {currentUser?.hasSaveAccess !== false ? (
+                          <button type="button" onClick={handleInterFacilityReportReject} className="bg-red-100 text-red-600 px-6 py-2 rounded-xl font-bold hover:bg-red-200">अस्वीकार गर्नुहोस्</button>
+                        ) : (
+                          <div></div>
+                        )}
                         <div className="flex gap-3">
                             <button type="button" onClick={() => setSelectedInterFacilityRequest(null)} className="px-6 py-2 text-slate-500 font-bold">रद्द</button>
-                            <button type="submit" className="bg-orange-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg">रिपोर्ट सुरक्षित गर्नुहोस्</button>
+                            {currentUser?.hasSaveAccess !== false && (
+                              <button type="submit" className="bg-orange-600 text-white px-8 py-2 rounded-xl font-bold shadow-lg">रिपोर्ट सुरक्षित गर्नुहोस्</button>
+                            )}
                         </div>
                     </div>
                 </form>
