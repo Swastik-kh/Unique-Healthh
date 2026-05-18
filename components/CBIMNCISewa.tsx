@@ -1661,8 +1661,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           classifications.push('No Dehydration');
         }
 
+        // Blood in stool for infant is not classified as Dysentery but referred directly
         if (assessmentData.bloodInStool) {
-          classifications.push('Dysentery');
+          // No classification logic for Dysentery in infants < 2m as per user request
         }
       }
 
@@ -1998,12 +1999,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (classifications.includes('No Dehydration')) {
         treatments.push('१) घरमै पखालाको उपचार गर्नुहोस् (Plan A)');
         treatments.push('२) थप झोल पदार्थहरू (र स्तनपान) बच्चाले चाहे जति खुवाउनुहोस्');
-        treatments.push('३) १० दिनसम्म जिंक चक्की (Zinc Supplement) खुवाउनुहोस् (२-६ महिना: १० मिलीग्राम, ६ महिना माथि: २० मिलीग्राम)');
-        treatments.push('४) स्तनपानलाई निरन्तरता दिनुहोस्');
-        treatments.push('५) खतराका संकेतहरू देखिएमा तुरुन्त स्वास्थ्य संस्था ल्याउन परामर्श दिनुहोस्');
+        treatments.push('३) स्तनपानलाई निरन्तरता दिनुहोस्');
+        treatments.push('४) खतराका संकेतहरू देखिएमा तुरुन्त स्वास्थ्य संस्था ल्याउन परामर्श दिनुहोस्');
       }
 
-      if (classifications.includes('Dysentery')) {
+      if (assessmentData.bloodInStool) {
         treatments.push('१) शिशुलाई तुरुन्त माथिल्लो स्वास्थ्य संस्थामा प्रेषण (Refer) गर्नुहोस्');
       }
 
