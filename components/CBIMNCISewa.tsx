@@ -1654,11 +1654,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         const someCount = dehydSigns.length;
         
         if (severeCount >= 2) {
-          classifications.push('कडा जलवियोजन (Severe Dehydration)');
+          classifications.push('Severe Dehydration');
         } else if (someCount >= 2) {
-          classifications.push('जलवियोजन (Some Dehydration)');
+          classifications.push('Some Dehydration');
         } else {
-          classifications.push('जलवियोजन नभएको (No Dehydration)');
+          classifications.push('No Dehydration');
         }
       }
 
@@ -1980,23 +1980,23 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push('Keep infant warm');
       }
       if (classifications.includes('Severe Dehydration')) {
-        treatments.push('Give fluid for severe dehydration (Plan C)');
-        treatments.push('Refer URGENTLY to hospital');
-        treatments.push('If child can drink, give ORS by mouth while drip is being set up');
-        treatments.push('Give 100 ml/kg Ringer\'s Lactate (or Normal Saline)');
+        treatments.push('१) कडा जलवियोजनको लागि उपचार गर्नुहोस् (Plan C)');
+        treatments.push('२) तुरुन्त अस्पताल प्रेषण (Refer) गर्नुहोस्');
+        treatments.push('३) यदि बच्चाले निल्न सक्छ भने अस्पताल पुर्याउँदासम्मको लागि ओ.आर.एस (ORS) चिया चम्चाले वा कपले खुवाउँदै लैजानुहोस्');
+        treatments.push('४) १०० मिली/केजी रिंगर ल्याक्टेट (वा साधारण सलाइन) दिई उपचार सुरु गर्नुहोस्');
       }
       if (classifications.includes('Some Dehydration')) {
-        treatments.push('Give fluid and food for some dehydration (Plan B)');
-        treatments.push('Give 75 ml/kg of ORS in the clinic over 4 hours');
-        treatments.push('Show mother how to give ORS solution');
-        treatments.push('After 4 hours, reassess child and classify for dehydration');
+        treatments.push('१) केही जलवियोजनको लागि उपचार गर्नुहोस् (Plan B)');
+        treatments.push('२) स्वास्थ्य संस्थामा ४ घण्टासम्म ओ.आर.एस (ORS) ७५ मिली/केजीका दरले खुवाउनुहोस्');
+        treatments.push('३) आमालाई ओ.आर.एस (ORS) बनाउने र खुवाउने तरिका सिकाउनुहोस्');
+        treatments.push('४) ४ घण्टा पछि पुन: जाँच गरि निर्देशानुसार उपचार गर्नुहोस्');
       }
       if (classifications.includes('No Dehydration')) {
-        treatments.push('Treat diarrhea at home (Plan A)');
-        treatments.push('Give extra fluid (as much as child will take)');
-        treatments.push('Give Zinc Supplement for 10 days (2-6m: 10mg, >6m: 20mg)');
-        treatments.push('Continue feeding');
-        treatments.push('Advise mother when to return immediately');
+        treatments.push('१) घरमै पखालाको उपचार गर्नुहोस् (Plan A)');
+        treatments.push('२) थप झोल पदार्थहरू (र स्तनपान) बच्चाले चाहे जति खुवाउनुहोस्');
+        treatments.push('३) १० दिनसम्म जिंक चक्की (Zinc Supplement) खुवाउनुहोस् (२-६ महिना: १० मिलीग्राम, ६ महिना माथि: २० मिलीग्राम)');
+        treatments.push('४) स्तनपानलाई निरन्तरता दिनुहोस्');
+        treatments.push('५) खतराका संकेतहरू देखिएमा तुरुन्त स्वास्थ्य संस्था ल्याउन परामर्श दिनुहोस्');
       }
 
       if (classifications.includes('Feeding Problem')) {
