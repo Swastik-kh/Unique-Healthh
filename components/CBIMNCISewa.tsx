@@ -71,7 +71,9 @@ const initialAssessmentData = {
   tbSymptoms: [],
   tbDiagnosis: false,
   weightLoss: false,
-  fatigue: false
+  fatigue: false,
+  gender: 'Male',
+  measurementMethod: 'Automatic' // 'Standing' or 'Recumbent' or 'Automatic'
 };
 
 const initialCbimnciData: Partial<CBIMNCIRecord> = {
@@ -99,7 +101,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   inventoryItems = [],
   generalSettings
 }) => {
-  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
+  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
   const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>('search');
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
@@ -332,7 +334,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
       const module = isInfant ? 'Infant' : 'Child';
       setModuleType(module);
-      setAssessmentData(initialAssessmentData);
+      setAssessmentData({
+        ...initialAssessmentData,
+        gender: patient.gender === 'Female' ? 'Female' : 'Male',
+        weight: patient.weight ? patient.weight.toString() : ''
+      });
 
       setCbimnciData(initialCbimnciData);
       setPrescriptionItems([]);
@@ -366,6 +372,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         diarrheaDays: data.diarrheaDays || '',
         weight: data.weight || '',
         height: data.height || '',
+        gender: data.gender || 'Male',
+        measurementMethod: data.measurementMethod || 'Automatic',
         muac: data.muac || '',
       coughDays: data.coughDays || '',
       feverDays: data.feverDays || '',
@@ -443,6 +451,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       temperature: data.temperature || '',
       diarrheaDays: data.diarrheaDays || '',
       weight: data.weight || '',
+      measurementMethod: data.measurementMethod || 'Automatic',
       muac: data.muac || '',
       coughDays: data.coughDays || '',
       feverDays: data.feverDays || '',
@@ -1344,6 +1353,71 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               <div className="space-y-3">
                 <Input label="तौल (kg)" type="number" step="0.1" value={assessmentData.weight || ''} onChange={(e) => setAssessmentData({...assessmentData, weight: e.target.value})} />
                 <Input label="उचाइ/लम्बाई (cm)" type="number" step="0.1" value={assessmentData.height || ''} onChange={(e) => setAssessmentData({...assessmentData, height: e.target.value})} />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700 block">मापन विधि (Measurement Method)</label>
+                  <div className="flex gap-4 p-2 border border-slate-200 rounded-lg bg-white">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="measurementMethod" 
+                        value="Automatic" 
+                        checked={assessmentData.measurementMethod === 'Automatic'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      स्वचालित (Auto)
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="measurementMethod" 
+                        value="Standing" 
+                        checked={assessmentData.measurementMethod === 'Standing'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      उठेर (Standing)
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="measurementMethod" 
+                        value="Recumbent" 
+                        checked={assessmentData.measurementMethod === 'Recumbent'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      सुताएर (Lying)
+                    </label>
+                  </div>
+                  <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-[10px] text-blue-800 leading-tight">
+                      <strong>जानकारी:</strong> ८७ सेमी भन्दा कमका लागि लम्बाइ (Lying) र ८७ सेमी वा सोभन्दा बढीका लागि उचाइ (Standing) नापिन्छ। सुताएर नापिएको लम्बाइ उठेर नापिएको उचाइ भन्दा औसतमा ०.७ सेमी बढी हुन्छ। ८७ सेमी वा सोभन्दा बढी उचाइ भएको बच्चालाई सुताएर नापिएको छ भने ०.७ सेमी घटाइन्छ, र ८७ सेमी भन्दा कम भएको बच्चालाई उठेर नापिएको छ भने ०.७ सेमी थपिन्छ।
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700 block">लिङ्ग (Gender)</label>
+                  <div className="flex gap-4 p-2 border border-slate-200 rounded-lg bg-white">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentGender" 
+                        value="Male" 
+                        checked={assessmentData.gender === 'Male'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, gender: e.target.value})}
+                      />
+                      पुरुष (M)
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentGender" 
+                        value="Female" 
+                        checked={assessmentData.gender === 'Female'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, gender: e.target.value})}
+                      />
+                      महिला (F)
+                    </label>
+                  </div>
+                </div>
                 {zScore && (
                   <div className={`p-2 rounded-lg border ${parseFloat(zScore) < -3 ? 'bg-red-100 border-red-200 text-red-800' : parseFloat(zScore) < -2 ? 'bg-orange-100 border-orange-200 text-orange-800' : parseFloat(zScore) > 2 ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
                     <p className="text-xs font-bold">Weight-for-Age Z-Score: {zScore}</p>
@@ -1548,7 +1622,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
             const temp = parseFloat(assessmentData.temperature || '0');
             const isSevereMalnutrition = assessmentData.nutritionSigns?.includes('धेरै दुब्लो (Visible severe wasting)') || 
                                          assessmentData.nutritionSigns?.includes('दुवै खुट्टा सुन्निएको (Oedema both feet)') ||
-                                         (zScore && parseFloat(zScore) < -3);
+                                         (zScore && parseFloat(zScore) < -3) ||
+                                         (whzScore && parseFloat(whzScore) < -2);
             
             const showTbAssessment = 
               (coughDuration >= 14) ||
@@ -1805,9 +1880,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       // Malnutrition
       const muacVal = parseInt(assessmentData.muac);
       const currentZScore = zScore ? parseFloat(zScore) : null;
+      const currentWHZ = whzScore ? parseFloat(whzScore) : null;
+      
       console.log('Malnutrition Debug:', {
         weight: assessmentData.weight,
         zScore: currentZScore,
+        whzScore: currentWHZ,
         muac: muacVal,
         nutritionSigns: assessmentData.nutritionSigns
       });
@@ -1815,12 +1893,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (assessmentData.nutritionSigns?.includes("दुवै खुट्टा सुन्निएको (Oedema both feet)") || 
           assessmentData.nutritionSigns?.includes("धेरै दुब्लो (Visible severe wasting)") ||
           (muacVal > 0 && muacVal < 115) || 
-          (currentZScore !== null && currentZScore < -3)) {
+          (currentWHZ !== null && currentWHZ < -3)) {
         classifications.push('Severe Acute Malnutrition');
       } else if ((muacVal >= 115 && muacVal < 125) || 
-                 (currentZScore !== null && currentZScore < -2 && currentZScore >= -3)) {
+                 (currentWHZ !== null && currentWHZ < -2 && currentWHZ >= -3)) {
         classifications.push('Moderate Acute Malnutrition');
-      } else if (muacVal >= 125 || (currentZScore !== null && currentZScore >= -2)) {
+      } else if ((muacVal >= 125 || muacVal === 0) && (currentWHZ !== null && currentWHZ >= -2)) {
         classifications.push('No Malnutrition');
       }
 
@@ -1915,6 +1993,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (classifications.includes('Some Dehydration') || classifications.includes('Severe Dehydration')) return '2 days';
       if (classifications.includes('Acute Ear Infection') || classifications.includes('Persistent Diarrhea')) return '5 days';
       if (classifications.includes('Severe Acute Malnutrition')) return '30 days';
+      if (classifications.includes('Moderate Acute Malnutrition')) return '30 days';
     }
     return null;
   };
@@ -2059,6 +2138,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push('Refer URGENTLY to hospital');
         treatments.push('Prevent low blood sugar');
         treatments.push('Keep child warm');
+      }
+      if (classifications.includes('Moderate Acute Malnutrition')) {
+        treatments.push('१) आमालाई बच्चा खुवाउने तरिका सिकाउनुहोस् (Counsel on feeding)');
+        treatments.push('२) ३० दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
+        treatments.push('३) स्थानीय रुपमा उपलब्ध पौष्टिक आहार खुवाउन सल्लाह दिनुहोस्');
       }
       if (assessmentData.generalDangerSigns?.includes('काँप्ने (Convulsions)')) {
         const diazepamDose = weight > 0 ? `${(weight * 0.5).toFixed(1)}mg` : '0.5 mg/kg';
@@ -2319,44 +2403,80 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   const calculateWHZ = () => {
     if (!assessmentData.weight || !assessmentData.height) return null;
     const weight = parseFloat(assessmentData.weight);
-    const height = parseFloat(assessmentData.height);
+    let height = parseFloat(assessmentData.height);
+    const gender = assessmentData.gender || 'Male';
+    const method = assessmentData.measurementMethod || 'Automatic';
+
+    // WHO Correction Logic
+    // Below 87cm: Length (Recumbent)
+    // 87cm and above: Height (Standing)
+    // Standing is 0.7cm less than Recumbent
+    if (height < 87 && method === 'Standing') {
+      height += 0.7; // Convert standing height to length for WHZ calculation
+    } else if (height >= 87 && method === 'Recumbent') {
+      height -= 0.7; // Convert recumbent length to height for WHZ calculation
+    } else if (method === 'Automatic') {
+      // If automatic and user gave >= 87, we assume it's height. If < 87, we assume it's length.
+      // This is the default WHO stance unless specified otherwise.
+    }
     
     // WHO Weight-for-Height (WFH) / Weight-for-Length (WFL) approximate Median and SD
     const whzData: any = {
-      45: { m: 2.4, s: 0.3 },
-      50: { m: 3.3, s: 0.4 },
-      55: { m: 4.5, s: 0.5 },
-      60: { m: 5.7, s: 0.6 },
-      65: { m: 7.0, s: 0.7 },
-      70: { m: 8.2, s: 0.8 },
-      75: { m: 9.3, s: 0.9 },
-      80: { m: 10.3, s: 1.0 },
-      85: { m: 11.5, s: 1.1 },
-      90: { m: 12.7, s: 1.3 },
-      95: { m: 14.0, s: 1.4 },
-      100: { m: 15.3, s: 1.6 },
-      105: { m: 16.7, s: 1.8 },
-      110: { m: 18.2, s: 2.0 },
-      115: { m: 19.8, s: 2.2 },
-      120: { m: 21.5, s: 2.5 }
+      Male: {
+        45: { m: 2.5, s: 0.3 },
+        50: { m: 3.4, s: 0.4 },
+        55: { m: 4.6, s: 0.5 },
+        60: { m: 5.9, s: 0.6 },
+        65: { m: 7.2, s: 0.7 },
+        70: { m: 8.4, s: 0.8 },
+        75: { m: 9.6, s: 0.9 },
+        80: { m: 10.6, s: 1.0 },
+        85: { m: 11.8, s: 1.1 },
+        90: { m: 13.0, s: 1.3 },
+        95: { m: 14.3, s: 1.4 },
+        100: { m: 15.6, s: 1.6 },
+        105: { m: 17.0, s: 1.8 },
+        110: { m: 18.5, s: 2.0 },
+        115: { m: 20.1, s: 2.2 },
+        120: { m: 21.8, s: 2.5 }
+      },
+      Female: {
+        45: { m: 2.4, s: 0.3 },
+        50: { m: 3.2, s: 0.4 },
+        55: { m: 4.4, s: 0.5 },
+        60: { m: 5.6, s: 0.6 },
+        65: { m: 6.8, s: 0.7 },
+        70: { m: 8.0, s: 0.8 },
+        75: { m: 9.1, s: 0.9 },
+        80: { m: 10.2, s: 1.0 },
+        85: { m: 11.3, s: 1.1 },
+        90: { m: 12.5, s: 1.3 },
+        95: { m: 13.8, s: 1.4 },
+        100: { m: 15.1, s: 1.6 },
+        105: { m: 16.5, s: 1.8 },
+        110: { m: 18.0, s: 2.0 },
+        115: { m: 19.6, s: 2.2 },
+        120: { m: 21.3, s: 2.5 }
+      }
     };
 
-    const heights = Object.keys(whzData).map(Number).sort((a, b) => a - b);
+    const data = whzData[gender] || whzData.Male;
+    const heights = Object.keys(data).map(Number).sort((a, b) => a - b);
     
     let m, s;
     if (height <= 45) {
-      m = whzData[45].m;
-      s = whzData[45].s;
+      m = data[45].m;
+      s = data[45].s;
     } else if (height >= 120) {
-      m = whzData[120].m;
-      s = whzData[120].s;
+      m = data[120].m;
+      s = data[120].s;
     } else {
       const lowerH = heights.filter(h => h <= height).pop() || 45;
       const upperH = heights.find(h => h > height) || 120;
       const factor = (height - lowerH) / (upperH - lowerH);
       
-      m = whzData[lowerH].m + factor * (whzData[upperH].m - whzData[lowerH].m);
-      s = whzData[lowerH].s + factor * (whzData[upperH].s - whzData[lowerH].s);
+      m = data[lowerH].m + factor * (data[upperH].m - data[lowerH].m);
+      s = data[lowerH].s + factor * (data[upperH].s - data[lowerH].s);
     }
     
     const whz = (weight - m) / s;
@@ -2442,6 +2562,66 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               value={tempChildInfo.height || ''}
               onChange={(e) => setTempChildInfo({...tempChildInfo, height: parseFloat(e.target.value) || 0})}
             />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700 block">मापन विधि (Measurement Method)</label>
+              <div className="flex gap-2 p-1 border border-slate-300 rounded-lg">
+                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                  <input 
+                    type="radio" 
+                    name="tempMeasurementMethod" 
+                    value="Automatic" 
+                    checked={tempChildInfo.measurementMethod === 'Automatic'} 
+                    onChange={(e) => setTempChildInfo({...tempChildInfo, measurementMethod: e.target.value})}
+                  />
+                  Auto
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                  <input 
+                    type="radio" 
+                    name="tempMeasurementMethod" 
+                    value="Standing" 
+                    checked={tempChildInfo.measurementMethod === 'Standing'} 
+                    onChange={(e) => setTempChildInfo({...tempChildInfo, measurementMethod: e.target.value})}
+                  />
+                  उठेर
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer text-xs">
+                  <input 
+                    type="radio" 
+                    name="tempMeasurementMethod" 
+                    value="Recumbent" 
+                    checked={tempChildInfo.measurementMethod === 'Recumbent'} 
+                    onChange={(e) => setTempChildInfo({...tempChildInfo, measurementMethod: e.target.value})}
+                  />
+                  सुताएर
+                </label>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700 block">लिङ्ग (Gender)</label>
+              <div className="flex gap-4 p-2 border border-slate-300 rounded-lg">
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input 
+                    type="radio" 
+                    name="tempGender" 
+                    value="Male" 
+                    checked={tempChildInfo.gender === 'Male'} 
+                    onChange={(e) => setTempChildInfo({...tempChildInfo, gender: e.target.value})}
+                  />
+                  पुरुष (Male)
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input 
+                    type="radio" 
+                    name="tempGender" 
+                    value="Female" 
+                    checked={tempChildInfo.gender === 'Female'} 
+                    onChange={(e) => setTempChildInfo({...tempChildInfo, gender: e.target.value})}
+                  />
+                  महिला (Female)
+                </label>
+              </div>
+            </div>
           </div>
           <button 
                 onClick={() => {
@@ -2466,7 +2646,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       age: moduleType === 'Infant' ? `${tempChildInfo.ageDays} दिन` : `${tempChildInfo.ageMonths} महिना`,
                       ageMonths: moduleType === 'Infant' ? 0 : tempChildInfo.ageMonths,
                       ageDays: moduleType === 'Infant' ? tempChildInfo.ageDays : 0,
-                      gender: 'Other',
+                      gender: tempChildInfo.gender,
                       address: 'नखुलेको',
                       phone: '',
                       serviceType: 'CBIMNCI',
@@ -2474,7 +2654,13 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       fiscalYear: currentFiscalYear
                   };
                   selectPatient(dummyPatient, true);
-                  setAssessmentData({...assessmentData, weight: tempChildInfo.weight.toString(), height: tempChildInfo.height.toString()});
+                  setAssessmentData({
+                    ...assessmentData, 
+                    weight: tempChildInfo.weight.toString(), 
+                    height: tempChildInfo.height.toString(), 
+                    gender: tempChildInfo.gender,
+                    measurementMethod: tempChildInfo.measurementMethod
+                  });
                   setViewMode('search'); 
                 }}
                 className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm mt-4"
@@ -2488,7 +2674,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Infant'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
                 }}
                 className="bg-white p-8 rounded-3xl border-4 border-blue-400 hover:border-blue-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
@@ -2501,7 +2687,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Child'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
                 }}
                 className="bg-white p-8 rounded-3xl border-4 border-green-400 hover:border-green-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
