@@ -2176,7 +2176,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
       if (classifications.includes('Anemia')) {
         treatments.push('Give Iron/Folate');
-        treatments.push('Give Mebendazole if child is 1 year or older');
+        treatments.push('Give Albendazole if child is 1 year or older');
         treatments.push('Advise mother on feeding');
         treatments.push('Follow-up in 14 days');
       }
