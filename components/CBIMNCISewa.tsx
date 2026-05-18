@@ -46,6 +46,7 @@ const initialAssessmentData = {
   temperature: '',
   diarrheaDays: '',
   weight: '',
+  height: '',
   muac: '',
   coughDays: '',
   feverDays: '',
@@ -98,7 +99,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   inventoryItems = [],
   generalSettings
 }) => {
-  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
   const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>('search');
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
@@ -308,63 +309,64 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     }
   };
 
-  const selectPatient = (patient: ServiceSeekerRecord, isEntry: boolean = false) => {
-    setCurrentPatient(patient);
-    setIsDirectEntry(isEntry);
-    setSearchResults([]);
-    setShowSearchResults(false);
-    setSearchId('');
-    setHasDangerSigns(null);
-    setHasCoughOrBreathingDifficulty(null);
-    setHasDiarrhea(null);
-    setHasFever(null);
-    setHasEarProblem(null);
-    setHasJaundice(null);
-    
-    // Auto-select module based on age
-    let isInfant = false;
-    if (patient.ageDays !== undefined && patient.ageDays > 0) {
-      isInfant = patient.ageDays < 60;
-    } else {
-      const ageInMonths = (patient.ageYears || 0) * 12 + (patient.ageMonths || 0);
-      isInfant = ageInMonths < 2; // Less than 2 months
-    }
-    const module = isInfant ? 'Infant' : 'Child';
-    setModuleType(module);
-    setAssessmentData(initialAssessmentData);
+    const selectPatient = (patient: ServiceSeekerRecord, isEntry: boolean = false) => {
+      setCurrentPatient(patient);
+      setIsDirectEntry(isEntry);
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setSearchId('');
+      setHasDangerSigns(null);
+      setHasCoughOrBreathingDifficulty(null);
+      setHasDiarrhea(null);
+      setHasFever(null);
+      setHasEarProblem(null);
+      setHasJaundice(null);
+      
+      // Auto-select module based on age
+      let isInfant = false;
+      if (patient.ageDays !== undefined && patient.ageDays > 0) {
+        isInfant = patient.ageDays < 60;
+      } else {
+        const ageInMonths = (patient.ageYears || 0) * 12 + (patient.ageMonths || 0);
+        isInfant = ageInMonths < 2; // Less than 2 months
+      }
+      const module = isInfant ? 'Infant' : 'Child';
+      setModuleType(module);
+      setAssessmentData(initialAssessmentData);
 
-    setCbimnciData(initialCbimnciData);
-    setPrescriptionItems([]);
-    setEditingRecordId(null);
-    setTempF('');
-  };
+      setCbimnciData(initialCbimnciData);
+      setPrescriptionItems([]);
+      setEditingRecordId(null);
+      setTempF('');
+    };
 
-  const selectRecordForEdit = (record: CBIMNCIRecord) => {
-    setModuleType(record.moduleType || 'Child');
-    setHasDangerSigns(record.assessmentData?.generalDangerSigns && record.assessmentData.generalDangerSigns.length > 0);
-    setHasCoughOrBreathingDifficulty(!!record.assessmentData?.breathingRate || (record.assessmentData?.respiratorySigns && record.assessmentData.respiratorySigns.length > 0));
-    setHasDiarrhea(!!record.assessmentData?.diarrheaDays || (record.assessmentData?.dehydrationSigns && record.assessmentData.dehydrationSigns.length > 0) || record.assessmentData?.bloodInStool);
-    setHasFever(!!record.assessmentData?.temperature || !!record.assessmentData?.feverDays || (record.assessmentData?.feverSigns && record.assessmentData.feverSigns.length > 0));
-    setHasEarProblem(!!record.assessmentData?.earPain || !!record.assessmentData?.earDischarge || !!record.assessmentData?.mastoidSwelling);
-    setHasJaundice(record.assessmentData?.jaundiceSigns && record.assessmentData.jaundiceSigns.length > 0);
-    
-    const data = record.assessmentData || {};
-    setAssessmentData({
-      dangerSigns: data.dangerSigns || [],
-      localInfection: data.localInfection || [],
-      jaundiceSigns: data.jaundiceSigns || [],
-      dehydrationSigns: data.dehydrationSigns || [],
-      feedingProblems: data.feedingProblems || [],
-      generalDangerSigns: data.generalDangerSigns || [],
-      respiratorySigns: data.respiratorySigns || [],
-      feverSigns: data.feverSigns || [],
-      nutritionSigns: data.nutritionSigns || [],
-      immunization: data.immunization || [],
-      breathingRate: data.breathingRate || '',
-      temperature: data.temperature || '',
-      diarrheaDays: data.diarrheaDays || '',
-      weight: data.weight || '',
-      muac: data.muac || '',
+    const selectRecordForEdit = (record: CBIMNCIRecord) => {
+      setModuleType(record.moduleType || 'Child');
+      setHasDangerSigns(record.assessmentData?.generalDangerSigns && record.assessmentData.generalDangerSigns.length > 0);
+      setHasCoughOrBreathingDifficulty(!!record.assessmentData?.breathingRate || (record.assessmentData?.respiratorySigns && record.assessmentData.respiratorySigns.length > 0));
+      setHasDiarrhea(!!record.assessmentData?.diarrheaDays || (record.assessmentData?.dehydrationSigns && record.assessmentData.dehydrationSigns.length > 0) || record.assessmentData?.bloodInStool);
+      setHasFever(!!record.assessmentData?.temperature || !!record.assessmentData?.feverDays || (record.assessmentData?.feverSigns && record.assessmentData.feverSigns.length > 0));
+      setHasEarProblem(!!record.assessmentData?.earPain || !!record.assessmentData?.earDischarge || !!record.assessmentData?.mastoidSwelling);
+      setHasJaundice(record.assessmentData?.jaundiceSigns && record.assessmentData.jaundiceSigns.length > 0);
+      
+      const data = record.assessmentData || {};
+      setAssessmentData({
+        dangerSigns: data.dangerSigns || [],
+        localInfection: data.localInfection || [],
+        jaundiceSigns: data.jaundiceSigns || [],
+        dehydrationSigns: data.dehydrationSigns || [],
+        feedingProblems: data.feedingProblems || [],
+        generalDangerSigns: data.generalDangerSigns || [],
+        respiratorySigns: data.respiratorySigns || [],
+        feverSigns: data.feverSigns || [],
+        nutritionSigns: data.nutritionSigns || [],
+        immunization: data.immunization || [],
+        breathingRate: data.breathingRate || '',
+        temperature: data.temperature || '',
+        diarrheaDays: data.diarrheaDays || '',
+        weight: data.weight || '',
+        height: data.height || '',
+        muac: data.muac || '',
       coughDays: data.coughDays || '',
       feverDays: data.feverDays || '',
       earDischargeDays: data.earDischargeDays || '',
@@ -1341,11 +1343,20 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <Input label="तौल (kg)" type="number" step="0.1" value={assessmentData.weight || ''} onChange={(e) => setAssessmentData({...assessmentData, weight: e.target.value})} />
+                <Input label="उचाइ/लम्बाई (cm)" type="number" step="0.1" value={assessmentData.height || ''} onChange={(e) => setAssessmentData({...assessmentData, height: e.target.value})} />
                 {zScore && (
                   <div className={`p-2 rounded-lg border ${parseFloat(zScore) < -3 ? 'bg-red-100 border-red-200 text-red-800' : parseFloat(zScore) < -2 ? 'bg-orange-100 border-orange-200 text-orange-800' : parseFloat(zScore) > 2 ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
                     <p className="text-xs font-bold">Weight-for-Age Z-Score: {zScore}</p>
                     <p className="text-[10px]">
                       {parseFloat(zScore) < -3 ? 'Severe Underweight' : parseFloat(zScore) < -2 ? 'Underweight' : parseFloat(zScore) > 2 ? 'Overweight' : 'Normal Weight'}
+                    </p>
+                  </div>
+                )}
+                {whzScore && (
+                  <div className={`p-2 rounded-lg border ${parseFloat(whzScore) < -3 ? 'bg-red-100 border-red-200 text-red-800' : parseFloat(whzScore) < -2 ? 'bg-orange-100 border-orange-200 text-orange-800' : parseFloat(whzScore) > 2 ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
+                    <p className="text-xs font-bold">Weight-for-Height Z-Score: {whzScore}</p>
+                    <p className="text-[10px]">
+                      {parseFloat(whzScore) < -3 ? 'Severe Wasting' : parseFloat(whzScore) < -2 ? 'Wasting' : parseFloat(whzScore) > 2 ? 'Overweight' : 'Normal Weight-for-Height'}
                     </p>
                   </div>
                 )}
@@ -2305,7 +2316,55 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     return zScore.toFixed(2);
   };
 
+  const calculateWHZ = () => {
+    if (!assessmentData.weight || !assessmentData.height) return null;
+    const weight = parseFloat(assessmentData.weight);
+    const height = parseFloat(assessmentData.height);
+    
+    // WHO Weight-for-Height (WFH) / Weight-for-Length (WFL) approximate Median and SD
+    const whzData: any = {
+      45: { m: 2.4, s: 0.3 },
+      50: { m: 3.3, s: 0.4 },
+      55: { m: 4.5, s: 0.5 },
+      60: { m: 5.7, s: 0.6 },
+      65: { m: 7.0, s: 0.7 },
+      70: { m: 8.2, s: 0.8 },
+      75: { m: 9.3, s: 0.9 },
+      80: { m: 10.3, s: 1.0 },
+      85: { m: 11.5, s: 1.1 },
+      90: { m: 12.7, s: 1.3 },
+      95: { m: 14.0, s: 1.4 },
+      100: { m: 15.3, s: 1.6 },
+      105: { m: 16.7, s: 1.8 },
+      110: { m: 18.2, s: 2.0 },
+      115: { m: 19.8, s: 2.2 },
+      120: { m: 21.5, s: 2.5 }
+    };
+
+    const heights = Object.keys(whzData).map(Number).sort((a, b) => a - b);
+    
+    let m, s;
+    if (height <= 45) {
+      m = whzData[45].m;
+      s = whzData[45].s;
+    } else if (height >= 120) {
+      m = whzData[120].m;
+      s = whzData[120].s;
+    } else {
+      const lowerH = heights.filter(h => h <= height).pop() || 45;
+      const upperH = heights.find(h => h > height) || 120;
+      const factor = (height - lowerH) / (upperH - lowerH);
+      
+      m = whzData[lowerH].m + factor * (whzData[upperH].m - whzData[lowerH].m);
+      s = whzData[lowerH].s + factor * (whzData[upperH].s - whzData[lowerH].s);
+    }
+    
+    const whz = (weight - m) / s;
+    return whz.toFixed(2);
+  };
+
   const zScore = calculateZScore();
+  const whzScore = calculateWHZ();
   const suggestedClassifications = getClassification();
   const suggestedNextVisit = getSuggestedNextVisit(suggestedClassifications);
   const suggestedTreatments = getSuggestedTreatment(suggestedClassifications);
@@ -2377,6 +2436,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               value={tempChildInfo.weight || ''}
               onChange={(e) => setTempChildInfo({...tempChildInfo, weight: parseFloat(e.target.value) || 0})}
             />
+            <Input 
+              label="उचाइ/लम्बाई (cm)" 
+              type="number"
+              value={tempChildInfo.height || ''}
+              onChange={(e) => setTempChildInfo({...tempChildInfo, height: parseFloat(e.target.value) || 0})}
+            />
           </div>
           <button 
                 onClick={() => {
@@ -2409,7 +2474,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       fiscalYear: currentFiscalYear
                   };
                   selectPatient(dummyPatient, true);
-                  setAssessmentData({...assessmentData, weight: tempChildInfo.weight.toString()});
+                  setAssessmentData({...assessmentData, weight: tempChildInfo.weight.toString(), height: tempChildInfo.height.toString()});
                   setViewMode('search'); 
                 }}
                 className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm mt-4"
@@ -2423,7 +2488,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Infant'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
                 }}
                 className="bg-white p-8 rounded-3xl border-4 border-blue-400 hover:border-blue-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
@@ -2436,7 +2501,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Child'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0 });
                 }}
                 className="bg-white p-8 rounded-3xl border-4 border-green-400 hover:border-green-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
