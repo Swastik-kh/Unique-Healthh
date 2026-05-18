@@ -873,11 +873,80 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <Input label="तौल (kg)" type="number" step="0.01" value={assessmentData.weight || ''} onChange={(e) => setAssessmentData({...assessmentData, weight: e.target.value})} />
+                <Input label="लम्बाई (cm)" type="number" step="0.1" value={assessmentData.height || ''} onChange={(e) => setAssessmentData({...assessmentData, height: e.target.value})} />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700 block">मापन विधि (Measurement Method)</label>
+                  <div className="flex gap-4 p-2 border border-slate-200 rounded-lg bg-white">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentMethodInfant" 
+                        value="Automatic" 
+                        checked={assessmentData.measurementMethod === 'Automatic'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      Auto
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentMethodInfant" 
+                        value="Standing" 
+                        checked={assessmentData.measurementMethod === 'Standing'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      उठेर
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentMethodInfant" 
+                        value="Recumbent" 
+                        checked={assessmentData.measurementMethod === 'Recumbent'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, measurementMethod: e.target.value})}
+                      />
+                      सुताएर
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700 block">लिङ्ग (Gender)</label>
+                  <div className="flex gap-4 p-2 border border-slate-200 rounded-lg bg-white">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentGenderInfant" 
+                        value="Male" 
+                        checked={assessmentData.gender === 'Male'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, gender: e.target.value})}
+                      />
+                      M
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <input 
+                        type="radio" 
+                        name="assessmentGenderInfant" 
+                        value="Female" 
+                        checked={assessmentData.gender === 'Female'} 
+                        onChange={(e) => setAssessmentData({...assessmentData, gender: e.target.value})}
+                      />
+                      F
+                    </label>
+                  </div>
+                </div>
                 {zScore && (
                   <div className={`p-2 rounded-lg border ${parseFloat(zScore) < -3 ? 'bg-red-100 border-red-200 text-red-800' : parseFloat(zScore) < -2 ? 'bg-orange-100 border-orange-200 text-orange-800' : parseFloat(zScore) > 2 ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
                     <p className="text-xs font-bold">WAZ Score: {zScore}</p>
                     <p className="text-[10px]">
                       {parseFloat(zScore) < -3 ? 'Severe Underweight' : parseFloat(zScore) < -2 ? 'Underweight' : parseFloat(zScore) > 2 ? 'Overweight' : 'Normal Weight'}
+                    </p>
+                  </div>
+                )}
+                {whzScore && (
+                  <div className={`p-2 rounded-lg border ${parseFloat(whzScore) < -3 ? 'bg-red-100 border-red-200 text-red-800' : parseFloat(whzScore) < -2 ? 'bg-orange-100 border-orange-200 text-orange-800' : parseFloat(whzScore) > 2 ? 'bg-yellow-100 border-yellow-200 text-yellow-800' : 'bg-green-100 border-green-200 text-green-800'}`}>
+                    <p className="text-xs font-bold">WFL Score: {whzScore}</p>
+                    <p className="text-[10px]">
+                      {parseFloat(whzScore) < -3 ? 'Severe Wasting' : parseFloat(whzScore) < -2 ? 'Wasting' : parseFloat(whzScore) > 2 ? 'Overweight' : 'Normal Weight-for-Length'}
                     </p>
                   </div>
                 )}
@@ -2669,19 +2738,19 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               </button>
             </div>
           ) : viewMode === 'selection' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-100 rounded-3xl border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 p-4 md:p-8 bg-slate-100 rounded-3xl border border-slate-200">
               <button 
                 onClick={() => { 
                   setModuleType('Infant'); 
                   setViewMode('entry');
                   setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
                 }}
-                className="bg-white p-8 rounded-3xl border-4 border-blue-400 hover:border-blue-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
+                className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border-2 md:border-4 border-blue-400 hover:border-blue-600 flex flex-col md:flex-row items-center gap-4 md:gap-6 shadow-xl md:shadow-2xl transition-all transform hover:scale-105"
               >
-                <div className="bg-blue-500 p-6 rounded-3xl text-white shadow-inner">
-                  <Baby size={64} />
+                <div className="bg-blue-500 p-4 md:p-6 rounded-2xl md:rounded-3xl text-white shadow-inner">
+                  <Baby className="w-12 h-12 md:w-16 md:h-16" />
                 </div>
-                <h3 className="text-3xl font-black text-blue-900 font-nepali">२ महिना मुनिका बच्चा</h3>
+                <h3 className="text-xl md:text-3xl font-black text-blue-900 font-nepali text-center md:text-left">२ महिना मुनिका बच्चा</h3>
               </button>
               <button 
                 onClick={() => { 
@@ -2689,12 +2758,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                   setViewMode('entry');
                   setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
                 }}
-                className="bg-white p-8 rounded-3xl border-4 border-green-400 hover:border-green-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
+                className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border-2 md:border-4 border-green-400 hover:border-green-600 flex flex-col md:flex-row items-center gap-4 md:gap-6 shadow-xl md:shadow-2xl transition-all transform hover:scale-105"
               >
-                <div className="bg-green-500 p-6 rounded-3xl text-white shadow-inner">
-                  <User size={64} />
+                <div className="bg-green-500 p-4 md:p-6 rounded-2xl md:rounded-3xl text-white shadow-inner">
+                  <User className="w-12 h-12 md:w-16 md:h-16" />
                 </div>
-                <h3 className="text-3xl font-black text-green-900 font-nepali">२ महिनादेखि ५ वर्षसम्म</h3>
+                <h3 className="text-xl md:text-3xl font-black text-green-900 font-nepali text-center md:text-left">२ महिनादेखि ५ वर्षसम्म</h3>
               </button>
             </div>
           ) : (
