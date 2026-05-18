@@ -2406,7 +2406,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           ) : viewMode === 'selection' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 bg-slate-100 rounded-3xl border border-slate-200">
               <button 
-                onClick={() => { setModuleType('Infant'); setViewMode('entry'); }}
+                onClick={() => { 
+                  setModuleType('Infant'); 
+                  setViewMode('entry');
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+                }}
                 className="bg-white p-8 rounded-3xl border-4 border-blue-400 hover:border-blue-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
                 <div className="bg-blue-500 p-6 rounded-3xl text-white shadow-inner">
@@ -2415,7 +2419,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 <h3 className="text-3xl font-black text-blue-900 font-nepali">२ महिना मुनिका बच्चा</h3>
               </button>
               <button 
-                onClick={() => { setModuleType('Child'); setViewMode('entry'); }}
+                onClick={() => { 
+                  setModuleType('Child'); 
+                  setViewMode('entry');
+                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0 });
+                }}
                 className="bg-white p-8 rounded-3xl border-4 border-green-400 hover:border-green-600 flex items-center gap-6 shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
               >
                 <div className="bg-green-500 p-6 rounded-3xl text-white shadow-inner">
