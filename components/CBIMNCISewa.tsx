@@ -111,7 +111,23 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     return currentUser.allowedMenus?.includes('cbimnci_direct_entry');
   }, [currentUser]);
 
-  const [tempChildInfo, setTempChildInfo] = useState({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
+  const [tempChildInfo, setTempChildInfo] = useState<{
+    ageMonths: number | '',
+    ageWeeks: number | '',
+    ageDays: number | '',
+    weight: number | '',
+    height: number | '',
+    gender: string,
+    measurementMethod: string
+  }>({ 
+    ageMonths: '', 
+    ageWeeks: '', 
+    ageDays: '', 
+    weight: '', 
+    height: '', 
+    gender: 'Male', 
+    measurementMethod: 'Automatic' 
+  });
   const [viewMode, setViewMode] = useState<'search' | 'entry' | 'selection'>(
     canSearch ? 'search' : (canDirectEntry ? 'selection' : 'search')
   );
@@ -2598,19 +2614,18 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           </div>
 
           {viewMode === 'entry' && canDirectEntry ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              {/* Simplified Input Section */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <Input 
-              label="उमेर (महिनामा)" 
+              label="उमेर (महिनामा) *" 
               type="number"
               value={tempChildInfo.ageMonths || ''}
               disabled={moduleType === 'Infant'}
               min={2}
               max={59}
               onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setTempChildInfo({...tempChildInfo, ageMonths: val});
+                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                  setTempChildInfo({...tempChildInfo, ageMonths: val as any});
               }}
             />
             <Input 
@@ -2619,33 +2634,33 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               value={tempChildInfo.ageWeeks || ''}
               disabled={true}
               onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setTempChildInfo({...tempChildInfo, ageWeeks: val});
+                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                  setTempChildInfo({...tempChildInfo, ageWeeks: val as any});
               }}
             />
             <Input 
-              label="उमेर (दिनमा)"
+              label="उमेर (दिनमा) *" 
               type="number"
               value={tempChildInfo.ageDays || ''}
               disabled={moduleType === 'Child'}
               min={0}
               max={59}
               onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  setTempChildInfo({...tempChildInfo, ageDays: val});
+                  const val = e.target.value === '' ? '' : parseInt(e.target.value);
+                  setTempChildInfo({...tempChildInfo, ageDays: val as any});
               }}
             />
             <Input 
-              label="तौल (kg)" 
+              label="तौल (kg) *" 
               type="number"
               value={tempChildInfo.weight || ''}
-              onChange={(e) => setTempChildInfo({...tempChildInfo, weight: parseFloat(e.target.value) || 0})}
+              onChange={(e) => setTempChildInfo({...tempChildInfo, weight: e.target.value === '' ? '' : parseFloat(e.target.value) as any})}
             />
             <Input 
-              label="उचाइ/लम्बाई (cm)" 
+              label="उचाइ/लम्बाई (cm) *" 
               type="number"
               value={tempChildInfo.height || ''}
-              onChange={(e) => setTempChildInfo({...tempChildInfo, height: parseFloat(e.target.value) || 0})}
+              onChange={(e) => setTempChildInfo({...tempChildInfo, height: e.target.value === '' ? '' : parseFloat(e.target.value) as any})}
             />
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700 block">मापन विधि (Measurement Method)</label>
@@ -2711,26 +2726,49 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           <button 
                 onClick={() => {
                   if (moduleType === 'Infant') {
-                    if (tempChildInfo.ageDays < 0 || tempChildInfo.ageDays > 59) {
+                    if (tempChildInfo.ageDays === '') {
+                      alert('कृपया बच्चाको उमेर (दिनमा) भर्नुहोस्।');
+                      return;
+                    }
+                    const ageDays = Number(tempChildInfo.ageDays);
+                    if (ageDays < 0 || ageDays > 59) {
                       alert('कृपया ० देखि ५९ दिन सम्मको उमेर भर्नुहोस्।');
                       return;
                     }
                   } else {
-                    if (tempChildInfo.ageMonths < 2 || tempChildInfo.ageMonths > 59) {
+                    if (tempChildInfo.ageMonths === '') {
+                      alert('कृपया बच्चाको उमेर (महिनामा) भर्नुहोस्।');
+                      return;
+                    }
+                    const ageMonths = Number(tempChildInfo.ageMonths);
+                    if (ageMonths < 2 || ageMonths > 59) {
                       alert('कृपया २ देखि ५९ महिना सम्मको उमेर भर्नुहोस्।');
                       return;
                     }
                   }
+
+                  if (tempChildInfo.weight === '') {
+                    alert('कृपया बच्चाको तौल राख्नुहोस्।');
+                    return;
+                  }
+
+                  if (tempChildInfo.height === '') {
+                    alert('कृपया बच्चाको उचाइ/लम्बाई राख्नुहोस्।');
+                    return;
+                  }
                   
+                  const ageDaysVal = tempChildInfo.ageDays === '' ? 0 : Number(tempChildInfo.ageDays);
+                  const ageMonthsVal = tempChildInfo.ageMonths === '' ? 0 : Number(tempChildInfo.ageMonths);
+
                   const dummyPatient: any = {
                       id: 'temp-' + Date.now(),
                       uniquePatientId: 'TEMP-' + Date.now().toString().slice(-6),
                       registrationNumber: 'TEMP',
                       date: new NepaliDate().format('YYYY-MM-DD'),
                       name: 'अस्थायी बिरामी',
-                      age: moduleType === 'Infant' ? `${tempChildInfo.ageDays} दिन` : `${tempChildInfo.ageMonths} महिना`,
-                      ageMonths: moduleType === 'Infant' ? 0 : tempChildInfo.ageMonths,
-                      ageDays: moduleType === 'Infant' ? tempChildInfo.ageDays : 0,
+                      age: moduleType === 'Infant' ? `${ageDaysVal} दिन` : `${ageMonthsVal} महिना`,
+                      ageMonths: moduleType === 'Infant' ? 0 : ageMonthsVal,
+                      ageDays: moduleType === 'Infant' ? ageDaysVal : 0,
                       gender: tempChildInfo.gender,
                       address: 'नखुलेको',
                       phone: '',
@@ -2759,7 +2797,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Infant'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
+                  setTempChildInfo({ ageMonths: '', ageWeeks: '', ageDays: '', weight: '', height: '', gender: 'Male', measurementMethod: 'Automatic' });
                 }}
                 className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border-2 md:border-4 border-blue-400 hover:border-blue-600 flex flex-col md:flex-row items-center gap-4 md:gap-6 shadow-xl md:shadow-2xl transition-all transform hover:scale-105"
               >
@@ -2772,7 +2810,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 onClick={() => { 
                   setModuleType('Child'); 
                   setViewMode('entry');
-                  setTempChildInfo({ ageMonths: 0, ageWeeks: 0, ageDays: 0, weight: 0, height: 0, gender: 'Male', measurementMethod: 'Automatic' });
+                  setTempChildInfo({ ageMonths: '', ageWeeks: '', ageDays: '', weight: '', height: '', gender: 'Male', measurementMethod: 'Automatic' });
                 }}
                 className="bg-white p-4 md:p-8 rounded-2xl md:rounded-3xl border-2 md:border-4 border-green-400 hover:border-green-600 flex flex-col md:flex-row items-center gap-4 md:gap-6 shadow-xl md:shadow-2xl transition-all transform hover:scale-105"
               >
