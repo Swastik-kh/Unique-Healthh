@@ -475,7 +475,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
-    return currentUser.allowedMenus?.includes(menuId) || menuId === 'dashboard' || menuId === 'change_password' || menuId === 'bida_abedan';
+    return currentUser.allowedMenus?.includes(menuId) || menuId === 'dashboard' || menuId === 'change_password';
   }, [currentUser]);
 
   interface MenuItem { id: string; label: string; icon: React.ReactNode; subItems?: MenuItem[]; badgeCount?: number; }
@@ -711,6 +711,19 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
 
   const renderContent = () => {
     if (!currentUser) return null;
+    
+    // Check if user has access to the active item
+    if (activeItem !== 'dashboard' && !hasAccess(activeItem)) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 mt-20">
+                <ShieldAlert size={64} className="text-red-400" />
+                <h3 className="text-xl font-bold text-slate-600 font-nepali">पहुँच अस्वीकृत (Access Denied)</h3>
+                <p className="text-sm">तपाईंसँग यो मेनु चलाउने अनुमति छैन।</p>
+                <button onClick={() => setActiveItem('dashboard')} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">ड्यासबोर्डमा जानुहोस्</button>
+            </div>
+        );
+    }
+
     switch (activeItem) {
       case 'dashboard': return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
