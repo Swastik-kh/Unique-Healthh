@@ -1648,7 +1648,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
 
       // Dehydration
-      if (assessmentData.diarrheaDays) {
+      if (assessmentData.diarrheaDays || assessmentData.bloodInStool) {
         const dehydSigns = assessmentData.dehydrationSigns || [];
         const severeCount = dehydSigns.filter((s: string) => s.includes('Lethargic') || s.includes('Sunken') || s.includes('very slow')).length;
         const someCount = dehydSigns.length;
@@ -1657,8 +1657,12 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           classifications.push('Severe Dehydration');
         } else if (someCount >= 2) {
           classifications.push('Some Dehydration');
-        } else {
+        } else if (assessmentData.diarrheaDays) {
           classifications.push('No Dehydration');
+        }
+
+        if (assessmentData.bloodInStool) {
+          classifications.push('Dysentery');
         }
       }
 
@@ -1997,6 +2001,10 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push('३) १० दिनसम्म जिंक चक्की (Zinc Supplement) खुवाउनुहोस् (२-६ महिना: १० मिलीग्राम, ६ महिना माथि: २० मिलीग्राम)');
         treatments.push('४) स्तनपानलाई निरन्तरता दिनुहोस्');
         treatments.push('५) खतराका संकेतहरू देखिएमा तुरुन्त स्वास्थ्य संस्था ल्याउन परामर्श दिनुहोस्');
+      }
+
+      if (classifications.includes('Dysentery')) {
+        treatments.push('१) शिशुलाई तुरुन्त माथिल्लो स्वास्थ्य संस्थामा प्रेषण (Refer) गर्नुहोस्');
       }
 
       if (classifications.includes('Feeding Problem')) {
