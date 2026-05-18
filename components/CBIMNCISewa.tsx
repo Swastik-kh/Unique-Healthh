@@ -2327,6 +2327,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               label="उमेर (महिनामा)" 
               type="number"
               value={tempChildInfo.ageMonths || ''}
+              disabled={moduleType === 'Infant'}
+              min={2}
+              max={59}
               onChange={(e) => {
                   const val = parseInt(e.target.value) || 0;
                   setTempChildInfo({...tempChildInfo, ageMonths: val});
@@ -2336,6 +2339,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               label="उमेर (हप्तामा)"
               type="number"
               value={tempChildInfo.ageWeeks || ''}
+              disabled={true}
               onChange={(e) => {
                   const val = parseInt(e.target.value) || 0;
                   setTempChildInfo({...tempChildInfo, ageWeeks: val});
@@ -2345,6 +2349,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               label="उमेर (दिनमा)"
               type="number"
               value={tempChildInfo.ageDays || ''}
+              disabled={moduleType === 'Child'}
+              min={0}
+              max={59}
               onChange={(e) => {
                   const val = parseInt(e.target.value) || 0;
                   setTempChildInfo({...tempChildInfo, ageDays: val});
@@ -2359,11 +2366,17 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           </div>
           <button 
                 onClick={() => {
-                  const months = tempChildInfo.ageMonths || 0;
-                  const isInfant = months < 2;
-                  
-                  // Set module type before calling selectPatient
-                  setModuleType(isInfant ? 'Infant' : 'Child');
+                  if (moduleType === 'Infant') {
+                    if (tempChildInfo.ageDays < 0 || tempChildInfo.ageDays > 59) {
+                      alert('कृपया ० देखि ५९ दिन सम्मको उमेर भर्नुहोस्।');
+                      return;
+                    }
+                  } else {
+                    if (tempChildInfo.ageMonths < 2 || tempChildInfo.ageMonths > 59) {
+                      alert('कृपया २ देखि ५९ महिना सम्मको उमेर भर्नुहोस्।');
+                      return;
+                    }
+                  }
                   
                   const dummyPatient: any = {
                       id: 'temp-' + Date.now(),
@@ -2371,8 +2384,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       registrationNumber: 'TEMP',
                       date: new NepaliDate().format('YYYY-MM-DD'),
                       name: 'अस्थायी बिरामी',
-                      age: (months + ' महिना, ' + (tempChildInfo.ageWeeks || 0) + ' हप्ता'),
-                      ageMonths: months + Math.floor((tempChildInfo.ageWeeks || 0) / 4),
+                      age: moduleType === 'Infant' ? `${tempChildInfo.ageDays} दिन` : `${tempChildInfo.ageMonths} महिना`,
+                      ageMonths: moduleType === 'Infant' ? 0 : tempChildInfo.ageMonths,
+                      ageDays: moduleType === 'Infant' ? tempChildInfo.ageDays : 0,
                       gender: 'Other',
                       address: 'नखुलेको',
                       phone: '',
