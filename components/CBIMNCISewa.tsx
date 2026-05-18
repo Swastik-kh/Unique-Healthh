@@ -1802,6 +1802,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       });
       
       if (assessmentData.nutritionSigns?.includes("दुवै खुट्टा सुन्निएको (Oedema both feet)") || 
+          assessmentData.nutritionSigns?.includes("धेरै दुब्लो (Visible severe wasting)") ||
           (muacVal > 0 && muacVal < 115) || 
           (currentZScore !== null && currentZScore < -3)) {
         classifications.push('Severe Acute Malnutrition');
