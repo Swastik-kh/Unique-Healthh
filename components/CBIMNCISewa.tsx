@@ -2036,7 +2036,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
     } else {
       const weight = parseFloat(assessmentData.weight) || 0;
-      if (classifications.includes('Very Severe Disease') || classifications.includes('Severe Pneumonia or Very Severe Disease') || classifications.includes('Severe Acute Malnutrition') || classifications.includes('Severe Complicated Measles')) {
+      if (classifications.includes('Very Severe Disease') || classifications.includes('Severe Pneumonia or Very Severe Disease') || classifications.includes('Severe Acute Malnutrition') || classifications.includes('Severe Complicated Measles') || classifications.includes('Mastoiditis')) {
         let gentDose = '';
         let ampDose = '';
         if (weight > 0) {
@@ -2165,6 +2165,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         }
         treatments.push('Follow-up in 3 days');
       }
+      if (classifications.includes('Chronic Ear Infection')) {
+        treatments.push('१) दिनमा कम्तीमा ३ पटक वा कान सुक्खा नभएसम्म कान सफा (Dry Ear Wicking) गर्ने तरिका सिकाउनुहोस्');
+        treatments.push('२) Ciprofloxacin ear drops १-१ थोपा दिनको २ पटक १४ दिनसम्म कानमा हाल्न सल्लाह दिनुहोस्');
+        treatments.push('३) ५ दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
+      }
       if (classifications.includes('Severe Anemia')) {
         treatments.push('Refer URGENTLY to hospital');
       }
@@ -2219,7 +2224,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
       // Paracetamol for high fever or ear pain/infection
       const temp = parseFloat(assessmentData.temperature) || 0;
-      if (temp >= 38.5 || assessmentData.earPain || classifications.includes('Acute Ear Infection')) {
+      if (temp >= 38.5 || assessmentData.earPain || classifications.includes('Acute Ear Infection') || classifications.includes('Mastoiditis')) {
         const ageYears = currentPatient?.ageYears || 0;
         const ageMonths = currentPatient?.ageMonths || 0;
         const totalMonths = ageYears * 12 + ageMonths;
