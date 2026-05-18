@@ -2651,13 +2651,13 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               }}
             />
             <Input 
-              label="तौल (kg) *" 
+              label="तौल (kg)" 
               type="number"
               value={tempChildInfo.weight || ''}
               onChange={(e) => setTempChildInfo({...tempChildInfo, weight: e.target.value === '' ? '' : parseFloat(e.target.value) as any})}
             />
             <Input 
-              label="उचाइ/लम्बाई (cm) *" 
+              label="उचाइ/लम्बाई (cm)" 
               type="number"
               value={tempChildInfo.height || ''}
               onChange={(e) => setTempChildInfo({...tempChildInfo, height: e.target.value === '' ? '' : parseFloat(e.target.value) as any})}
@@ -2745,16 +2745,6 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                       alert('कृपया २ देखि ५९ महिना सम्मको उमेर भर्नुहोस्।');
                       return;
                     }
-                  }
-
-                  if (tempChildInfo.weight === '') {
-                    alert('कृपया बच्चाको तौल राख्नुहोस्।');
-                    return;
-                  }
-
-                  if (tempChildInfo.height === '') {
-                    alert('कृपया बच्चाको उचाइ/लम्बाई राख्नुहोस्।');
-                    return;
                   }
                   
                   const ageDaysVal = tempChildInfo.ageDays === '' ? 0 : Number(tempChildInfo.ageDays);
