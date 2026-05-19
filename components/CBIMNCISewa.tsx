@@ -148,6 +148,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   const [hasDangerSigns, setHasDangerSigns] = useState<boolean | null>(null);
   const [hasCoughOrBreathingDifficulty, setHasCoughOrBreathingDifficulty] = useState<boolean | null>(null);
   const [hasDiarrhea, setHasDiarrhea] = useState<boolean | null>(null);
+  const [showChloroquineModal, setShowChloroquineModal] = useState(false);
+  const [showLowBloodSugarModal, setShowLowBloodSugarModal] = useState(false);
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasEarProblem, setHasEarProblem] = useState<boolean | null>(null);
   const [hasJaundice, setHasJaundice] = useState<boolean | null>(null);
@@ -2294,10 +2296,20 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           gentDose = `${(weight * 5).toFixed(1)}mg IM`;
           ampDose = `${(weight * 50).toFixed(0)}mg IM`;
         }
-        treatments.push(`Give first dose of appropriate antibiotic: Gentamicin (${gentDose}) and Ampicillin (${ampDose})`);
-        treatments.push('Refer URGENTLY to hospital');
-        treatments.push('Prevent low blood sugar');
-        treatments.push('Keep child warm');
+        treatments.push(`एन्टीबायोटिकको पहिलो मात्रा दिनुहोस्: Gentamicin (${gentDose}) र Ampicillin (${ampDose}) (Give first dose of appropriate antibiotic)`);
+        treatments.push('तुरुन्त अस्पताल प्रेषण गर्नुहोस् (Refer URGENTLY to hospital)');
+        treatments.push('रगतमा चिनीको मात्रा कम हुनबाट जोगाउन उपचार गर्नुहोस् (Prevent low blood sugar)');
+        treatments.push('शिशुलाई न्यानो पार्नुहोस् (Keep child warm)');
+        
+        if (classifications.includes('धेरै कडा ज्वरो (Very Severe Febrile Disease)') || 
+            classifications.includes('अति कडा ज्वरो (Very Severe Febrile Disease)') || 
+            classifications.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो (Very Severe Febrile Disease or Severe Malaria)')) {
+          treatments.push('बढी ज्वरो (३८.५ वा सो भन्दा बढी) भएमा उपचार केन्द्रमा नै १ मात्रा प्यारासिटामोल दिनुहोस् (Give one dose of Paracetamol at the health facility if fever is 38.5°C or higher)');
+        }
+
+        if (classifications.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो (Very Severe Febrile Disease or Severe Malaria)')) {
+          treatments.push('रगतको स्लाइड बनाउनुहोस्, र सेवा प्राप्त छ भने इन्ज आर्टेसुनेट एक मात्रा दिई स्लाइड सहित तुरुन्त प्रेषण गर्नुहोस् (Prepare blood slide, and if service available, give one dose of Inj. Artesunate and refer urgently with the slide)');
+        }
       }
       if (classifications.includes('Moderate Acute Malnutrition')) {
         treatments.push('१) आमालाई बच्चा खुवाउने तरिका सिकाउनुहोस् (Counsel on feeding)');
@@ -2409,10 +2421,18 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         
         if (classifications.includes('Falciparum Malaria')) {
           treatments.push(`Give first dose of ACT for Falciparum Malaria: ${actDose}`);
+        } else if (classifications.includes('फ्याल्सिपेरम नभएको औलो (Non-Falciparum Malaria)')) {
+          treatments.push('भाइभेक्सको क्लोरोक्विन द्वारा उपचार गर्नुहोस् (Treat with Chloroquine for Vivax)');
         } else {
           treatments.push(`Give ACT for 3 days: ${actDose}`);
         }
         treatments.push('Follow-up in 3 days if fever persists');
+      }
+      if (classifications.includes('ज्वरो (औलोको सम्भावना नभएको)') || classifications.includes('ज्वरो')) {
+        treatments.push('बढी ज्वरो (३८.५ वा सो भन्दा बढी) भएमा उपचार केन्द्रमा नै १ मात्रा प्यारासिटामोल दिनुहोस् (Give one dose of Paracetamol at the health facility if fever is 38.5°C or higher)');
+        treatments.push('ज्वरो आइरह्यो भने तेस्रो दिनमा फलोअपमा बोलाउने (Call for follow-up on the 3rd day if fever persists)');
+        treatments.push('यदि ज्वरो प्रत्येक दिन लगातार ७ दिन सम्म आइरह्यो भने थप मूल्यांकनको लागि प्रेषण गर्ने (Refer for further evaluation if fever persists for 7 consecutive days)');
+        treatments.push('ज्वरोको अन्य कारणको उपयुक्त उपचार गर्नुहोस् (Treat other causes of fever appropriately)');
       }
       if (classifications.includes('Acute Ear Infection')) {
         let amoxDose = '';
@@ -3200,7 +3220,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                               <span key={idx} className={`px-3 py-1 rounded-full text-xs font-bold border ${
                                 cls.includes('Severe') || cls.includes('PSBI') || cls.includes('Disease') || cls.includes('CONFIRMED') || cls.includes('ब्याक्टेरियाको सम्भावित गम्भीर संक्रमण') || cls.includes('Very Low Birth Weight') || cls.includes('Mastoiditis') || cls.includes('Very Low Weight') || cls.includes('कडा जटिल दादुरा') || cls.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो') || cls.includes('अति कडा ज्वरो') || cls.includes('धेरै कडा ज्वरो')
                                   ? 'bg-red-100 text-red-700 border-red-200' 
-                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem')) || cls.includes('Low Weight') || cls.includes('Persistent Diarrhea') || cls.includes('Dysentery') || cls.includes('को जटिलता सहितको दादुरा') || cls.includes('औलो (Malaria)') || cls.includes('Falciparum Malaria') || cls.includes('फ्याल्सिपेरम नभएको औलो') || cls.includes('मलक्षिया (Malaria)') || cls.includes('Measles with Eye/Mouth Complications') || cls === 'ज्वरो'
+                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem')) || cls.includes('Low Weight') || cls.includes('Persistent Diarrhea') || cls.includes('Dysentery') || cls.includes('को जटिलता सहितको दादुरा') || cls.includes('औलो (Malaria)') || cls.includes('Falciparum Malaria') || cls.includes('फ्याल्सिपेरम नभएको औलो') || cls.includes('मलक्षिया (Malaria)') || cls.includes('Measles with Eye/Mouth Complications')
                                     ? 'bg-amber-100 text-amber-700 border-amber-200'
                                     : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                               }`}>
@@ -3218,15 +3238,20 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                               <p className="text-[10px] font-bold text-slate-400 uppercase">Suggested Treatment:</p>
                               {suggestedTreatments.map((t, idx) => {
                                 const isLowBloodSugar = t.includes('Prevent low blood sugar') || t.includes('रगतमा चिनीको मात्रा कम हुन नदिन');
+                                const isChloroquine = t.includes('भाइभेक्सको क्लोरोक्विन द्वारा उपचार गर्नुहोस्');
                                 return (
-                                  <div key={idx} className="text-xs text-slate-700 flex items-start gap-1 group relative">
+                                  <div key={idx} className="text-xs text-slate-700 flex items-start gap-1">
                                     <span className="text-primary-500">•</span> 
-                                    <span className={isLowBloodSugar ? "cursor-help border-b border-dotted border-slate-400" : ""}>{t}</span>
-                                    {isLowBloodSugar && (
-                                      <div className="hidden group-hover:block absolute z-50 w-80 p-3 bg-slate-800 text-white text-[11px] rounded-lg shadow-xl bottom-full left-0 mb-2 pointer-events-none leading-relaxed font-nepali">
-                                        रगतमा चिनीको मात्रा कम हुनबाट जोगाउन उपचार गर्नुहोस् १) यदि बच्चाले आमाको स्तनपान गर्न सक्छ भने बच्चालाई स्तनपान गराउन भन्नुहोस् , २) यदि बच्चाले स्तनपान गर्न सक्दैन तर निल्न सम्म सक्छ भने ६ महिना सम्मको शिशुको लागि आमाको दूध निचोरेर वा गाई बस्तुको दूध खान दिनुहोस् यस्तो कुनै पनि चिज पाइदैन भने चिनी पानी खान दिनुहोस्, उपचार केन्द्रबाट जानु अघि ३०-५० मिली दूध वा चिनी पानी खान दिनुहोस्, चिनी पानी बनाउन २०० मिली सफा पानीमा ४ चिया चम्चा (२० ग्राम) चिनी घोल्नुहोस् , ३) यदि बच्चाले निल्न पनि सक्दैन भने यदि तपाईं तालिम प्राप्त हुनुहुन्छ भने ५० मिली दूध वा चिनी पानी NG tube द्वारा दिनुहोस् (शिशुको लागि ५ मिली/केजी)
-                                      </div>
-                                    )}
+                                    <button 
+                                      type="button"
+                                      onClick={() => {
+                                        if (isLowBloodSugar) setShowLowBloodSugarModal(true);
+                                        if (isChloroquine) setShowChloroquineModal(true);
+                                      }}
+                                      className={`${(isLowBloodSugar || isChloroquine) ? "cursor-pointer hover:text-indigo-600 border-b border-dotted border-slate-400 font-medium text-left" : "text-left pointer-events-none"}`}
+                                    >
+                                      {t}
+                                    </button>
                                   </div>
                                 );
                               })}
@@ -3777,6 +3802,144 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           )}
         </div>
       </div>
+
+      {showLowBloodSugarModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-red-500" />
+                रगतमा चिनीको मात्रा (Low Blood Sugar)
+              </h3>
+              <button 
+                onClick={() => setShowLowBloodSugarModal(false)}
+                className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
+                type="button"
+              >
+                <Plus className="w-6 h-6 rotate-45 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto leading-relaxed text-sm text-slate-600 font-nepali">
+              रगतमा चिनीको मात्रा कम हुनबाट जोगाउन उपचार गर्नुहोस्:
+              <ul className="mt-4 space-y-3">
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary-600">१)</span> 
+                  यदि बच्चाले आमाको स्तनपान गर्न सक्छ भने बच्चालाई स्तनपान गराउन भन्नुहोस्।
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary-600">२)</span> 
+                  यदि बच्चाले स्तनपान गर्न सक्दैन तर निल्न सम्म सक्छ भने ६ महिना सम्मको शिशुको लागि आमाको दूध निचोरेर वा गाई बस्तुको दूध खान दिनुहोस् यस्तो कुनै पनि चिज पाइदैन भने चिनी पानी खान दिनुहोस्।
+                </li>
+                <li className="bg-amber-50 p-3 rounded-lg border border-amber-100 italic">
+                  उपचार केन्द्रबाट जानु अघि ३०-५० मिली दूध वा चिनी पानी खान दिनुहोस्। चिनी पानी बनाउन २०० मिली सफा पानीमा ४ चिया चम्चा (२० ग्राम) चिनी घोल्नुहोस्।
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-primary-600">३)</span> 
+                  यदि बच्चाले निल्न पनि सक्दैन भने यदि तपाईं तालिम प्राप्त हुनुहुन्छ भने ५० मिली दूध वा चिनी पानी NG tube द्वारा दिनुहोस् (शिशुको लागि ५ मिली/केजी)।
+                </li>
+              </ul>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowLowBloodSugarModal(false)}
+                className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-all text-sm shadow-md"
+                type="button"
+              >
+                Close / बन्द गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showChloroquineModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-blue-50">
+              <h3 className="font-bold text-blue-900 flex items-center gap-2 uppercase tracking-tight">
+                <Pill className="w-5 h-5 text-blue-600" />
+                ग. Chloroquine Dose Table for P. Vivax Malaria
+              </h3>
+              <button 
+                onClick={() => setShowChloroquineModal(false)}
+                className="p-1 hover:bg-blue-100 rounded-lg transition-colors"
+                type="button"
+              >
+                <Plus className="w-6 h-6 rotate-45 text-blue-500" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[80vh] overflow-y-auto leading-tight text-xs text-slate-800 font-nepali">
+              <p className="font-bold text-slate-700 mb-4">बच्चालाई P. Vivax Malaria भएमा Chloroquine को मात्रा (Dose of Chloroquine by age group):</p>
+              
+              <div className="grid grid-cols-5 gap-0 border border-slate-300 mb-6 shadow-sm overflow-hidden rounded-lg">
+                <div className="bg-slate-100 p-2 border-r border-b border-slate-300 font-bold">दिन</div>
+                <div className="bg-slate-100 p-2 border-r border-b border-slate-300 font-bold col-span-2 text-center">४-१० किलो (१ वर्ष मुनि)</div>
+                <div className="bg-slate-100 p-2 border-b border-slate-300 font-bold col-span-2 text-center">१० किलो भन्दा माथि (१-५ वर्ष)</div>
+                
+                <div className="p-3 border-r border-b border-slate-300 font-bold">१ र २</div>
+                <div className="p-3 border-r border-b border-slate-300 col-span-2 text-center font-bold text-lg bg-indigo-50/30 text-indigo-700">०.५ चक्की (१५०मिग्रा)</div>
+                <div className="p-3 border-b border-slate-300 col-span-2 text-center text-blue-700 font-bold text-lg bg-blue-50/30">१ चक्की (१-४ वर्ष) / २ चक्की (४-५ वर्ष)</div>
+                
+                <div className="p-3 border-r border-slate-300 font-bold">३</div>
+                <div className="p-3 border-r border-slate-300 col-span-2 text-center font-bold text-lg text-indigo-600">०.५ चक्की (१५०मिग्रा)</div>
+                <div className="p-3 col-span-2 text-center text-blue-600 font-bold text-lg">०.५ चक्की (१-४ वर्ष) / १ चक्की (४-५ वर्ष)</div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6 italic text-sm text-blue-800 flex items-start gap-3">
+                <div className="bg-blue-200 p-1 rounded-full"><History className="w-4 h-4" /></div>
+                <span>* Chloroquine चक्की ३ दिन सम्म खुवाउने (पहेलो र दोस्रो दिन १० मिग्रा/के.जी र तेस्रो दिन ५ मिग्रा/के.जी)</span>
+              </div>
+
+              <p className="font-bold text-slate-700 mb-4 text-sm underline underline-offset-4 decoration-indigo-200">साना नानीहरूलाई Chloroquine Syrup (भोल औषधी):</p>
+              <div className="grid grid-cols-4 gap-0 border border-slate-300 mb-6 shadow-sm overflow-hidden rounded-lg">
+                <div className="bg-slate-50 p-2 border-r border-b border-slate-300 font-bold">दिन</div>
+                <div className="bg-slate-50 p-2 border-r border-b border-slate-300 font-bold text-center">४ किलो मुनि</div>
+                <div className="bg-slate-50 p-2 border-r border-b border-slate-300 font-bold text-center">४-१० किलो</div>
+                <div className="bg-slate-50 p-2 border-b border-slate-300 font-bold text-center">१० किलो+</div>
+                
+                <div className="p-3 border-r border-b border-slate-300 italic font-bold">१ र २</div>
+                <div className="p-3 border-r border-b border-slate-300 text-center font-bold text-blue-600">५ मि.लि.</div>
+                <div className="p-3 border-r border-b border-slate-300 text-center font-bold text-blue-600">७.५ मि.लि.</div>
+                <div className="p-3 border-b border-slate-300 text-center font-bold text-blue-700">१५ मि.लि.</div>
+                
+                <div className="p-3 border-r border-slate-300 italic font-bold">३</div>
+                <div className="p-3 border-r border-slate-300 text-center">५ मि.लि.</div>
+                <div className="p-3 border-r border-slate-300 text-center">७.५ मि.लि.</div>
+                <div className="p-3 border-slate-300 text-center font-bold">७.५ मि.लि.</div>
+              </div>
+
+              <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <p className="font-bold text-slate-800 text-sm mb-1 uppercase tracking-wider text-[10px]">याद गर्नुहोस्:</p>
+                <div className="flex gap-3 text-slate-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mt-1.5 flex-shrink-0" /> 
+                  <span>Chloroquine औषधी खाली पेटमा दिनुहुदैन। यो औषधि खाएपछि जिउ चिलाउने हुन सक्छ, तर त्यो खतरनाक चाहिँ हुदैन।</span>
+                </div>
+                <div className="flex gap-3 text-red-600 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0" /> 
+                  <span>Primaquine चक्की 0.25 mg/kg bw को दरले १४ दिन सम्म खुवाउने। ६ महिना भन्दा कम उमेरका बालबालिकालाई नखुवाउने।</span>
+                </div>
+                <div className="flex gap-3 text-indigo-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 flex-shrink-0" /> 
+                  <span>औषधी सेवन गरेको ३, ७ र १४ औं दिनमा विरामीको अनुगमन गर्ने।</span>
+                </div>
+                <div className="flex gap-3 font-bold text-slate-900 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" /> 
+                  <span>यदि बच्चाले औषधी खुवाएको आधा घण्टा भित्र बान्ता गरेमा औषधी दोहोर्याएर खुवाउनु पर्दछ। थप औषधीको लागि उपचार केन्द्रमा आउनु पर्दछ।</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowChloroquineModal(false)}
+                className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-200"
+                type="button"
+              >
+                Close / बन्द गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
