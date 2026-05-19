@@ -1348,7 +1348,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">ज्वरोका थप संकेतहरू</label>
-                  {["गर्दन अररो (Stiff neck)", "RDT Positive", "RDT Negative", "दादुरा (Measles)", "आँखा रातो (Red eyes)", "मुखभित्र घाउ (Mouth ulcers)", "कर्निया धमिलो (Cornea clouding)"].map(sign => (
+                  {["गर्दन अररो (Stiff neck)", "RDT Positive", "RDT Negative", "Falciparum Positive", "ज्वरोको अन्य कुनै कारण (Any other cause of fever)", "अहिले वा ३ महिनाभित्र दादुरा भएको (Measles now or within 3 months)", "दादुरा जस्तै डबर जिउभरी आएको (Measles-like rash)", "आँखा रातो (Red eyes)", "आँखाबाट पीप बगेको (Eye discharge)", "मुखभित्र घाउ (Mouth ulcers)", "मुखभित्रको घाउ गहिरो र बढी फैलिएको (Deep or extensive mouth ulcers)", "कर्निया धमिलो (Cornea clouding)", "खोकी (Cough)", "सिँगान बग्ने (Runny nose)"].map(sign => (
                     <label key={sign} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input 
                         type="checkbox" 
@@ -1968,29 +1968,53 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
 
       // Fever
-      const hasFever = parseFloat(assessmentData.temperature) >= 37.5 || assessmentData.feverDays > 0;
-      if (hasFever) {
-        if (assessmentData.feverSigns?.includes('गर्दन अररो (Stiff neck)') || assessmentData.generalDangerSigns?.length > 0) {
-          classifications.push('अति कडा ज्वरो (Very Severe Febrile Disease)');
+      const childFeverTemp = parseFloat(assessmentData.temperature || '0');
+      const hasFeverHistory = parseInt(assessmentData.feverDays || '0') > 0 || childFeverTemp >= 37.5;
+      const hasMalariaRisk = assessmentData.malariaRisk && assessmentData.malariaRisk !== 'None';
+      
+      if (hasFeverHistory) {
+        if (childFeverTemp >= 37.5 && (assessmentData.feverSigns?.includes('गर्दन अररो (Stiff neck)') || assessmentData.generalDangerSigns?.length > 0)) {
+          if (hasMalariaRisk) {
+            classifications.push('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो (Very Severe Febrile Disease or Severe Malaria)');
+          } else {
+            classifications.push('धेरै कडा ज्वरो (Very Severe Febrile Disease)');
+          }
         } else {
-          if (assessmentData.malariaRisk === 'High' && assessmentData.feverSigns?.includes('RDT Positive')) {
-            classifications.push('मलेरिया (Malaria)');
-          } else if (assessmentData.feverSigns?.includes('RDT Negative') || assessmentData.malariaRisk === 'None') {
-            classifications.push('ज्वरो (Fever: Malaria Unlikely)');
+          const hasSignsForUnlikelyMalaria = assessmentData.feverSigns?.includes('सिँगान बग्ने (Runny nose)') || 
+                                           assessmentData.feverSigns?.includes('दादुरा जस्तै डबर जिउभरी आएको (Measles-like rash)') ||
+                                           assessmentData.feverSigns?.includes('ज्वरोको अन्य कुनै कारण (Any other cause of fever)');
+
+          if (hasMalariaRisk) {
+            if (assessmentData.feverSigns?.includes('RDT Positive')) {
+              if (assessmentData.feverSigns?.includes('Falciparum Positive')) {
+                classifications.push('Falciparum Malaria');
+              } else {
+                classifications.push('फ्याल्सिपेरम नभएको औलो (Non-Falciparum Malaria)');
+              }
+            } else if (assessmentData.feverSigns?.includes('RDT Negative') || hasSignsForUnlikelyMalaria) {
+              classifications.push('ज्वरो (औलोको सम्भावना नभएको)');
+            }
+          } else {
+            classifications.push('ज्वरो');
           }
         }
       }
 
-      // Measles
-      if (assessmentData.feverSigns?.includes('दादुरा (Measles)')) {
-        if (assessmentData.generalDangerSigns?.length > 0 || 
-            assessmentData.feverSigns?.includes('कर्निया धमिलो (Cornea clouding)') || 
-            assessmentData.feverSigns?.includes('मुखभित्र घाउ (Mouth ulcers)')) {
-          classifications.push('Severe Complicated Measles');
-        } else if (assessmentData.feverSigns?.includes('आँखा रातो (Red eyes)')) {
-          classifications.push('Measles with Eye/Mouth Complications');
+      // Measles (दादुरा)
+      const currentTemp = parseFloat(assessmentData.temperature || '0');
+      const hasMeaslesPresence = assessmentData.feverSigns?.includes('अहिले वा ३ महिनाभित्र दादुरा भएको (Measles now or within 3 months)') || 
+                                 assessmentData.feverSigns?.includes('दादुरा जस्तै डबर जिउभरी आएको (Measles-like rash)');
+      
+      if (currentTemp >= 37.5 && hasMeaslesPresence) {
+        if (assessmentData.feverSigns?.includes('कर्निया धमिलो (Cornea clouding)') || 
+            assessmentData.feverSigns?.includes('मुखभित्रको घाउ गहिरो र बढी फैलिएको (Deep or extensive mouth ulcers)') ||
+            assessmentData.generalDangerSigns?.length > 0) {
+          classifications.push('Severe Complicated Measles (कडा जटिल दादुरा)');
+        } else if (assessmentData.feverSigns?.includes('आँखाबाट पीप बगेको (Eye discharge)') || 
+                   assessmentData.feverSigns?.includes('मुखभित्र घाउ (Mouth ulcers)')) {
+          classifications.push('Measles with Eye/Mouth Complications (आँखा वा मुखको जटिलता सहितको दादुरा)');
         } else {
-          classifications.push('Measles');
+          classifications.push('Measles (दादुरा जस्तै रोग)');
         }
       }
 
@@ -2124,8 +2148,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (classifications.includes('Jaundice') || classifications.includes('Severe Jaundice')) return '3 days';
       if (classifications.includes('Some Dehydration') || classifications.includes('Severe Dehydration')) return '2 days';
     } else {
-      if (classifications.includes('Very Severe Disease') || classifications.includes('अति कडा ज्वरो (Very Severe Febrile Disease)') || classifications.includes('Severe Complicated Measles') || classifications.includes('Severe Persistent Diarrhea') || classifications.includes('हैजा (Haija)')) return 'Immediate';
-      if (classifications.includes('Pneumonia') || classifications.includes('मलेरिया (Malaria)') || classifications.includes('Measles with Eye/Mouth Complications') || classifications.includes('Dysentery')) return '3 days';
+      if (classifications.includes('Very Severe Disease') || classifications.includes('अति कडा ज्वरो (Very Severe Febrile Disease)') || classifications.includes('धेरै कडा ज्वरो (Very Severe Febrile Disease)') || classifications.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो (Very Severe Febrile Disease or Severe Malaria)') || classifications.includes('Severe Complicated Measles') || classifications.includes('Severe Complicated Measles (कडा जटिल दादुरा)') || classifications.includes('Severe Persistent Diarrhea') || classifications.includes('हैजा (Haija)')) return 'Immediate';
+      if (classifications.includes('Pneumonia') || classifications.includes('मलेरिया (Malaria)') || classifications.includes('औलो (Malaria)') || classifications.includes('Falciparum Malaria') || classifications.includes('फ्याल्सिपेरम नभएको औलो (Non-Falciparum Malaria)') || classifications.includes('ज्वरो (औलोको सम्भावना नभएको)') || classifications.includes('Measles with Eye/Mouth Complications') || classifications.includes('Dysentery')) return '3 days';
       if (classifications.includes('Some Dehydration') || classifications.includes('Severe Dehydration')) return '2 days';
       if (classifications.includes('Acute Ear Infection') || classifications.includes('Persistent Diarrhea')) return '5 days';
       if (classifications.includes('Severe Acute Malnutrition') || classifications.includes('Very Low Weight (धेरै कम तौल)')) return '30 days';
@@ -2263,7 +2287,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       }
     } else {
       const weight = parseFloat(assessmentData.weight) || 0;
-      if (classifications.includes('Very Severe Disease') || classifications.includes('Severe Pneumonia or Very Severe Disease') || classifications.includes('Severe Acute Malnutrition') || classifications.includes('Severe Complicated Measles') || classifications.includes('Mastoiditis')) {
+      if (classifications.includes('Very Severe Disease') || classifications.includes('Severe Pneumonia or Very Severe Disease') || classifications.includes('Severe Acute Malnutrition') || classifications.includes('Severe Complicated Measles') || classifications.includes('Mastoiditis') || classifications.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो (Very Severe Febrile Disease or Severe Malaria)') || classifications.includes('अति कडा ज्वरो (Very Severe Febrile Disease)') || classifications.includes('धेरै कडा ज्वरो (Very Severe Febrile Disease)')) {
         let gentDose = '';
         let ampDose = '';
         if (weight > 0) {
@@ -2378,12 +2402,16 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         
         treatments.push(`हैजाको लागि सिप्रोफ्लोक्सासिन (Ciprofloxacin for Cholera): ${ciproDose}`);
       }
-      if (classifications.includes('मलेरिया (Malaria)')) {
+      if (classifications.includes('मलेरिया (Malaria)') || classifications.includes('औलो (Malaria)') || classifications.includes('Falciparum Malaria') || classifications.includes('फ्याल्सिपेरम नभएको औलो (Non-Falciparum Malaria)')) {
         let actDose = '';
         if (weight >= 5 && weight < 15) actDose = '1 tablet (20/120) once daily for 3 days';
         else if (weight >= 15 && weight < 25) actDose = '2 tablets (20/120) once daily for 3 days';
         
-        treatments.push(`Give ACT for 3 days: ${actDose}`);
+        if (classifications.includes('Falciparum Malaria')) {
+          treatments.push(`Give first dose of ACT for Falciparum Malaria: ${actDose}`);
+        } else {
+          treatments.push(`Give ACT for 3 days: ${actDose}`);
+        }
         treatments.push('Follow-up in 3 days if fever persists');
       }
       if (classifications.includes('Acute Ear Infection')) {
@@ -2423,6 +2451,24 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push('Give Albendazole if child is 1 year or older');
         treatments.push('Advise mother on feeding');
         treatments.push('Follow-up in 14 days');
+      }
+
+      if (classifications.includes('Severe Complicated Measles (कडा जटिल दादुरा)')) {
+        treatments.push('१) भिटामिन ए (Vitamin A) को मात्रा दिनुहोस्');
+        treatments.push('२) एन्टिबायोटिकको पहिलो मात्रा दिनुहोस्');
+        treatments.push('३) तुरुन्त अस्पताल प्रेषण (Refer) गर्नुहोस्');
+      }
+      if (classifications.includes('Measles with Eye/Mouth Complications (आँखा वा मुखको जटिलता सहितको दादुरा)')) {
+        treatments.push('१) भिटामिन ए (Vitamin A) को मात्रा दिनुहोस्');
+        if (assessmentData.feverSigns?.includes('आँखाबाट पीप बगेको (Eye discharge)')) {
+          treatments.push('२) आँखामा पीप सफा गरी Tetracycline Eye Ointment लगाउनुहोस्');
+        }
+        if (assessmentData.feverSigns?.includes('मुखभित्र घाउ (Mouth ulcers)')) {
+          treatments.push('३) मुखभित्रको घाउमा Gentian Violet (0.25%) लगाउनुहोस्');
+        }
+      }
+      if (classifications.includes('Measles (दादुरा जस्तै रोग)')) {
+        treatments.push('१) भिटामिन ए (Vitamin A) को मात्रा दिनुहोस्');
       }
 
       // Dehydration Plans
@@ -2486,7 +2532,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push(`${reason}को लागि प्यारासिटामोल (Paracetamol 125mg/5ml): ${pcmDose} (ज्वरो वा दुखाई निको नभएसम्म)`);
       }
     }
-    return treatments;
+    return Array.from(new Set(treatments));
   };
 
   const calculateZScore = () => {
@@ -3152,9 +3198,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                           <div className="flex flex-wrap gap-2">
                             {suggestedClassifications.map((cls, idx) => (
                               <span key={idx} className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                cls.includes('Severe') || cls.includes('PSBI') || cls.includes('Disease') || cls.includes('CONFIRMED') || cls.includes('ब्याक्टेरियाको सम्भावित गम्भीर संक्रमण') || cls.includes('Very Low Birth Weight') || cls.includes('Mastoiditis') || cls.includes('Very Low Weight')
+                                cls.includes('Severe') || cls.includes('PSBI') || cls.includes('Disease') || cls.includes('CONFIRMED') || cls.includes('ब्याक्टेरियाको सम्भावित गम्भीर संक्रमण') || cls.includes('Very Low Birth Weight') || cls.includes('Mastoiditis') || cls.includes('Very Low Weight') || cls.includes('कडा जटिल दादुरा') || cls.includes('धेरै कडा ज्वरोजन्य रोग वा कडा जटिल औलो') || cls.includes('अति कडा ज्वरो') || cls.includes('धेरै कडा ज्वरो')
                                   ? 'bg-red-100 text-red-700 border-red-200' 
-                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem')) || cls.includes('Low Weight') || cls.includes('Persistent Diarrhea') || cls.includes('Dysentery')
+                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem')) || cls.includes('Low Weight') || cls.includes('Persistent Diarrhea') || cls.includes('Dysentery') || cls.includes('को जटिलता सहितको दादुरा') || cls.includes('औलो (Malaria)') || cls.includes('Falciparum Malaria') || cls.includes('फ्याल्सिपेरम नभएको औलो') || cls.includes('मलक्षिया (Malaria)') || cls.includes('Measles with Eye/Mouth Complications') || cls === 'ज्वरो'
                                     ? 'bg-amber-100 text-amber-700 border-amber-200'
                                     : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                               }`}>
