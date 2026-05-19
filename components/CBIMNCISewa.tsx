@@ -1347,6 +1347,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                   >
                     <option value="">छान्नुहोस् (Select)</option>
                     <option value="High">उच्च (High)</option>
+                    <option value="Medium">मध्यम (Medium)</option>
+                    <option value="Low">न्युन (Low)</option>
                     <option value="None">नभएको (No Risk)</option>
                   </select>
                 </div>
