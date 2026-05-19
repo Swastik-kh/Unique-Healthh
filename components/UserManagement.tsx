@@ -7,6 +7,13 @@ import { Input } from './Input';
 import { Select } from './Select';
 
 const PERMISSION_STRUCTURE = [
+    {
+        id: 'system',
+        label: 'प्रणाली (System)',
+        children: [
+            { id: 'dashboard', label: 'ड्यासबोर्ड (Dashboard)' }
+        ]
+    },
     { 
         id: 'services', 
         label: 'सेवा (Services)',
@@ -195,7 +202,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     phoneNumber: '',
     organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
-    allowedMenus: ['dashboard'],
+    allowedMenus: [],
     serviceType: 'Permanent',
     hasSaveAccess: true,
     parentId: currentUser.id
@@ -237,7 +244,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         username: '', password: '', fullName: '', designation: '', phoneNumber: '',
         organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
-        allowedMenus: ['dashboard'],
+        allowedMenus: [],
         serviceType: 'Permanent',
         hasSaveAccess: true,
         parentId: currentUser.id
@@ -254,7 +261,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           designation: user.designation, phoneNumber: user.phoneNumber,
           organizationName: user.organizationName,
           role: user.role,
-          allowedMenus: user.allowedMenus || ['dashboard'],
+          allowedMenus: user.allowedMenus || [],
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
           parentId: user.parentId
@@ -346,7 +353,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         return;
     }
 
-    const finalMenus = Array.from(new Set([...formData.allowedMenus, 'dashboard']));
+    const finalMenus = Array.from(new Set([...formData.allowedMenus]));
     const userToSave: User = {
         id: newId,
         username: formData.username.trim().toLowerCase(), 

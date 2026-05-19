@@ -552,6 +552,21 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     setShowInvestigationResults(false);
   };
 
+  const resetForm = () => {
+    setCbimnciData(initialCbimnciData);
+    setAssessmentData(initialAssessmentData);
+    setPrescriptionItems([]);
+    setEditingRecordId(null);
+    setIsDirectEntry(false);
+    setHasDangerSigns(null);
+    setHasCoughOrBreathingDifficulty(null);
+    setHasDiarrhea(null);
+    setHasFever(null);
+    setHasEarProblem(null);
+    setHasJaundice(null);
+    setTempF('');
+  };
+
   const handleSave = () => {
     if (!currentPatient) return;
 
@@ -621,12 +636,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
     onSaveRecord(newRecord);
     alert(editingRecordId ? 'CBIMNCI रेकर्ड अपडेट गरियो।' : 'CBIMNCI रेकर्ड सुरक्षित गरियो।');
-    
-    setCbimnciData(initialCbimnciData);
-    setAssessmentData(initialAssessmentData);
-    setPrescriptionItems([]);
-    setEditingRecordId(null);
-    setIsDirectEntry(false);
+    resetForm();
   };
 
   const handlePrint = useReactToPrint({
@@ -1787,6 +1797,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
   const getClassification = () => {
     const classifications: string[] = [];
+    const currentZScore = zScore ? parseFloat(zScore) : null;
+    const currentWHZ = whzScore ? parseFloat(whzScore) : null;
     
     if (moduleType === 'Infant') {
       // PSBI and Pneumonia logic based on age
@@ -1873,14 +1885,22 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (weight > 0) {
         if (ageDays < 7 && weight < 2) {
           classifications.push('Very Low Birth Weight');
-        } else if (weight < 2.5) {
+        } else if (ageDays < 7 && weight < 2.5) {
           classifications.push('Low Birth Weight');
+        } else if (ageDays >= 7 && currentZScore !== null) {
+          if (currentZScore < -3) {
+            classifications.push('Very Low Weight for Age (उमेर अनुसार धेरै कम तौल)');
+          } else if (currentZScore < -2) {
+            classifications.push('Low Weight for Age (उमेर अनुसार कम तौल)');
+          }
         }
       }
 
       if (!classifications.includes('Very Low Birth Weight') && 
           !classifications.includes('Feeding Problem') && 
           !classifications.includes('Low Birth Weight') &&
+          !classifications.includes('Very Low Weight for Age (उमेर अनुसार धेरै कम तौल)') &&
+          !classifications.includes('Low Weight for Age (उमेर अनुसार कम तौल)') &&
           !classifications.includes('No Feeding Problem') &&
           !classifications.includes('No Feeding Problem and Normal Weight')) {
         classifications.push('No Feeding Problem');
@@ -1888,7 +1908,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     } else {
       // Child
       // General Danger Signs
-      if (assessmentData.generalDangerSigns?.length > 0) {
+      if (assessmentData.generalDangerSigns?.length > 0 || assessmentData.dehydrationSigns?.includes('सुस्त वा बेहोस (Lethargic/Unconscious)')) {
         classifications.push('Very Severe Disease');
       }
 
@@ -1976,8 +1996,6 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
       // Malnutrition
       const muacVal = parseInt(assessmentData.muac);
-      const currentZScore = zScore ? parseFloat(zScore) : null;
-      const currentWHZ = whzScore ? parseFloat(whzScore) : null;
       
       console.log('Malnutrition Debug:', {
         weight: assessmentData.weight,
@@ -1987,18 +2005,39 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         nutritionSigns: assessmentData.nutritionSigns
       });
       
+      let hasProteinEnergyMalnutrition = false;
+
+      // 1. Severe Acute Malnutrition (SAM)
       if (assessmentData.nutritionSigns?.includes("दुवै खुट्टा सुन्निएको (Oedema both feet)") || 
           assessmentData.nutritionSigns?.includes("धेरै दुब्लो (Visible severe wasting)") ||
           (muacVal > 0 && muacVal < 115) || 
           (currentWHZ !== null && currentWHZ < -3)) {
         classifications.push('Severe Acute Malnutrition');
-      } else if ((muacVal >= 115 && muacVal < 125) || 
-                 (currentWHZ !== null && currentWHZ < -2 && currentWHZ >= -3)) {
+        hasProteinEnergyMalnutrition = true;
+      } 
+      // 2. Moderate Acute Malnutrition (MAM)
+      else if ((muacVal >= 115 && muacVal < 125) || 
+               (currentWHZ !== null && currentWHZ < -2 && currentWHZ >= -3)) {
         classifications.push('Moderate Acute Malnutrition');
-      } else if ((muacVal >= 125 || muacVal === 0) && (currentWHZ !== null && currentWHZ >= -2)) {
-        classifications.push('No Malnutrition');
+        hasProteinEnergyMalnutrition = true;
       }
 
+      // 3. Weight-for-Age classification (Underweight)
+      if (currentZScore !== null) {
+        if (currentZScore < -3) {
+          classifications.push('Very Low Weight (धेरै कम तौल)');
+          hasProteinEnergyMalnutrition = true;
+        } else if (currentZScore < -2) {
+          classifications.push('Low Weight (कम तौल)');
+          hasProteinEnergyMalnutrition = true;
+        }
+      }
+
+      // 4. No Malnutrition
+      if (!hasProteinEnergyMalnutrition) {
+        classifications.push('No Malnutrition');
+      }
+      
       // Anemia
       if (assessmentData.pallor === 'Severe') {
         classifications.push('Severe Anemia');
@@ -2089,8 +2128,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       if (classifications.includes('Pneumonia') || classifications.includes('मलेरिया (Malaria)') || classifications.includes('Measles with Eye/Mouth Complications') || classifications.includes('Dysentery')) return '3 days';
       if (classifications.includes('Some Dehydration') || classifications.includes('Severe Dehydration')) return '2 days';
       if (classifications.includes('Acute Ear Infection') || classifications.includes('Persistent Diarrhea')) return '5 days';
-      if (classifications.includes('Severe Acute Malnutrition')) return '30 days';
-      if (classifications.includes('Moderate Acute Malnutrition')) return '30 days';
+      if (classifications.includes('Severe Acute Malnutrition') || classifications.includes('Very Low Weight (धेरै कम तौल)')) return '30 days';
+      if (classifications.includes('Moderate Acute Malnutrition') || classifications.includes('Low Weight (कम तौल)')) return '30 days';
     }
     return null;
   };
@@ -2151,7 +2190,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push(' घरमै शिशुलाई स्याहार गर्नेबारे आमालाई परामर्श दिनुहोस्');
         treatments.push(' ३ दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
       }
-      if (classifications.includes('Low Birth Weight') || classifications.includes('Very Low Birth Weight')) {
+      if (classifications.includes('Low Birth Weight') || classifications.includes('Very Low Birth Weight') || classifications.includes('Low Weight for Age (उमेर अनुसार कम तौल)') || classifications.includes('Very Low Weight for Age (उमेर अनुसार धेरै कम तौल)')) {
         treatments.push('शिशुलाई न्यानो पारी राख्ने तरिका:');
         treatments.push(' सफा, नरम र सुख्खा कपडाले शिशुको शरीर पुछी दिने र बेर्ने');
         treatments.push(' आमाको छाती, पेटसँग शिशुलाई टाँसेर राख्ने (Kangaroo Mother Care)');
@@ -2240,6 +2279,19 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         treatments.push('१) आमालाई बच्चा खुवाउने तरिका सिकाउनुहोस् (Counsel on feeding)');
         treatments.push('२) ३० दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
         treatments.push('३) स्थानीय रुपमा उपलब्ध पौष्टिक आहार खुवाउन सल्लाह दिनुहोस्');
+      }
+      if (classifications.includes('Very Low Weight (धेरै कम तौल)')) {
+        if (!classifications.includes('Severe Acute Malnutrition')) {
+          treatments.push('१) बच्चालाई खुवाउने बारे परामर्श दिनुहोस्');
+          treatments.push('२) ३० दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
+          treatments.push('३) स्थानीय रुपमा उपलब्ध पौष्टिक आहार खुवाउन सल्लाह दिनुहोस्');
+        }
+      }
+      if (classifications.includes('Low Weight (कम तौल)')) {
+        if (!classifications.includes('Moderate Acute Malnutrition') && !classifications.includes('Severe Acute Malnutrition')) {
+          treatments.push('१) बच्चालाई खुवाउने बारे परामर्श दिनुहोस्');
+          treatments.push('२) ३० दिन पछि फलो-अप (Follow-up) मा बोलाउनुहोस्');
+        }
       }
       if (assessmentData.generalDangerSigns?.includes('काँप्ने (Convulsions)')) {
         const diazepamDose = weight > 0 ? `${(weight * 0.5).toFixed(1)}mg` : '0.5 mg/kg';
@@ -2615,6 +2667,11 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
 
           {viewMode === 'entry' && canDirectEntry ? (
             <div className="space-y-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <div className="flex justify-between items-center mb-2">
+                <button onClick={() => { setViewMode('selection'); resetForm(); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-700 font-medium text-sm">
+                  <ArrowLeft size={16} /> फिर्ता
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <Input 
               label="उमेर (महिनामा) *" 
@@ -2938,7 +2995,13 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       )}
 
       {currentPatient && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-4">
+          {!isDirectEntry && (
+            <button onClick={() => { setCurrentPatient(null); resetForm(); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm no-print mb-2 font-nepali">
+              <ArrowLeft size={16} /> फिर्ता (Back)
+            </button>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {!isDirectEntry && (
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -3010,7 +3073,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
           <div className={`${isDirectEntry ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-6`}>
             {isDirectEntry && (
               <button 
-                onClick={() => { setCurrentPatient(null); setIsDirectEntry(false); setViewMode('selection'); }} 
+                onClick={() => { setCurrentPatient(null); resetForm(); setViewMode('selection'); }} 
                 className="text-primary-600 hover:text-primary-800 flex items-center gap-1 mb-2 font-bold"
               >
                   <ArrowLeft size={16} /> फिर्ता (Back)
@@ -3089,9 +3152,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                           <div className="flex flex-wrap gap-2">
                             {suggestedClassifications.map((cls, idx) => (
                               <span key={idx} className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                cls.includes('Severe') || cls.includes('PSBI') || cls.includes('Disease') || cls.includes('CONFIRMED') || cls.includes('ब्याक्टेरियाको सम्भावित गम्भीर संक्रमण') || cls.includes('Very Low Birth Weight') || cls.includes('Mastoiditis')
+                                cls.includes('Severe') || cls.includes('PSBI') || cls.includes('Disease') || cls.includes('CONFIRMED') || cls.includes('ब्याक्टेरियाको सम्भावित गम्भीर संक्रमण') || cls.includes('Very Low Birth Weight') || cls.includes('Mastoiditis') || cls.includes('Very Low Weight')
                                   ? 'bg-red-100 text-red-700 border-red-200' 
-                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem'))
+                                  : cls.includes('Some') || (cls.includes('Pneumonia') && !cls.includes('No Pneumonia')) || cls.includes('Jaundice') || ((cls.includes('Anemia') || cls.includes('Anaemia')) && !cls.includes('NO')) || cls.includes('POSSIBLE') || cls.includes('LATENT') || cls.includes('EXPOSED') || cls.includes('SUSPECTED') || cls.includes('REQUIRED') || cls.includes('Local Bacterial Infection') || cls.includes('Low Birth Weight') || (cls.includes('Ear Infection') && !cls.includes('No Ear Infection')) || (cls.includes('Feeding Problem') && !cls.includes('No Feeding Problem')) || cls.includes('Low Weight') || cls.includes('Persistent Diarrhea') || cls.includes('Dysentery')
                                     ? 'bg-amber-100 text-amber-700 border-amber-200'
                                     : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                               }`}>
@@ -3561,6 +3624,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
             </div>
           </div>
         </div>
+      </div>
       )}
 
       <div className="absolute -top-[9999px] left-0">
