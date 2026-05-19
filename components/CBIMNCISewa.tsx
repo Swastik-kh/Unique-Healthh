@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Baby, Edit, FileText, CheckCircle2, ArrowLeft, ShieldAlert, Send } from 'lucide-react';
 import { ServiceSeekerRecord, CBIMNCIRecord, PrescriptionItem, ServiceItem, OrganizationSettings, LabReport } from '../types/coreTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { Input } from './Input';
@@ -150,6 +150,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   const [hasDiarrhea, setHasDiarrhea] = useState<boolean | null>(null);
   const [showChloroquineModal, setShowChloroquineModal] = useState(false);
   const [showLowBloodSugarModal, setShowLowBloodSugarModal] = useState(false);
+  const [showACTModal, setShowACTModal] = useState(false);
+  const [showArtesunateModal, setShowArtesunateModal] = useState(false);
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasEarProblem, setHasEarProblem] = useState<boolean | null>(null);
   const [hasJaundice, setHasJaundice] = useState<boolean | null>(null);
@@ -3239,6 +3241,8 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                               {suggestedTreatments.map((t, idx) => {
                                 const isLowBloodSugar = t.includes('Prevent low blood sugar') || t.includes('रगतमा चिनीको मात्रा कम हुन नदिन');
                                 const isChloroquine = t.includes('भाइभेक्सको क्लोरोक्विन द्वारा उपचार गर्नुहोस्');
+                                const isACT = t.includes('ACT');
+                                const isArtesunate = t.includes('आर्टेसुनेट');
                                 return (
                                   <div key={idx} className="text-xs text-slate-700 flex items-start gap-1">
                                     <span className="text-primary-500">•</span> 
@@ -3247,8 +3251,10 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                                       onClick={() => {
                                         if (isLowBloodSugar) setShowLowBloodSugarModal(true);
                                         if (isChloroquine) setShowChloroquineModal(true);
+                                        if (isACT) setShowACTModal(true);
+                                        if (isArtesunate) setShowArtesunateModal(true);
                                       }}
-                                      className={`${(isLowBloodSugar || isChloroquine) ? "cursor-pointer hover:text-indigo-600 border-b border-dotted border-slate-400 font-medium text-left" : "text-left pointer-events-none"}`}
+                                      className={`${(isLowBloodSugar || isChloroquine || isACT || isArtesunate) ? "cursor-pointer hover:text-indigo-600 border-b border-dotted border-slate-400 font-medium text-left" : "text-left pointer-events-none"}`}
                                     >
                                       {t}
                                     </button>
@@ -3932,6 +3938,159 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               <button 
                 onClick={() => setShowChloroquineModal(false)}
                 className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm shadow-lg shadow-blue-200"
+                type="button"
+              >
+                Close / बन्द गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showACTModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-green-50">
+              <h3 className="font-bold text-green-900 flex items-center gap-2 uppercase tracking-tight">
+                <Pill className="w-5 h-5 text-green-600" />
+                ख. Uncomplicated Falciparum Malaria भएमा
+              </h3>
+              <button 
+                onClick={() => setShowACTModal(false)}
+                className="p-1 hover:bg-green-100 rounded-lg transition-colors"
+                type="button"
+              >
+                <Plus className="w-6 h-6 rotate-45 text-green-500" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[85vh] overflow-y-auto leading-tight text-xs text-slate-800 font-nepali">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-slate-300 mb-6 text-center shadow-sm">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th rowSpan={3} className="border border-slate-300 p-2 font-bold">तौल (के.जी. मा)</th>
+                      <th colSpan={3} className="border border-slate-300 p-2 font-bold">पहिलो दिन</th>
+                      <th colSpan={2} className="border border-slate-300 p-2 font-bold">दोस्रो दिन</th>
+                      <th colSpan={2} className="border border-slate-300 p-2 font-bold">तेस्रो दिन</th>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <th colSpan={2} className="border border-slate-300 p-1 font-bold">ACT</th>
+                      <th className="border border-slate-300 p-1 font-bold">Primaquine</th>
+                      <th colSpan={2} className="border border-slate-300 p-1 font-bold">ACT</th>
+                      <th colSpan={2} className="border border-slate-300 p-1 font-bold">ACT</th>
+                    </tr>
+                    <tr className="bg-slate-50 text-[10px]">
+                      <th className="border border-slate-300 p-1 font-bold">पहिलो मात्रा</th>
+                      <th className="border border-slate-300 p-1 font-bold">८ घण्टा पछि</th>
+                      <th className="border border-slate-300 p-1 font-bold text-red-600">पहिलो मात्रा</th>
+                      <th className="border border-slate-300 p-1 font-bold">बिहान</th>
+                      <th className="border border-slate-300 p-1 font-bold">राती</th>
+                      <th className="border border-slate-300 p-1 font-bold">बिहान</th>
+                      <th className="border border-slate-300 p-1 font-bold">राती</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-slate-300 p-3 font-bold bg-slate-50">५ के.जी. भन्दा कम</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-red-600 bg-red-50/30">०.५ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                    </tr>
+                    <tr className="bg-blue-50/10">
+                      <td className="border border-slate-300 p-3 font-bold bg-slate-50">५ के.जी. देखि १५ के.जी. सम्म</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-red-600 bg-red-50/30">०.५ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                      <td className="border border-slate-300 p-3">१ चक्की</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-slate-300 p-3 font-bold bg-slate-50">१५ देखि २५ के.जी.</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-red-700 bg-red-50/30">१ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                      <td className="border border-slate-300 p-3 font-bold text-blue-700">२ चक्की</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-6 font-bold text-slate-800">
+                नोटे : ६ महिनाभन्दा कम उमेरका बालबालिकाहरूलाई Primaquine चक्की नखुवाउने। Primaquine चक्की खुवाउँदा 0.25 mg/kg bw को दरले १ दिन (पहिलो दिन) मात्र खुवाउने।
+              </div>
+
+              <div className="p-4 rounded-xl border border-red-200 bg-red-50">
+                <p className="font-bold text-red-800 text-sm mb-2 uppercase tracking-tight">यसको असर (Side Effects):</p>
+                <p className="text-red-700">कान कराउने, रिंगटा लाग्ने, पेट गडबड हुने र बढि मात्रा हुन गएमा मुटु र रक्त नलीहरूमा असर हुन सक्छ।</p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowACTModal(false)}
+                className="px-8 py-2.5 bg-green-700 text-white rounded-xl font-bold hover:bg-green-800 transition-all text-sm shadow-lg shadow-green-200"
+                type="button"
+              >
+                Close / बन्द गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArtesunateModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 font-nepali">
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-red-50">
+              <h3 className="font-bold text-red-900 flex items-center gap-2">
+                <Pill className="w-5 h-5 text-red-600" />
+                क. Severe Complicated Malaria भएमा
+              </h3>
+              <button 
+                onClick={() => setShowArtesunateModal(false)}
+                className="p-1 hover:bg-red-100 rounded-lg transition-colors"
+                type="button"
+              >
+                <Plus className="w-6 h-6 rotate-45 text-red-500" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto leading-relaxed text-sm text-slate-800">
+              <div className="font-bold text-slate-800 mb-4 text-base">Artesunate Injection (IV/IM) तत्काल दिने:</div>
+              <ul className="space-y-4">
+                <li className="flex gap-3 items-start">
+                  <span className="w-2 h-2 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+                  <span>
+                    <strong>२० के.जी. भन्दा कम तौल</strong> भएका बिरामीलाई <strong>3 mg/kg bw</strong> को आधारमा शुरुमा ०, ८ र २४ घण्टामा र मुखबाट औषधी खान नसकुञ्जेल दिने।
+                  </span>
+                </li>
+                <li className="flex gap-3 items-start border-t border-slate-100 pt-3">
+                  <span className="w-2 h-2 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+                  <span>
+                    <strong>२० के.जी. भन्दा बढी तौल</strong> भएका बिरामीलाई <strong>2.4 mg/kg bw</strong> को आधारमा शुरुमा ०, ८ र २४ घण्टामा र मुखबाट औषधी खान नसकुञ्जेल दिने।
+                  </span>
+                </li>
+              </ul>
+
+              <div className="mt-8 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                <div className="font-bold text-amber-900 mb-2 flex items-center gap-2">
+                  <Send className="w-4 h-4" />
+                  पूर्व प्रेषण उपचार (Pre-referral Treatment):
+                </div>
+                <p className="text-amber-800">यदि बिरामी बच्चालाई अन्य स्वास्थ्य संस्थामा प्रेषण गर्नु पर्ने भएमा <strong>एक मात्रा IM Artesunate</strong> दिएपछि मात्र प्रेषण गर्ने।</p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowArtesunateModal(false)}
+                className="px-8 py-2.5 bg-red-700 text-white rounded-xl font-bold hover:bg-red-800 transition-all text-sm shadow-lg shadow-red-200"
                 type="button"
               >
                 Close / बन्द गर्नुहोस्
