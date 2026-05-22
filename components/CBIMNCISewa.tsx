@@ -152,6 +152,25 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   const [showLowBloodSugarModal, setShowLowBloodSugarModal] = useState(false);
   const [showACTModal, setShowACTModal] = useState(false);
   const [showArtesunateModal, setShowArtesunateModal] = useState(false);
+  
+  // Classification logic added
+  const nutritionClassification = useMemo(() => {
+    const weight = parseFloat(assessmentData.weight);
+    const height = parseFloat(assessmentData.height);
+    const muac = parseFloat(assessmentData.muac);
+    
+    if (isNaN(weight) || height === 0) return 'Not Assessed';
+    
+    // Simplified classification logic based on guidelines
+    // In a real implementation, a proper Z-Score table/library is required.
+    // Here we use MUAC and provided simple heuristics.
+    if (muac > 0 && muac < 11.5) return 'Severe Acute Malnutrition (SAM)';
+    if (muac >= 11.5 && muac < 12.5) return 'Moderate Acute Malnutrition (MAM)';
+    if (muac >= 12.5) return 'No Malnutrition';
+    
+    return 'Malnutrition Check Needed';
+  }, [assessmentData.weight, assessmentData.height, assessmentData.muac]);
+
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasEarProblem, setHasEarProblem] = useState<boolean | null>(null);
   const [hasJaundice, setHasJaundice] = useState<boolean | null>(null);
@@ -1547,6 +1566,9 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                     </p>
                   </div>
                 )}
+                <div className={`p-2 rounded-lg border font-bold text-xs ${nutritionClassification.includes('Severe') ? 'bg-red-200 border-red-300 text-red-900' : nutritionClassification.includes('Moderate') ? 'bg-orange-200 border-orange-300 text-orange-900' : 'bg-green-200 border-green-300 text-green-900'}`}>
+                  Classification: {nutritionClassification}
+                </div>
                 <Input label="MUAC (mm)" type="number" value={assessmentData.muac || ''} onChange={(e) => setAssessmentData({...assessmentData, muac: e.target.value})} />
                 <label className="text-sm font-medium text-slate-700 block">रक्तअल्पता (Anemia)</label>
                 <select 
