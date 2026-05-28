@@ -71,6 +71,17 @@ export const DispensarySewa: React.FC<DispensarySewaProps> = ({
     );
   }, [selectedPatient, tbPatients]);
 
+  const filteredPatients = useMemo(() => {
+    const query = searchId.trim().toLowerCase();
+    if (query.length < 1) return []; // Adjust query length as needed
+    return serviceSeekerRecords
+      .filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        p.uniquePatientId.toLowerCase().includes(query)
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [searchId, serviceSeekerRecords]);
+
   const handleToggleDailyDose = (date: string) => {
     if (!tbPatientRecord || !onUpdateTbPatient) return;
     
@@ -673,21 +684,38 @@ export const DispensarySewa: React.FC<DispensarySewaProps> = ({
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Search size={18} className="text-primary-600" /> बिरामी खोज्नुहोस्
             </h3>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Patient ID, Name or Reg No"
-                value={searchId}
-                onChange={(e) => setSearchId(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm"
-              />
-              <button
-                onClick={handleSearch}
-                className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
-              >
-                खोज्नुहोस्
-              </button>
+            <div className="relative">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Patient ID, Name or Reg No"
+                  value={searchId}
+                  onChange={(e) => setSearchId(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1 px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors"
+                >
+                  खोज्नुहोस्
+                </button>
+              </div>
+              
+              {filteredPatients.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto z-50">
+                  {filteredPatients.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => selectPatient(p)}
+                      className="w-full text-left p-3 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-0"
+                    >
+                      <div className="font-bold text-slate-800">{p.name}</div>
+                      <div className="text-xs text-slate-500">{p.uniquePatientId}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {showSearchResults && searchResults.length > 0 && (
