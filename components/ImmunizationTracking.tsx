@@ -192,13 +192,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // For defaulters with filter: Show if due date was in the selected month AND is before today
-          const matchesDate = vaccine.scheduledDateBs.startsWith(targetYearPrefix);
+          // For defaulters with filter: Show if due date was in the selected month OR earlier
+          const matchesDate = vaccine.scheduledDateBs.substring(0, 7) <= targetYearPrefix;
 
           if (
             vaccine.status === 'Pending' &&
             vaccine.scheduledDateBs < todayBsFormatted && // Strictly past due
-            matchesDate && // Matches the filter window
+            matchesDate && // Matches the filter window (selected month or earlier)
             matchesVaccine 
           ) {
              const key = child.id;
