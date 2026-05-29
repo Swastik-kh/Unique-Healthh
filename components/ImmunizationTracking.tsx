@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine } from '../types/healthTypes';
 import { Option, OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
@@ -39,6 +39,21 @@ const getTodayBsFormatted = () => {
   } catch (e) {
     return '2081-01-01'; 
   }
+};
+
+const getDateColor = (date: string, isDefaulter?: boolean) => {
+    if (isDefaulter) return { bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700', icon: 'text-red-500' };
+    
+    const palettes = [
+        { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', icon: 'text-blue-500' },
+        { bg: 'bg-green-50', border: 'border-green-100', text: 'text-green-700', icon: 'text-green-500' },
+        { bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-700', icon: 'text-amber-500' },
+        { bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-700', icon: 'text-purple-500' },
+        { bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-700', icon: 'text-teal-500' },
+    ];
+    let sum = 0;
+    for (let i = 0; i < date.length; i++) sum += date.charCodeAt(i);
+    return palettes[sum % palettes.length];
 };
 
 const calculateAge = (dobBs: string) => {
@@ -124,42 +139,40 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       const [y1, y2] = filterFiscalYear.split('/'); // e.g. "2081", "082"
       const m = parseInt(filterMonth, 10);
       
-      // In Nepal FY: Shrawan (4) to Chaitra (12) falls in first year (2081)
-      // Baishakh (1) to Ashad (3) falls in second year (2082)
       let targetYear = '';
       if (m >= 4) {
           targetYear = y1;
       } else {
-          // Construct full year 2082 from 2081/082
-          targetYear = y1.substring(0, 2) + y2;
+          // Construct full year 2083 from 2082/083 by taking first 2 digits of 2082 and then last 2 of 083
+          targetYear = y1.substring(0, 2) + y2.slice(-2);
       }
-      return `${targetYear}-${filterMonth}`; // e.g., "2081-05"
+      return `${targetYear}-${filterMonth}`; // e.g., "2083-03"
   }, [filterFiscalYear, filterMonth]);
 
   // Grouped Upcoming List (Filtered by Year-Month)
   const upcomingSessionList = useMemo(() => {
     const groupedMap = new Map<string, GroupedChildVaccineDue>();
-
+    
     filteredBaseRecords.forEach(child => {
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // Check if vaccine matches the selected Year-Month
+          // Check if vaccine matches scheduled month
           const matchesDate = vaccine.scheduledDateBs.startsWith(targetYearPrefix);
-
+          
           if (
             vaccine.status === 'Pending' &&
             matchesDate &&
             matchesVaccine 
           ) {
-            // Group solely by Child ID to ensure one row per child for the month
+            // Group solely by Child ID to ensure one row per child
             const key = child.id;
             
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, {
                     child,
                     vaccines: [],
-                    scheduledDateBs: vaccine.scheduledDateBs // Initialize with first found date
+                    scheduledDateBs: vaccine.scheduledDateBs // This will be the earliest date if multiple
                 });
             }
             groupedMap.get(key)?.vaccines.push(vaccine);
@@ -460,15 +473,31 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             <div className="text-[10px] text-slate-400">{item.child.address}</div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <div className="flex flex-wrap gap-2 justify-center">
-                                                {item.vaccines.map((vax, vIdx) => (
-                                                    <div key={vIdx} className="flex flex-col items-center bg-blue-50 px-2 py-1 rounded border border-blue-100">
-                                                        <span className="text-blue-700 font-black text-[11px]">{vax.name}</span>
-                                                        <span className="text-[9px] text-slate-500 font-bold font-nepali">
-                                                            {vax.scheduledDateBs.split('-')[2]} गते
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                            <div className="flex flex-col gap-2 justify-center">
+                                                {/* Group vaccines by date to apply same color */}
+                                                {Object.entries(item.vaccines.reduce((acc: Record<string, ChildImmunizationVaccine[]>, vax) => {
+                                                    if (!acc[vax.scheduledDateBs]) acc[vax.scheduledDateBs] = [];
+                                                    acc[vax.scheduledDateBs].push(vax);
+                                                    return acc;
+                                                }, {})).map(([date, vaccines], dIdx) => {
+                                                    const typedVaccines = vaccines as ChildImmunizationVaccine[];
+                                                    const color = getDateColor(date);
+                                                    return (
+                                                        <div key={dIdx} className="flex flex-wrap gap-2 justify-center">
+                                                            {typedVaccines.map((vax, vIdx) => (
+                                                                <div key={vIdx} className={`flex items-center gap-1 ${color.bg} px-2 py-1 rounded border ${color.border}`}>
+                                                                    <Syringe size={12} className={color.icon} />
+                                                                    <div className="flex flex-col items-center">
+                                                                        <span className={`${color.text} font-black text-[11px]`}>{vax.name}</span>
+                                                                        <span className="text-[9px] text-slate-500 font-bold font-nepali">
+                                                                            {vax.scheduledDateBs.split('-')[2]} गते
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">{item.child.phone}</td>
@@ -511,11 +540,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1 mb-1">
-                                                {item.vaccines.map((vax, vIdx) => (
-                                                    <span key={vIdx} className="font-black text-red-600 text-xs bg-red-50 px-1.5 rounded border border-red-100" title={`Date: ${vax.scheduledDateBs}`}>
-                                                        {vax.name} <span className="text-[9px] text-slate-400">({vax.scheduledDateBs})</span>
-                                                    </span>
-                                                ))}
+                                                {item.vaccines.map((vax, vIdx) => {
+                                                    const color = getDateColor(vax.scheduledDateBs, true);
+                                                    return (
+                                                        <span key={vIdx} className={`flex items-center gap-1 font-black ${color.text} text-xs ${color.bg} px-1.5 py-0.5 rounded border ${color.border}`} title={`Date: ${vax.scheduledDateBs}`}>
+                                                            <Syringe size={10} className={color.icon} /> {vax.name} <span className="text-[9px] text-slate-400">({vax.scheduledDateBs})</span>
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">{item.child.phone}</td>
@@ -640,18 +672,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-teal-50">
-                                        {selectedChildForCard.vaccines.map((v, i) => (
-                                            <tr key={i}>
-                                                <td className="px-2 py-0.5 font-bold text-slate-700">{v.name}</td>
-                                                <td className="px-2 py-0.5 font-mono text-slate-500">{v.scheduledDateBs}</td>
-                                                <td className="px-2 py-0.5 font-mono font-black text-teal-700">{v.givenDateBs || '-'}</td>
-                                                <td className="px-2 py-0.5">
-                                                    <span className={`font-bold text-[8px] ${v.status === 'Given' ? 'text-green-700' : 'text-red-500'}`}>
-                                                        {v.status === 'Given' ? 'लगाएको' : 'बाँकी'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {selectedChildForCard.vaccines.map((v, i) => {
+                                            const color = getDateColor(v.scheduledDateBs);
+                                            return (
+                                                <tr key={i} className={`${color.bg} border-b ${color.border}`}>
+                                                    <td className={`px-2 py-0.5 font-bold ${color.text}`}>{v.name}</td>
+                                                    <td className="px-2 py-0.5 font-mono text-slate-500">{v.scheduledDateBs}</td>
+                                                    <td className="px-2 py-0.5 font-mono font-black text-teal-700">{v.givenDateBs || '-'}</td>
+                                                    <td className="px-2 py-0.5">
+                                                        <span className={`font-bold text-[8px] ${v.status === 'Given' ? 'text-green-700' : 'text-red-500'}`}>
+                                                            {v.status === 'Given' ? 'लगाएको' : 'बाँकी'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
