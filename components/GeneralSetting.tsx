@@ -120,8 +120,37 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-4 border-b pb-2">
-                    <h3 className="font-bold text-slate-700 flex items-center gap-2"><ListChecks size={18} className="text-primary-600"/>उपलब्ध सेवाहरू</h3>
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={18} className="text-primary-600"/>खोप केन्द्र व्यवस्थापन</h3>
+                <p className="text-xs text-slate-500 mb-4">केन्द्रको नाम र खोप चल्ने मिति (e.g., 'मुख्य अस्पताल|आइत-बिही')</p>
+                <div className="space-y-2">
+                    {(localSettings.vaccinationCenters || []).map((center, index) => {
+                        const [name, dates] = center.includes('|') ? center.split('|') : [center, ''];
+                        return (
+                            <div key={index} className="flex gap-2">
+                                <Input label="नाम" value={name} onChange={(e) => {
+                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
+                                    newCenters[index] = `${e.target.value}|${dates}`;
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} />
+                                <Input label="मिति" value={dates} onChange={(e) => {
+                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
+                                    newCenters[index] = `${name}|${e.target.value}`;
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} />
+                                <button type="button" onClick={() => {
+                                    const newCenters = (localSettings.vaccinationCenters || []).filter((_, i) => i !== index);
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} className="text-red-500 p-2"><Trash2 size={16}/></button>
+                            </div>
+                        );
+                    })}
+                    <button type="button" onClick={() => {
+                        handleChange('vaccinationCenters', [...(localSettings.vaccinationCenters || []), '|']);
+                    }} className="flex items-center gap-2 text-primary-600 text-sm font-bold"><Plus size={16}/> थप्नुहोस्</button>
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex items-center gap-2">
                         <input 
                             type="text" 
@@ -175,7 +204,6 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                         </div>
                     ))}
                 </div>
-            </div>
             
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Globe size={18} className="text-primary-600"/>प्रणाली कन्फिगरेसन</h3>

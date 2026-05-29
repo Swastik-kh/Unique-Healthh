@@ -88,8 +88,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Filters
+// Filters
   const [filterCenter, setFilterCenter] = useState('');
+  // New state for vaccination centers operational dates
+  const [centerDates, setCenterDates] = useState<Record<string, string>>({
+    'मुसरहनिया': 'प्रत्येक महिनाको ५ र २० गते',
+    'मुख्य अस्पताल': 'प्रत्येक दिन (आइतबार-बिहीबार)',
+    'वडा नं १': 'प्रत्येक महिनाको १० गते',
+  });
+
   const [filterFiscalYear, setFilterFiscalYear] = useState(currentFiscalYear);
   const [filterMonth, setFilterMonth] = useState(() => {
       try { return new NepaliDate().format('MM'); } catch(e) { return '01'; }
@@ -405,6 +412,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         onChange={e => setFilterCenter(e.target.value)}
                         icon={<MapPinned size={16} />}
                     />
+                    {filterCenter && centerDates[filterCenter] && (
+                        <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 italic">
+                            * {centerDates[filterCenter]}
+                        </div>
+                    )}
                 </div>
                 <div className="w-full md:w-56">
                     <Select 
@@ -631,8 +643,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         {/* Certificate Card Content */}
                         <div id="single-card-print" className="bg-white border-[6px] border-double border-teal-800 p-4 rounded-lg shadow-inner text-slate-900 font-nepali overflow-hidden flex flex-col">
                             <div className="text-center mb-2">
-                                <div className="flex justify-center mb-1">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" alt="Emblem" className="h-10 w-10 object-contain" />
+                                <div className="flex justify-start mb-1">
+                                    <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="h-10 w-10 object-contain" />
                                 </div>
                                 <h1 className="text-lg font-black text-slate-800 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
                                 <h2 className="text-xs font-bold text-slate-700">{generalSettings.subTitleNepali}</h2>
