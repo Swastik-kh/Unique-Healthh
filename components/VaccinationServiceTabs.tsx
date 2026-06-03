@@ -4,7 +4,7 @@ import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, Calenda
 import { GarbhawatiPatient, ChildImmunizationRecord } from '../types/healthTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { GarbhawatiTDRegistration } from './GarbhawatiTDRegistration';
-import { ChildImmunizationRegistration } from './ChildImmunizationRegistration';
+import { ChildImmunizationRegistration, NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 
 interface VaccinationServiceTabsProps {
   currentFiscalYear: string;
@@ -187,6 +187,46 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
               </div>
             </div>
           </div>
+
+          <hr className="my-6 border-indigo-100" />
+          
+          {/* Vaccine Stock Inventory */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-slate-700 font-nepali flex items-center gap-2">
+              <Droplets size={16} className="text-indigo-600"/> प्राप्त खोप डोज (Doses) रेकर्ड तथा मौज्दात विवरण:
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.map(vax => {
+                const stock = generalSettings.vaccineInventory?.[vax.name] || 0;
+                return (
+                  <div key={vax.name} className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 line-clamp-2 min-h-[2.2rem] font-nepali">{vax.name}</span>
+                    <div className="mt-2 pt-1 border-t border-indigo-50/50">
+                      <label className="text-[9px] text-slate-400 font-bold block mb-0.5">मौज्दात (Doses)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        value={stock === 0 ? '' : stock}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          const updatedInv = {
+                            ...(generalSettings.vaccineInventory || {}),
+                            [vax.name]: val
+                          };
+                          onUpdateGeneralSettings({
+                            ...generalSettings,
+                            vaccineInventory: updatedInv
+                          });
+                        }}
+                        placeholder="0"
+                        className="w-full text-center font-bold font-mono px-2 py-1 rounded border border-slate-200 outline-none focus:border-indigo-500 text-xs bg-slate-50"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -199,6 +239,7 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
             onAddRecord={onAddBachhaImmunizationRecord}
             onUpdateRecord={onUpdateBachhaImmunizationRecord}
             onDeleteRecord={onDeleteBachhaImmunizationRecord}
+            onUpdateGeneralSettings={onUpdateGeneralSettings}
           />
         ) : (
           <GarbhawatiTDRegistration

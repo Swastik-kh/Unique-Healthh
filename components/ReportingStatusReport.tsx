@@ -25,32 +25,71 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
     try { return new NepaliDate().format('MM'); } catch (e) { return '01'; }
   });
 
+  // Safe and robust date parser for any separator (- or /) and arbitrary padding
+  const parseNepaliDateString = (dateStr: string) => {
+    if (!dateStr) return null;
+    const normalized = dateStr.replace(/\//g, '-');
+    const parts = normalized.split('-');
+    if (parts.length >= 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parts[2] ? parseInt(parts[2], 10) : null;
+      return { year, month, day };
+    }
+    return null;
+  };
+
+  const toNepaliDigits = (num: number | string | undefined | null) => {
+    if (num === undefined || num === null) return '०';
+    const numStr = String(num);
+    const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+    return numStr.replace(/[0-9]/g, (d) => nepaliDigits[parseInt(d)]);
+  };
+
   const filteredRecords = useMemo(() => {
+    const targetMonth = parseInt(selectedMonth, 10);
+    const parsedSelected = parseNepaliDateString(selectedDate);
+    const targetYear = parsedSelected ? parsedSelected.year : null;
+
     return serviceSeekerRecords.filter(record => {
+      if (!record.date) return false;
+      const parsedRecord = parseNepaliDateString(record.date);
+      if (!parsedRecord) return false;
+
       if (reportType === 'FiscalYear') {
         return record.fiscalYear === currentFiscalYear;
       } else if (reportType === 'Monthly') {
-        const recordMonth = record.date.split('-')[1];
-        const recordYear = record.date.split('-')[0];
-        const currentYear = selectedDate.split('-')[0];
-        return recordMonth === selectedMonth && recordYear === currentYear;
+        return parsedRecord.month === targetMonth && parsedRecord.year === targetYear;
       } else {
-        return record.date === selectedDate;
+        // Daily
+        if (!parsedSelected) return false;
+        return parsedRecord.year === parsedSelected.year &&
+               parsedRecord.month === parsedSelected.month &&
+               parsedRecord.day === parsedSelected.day;
       }
     });
   }, [serviceSeekerRecords, reportType, selectedDate, selectedMonth, currentFiscalYear]);
 
   const filteredImmRecords = useMemo(() => {
+    const targetMonth = parseInt(selectedMonth, 10);
+    const parsedSelected = parseNepaliDateString(selectedDate);
+    const targetYear = parsedSelected ? parsedSelected.year : null;
+
     return (bachhaImmunizationRecords || []).filter(record => {
+      if (!record.date) return false;
+      const parsedRecord = parseNepaliDateString(record.date);
+      if (!parsedRecord) return false;
+
       if (reportType === 'FiscalYear') {
         return record.fiscalYear === currentFiscalYear;
       } else if (reportType === 'Monthly') {
-        const recordMonth = record.date.split('-')[1];
-        const recordYear = record.date.split('-')[0];
-        const currentYear = selectedDate.split('-')[0];
-        return recordMonth === selectedMonth && recordYear === currentYear;
+        return parsedRecord.month === targetMonth && parsedRecord.year === targetYear;
       } else {
-        return record.date === selectedDate;
+        // Daily
+        if (!parsedSelected) return false;
+        return parsedRecord.year === parsedSelected.year &&
+               parsedRecord.month === parsedSelected.month &&
+               parsedRecord.day === parsedSelected.day;
       }
     });
   }, [bachhaImmunizationRecords, reportType, selectedDate, selectedMonth, currentFiscalYear]);
@@ -79,8 +118,9 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
     } else if (reportType === 'FiscalYear') {
         plannedClinics = basePlanned * 12;
     } else if (reportType === 'Daily') {
-        const day = parseInt(selectedDate.split('-')[2]);
-        if (sessionDays.includes(day)) {
+        const parsedSelected = parseNepaliDateString(selectedDate);
+        const day = parsedSelected ? parsedSelected.day : null;
+        if (day !== null && sessionDays.includes(day)) {
             plannedClinics = centers.length;
         }
     }
@@ -90,7 +130,7 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
         operatedClinics: operatedClinics.size,
         plannedClinics
     };
-  }, [filteredImmRecords, reportType, selectedMonth, generalSettings]);
+  }, [filteredImmRecords, reportType, selectedMonth, generalSettings, selectedDate]);
 
   // Helper to calculate age in years
   const getAgeInYears = (record: ServiceSeekerRecord) => {
@@ -167,8 +207,14 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">वर्ष</label>
               <select 
-                value={selectedDate.split('-')[0]} 
-                onChange={(e) => setSelectedDate(`${e.target.value}-${selectedMonth}-01`)}
+                value={(() => {
+                  const parsed = parseNepaliDateString(selectedDate);
+                  return parsed ? String(parsed.year) : '';
+                })()} 
+                onChange={(e) => {
+                  const yearVal = e.target.value;
+                  setSelectedDate(`${yearVal}-${selectedMonth}-01`);
+                }}
                 className="p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
               >
                 {[2080, 2081, 2082, 2083].map(y => <option key={y} value={y}>{y}</option>)}
@@ -178,7 +224,13 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">महिना</label>
               <select 
                 value={selectedMonth} 
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                onChange={(e) => {
+                  const monthVal = e.target.value;
+                  setSelectedMonth(monthVal);
+                  const parsed = parseNepaliDateString(selectedDate);
+                  const yearVal = parsed ? parsed.year : '2083';
+                  setSelectedDate(`${yearVal}-${monthVal}-01`);
+                }}
                 className="p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
               >
                 {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((m, i) => (
@@ -190,46 +242,50 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-x-auto font-sans">
         <div className="text-center mb-6">
-          <h3 className="font-bold text-lg">मासिक प्रगती प्रतिवेदन</h3>
-          <p className="text-sm text-slate-500">
-            {reportType === 'Daily' ? `मिति: ${selectedDate}` : reportType === 'Monthly' ? `महिना: ${selectedDate.split('-')[0]}-${selectedMonth}` : `आर्थिक वर्ष: ${currentFiscalYear}`}
+          <h3 className="font-bold text-lg font-nepali">मासिक प्रगती प्रतिवेदन</h3>
+          <p className="text-sm text-slate-500 font-nepali">
+            {reportType === 'Daily' 
+              ? `मिति: ${toNepaliDigits(selectedDate)}` 
+              : reportType === 'Monthly' 
+                ? `महिना: ${toNepaliDigits(parseNepaliDateString(selectedDate)?.year || '')}-${toNepaliDigits(selectedMonth)}` 
+                : `आर्थिक वर्ष: ${toNepaliDigits(currentFiscalYear)}`}
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Table 1: Age and Gender Stats */}
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-sm border-collapse border border-slate-300 text-center">
-              <thead className="bg-slate-100">
+          <div className="flex-grow overflow-x-auto min-w-[320px]">
+            <table className="w-full text-xs border-collapse border border-slate-300 text-center font-sans">
+              <thead className="bg-slate-50 font-nepali">
                 <tr>
-                  <th rowSpan={2} className="border border-slate-300 p-2">उमेर समूह</th>
-                  <th colSpan={2} className="border border-slate-300 p-2">नयाँ सेवाग्राहीको संख्या</th>
-                  <th colSpan={2} className="border border-slate-300 p-2">जम्मा (नयाँ/पुरानो) सेवाग्राही संख्या</th>
-                  <th colSpan={2} className="border border-slate-300 p-2">प्रेषण भई आएका जम्मा सेवाग्राही</th>
+                  <th rowSpan={2} className="border border-slate-300 p-2 font-bold text-slate-700">उमेर समूह</th>
+                  <th colSpan={2} className="border border-slate-300 p-2 font-bold text-slate-700">नयाँ सेवाग्राहीको संख्या</th>
+                  <th colSpan={2} className="border border-slate-300 p-2 font-bold text-slate-700">जम्मा (नयाँ/पुरानो) सेवाग्राही संख्या</th>
+                  <th colSpan={2} className="border border-slate-300 p-2 font-bold text-slate-700">प्रेषण भई आएका जम्मा सेवाग्राही</th>
                 </tr>
                 <tr>
-                  <th className="border border-slate-300 p-2">म.</th>
-                  <th className="border border-slate-300 p-2">पु.</th>
-                  <th className="border border-slate-300 p-2">म.</th>
-                  <th className="border border-slate-300 p-2">पु.</th>
-                  <th className="border border-slate-300 p-2">म.</th>
-                  <th className="border border-slate-300 p-2">पु.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">म.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">पु.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">म.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">पु.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">म.</th>
+                  <th className="border border-slate-300 p-2 text-[11px] text-slate-600">पु.</th>
                 </tr>
               </thead>
               <tbody>
                 {ageGroups.map(group => {
                   const stats = getStatsForAgeGroup(group.min, group.max);
                   return (
-                    <tr key={group.label}>
-                      <td className="border border-slate-300 p-2 font-medium text-left">{group.label}</td>
-                      <td className="border border-slate-300 p-2">{stats.newFemale || ''}</td>
-                      <td className="border border-slate-300 p-2">{stats.newMale || ''}</td>
-                      <td className="border border-slate-300 p-2">{stats.totalFemale || ''}</td>
-                      <td className="border border-slate-300 p-2">{stats.totalMale || ''}</td>
-                      <td className="border border-slate-300 p-2">{stats.referredFemale || ''}</td>
-                      <td className="border border-slate-300 p-2">{stats.referredMale || ''}</td>
+                    <tr key={group.label} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="border border-slate-300 p-2.5 font-bold font-nepali text-left text-slate-700">{group.label}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.newFemale)}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.newMale)}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.totalFemale)}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.totalMale)}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.referredFemale)}</td>
+                      <td className="border border-slate-300 p-2.5 font-medium text-slate-800">{toNepaliDigits(stats.referredMale)}</td>
                     </tr>
                   );
                 })}
@@ -238,41 +294,41 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
           </div>
 
           {/* Table 2: Outreach / Clinics */}
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full text-sm border-collapse border border-slate-300 text-center">
-              <thead className="bg-slate-100">
+          <div className="flex-grow overflow-x-auto min-w-[300px]">
+            <table className="w-full text-xs border-collapse border border-slate-300 text-center font-sans">
+              <thead className="bg-slate-50 font-nepali">
                 <tr>
-                  <th className="border border-slate-300 p-2">कार्यक्षेत्र भित्र पर्ने निकाय</th>
-                  <th className="border border-slate-300 p-2">संचालन/प्रतिवेदन हुनुपर्ने (संख्या)</th>
-                  <th className="border border-slate-300 p-2">संचालन/प्रतिवेदन भएको (संख्या)</th>
-                  <th className="border border-slate-300 p-2">सेवा पाएका जम्मा सेवाग्राहीको संख्या</th>
+                  <th className="border border-slate-300 p-2 font-bold text-slate-700">कार्यक्षेत्र भित्र पर्ने निकाय</th>
+                  <th className="border border-slate-300 p-2 font-bold text-slate-700">संचालन/प्रतिवेदन हुनुपर्ने (संख्या)</th>
+                  <th className="border border-slate-300 p-2 font-bold text-slate-700">संचालन/प्रतिवेदन भएको (संख्या)</th>
+                  <th className="border border-slate-300 p-2 font-bold text-slate-700">जम्मा सेवाग्राही संख्या</th>
                 </tr>
               </thead>
               <tbody>
                 {['गाउँघर क्लिनिक', 'खोप क्लिनिक', 'खोप सेसन', 'सरसफाई सेसन (पटक)', 'म. स्वा. स्व. से.'].map(item => {
                   const isImmClinic = item === 'खोप क्लिनिक' || item === 'खोप सेसन';
                   return (
-                    <tr key={item}>
-                      <td className="border border-slate-300 p-2 font-medium text-left">{item}</td>
-                      <td className="border border-slate-300 p-2">
+                    <tr key={item} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="border border-slate-300 p-2.5 font-bold font-nepali text-left text-slate-700">{item}</td>
+                      <td className="border border-slate-300 p-2.5 text-slate-800">
                         {isImmClinic ? (
-                          <span className="font-bold">{immClinicStats.plannedClinics || ''}</span>
+                          <span className="font-bold">{toNepaliDigits(immClinicStats.plannedClinics)}</span>
                         ) : (
-                          <input type="number" className="w-full text-center outline-none bg-transparent" />
+                          <input type="text" placeholder="०" className="w-full text-center outline-none bg-transparent font-medium border-b border-dashed border-slate-305 focus:border-indigo-400" />
                         )}
                       </td>
-                      <td className="border border-slate-300 p-2">
+                      <td className="border border-slate-300 p-2.5 text-slate-800">
                         {isImmClinic ? (
-                          <span className="font-bold">{immClinicStats.operatedClinics || ''}</span>
+                          <span className="font-bold">{toNepaliDigits(immClinicStats.operatedClinics)}</span>
                         ) : (
-                          <input type="number" className="w-full text-center outline-none bg-transparent" />
+                          <input type="text" placeholder="०" className="w-full text-center outline-none bg-transparent font-medium border-b border-dashed border-slate-305 focus:border-indigo-400" />
                         )}
                       </td>
-                      <td className="border border-slate-300 p-2">
+                      <td className="border border-slate-300 p-2.5 text-slate-800">
                         {isImmClinic ? (
-                          <span className="font-bold">{immClinicStats.totalSeekers || ''}</span>
+                          <span className="font-bold">{toNepaliDigits(immClinicStats.totalSeekers)}</span>
                         ) : (
-                          <input type="number" className="w-full text-center outline-none bg-transparent" />
+                          <input type="text" placeholder="०" className="w-full text-center outline-none bg-transparent font-medium border-b border-dashed border-slate-305 focus:border-indigo-400" />
                         )}
                       </td>
                     </tr>
@@ -284,30 +340,30 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
 
           {/* Table 3: MSS */}
           <div className="w-full lg:w-64 overflow-x-auto">
-            <table className="w-full text-sm border-collapse border border-slate-300 text-center h-full">
-              <thead className="bg-slate-100">
+            <table className="w-full text-xs border-collapse border border-slate-300 text-center h-full font-sans">
+              <thead className="bg-slate-50 font-nepali">
                 <tr>
-                  <th colSpan={2} className="border border-slate-300 p-2">न्यूनतम सेवा मापदण्ड (MSS)</th>
+                  <th colSpan={2} className="border border-slate-300 p-2 font-bold text-slate-700">MSS मापदण्ड</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td className="border border-slate-300 p-2 text-left">
-                    कार्यन्वयन<br/>
-                    १ - पहिलो २ - दोश्रो
+                  <td className="border border-slate-300 p-2.5 text-left font-bold font-nepali text-slate-700 leading-normal">
+                    कार्यान्वयन स्तर<br/>
+                    <span className="text-[10px] font-normal text-slate-500">१ - पहिलो २ - दोस्रो</span>
                   </td>
-                  <td className="border border-slate-300 p-2">
-                    <select className="w-full outline-none bg-transparent">
-                      <option value="">Select option</option>
+                  <td className="border border-slate-300 p-2.5 align-middle">
+                    <select className="w-full outline-none bg-transparent font-semibold font-nepali text-center text-slate-800 border-b border-dashed border-slate-300">
+                      <option value="">छान्नुहोस्</option>
                       <option value="1">१ - पहिलो</option>
-                      <option value="2">२ - दोश्रो</option>
+                      <option value="2">२ - दोस्रो</option>
                     </select>
                   </td>
                 </tr>
                 <tr>
-                  <td className="border border-slate-300 p-2 text-left">स्कोर (%)</td>
-                  <td className="border border-slate-300 p-2">
-                    <input type="number" className="w-full text-center outline-none bg-transparent" />
+                  <td className="border border-slate-300 p-2.5 text-left font-bold font-nepali text-slate-700 leading-normal">स्कोर (%)</td>
+                  <td className="border border-slate-300 p-2.5 align-middle">
+                    <input type="text" placeholder="०" className="w-full text-center outline-none bg-transparent font-bold border-b border-dashed border-slate-300 text-indigo-600" />
                   </td>
                 </tr>
               </tbody>

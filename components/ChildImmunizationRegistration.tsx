@@ -16,6 +16,7 @@ interface ChildImmunizationRegistrationProps {
   onAddRecord: (record: ChildImmunizationRecord) => void;
   onUpdateRecord: (record: ChildImmunizationRecord) => void;
   onDeleteRecord: (recordId: string) => void;
+  onUpdateGeneralSettings?: (settings: OrganizationSettings) => void;
 }
 
 const genderOptions: Option[] = [
@@ -111,7 +112,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   generalSettings,
   onAddRecord,
   onUpdateRecord,
-  onDeleteRecord
+  onDeleteRecord,
+  onUpdateGeneralSettings
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -371,6 +373,23 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     const nd = new NepaliDate(modalGivenDateBs);
     const givenDateAd = toLocalISO(nd.toJsDate());
 
+    // Consuming/Deducting vaccine stock once it is given to the child
+    if (onUpdateGeneralSettings && currentVaccine.status !== 'Given') {
+      const currentStock = generalSettings.vaccineInventory?.[currentVaccine.name] || 0;
+      if (currentStock > 0) {
+        const updatedInventory = {
+          ...(generalSettings.vaccineInventory || {}),
+          [currentVaccine.name]: currentStock - 1
+        };
+        onUpdateGeneralSettings({
+          ...generalSettings,
+          vaccineInventory: updatedInventory
+        });
+      } else {
+        alert("चेतावनी: यस खोपको मौज्दात मौज्दात ० छ। विवरण त्यही पनि सुरक्षित गरिनेछ।");
+      }
+    }
+
     const finalVaccines = recalculateFutureDoses(record.vaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
     onUpdateRecord({ ...record, vaccines: finalVaccines });
     setSelectedVaccineForUpdate(null);
@@ -509,8 +528,18 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="text-center bg-slate-50 p-3 rounded-lg border">
-                        <h4 className="font-bold text-slate-800">{selectedVaccineForUpdate.record.childName}</h4>
+                        <h4 className="font-bold text-slate-800 text-sm">{selectedVaccineForUpdate.record.childName}</h4>
                         <p className="text-xs font-bold text-blue-600 mt-1">{selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex].name}</p>
+                        <div className="mt-2">
+                          {(() => {
+                            const stock = generalSettings.vaccineInventory?.[selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex].name] ?? 0;
+                            return (
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${stock > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                उपलब्ध मौज्दात: {stock} Doses {stock === 0 ? '(0 स्टॉक - Warning)' : ''}
+                              </span>
+                            );
+                          })()}
+                        </div>
                     </div>
                     
                     <div className="space-y-2">
