@@ -120,14 +120,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       if (targetMonthParsed !== recordMonthParsed) return false;
 
       // 3. Billing Type Filter
+      const isDirect = !!record.isDirectBilling || 
+                       record.serviceSeekerId?.startsWith('DIR-') || 
+                       record.invoiceNumber?.startsWith('DB-');
+
       if (billingType === 'Direct') {
-        if (!record.isDirectBilling && !record.serviceSeekerId?.startsWith('DIR-')) {
-          return false;
-        }
+        if (!isDirect) return false;
       } else if (billingType === 'Regular') {
-        if (record.isDirectBilling || record.serviceSeekerId?.startsWith('DIR-')) {
-          return false;
-        }
+        if (isDirect) return false;
       }
 
       // 4. Search Query Match
