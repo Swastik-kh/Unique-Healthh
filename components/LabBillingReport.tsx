@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark } from 'lucide-react';
-import { BillingRecord, OrganizationSettings, User } from '../types';
+import { BillingRecord, OrganizationSettings, User, ServiceItem } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -12,6 +12,7 @@ interface LabBillingReportProps {
   generalSettings: OrganizationSettings;
   currentUser?: User | null;
   users?: User[];
+  serviceItems?: ServiceItem[];
 }
 
 const NEPALI_MONTH_OPTIONS = [
@@ -40,6 +41,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   generalSettings,
   currentUser,
   users = [],
+  serviceItems = [],
 }) => {
   // Determine current Nepali state
   const curNepaliDate = useMemo(() => {
@@ -82,18 +84,116 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
-  // Compute unique services/tests from all billing records
-  const uniqueServices = useMemo(() => {
-    const servicesSet = new Set<string>();
-    billingRecords.forEach((record) => {
-      record.items?.forEach((item) => {
+  // Compute parent-child relationships and grouped options for service dropdown
+  const testSubRelations = useMemo(() => {
+    const parentMap = new Map<string, string>(); // child lower -> parent original
+    const childrenMap = new Map<string, string[]>(); // parent original -> child originals (trimmed)
+    const mainList: string[] = [];
+    
+    // Process serviceItems to extract parent/child relationships
+    serviceItems.forEach(item => {
+      const parentName = item.serviceName.trim();
+      if (item.subTests && item.subTests.length > 0) {
+        if (!mainList.includes(parentName)) {
+          mainList.push(parentName);
+        }
+        const children = item.subTests.map(st => st.testName.trim());
+        childrenMap.set(parentName, children);
+        children.forEach(c => {
+          parentMap.set(c.toLowerCase(), parentName);
+        });
+      }
+    });
+
+    // Extract all unique items ever billed in the system
+    const billedSet = new Set<string>();
+    billingRecords.forEach(record => {
+      record.items?.forEach(item => {
         if (item.serviceName) {
-          servicesSet.add(item.serviceName.trim());
+          billedSet.add(item.serviceName.trim());
         }
       });
     });
-    return Array.from(servicesSet).sort((a, b) => a.localeCompare(b));
-  }, [billingRecords]);
+
+    // Sort parent names so they display alphabetically
+    const sortedMain = mainList.sort((a, b) => a.localeCompare(b));
+
+    // For individual and sub-tests, we collect anything in billedSet or we collect child tests.
+    // We prevent duplicate entries under individual lists if they are already parent groups.
+    const individualSet = new Set<string>();
+    
+    // Add all from billedSet
+    billedSet.forEach(s => {
+      if (!childrenMap.has(s)) {
+        individualSet.add(s);
+      }
+    });
+
+    // Add any sub-tests or other items from serviceItems in database that are not packages
+    serviceItems.forEach(item => {
+      if (item.subTests && item.subTests.length > 0) {
+        item.subTests.forEach(st => {
+          individualSet.add(st.testName.trim());
+        });
+      } else {
+        individualSet.add(item.serviceName.trim());
+      }
+    });
+
+    const sortedIndividual = Array.from(individualSet).sort((a, b) => a.localeCompare(b));
+
+    return { 
+      parentOfService: parentMap, 
+      childrenOfParent: childrenMap, 
+      mainServices: sortedMain, 
+      individualAndSubServices: sortedIndividual 
+    };
+  }, [serviceItems, billingRecords]);
+
+  // Dynamic price calculation depending on the selected test or sub-test
+  const getRecordAmountForSelectedService = (record: BillingRecord): number => {
+    if (selectedService === 'All') {
+      return record.grandTotal || 0;
+    }
+
+    const selServiceLower = selectedService.toLowerCase().trim();
+    let totalAmt = 0;
+
+    record.items?.forEach((item) => {
+      const itemLower = (item.serviceName || '').toLowerCase().trim();
+
+      // A: Direct match
+      if (itemLower === selServiceLower) {
+        totalAmt += item.total || 0;
+        return;
+      }
+
+      // B: Parent-to-Child match (We selected a parent package e.g. "CBC", item in bill is e.g. "HB")
+      if (testSubRelations.childrenOfParent.has(selectedService)) {
+        const children = testSubRelations.childrenOfParent.get(selectedService) || [];
+        if (children.some(child => child.toLowerCase().trim() === itemLower)) {
+          totalAmt += item.total || 0;
+          return;
+        }
+      }
+
+      // C: Child-to-Parent match (We selected a subtest e.g. "HB", item in bill is e.g. "CBC")
+      const parentName = testSubRelations.parentOfService.get(itemLower);
+      if (parentName && parentName.toLowerCase().trim() === selServiceLower) {
+        // Look up standalone or subtest rate
+        const parentServiceItem = serviceItems.find(si => si.serviceName.toLowerCase().trim() === itemLower);
+        const subTestObj = parentServiceItem?.subTests?.find(st => st.testName.toLowerCase().trim() === selServiceLower);
+        if (subTestObj && typeof subTestObj.price === 'number') {
+          totalAmt += (subTestObj.price * (item.quantity || 1));
+        } else {
+          // Fallback if not specified: use parent item total
+          totalAmt += item.total || 0;
+        }
+      }
+    });
+
+    return totalAmt;
+  };
   
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
@@ -116,7 +216,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return num.toString().replace(/[0-9]/g, (match) => nepaliDigits[parseInt(match)]);
   };
 
-  const formatNumberValue = (num: number): string => {
+  const formatNumberValue = (num: number | string): string => {
     if (useNepaliNumerals) {
       return toNepaliDigits(num.toString());
     }
@@ -176,9 +276,32 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         }
       }
 
-      // 5. Individual Service/Test filter match
+      // 5. Individual Service/Test filter match with smart bidirectional mapping (e.g. CBC / HB / HCV)
       if (selectedService !== 'All') {
-        const hasService = record.items?.some(i => i.serviceName?.trim() === selectedService.trim());
+        const selServiceLower = selectedService.toLowerCase().trim();
+        const hasService = record.items?.some((item) => {
+          const itemLower = (item.serviceName || '').toLowerCase().trim();
+          
+          // A: Direct match
+          if (itemLower === selServiceLower) return true;
+
+          // B: Parent-to-Child match: If we selected CBC (parent), matches if the billed item is a subtest (e.g., HB)
+          if (testSubRelations.childrenOfParent.has(selectedService)) {
+            const children = testSubRelations.childrenOfParent.get(selectedService) || [];
+            if (children.some(child => child.toLowerCase().trim() === itemLower)) {
+              return true;
+            }
+          }
+
+          // C: Child-to-Parent match: If we selected HB (sub-test), matches if the billed item is CBC (parent package)
+          const parentName = testSubRelations.parentOfService.get(itemLower);
+          if (parentName && parentName.toLowerCase().trim() === selServiceLower) {
+            return true;
+          }
+
+          return false;
+        });
+
         if (!hasService) return false;
       }
 
@@ -187,12 +310,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedService]);
+  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedService, testSubRelations]);
 
   // Totals calculations
   const totalAmountSum = useMemo(() => {
-    return filteredRecords.reduce((sum, r) => sum + (r.grandTotal || 0), 0);
-  }, [filteredRecords]);
+    return filteredRecords.reduce((sum, r) => sum + getRecordAmountForSelectedService(r), 0);
+  }, [filteredRecords, selectedService, serviceItems, testSubRelations]);
 
   // Export to CSV function
   const handleExportCSV = () => {
@@ -208,8 +331,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const patient = r.patientName || '-';
       const billNo = r.invoiceNumber || '-';
       const date = r.billDate || '-';
-      const services = r.items?.map(i => i.serviceName).join(', ') || '-';
-      const amt = (r.grandTotal || 0).toString();
+      const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
+      const amt = getRecordAmountForSelectedService(r).toString();
       const remarks = r.remarks || '-';
       
       return [serial, patient, billNo, date, services, amt, remarks];
@@ -337,11 +460,24 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
             >
               <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
-              {uniqueServices.map((srv) => (
-                <option key={srv} value={srv}>
-                  {srv}
-                </option>
-              ))}
+              {testSubRelations.mainServices.length > 0 && (
+                <optgroup label="मुख्य टेस्ट प्याकेज/समूह (Main Test Packages)">
+                  {testSubRelations.mainServices.map((srv) => (
+                    <option key={`main-${srv}`} value={srv}>
+                      {srv}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {testSubRelations.individualAndSubServices.length > 0 && (
+                <optgroup label="व्यक्तिगत टेस्ट / उप-परीक्षण (Individual & Subtests)">
+                  {testSubRelations.individualAndSubServices.map((srv) => (
+                    <option key={`indiv-${srv}`} value={srv}>
+                      {srv}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
           </div>
@@ -476,8 +612,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
                   const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
                   const displayDate = formatRawDateToNepaliUi(record.billDate);
-                  const servicesList = record.items?.map((item) => item.serviceName).join(', ') || '-';
-                  const priceTotal = record.grandTotal || 0;
+                  const servicesList = selectedService !== 'All' ? selectedService : (record.items?.map((item) => item.serviceName).join(', ') || '-');
+                  const priceTotal = getRecordAmountForSelectedService(record);
                   const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
                   const clientRemarks = record.remarks || '-';
 
