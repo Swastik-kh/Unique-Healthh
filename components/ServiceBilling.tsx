@@ -707,24 +707,27 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             {!isDirectBilling ? (
               <button 
                 type="button" 
-                onClick={handleStartDirectBilling}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm flex items-center gap-2 transition-colors font-nepali border border-transparent"
+                onClick={() => {
+                  setIsDirectBilling(true);
+                  setCurrentPatient(null);
+                  setBillingItems([]);
+                  // Set random direct bill number
+                  setDirectBillNo('DB-' + Date.now().toString().slice(-6));
+                }}
+                className="bg-emerald-600 border border-transparent text-white px-6 py-3 rounded-lg hover:bg-emerald-700 font-medium shadow-sm font-nepali flex items-center gap-1"
               >
-                <Plus size={18} />
-                प्रत्यक्ष बिलिङ (Direct Billing)
+                <Plus size={18} /> प्रत्यक्ष बिलिङ (Direct Billing)
               </button>
             ) : (
               <button 
                 type="button" 
                 onClick={() => {
                   setIsDirectBilling(false);
-                  setCurrentPatient(null);
                   setBillingItems([]);
                 }}
-                className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm flex items-center gap-2 transition-colors font-nepali border border-transparent"
+                className="bg-slate-600 border border-transparent text-white px-6 py-3 rounded-lg hover:bg-slate-700 font-medium shadow-sm font-nepali flex items-center gap-1"
               >
-                <Search size={18} />
-                बिरामी खोज्नुहोस् (Patient Search)
+                नियमित बिलिङ (Regular Billing)
               </button>
             )}
           </div>
@@ -733,67 +736,103 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
       {(currentPatient || isDirectBilling) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Patient Info & OPD History */}
+          {/* Left Column: Seeker Info or Direct Seeker Forms */}
           <div className="space-y-6">
             {isDirectBilling ? (
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-200 ring-4 ring-emerald-500/10">
-                <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-nepali">
-                  <Plus size={18} className="text-emerald-600" /> प्रत्यक्ष बिलिङ विवरण (Direct Billing Form)
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">सि.न. / बिरामी ID (S.N. / Patient ID) *</label>
-                    <input
-                      type="text"
-                      value={directPatientSn}
-                      onChange={(e) => setDirectPatientSn(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 font-mono font-bold"
-                      placeholder="सि.न. प्रविष्ट गर्नुहोस्"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">सेवाग्राहीको नामथर (Seeker Name & Surname) *</label>
-                    <input
-                      type="text"
-                      value={directPatientName}
-                      onChange={(e) => setDirectPatientName(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-emerald-500"
-                      placeholder="उदा: राम बहादुर श्रेष्ठ"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">बिल नम्बर (Bill / Invoice No) *</label>
-                    <input
-                      type="text"
-                      value={directBillNo}
-                      onChange={(e) => setDirectBillNo(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-mono font-bold focus:ring-2 focus:ring-emerald-500"
-                      placeholder="बिल नम्बर प्रविष्ट गर्नुहोस्"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">मिति (Date - BS) *</label>
-                    <NepaliDatePicker
-                      value={directMiti}
-                      onChange={setDirectMiti}
-                      label=""
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत / विवरण (Remarks / Details)</label>
-                    <textarea
-                      value={directRemarks}
-                      onChange={(e) => setDirectRemarks(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white min-h-[100px]"
-                      placeholder="बिल सम्बन्धी केही कैफियत भए यहाँ उल्लेख गर्नुहोस्..."
-                    />
+              <>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-200 ring-4 ring-emerald-500/10">
+                  <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-nepali">
+                    <Plus size={18} className="text-emerald-600" /> प्रत्यक्ष बिलिङ विवरण (Direct Billing Form)
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">सि.न. / बिरामी ID (S.N. / Patient ID) *</label>
+                      <input
+                        type="text"
+                        value={directPatientSn}
+                        onChange={(e) => setDirectPatientSn(e.target.value)}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 font-mono font-bold"
+                        placeholder="सि.न. प्रविष्ट गर्नुहोस्"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">सेवाग्राहीको नामथर (Seeker Name & Surname) *</label>
+                      <input
+                        type="text"
+                        value={directPatientName}
+                        onChange={(e) => setDirectPatientName(e.target.value)}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-emerald-500"
+                        placeholder="उदा: राम बहादुर श्रेष्ठ"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">बिल नम्बर (Bill / Invoice No) *</label>
+                      <input
+                        type="text"
+                        value={directBillNo}
+                        onChange={(e) => setDirectBillNo(e.target.value)}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-mono font-bold focus:ring-2 focus:ring-emerald-500"
+                        placeholder="बिल नम्बर प्रविष्ट गर्नुहोस्"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">मिति (Date - BS) *</label>
+                      <NepaliDatePicker
+                        value={directMiti}
+                        onChange={setDirectMiti}
+                        label=""
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत / विवरण (Remarks / Details)</label>
+                      <textarea
+                        value={directRemarks}
+                        onChange={(e) => setDirectRemarks(e.target.value)}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white min-h-[100px]"
+                        placeholder="बिल सम्बन्धी केही कैफियत भए यहाँ उल्लेख गर्नुहोस्..."
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Recent Direct Bills List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-100 ring-4 ring-emerald-500/5">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2 font-nepali">
+                    <History size={16} className="text-emerald-600" />
+                    हालसालैका प्रत्यक्ष बिलहरू (Recent Direct Bills)
+                  </h3>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {billingRecords
+                      .filter(b => b.isDirectBilling || b.serviceSeekerId?.startsWith('DIR-') || b.invoiceNumber?.startsWith('DB-'))
+                      .sort((a, b) => b.id.localeCompare(a.id))
+                      .slice(0, 5)
+                      .map(bill => (
+                        <div key={bill.id} className="flex justify-between items-center p-2.5 hover:bg-slate-50 border-b border-slate-100 text-sm">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="font-semibold text-slate-800 truncate">{bill.patientName || 'प्रत्यक्ष'}</p>
+                            <p className="text-xs text-slate-500 font-mono truncate">{bill.invoiceNumber} | {bill.billDate}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-slate-700 font-mono">Rs. {bill.grandTotal}</p>
+                            <button 
+                              onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              Reprint
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    {billingRecords.filter(b => b.isDirectBilling || b.serviceSeekerId?.startsWith('DIR-') || b.invoiceNumber?.startsWith('DB-')).length === 0 && (
+                      <p className="text-slate-400 text-sm italic text-center py-4">कुनै प्रत्यक्ष बिल भेटिएन</p>
+                    )}
+                  </div>
+                </div>
+              </>
             ) : currentPatient ? (
               <>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -996,6 +1035,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                   <input
                     type="text"
                     value={newItem.serviceName}
+                    list="services-list"
                     onChange={(e) => {
                       const name = e.target.value;
                       let price = newItem.price;
@@ -1018,9 +1058,16 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       
                       setNewItem({...newItem, serviceName: name, price});
                     }}
-                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
                     placeholder="उदा: CBC, Urine RE, X-Ray"
                   />
+                  <datalist id="services-list">
+                    {serviceItems.map((item) => (
+                      <option key={item.id} value={item.serviceName}>
+                        {item.serviceName} (Rs. {item.rate})
+                      </option>
+                    ))}
+                  </datalist>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-bold text-slate-600 mb-1">मूल्य (Price)</label>
@@ -1437,6 +1484,80 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Render Recent Bills Summary when no active session */}
+      {!currentPatient && !isDirectBilling && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6 animate-fade-in">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-4 mb-4">
+            <div>
+              <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 font-nepali">
+                <History className="text-emerald-600" size={20} />
+                हालसालै काटिएका बिलहरूको सूची (Recent Billing Records)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">नयाँ काटिएका प्रत्यक्ष र नियमित बिलहरूको विवरण र रिप्रिन्ट गर्ने सुविधा।</p>
+            </div>
+            <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full font-mono font-bold shrink-0">
+              Total Bills: {billingRecords.length}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto font-nepali">
+            {billingRecords.length > 0 ? (
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 text-slate-700 font-bold">
+                  <tr>
+                    <th className="p-3">मिति (Date)</th>
+                    <th className="p-3">बिल नम्बर (Bill No)</th>
+                    <th className="p-3">प्रकार (Type)</th>
+                    <th className="p-3">सेवाग्राहीको नाम (Patient Name)</th>
+                    <th className="p-3 text-right">रकम (Total Amount)</th>
+                    <th className="p-3 text-center">कार्य (Action)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {[...billingRecords]
+                    .sort((a, b) => b.id.localeCompare(a.id))
+                    .slice(0, 15)
+                    .map((bill) => {
+                      const isDirect = !!bill.isDirectBilling || 
+                                       bill.serviceSeekerId?.startsWith('DIR-') || 
+                                       bill.invoiceNumber?.startsWith('DB-');
+                      return (
+                        <tr key={bill.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-mono text-slate-600">{bill.billDate}</td>
+                          <td className="p-3 font-mono font-bold text-slate-800">{bill.invoiceNumber}</td>
+                          <td className="p-3">
+                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              isDirect 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                                : 'bg-blue-50 text-blue-700 border border-blue-100'
+                            }`}>
+                              {isDirect ? 'प्रत्यक्ष (Direct)' : 'नियमित (Regular)'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-medium text-slate-700">{bill.patientName}</td>
+                          <td className="p-3 text-right font-mono font-bold text-slate-900">Rs. {bill.grandTotal?.toFixed(2)}</td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                              className="px-3 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg text-xs font-semibold transition-all duration-150"
+                            >
+                              Reprint
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-slate-400 italic text-sm">कुनै पनि बिल रेकर्ड भेटिएन।</p>
+              </div>
+            )}
           </div>
         </div>
       )}
