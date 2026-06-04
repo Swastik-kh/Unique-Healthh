@@ -73,7 +73,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   
   // Billing State
   const [billingItems, setBillingItems] = useState<BillingItem[]>([]);
-  const [newItem, setNewItem] = useState({ serviceName: '', price: '', quantity: '1' });
+  const [newItem, setNewItem] = useState({ serviceName: '', price: '', quantity: '1', remarks: '' });
   const [discount, setDiscount] = useState('');
   const [paymentMode, setPaymentMode] = useState<'Cash' | 'Online' | 'Credit' | 'Bima'>('Cash');
   const [insuranceNo, setInsuranceNo] = useState('');
@@ -84,6 +84,36 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [showFhirLogModal, setShowFhirLogModal] = useState(false);
   const [currentBill, setCurrentBill] = useState<BillingRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Direct Billing State
+  const [isDirectBilling, setIsDirectBilling] = useState(false);
+  const [directPatientName, setDirectPatientName] = useState('');
+  const [directPatientSn, setDirectPatientSn] = useState('');
+  const [directBillNo, setDirectBillNo] = useState('');
+  const [directMiti, setDirectMiti] = useState('');
+  const [directRemarks, setDirectRemarks] = useState('');
+
+  const handleStartDirectBilling = () => {
+    setIsDirectBilling(true);
+    setCurrentPatient(null);
+    setBillingItems([]);
+    setDirectPatientName("");
+    setDirectRemarks("");
+    setDirectPatientSn((Math.floor(100 + Math.random() * 900)).toString());
+    setDirectBillNo("DB-" + currentFiscalYear.replace('/', '') + "-" + Date.now().toString().slice(-6));
+    setDirectMiti(new NepaliDate().format('YYYY-MM-DD'));
+    
+    // Reset standard form inputs too
+    setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
+    setDiscount('');
+    setPaymentMode('Cash');
+    setInsuranceNo('');
+    setClaimCode('');
+    setClaimStatus('Draft');
+    setFhirResponseLog('');
+    setShowFhirLogModal(false);
+    setCurrentBill(null);
+  };
 
   // Refund Claims API State
   const [refundClaimCode, setRefundClaimCode] = useState('');
@@ -119,6 +149,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     }
 
     if (patient) {
+      setIsDirectBilling(false);
       setCurrentPatient(patient);
       const records = opdRecords.filter(r => r.uniquePatientId === patient.uniquePatientId);
       records.sort((a, b) => b.visitDate.localeCompare(a.visitDate));
@@ -134,7 +165,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       
       // Reset billing form
       setBillingItems([]);
-      setNewItem({ serviceName: '', price: '', quantity: '1' });
+      setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
       setDiscount('');
       setPaymentMode('Cash');
       setInsuranceNo('');
@@ -167,10 +198,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         if (isAlreadyInBill) return;
 
         // Check if already billed in previous records
-        const isAlreadyBilled = billingRecords.some(b => 
-          b.serviceSeekerId === currentPatient?.id && 
+        const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+          b.serviceSeekerId === currentPatient.id && 
           b.items.some(i => i.serviceName.toLowerCase() === subItemName.toLowerCase())
-        );
+        ) : false;
         if (isAlreadyBilled) return;
 
         const item: BillingItem = {
@@ -179,14 +210,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           price: subTest.price || 0,
           quantity: 1,
           total: (subTest.price || 0) * 1,
-          itemCode: getHibCodeForService(subItemName)
+          itemCode: getHibCodeForService(subItemName),
+          remarks: newItem.remarks || undefined
         };
         itemsToAdd.push(item);
       });
 
       if (itemsToAdd.length > 0) {
         setBillingItems([...billingItems, ...itemsToAdd]);
-        setNewItem({ serviceName: '', price: '', quantity: '1' });
+        setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
       } else {
         alert('यी उप-परीक्षणहरू पहिले नै बिलमा थपिसकिएका छन्।');
       }
@@ -208,10 +240,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     }
 
     // Check if already billed in previous records
-    const isAlreadyBilled = billingRecords.some(b => 
-      b.serviceSeekerId === currentPatient?.id && 
+    const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+      b.serviceSeekerId === currentPatient.id && 
       b.items.some(i => i.serviceName.toLowerCase() === newItem.serviceName.toLowerCase())
-    );
+    ) : false;
     if (isAlreadyBilled) {
       if (!window.confirm('यो सेवा पहिले नै बिलिङ भइसकेको देखिन्छ। के तपाईं फेरि थप्न चाहनुहुन्छ?')) {
         return;
@@ -224,11 +256,12 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       price: price,
       quantity: quantity,
       total: price * quantity,
-      itemCode: getHibCodeForService(newItem.serviceName)
+      itemCode: getHibCodeForService(newItem.serviceName),
+      remarks: newItem.remarks || undefined
     };
 
     setBillingItems([...billingItems, item]);
-    setNewItem({ serviceName: '', price: '', quantity: '1' });
+    setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
   };
 
   const handleCopyToBill = (investigation: string) => {
@@ -253,10 +286,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           if (isAlreadyInBill) return;
 
           // Check if already billed in previous records
-          const isAlreadyBilled = billingRecords.some(b => 
-            b.serviceSeekerId === currentPatient?.id && 
+          const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+            b.serviceSeekerId === currentPatient.id && 
             b.items.some(i => i.serviceName.toLowerCase() === subItemName.toLowerCase())
-          );
+          ) : false;
           if (isAlreadyBilled) return;
           
           const item: BillingItem = {
@@ -275,10 +308,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         if (isAlreadyInBill) return;
 
         // Check if already billed in previous records
-        const isAlreadyBilled = billingRecords.some(b => 
-          b.serviceSeekerId === currentPatient?.id && 
+        const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+          b.serviceSeekerId === currentPatient.id && 
           b.items.some(i => i.serviceName.toLowerCase() === name.toLowerCase())
-        );
+        ) : false;
         if (isAlreadyBilled) return;
         
         // If not found as main service, check if it's a sub-test of any service
@@ -509,6 +542,73 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   };
 
   const handleSaveBill = async () => {
+    if (isDirectBilling) {
+      if (!directPatientName.trim()) {
+        alert("कृपया सेवाग्राहीको नामथर प्रविष्ट गर्नुहोस्।");
+        return;
+      }
+      if (!directBillNo.trim()) {
+        alert("कृपया बिल नम्बर प्रविष्ट गर्नुहोस्।");
+        return;
+      }
+      if (billingItems.length === 0) {
+        alert("कृपया पहिले सेवा विवरण वा टेस्टहरू थप्नुहोस्।");
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const newBill: BillingRecord = {
+          id: Date.now().toString(),
+          fiscalYear: currentFiscalYear,
+          billDate: directMiti || new NepaliDate().format('YYYY-MM-DD'),
+          invoiceNumber: directBillNo,
+          serviceSeekerId: directPatientSn || `DIR-${Date.now().toString().slice(-6)}`,
+          patientName: directPatientName,
+          items: billingItems,
+          subTotal: subTotal,
+          discount: discountAmount,
+          grandTotal: grandTotal,
+          paymentMode: paymentMode,
+          createdBy: currentUser?.username || 'Unknown',
+          remarks: directRemarks || undefined,
+        };
+
+        await onSaveRecord(newBill);
+        setCurrentBill(newBill);
+        
+        // Reset forms
+        setBillingItems([]);
+        setDiscount('');
+        setPaymentMode('Cash');
+        setInsuranceNo('');
+        setClaimCode('');
+        setClaimStatus('Draft');
+        setFhirResponseLog('');
+        
+        // Reset direct billing fields
+        setDirectPatientName('');
+        setDirectRemarks('');
+        setDirectPatientSn((Math.floor(100 + Math.random() * 900)).toString());
+        setDirectBillNo("DB-" + currentFiscalYear.replace('/', '') + "-" + Date.now().toString().slice(-6));
+        setDirectMiti(new NepaliDate().format('YYYY-MM-DD'));
+        setIsDirectBilling(false);
+
+        alert('प्रत्यक्ष बिल सुरक्षित गरियो। अब प्रिन्ट हुँदैछ...');
+        
+        // Trigger print after a short delay
+        setTimeout(() => {
+          handlePrint();
+          setIsSaving(false);
+        }, 500);
+      } catch (error) {
+        console.error("Error saving direct bill:", error);
+        alert("बिल सुरक्षित गर्दा समस्या आयो।");
+        setIsSaving(false);
+      }
+      return;
+    }
+
     if (!currentPatient || billingItems.length === 0 || isSaving) return;
 
     if (paymentMode === 'Bima' && !claimCode) {
@@ -583,209 +683,302 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           <FileText className="text-primary-600" />
           सेवा बिलिङ (Service Billing)
         </h2>
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <div className="flex-1 max-w-md relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              value={searchId}
-              onChange={(e) => setSearchId(e.target.value)}
-              placeholder="बिरामी ID (PID-XXXXXX) वा दर्ता नं. राख्नुहोस्"
-              className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              autoFocus
-            />
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <form onSubmit={handleSearch} className="flex-1 flex gap-4 min-w-[300px]">
+            <div className="flex-1 max-w-md relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <input
+                type="text"
+                value={searchId}
+                onChange={(e) => setSearchId(e.target.value)}
+                placeholder="बिरामी ID (PID-XXXXXX) वा दर्ता नं. राख्नुहोस्"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                disabled={isDirectBilling}
+                autoFocus
+              />
+            </div>
+            <button type="submit" disabled={isDirectBilling} className="bg-primary-600 border border-transparent text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
+              खोज्नुहोस्
+            </button>
+          </form>
+          <div className="flex gap-2">
+            {!isDirectBilling ? (
+              <button 
+                type="button" 
+                onClick={handleStartDirectBilling}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm flex items-center gap-2 transition-colors font-nepali border border-transparent"
+              >
+                <Plus size={18} />
+                प्रत्यक्ष बिलिङ (Direct Billing)
+              </button>
+            ) : (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setIsDirectBilling(false);
+                  setCurrentPatient(null);
+                  setBillingItems([]);
+                }}
+                className="bg-slate-600 hover:bg-slate-700 text-white px-6 py-3 rounded-lg font-medium shadow-sm flex items-center gap-2 transition-colors font-nepali border border-transparent"
+              >
+                <Search size={18} />
+                बिरामी खोज्नुहोस् (Patient Search)
+              </button>
+            )}
           </div>
-          <button type="submit" className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 font-medium shadow-sm">
-            खोज्नुहोस्
-          </button>
-        </form>
+        </div>
       </div>
 
-      {currentPatient && (
+      {(currentPatient || isDirectBilling) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Patient Info & OPD History */}
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
-                <User size={18} /> बिरामीको विवरण
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-slate-500">नाम:</span> <span className="font-medium">{currentPatient.name}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">ID:</span> <span className="font-mono bg-slate-100 px-2 rounded">{currentPatient.uniquePatientId} {currentPatient.mulDartaNo && `| ${currentPatient.mulDartaNo}`}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">उमेर/लिङ्ग:</span> <span>{currentPatient.age} / {currentPatient.gender}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">ठेगाना:</span> <span>{currentPatient.address}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">फोन:</span> <span>{currentPatient.phone}</span></div>
+            {isDirectBilling ? (
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-200 ring-4 ring-emerald-500/10">
+                <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-nepali">
+                  <Plus size={18} className="text-emerald-600" /> प्रत्यक्ष बिलिङ विवरण (Direct Billing Form)
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">सि.न. / बिरामी ID (S.N. / Patient ID) *</label>
+                    <input
+                      type="text"
+                      value={directPatientSn}
+                      onChange={(e) => setDirectPatientSn(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 font-mono font-bold"
+                      placeholder="सि.न. प्रविष्ट गर्नुहोस्"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">सेवाग्राहीको नामथर (Seeker Name & Surname) *</label>
+                    <input
+                      type="text"
+                      value={directPatientName}
+                      onChange={(e) => setDirectPatientName(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-medium focus:ring-2 focus:ring-emerald-500"
+                      placeholder="उदा: राम बहादुर श्रेष्ठ"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">बिल नम्बर (Bill / Invoice No) *</label>
+                    <input
+                      type="text"
+                      value={directBillNo}
+                      onChange={(e) => setDirectBillNo(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-mono font-bold focus:ring-2 focus:ring-emerald-500"
+                      placeholder="बिल नम्बर प्रविष्ट गर्नुहोस्"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">मिति (Date - BS) *</label>
+                    <input
+                      type="text"
+                      value={directMiti}
+                      onChange={(e) => setDirectMiti(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-bold focus:ring-2 focus:ring-emerald-500"
+                      placeholder="YYYY-MM-DD"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत / विवरण (Remarks / Details)</label>
+                    <textarea
+                      value={directRemarks}
+                      onChange={(e) => setDirectRemarks(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white min-h-[100px]"
+                      placeholder="बिल सम्बन्धी केही कैफियत भए यहाँ उल्लेख गर्नुहोस्..."
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : currentPatient ? (
+              <>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
+                    <User size={18} /> बिरामीको विवरण
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-500">नाम:</span> <span className="font-medium">{currentPatient.name}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">ID:</span> <span className="font-mono bg-slate-100 px-2 rounded">{currentPatient.uniquePatientId} {currentPatient.mulDartaNo && `| ${currentPatient.mulDartaNo}`}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">उमेर/लिङ्ग:</span> <span>{currentPatient.age} / {currentPatient.gender}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">ठेगाना:</span> <span>{currentPatient.address}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">फोन:</span> <span>{currentPatient.phone}</span></div>
+                  </div>
+                </div>
 
-            {/* OPD Investigations List */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
-                <Activity size={16} className="text-blue-600" />
-                सिफारिस गरिएका जाँचहरू (OPD)
-              </h3>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                {patientOpdRecords.length > 0 ? (
-                  patientOpdRecords.map((record) => {
-                    const isBilled = record.investigation ? (() => {
-                      const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
-                      return serviceNames.length > 0 && serviceNames.every(name => 
-                        billingRecords.some(b => 
-                          b.serviceSeekerId === currentPatient?.id && 
-                          b.items.some(i => i.serviceName.toLowerCase() === name)
-                        )
-                      );
-                    })() : false;
+                {/* OPD Investigations List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
+                    <Activity size={16} className="text-blue-600" />
+                    सिफारिस गरिएका जाँचहरू (OPD)
+                  </h3>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                    {patientOpdRecords.length > 0 ? (
+                      patientOpdRecords.map((record) => {
+                        const isBilled = record.investigation ? (() => {
+                          const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
+                          return serviceNames.length > 0 && serviceNames.every(name => 
+                            billingRecords.some(b => 
+                              b.serviceSeekerId === currentPatient?.id && 
+                              b.items.some(i => i.serviceName.toLowerCase() === name)
+                            )
+                          );
+                        })() : false;
 
-                    return record.investigation ? (
-                      <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
-                          {isBilled ? (
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
-                              <CheckCircle2 size={10} /> Billed
-                            </span>
-                          ) : (
+                        return record.investigation ? (
+                          <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
+                              {isBilled ? (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                                  <CheckCircle2 size={10} /> Billed
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={() => handleCopyToBill(record.investigation)}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
+                                >
+                                  Copy to Bill
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
+                          </div>
+                        ) : null;
+                      })
+                    ) : (
+                      <p className="text-slate-400 text-sm italic text-center">कुनै OPD रेकर्ड छैन</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* CBIMNCI Investigations List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
+                    <Baby size={16} className="text-green-600" />
+                    सिफारिस गरिएका जाँचहरू (CBIMNCI)
+                  </h3>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                    {patientCbimnciRecords.length > 0 ? (
+                      patientCbimnciRecords.map((record) => {
+                        const isBilled = record.investigation ? (() => {
+                          const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
+                          return serviceNames.length > 0 && serviceNames.every(name => 
+                            billingRecords.some(b => 
+                              b.serviceSeekerId === currentPatient?.id && 
+                              b.items.some(i => i.serviceName.toLowerCase() === name)
+                            )
+                          );
+                        })() : false;
+
+                        return record.investigation ? (
+                          <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
+                              {isBilled ? (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                                  <CheckCircle2 size={10} /> Billed
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={() => handleCopyToBill(record.investigation)}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
+                                >
+                                  Copy to Bill
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
+                          </div>
+                        ) : null;
+                      })
+                    ) : (
+                      <p className="text-slate-400 text-sm italic text-center">कुनै CBIMNCI रेकर्ड छैन</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Emergency Investigations List */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
+                    <Siren size={16} className="text-red-600" />
+                    सिफारिस गरिएका जाँचहरू (Emergency)
+                  </h3>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto">
+                    {patientEmergencyRecords.length > 0 ? (
+                      patientEmergencyRecords.map((record) => {
+                        const isBilled = record.investigation ? (() => {
+                          const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
+                          return serviceNames.length > 0 && serviceNames.every(name => 
+                            billingRecords.some(b => 
+                              b.serviceSeekerId === currentPatient?.id && 
+                              b.items.some(i => i.serviceName.toLowerCase() === name)
+                            )
+                          );
+                        })() : false;
+
+                        return record.investigation ? (
+                          <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
+                              {isBilled ? (
+                                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
+                                  <CheckCircle2 size={10} /> Billed
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={() => handleCopyToBill(record.investigation)}
+                                  className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
+                                >
+                                  Copy to Bill
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
+                          </div>
+                        ) : null;
+                      })
+                    ) : (
+                      <p className="text-slate-400 text-sm italic text-center">कुनै Emergency रेकर्ड छैन</p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Previous Bills */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
+                    <History size={16} className="text-green-600" />
+                    पुराना बिलहरू (History)
+                  </h3>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {patientBills.length > 0 ? (
+                      patientBills.map(bill => (
+                        <div key={bill.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 text-sm">
+                          <div>
+                             <p className="font-medium">{bill.invoiceNumber}</p>
+                             <p className="text-xs text-slate-500">{bill.billDate}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-slate-700">Rs. {bill.grandTotal}</p>
                             <button 
-                              onClick={() => handleCopyToBill(record.investigation)}
-                              className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
+                              onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                              className="text-xs text-blue-600 hover:underline"
                             >
-                              Copy to Bill
+                              Reprint
                             </button>
-                          )}
+                          </div>
                         </div>
-                        <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
-                      </div>
-                    ) : null;
-                  })
-                ) : (
-                  <p className="text-slate-400 text-sm italic text-center">कुनै OPD रेकर्ड छैन</p>
-                )}
-              </div>
-            </div>
-
-            {/* CBIMNCI Investigations List */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
-                <Baby size={16} className="text-green-600" />
-                सिफारिस गरिएका जाँचहरू (CBIMNCI)
-              </h3>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                {patientCbimnciRecords.length > 0 ? (
-                  patientCbimnciRecords.map((record) => {
-                    const isBilled = record.investigation ? (() => {
-                      const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
-                      return serviceNames.length > 0 && serviceNames.every(name => 
-                        billingRecords.some(b => 
-                          b.serviceSeekerId === currentPatient?.id && 
-                          b.items.some(i => i.serviceName.toLowerCase() === name)
-                        )
-                      );
-                    })() : false;
-
-                    return record.investigation ? (
-                      <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
-                          {isBilled ? (
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
-                              <CheckCircle2 size={10} /> Billed
-                            </span>
-                          ) : (
-                            <button 
-                              onClick={() => handleCopyToBill(record.investigation)}
-                              className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
-                            >
-                              Copy to Bill
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
-                      </div>
-                    ) : null;
-                  })
-                ) : (
-                  <p className="text-slate-400 text-sm italic text-center">कुनै CBIMNCI रेकर्ड छैन</p>
-                )}
-              </div>
-            </div>
-
-            {/* Emergency Investigations List */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
-                <Siren size={16} className="text-red-600" />
-                सिफारिस गरिएका जाँचहरू (Emergency)
-              </h3>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto">
-                {patientEmergencyRecords.length > 0 ? (
-                  patientEmergencyRecords.map((record) => {
-                    const isBilled = record.investigation ? (() => {
-                      const serviceNames = record.investigation.split(/[\n,]/).map(s => s.trim().toLowerCase()).filter(s => s);
-                      return serviceNames.length > 0 && serviceNames.every(name => 
-                        billingRecords.some(b => 
-                          b.serviceSeekerId === currentPatient?.id && 
-                          b.items.some(i => i.serviceName.toLowerCase() === name)
-                        )
-                      );
-                    })() : false;
-
-                    return record.investigation ? (
-                      <div key={record.id} className="border border-slate-100 rounded p-3 bg-slate-50 text-sm">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-slate-500">{record.visitDate}</span>
-                          {isBilled ? (
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded flex items-center gap-1 font-bold">
-                              <CheckCircle2 size={10} /> Billed
-                            </span>
-                          ) : (
-                            <button 
-                              onClick={() => handleCopyToBill(record.investigation)}
-                              className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-200"
-                            >
-                              Copy to Bill
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-slate-700 whitespace-pre-wrap">{record.investigation}</p>
-                      </div>
-                    ) : null;
-                  })
-                ) : (
-                  <p className="text-slate-400 text-sm italic text-center">कुनै Emergency रेकर्ड छैन</p>
-                )}
-              </div>
-            </div>
-            
-            {/* Previous Bills */}
-             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
-                <History size={16} className="text-green-600" />
-                पुराना बिलहरू (History)
-              </h3>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {patientBills.length > 0 ? (
-                  patientBills.map(bill => (
-                    <div key={bill.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 text-sm">
-                      <div>
-                         <p className="font-medium">{bill.invoiceNumber}</p>
-                         <p className="text-xs text-slate-500">{bill.billDate}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-slate-700">Rs. {bill.grandTotal}</p>
-                        <button 
-                          onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
-                          className="text-xs text-blue-600 hover:underline"
-                        >
-                          Reprint
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                   <p className="text-slate-400 text-sm italic text-center">कुनै बिल भेटिएन</p>
-                )}
-              </div>
-            </div>
+                      ))
+                    ) : (
+                       <p className="text-slate-400 text-sm italic text-center">कुनै बिल भेटिएन</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
 
           {/* Right Column: Billing Form */}
@@ -798,8 +991,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
               {/* Add Item Form */}
               <div className="grid grid-cols-12 gap-4 mb-6 items-end bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="col-span-5">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">सेवाको नाम (Service Name)</label>
+                <div className="col-span-4">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">सेवाको नाम (Service Name)</label>
                   <input
                     type="text"
                     value={newItem.serviceName}
@@ -825,36 +1018,46 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       
                       setNewItem({...newItem, serviceName: name, price});
                     }}
-                    className="w-full p-2 border border-slate-300 rounded text-sm"
-                    placeholder="Ex: CBC, X-Ray Chest"
+                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                    placeholder="उदा: CBC, Urine RE, X-Ray"
                   />
                 </div>
-                <div className="col-span-3">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">मूल्य (Price)</label>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">मूल्य (Price)</label>
                   <input
                     type="number"
                     value={newItem.price}
                     onChange={(e) => setNewItem({...newItem, price: e.target.value})}
-                    className="w-full p-2 border border-slate-300 rounded text-sm"
+                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white font-mono font-bold"
                     placeholder="0.00"
                   />
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">संख्या (Qty)</label>
+                <div className="col-span-1">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">संख्या (Qty)</label>
                   <input
                     type="number"
                     value={newItem.quantity}
                     onChange={(e) => setNewItem({...newItem, quantity: e.target.value})}
-                    className="w-full p-2 border border-slate-300 rounded text-sm"
+                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
                     min="1"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत (Remarks / Test Details)</label>
+                  <input
+                    type="text"
+                    value={newItem.remarks}
+                    onChange={(e) => setNewItem({...newItem, remarks: e.target.value})}
+                    className="w-full p-2 border border-slate-300 rounded text-sm bg-white"
+                    placeholder="कैफियत प्रविष्ट गर्नुहोस्"
                   />
                 </div>
                 <div className="col-span-2">
                   <button 
                     onClick={handleAddItem}
-                    className="w-full bg-primary-600 text-white p-2 rounded hover:bg-primary-700 text-sm flex items-center justify-center gap-1"
+                    className="w-full bg-primary-600 text-white p-2 rounded hover:bg-primary-700 text-sm flex items-center justify-center gap-1 font-nepali min-h-[38px] border border-transparent font-medium"
                   >
-                    <Plus size={16} /> Add
+                    <Plus size={16} /> थप्नुहोस् (Add)
                   </button>
                 </div>
               </div>
@@ -869,6 +1072,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       <th className="p-3 text-right">Price</th>
                       <th className="p-3 text-center">Qty</th>
                       <th className="p-3 text-right">Total</th>
+                      <th className="p-3">Remarks / कैफियत</th>
                       <th className="p-3 text-center">Action</th>
                     </tr>
                   </thead>
@@ -890,6 +1094,9 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                           <td className="p-3 text-right">{item.price.toFixed(2)}</td>
                           <td className="p-3 text-center">{item.quantity}</td>
                           <td className="p-3 text-right">{item.total.toFixed(2)}</td>
+                          <td className="p-3 text-slate-600 text-xs italic">
+                            {item.remarks || '-'}
+                          </td>
                           <td className="p-3 text-center">
                             <button onClick={() => handleRemoveItem(item.id)} className="text-red-500 hover:text-red-700">
                               <Trash2 size={16} />
@@ -899,13 +1106,13 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-400 italic">No items added yet.</td>
+                        <td colSpan={7} className="p-8 text-center text-slate-400 italic">No items added yet.</td>
                       </tr>
                     )}
                   </tbody>
                   <tfoot className="bg-slate-50 font-bold text-slate-800">
                     <tr>
-                      <td colSpan={4} className="p-3 text-right">Sub Total:</td>
+                      <td colSpan={5} className="p-3 text-right">Sub Total:</td>
                       <td className="p-3 text-right">{subTotal.toFixed(2)}</td>
                       <td></td>
                     </tr>
@@ -1263,8 +1470,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             </div>
             <div className="text-right">
               <p><strong>Patient Name:</strong> {currentBill?.patientName}</p>
-              <p><strong>Patient ID:</strong> {currentPatient?.uniquePatientId} {currentPatient?.mulDartaNo && `| Mul Darta No: ${currentPatient.mulDartaNo}`}</p>
-              <p><strong>Address:</strong> {currentPatient?.address}</p>
+              <p><strong>Patient ID:</strong> {currentBill?.serviceSeekerId}</p>
+              {currentPatient?.address && <p><strong>Address:</strong> {currentPatient?.address}</p>}
             </div>
           </div>
 
@@ -1277,6 +1484,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 <th className="py-2 text-right">Price</th>
                 <th className="py-2 text-center">Qty</th>
                 <th className="py-2 text-right">Total</th>
+                <th className="py-2 text-left px-2">Remarks / कैफियत</th>
               </tr>
             </thead>
             <tbody>
@@ -1287,13 +1495,22 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                   <td className="py-2 text-right">{item.price.toFixed(2)}</td>
                   <td className="py-2 text-center">{item.quantity}</td>
                   <td className="py-2 text-right">{item.total.toFixed(2)}</td>
+                  <td className="py-2 text-left px-2 text-xs italic">{item.remarks || '-'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           {/* Totals */}
-          <div className="flex justify-end mb-8">
+          <div className="flex justify-between items-start mb-8 gap-4">
+            <div className="w-1/2 text-sm">
+              {currentBill?.remarks && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs select-none">
+                  <p className="font-bold text-slate-700">Remarks / कैफियत:</p>
+                  <p className="text-slate-600 mt-0.5 whitespace-pre-wrap">{currentBill.remarks}</p>
+                </div>
+              )}
+            </div>
             <div className="w-1/2 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Sub Total:</span>

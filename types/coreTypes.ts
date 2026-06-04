@@ -435,6 +435,7 @@ export interface BillingItem {
   quantity: number;
   total: number;
   itemCode?: string;
+  remarks?: string; // Added optional remarks field for tests
 }
 
 export interface BillingRecord {
