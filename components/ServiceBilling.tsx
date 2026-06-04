@@ -582,9 +582,6 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         
         setCurrentBill(newBill);
         
-        // Success feedback
-        alert('प्रत्यक्ष बिल सुरक्षित गरियो।');
-        
         // Reset forms
         setBillingItems([]);
         setDiscount('');

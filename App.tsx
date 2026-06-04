@@ -215,7 +215,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     
     // If 'All' is selected, we need to fetch data from all managed organizations
     const isAllOrgs = activeOrgName === 'All';
@@ -227,7 +227,7 @@ const App: React.FC = () => {
         const orgDataMap = new Map<string, any[]>();
         
         targetOrgs.forEach(orgName => {
-            const safeName = orgName.trim().replace(/[.#$[\]]/g, "_");
+            const safeName = sanitizeOrgName(orgName);
             const listenerRef = ref(db, `orgData/${safeName}/${subPath}`);
             const unsub = onValue(listenerRef, (snap) => {
                 const data = snap.val();
@@ -253,7 +253,7 @@ const App: React.FC = () => {
     // For settings, we just take the first organization's settings if 'All' is selected, 
     // or we could aggregate them if needed. For now, take the first one.
     const settingsOrg = isAllOrgs ? targetOrgs[0] : activeOrgName;
-    const safeSettingsOrg = settingsOrg.trim().replace(/[.#$[\]]/g, "_");
+    const safeSettingsOrg = sanitizeOrgName(settingsOrg);
 
     onValue(ref(db, `orgData/${safeSettingsOrg}/settings`), (snap) => {
         if (snap.exists()) setGeneralSettings(snap.val());
@@ -362,8 +362,12 @@ const App: React.FC = () => {
     localStorage.removeItem('smart_inv_active_item');
   };
 
+  const sanitizeOrgName = (name: string) => {
+    return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
+  };
+
   const getOrgRef = (subPath: string) => {
-      const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_") || "unknown";
+      const safeOrgName = sanitizeOrgName(activeOrgName);
       return ref(db, `orgData/${safeOrgName}/${subPath}`);
   };
 
