@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Database, Download, Upload, HardDrive, FileText, ShoppingCart, Archive, FileUp, CheckCircle2, Info, Trash2, Lock, FileOutput, RotateCcw, Wrench, Scroll, ClipboardList, Send, Warehouse, Layers, ShieldCheck, Table as TableIcon, AlertTriangle, Loader2, X } from 'lucide-react';
-import { User } from '../types/coreTypes'; // Changed import
+import { Database, Download, Upload, HardDrive, FileText, ShoppingCart, Archive, FileUp, CheckCircle2, Info, Trash2, Lock, FileOutput, RotateCcw, Wrench, Scroll, ClipboardList, Send, Warehouse, Layers, ShieldCheck, Table as TableIcon, AlertTriangle, Loader2, X, Banknote } from 'lucide-react';
+import { User, BillingRecord } from '../types/coreTypes'; // Changed import
 import { InventoryItem, MagFormEntry, PurchaseOrderEntry, IssueReportEntry, FirmEntry, Store, DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry } from '../types/inventoryTypes'; // Changed import
 import { RabiesPatient, TBPatient } from '../types/healthTypes'; // Changed import
 import { Select } from './Select';
@@ -14,6 +14,7 @@ interface DatabaseManagementProps {
   issueReports: IssueReportEntry[];
   rabiesPatients: RabiesPatient[];
   tbPatients: TBPatient[]; // Added TB Patients prop
+  billingRecords: BillingRecord[];
   firms: FirmEntry[];
   stores: Store[];
   dakhilaReports: DakhilaPratibedanEntry[];
@@ -73,6 +74,7 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
   issueReports,
   rabiesPatients,
   tbPatients, // Destructure TB Patients
+  billingRecords,
   firms,
   stores,
   dakhilaReports,
@@ -262,7 +264,8 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
     { id: 'firms', title: 'फर्महरू', data: firms, icon: <ClipboardList size={24} className="text-green-600" />, desc: 'सूचीकृत फर्महरूको विवरण', color: 'bg-green-50 border-green-200' },
     { id: 'stores', title: 'स्टोरहरू', data: stores, icon: <HardDrive size={24} className="text-indigo-600" />, desc: 'विभिन्न स्टोरहरूको विवरण', color: 'bg-indigo-50 border-indigo-200' },
     { id: 'rabiesPatients', title: 'रेबिज बिरामीहरू', data: rabiesPatients, icon: <ClipboardList size={24} className="text-purple-600" />, desc: 'रेबिज खोप बिरामीहरूको विवरण', color: 'bg-purple-50 border-purple-200' },
-    { id: 'tbPatients', title: 'क्षयरोग बिरामीहरू', data: tbPatients, icon: <ClipboardList size={24} className="text-teal-600" />, desc: 'क्षयरोग / कुष्ठरोग बिरामीहरूको विवरण', color: 'bg-teal-50 border-teal-200' }
+    { id: 'tbPatients', title: 'क्षयरोग बिरामीहरू', data: tbPatients, icon: <ClipboardList size={24} className="text-teal-600" />, desc: 'क्षयरोग / कुष्ठरोग बिरामीहरूको विवरण', color: 'bg-teal-50 border-teal-200' },
+    { id: 'billingRecords', title: 'बिलिङ रेकर्डहरू', data: billingRecords, icon: <Banknote size={24} className="text-emerald-600" />, desc: 'प्रत्यक्ष र नियमित बिलिङ रेकर्डहरू', color: 'bg-emerald-50 border-emerald-200' }
   ];
 
   const storeOptions = stores.map(s => ({ id: s.id, value: s.id, label: s.name }));

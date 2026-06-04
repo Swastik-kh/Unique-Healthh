@@ -252,7 +252,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     }
 
     const item: BillingItem = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
       serviceName: newItem.serviceName,
       price: price,
       quantity: quantity,
@@ -559,14 +559,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
       setIsSaving(true);
       try {
+        const recordId = `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         const newBill: BillingRecord = {
-          id: Date.now().toString(),
+          id: recordId,
           fiscalYear: currentFiscalYear,
           billDate: directMiti || new NepaliDate().format('YYYY-MM-DD'),
           invoiceNumber: directBillNo,
           serviceSeekerId: directPatientSn || `DIR-${Date.now().toString().slice(-6)}`,
           patientName: directPatientName,
-          items: billingItems,
+          items: [...billingItems], // Ensure it's a clone
           subTotal: subTotal,
           discount: discountAmount,
           grandTotal: grandTotal,
@@ -576,8 +577,13 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           isDirectBilling: true,
         };
 
+        // Explicitly wait for persistence
         await onSaveRecord(newBill);
+        
         setCurrentBill(newBill);
+        
+        // Success feedback
+        alert('प्रत्यक्ष बिल सुरक्षित गरियो।');
         
         // Reset forms
         setBillingItems([]);
@@ -624,14 +630,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       // Generate Invoice Number (Simple logic for now, ideally should be sequential from DB)
       const invoiceNumber = `INV-${currentFiscalYear}-${Date.now().toString().slice(-6)}`;
 
+      const recordId = `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
       const newBill: BillingRecord = {
-        id: Date.now().toString(),
+        id: recordId,
         fiscalYear: currentFiscalYear,
         billDate: new NepaliDate().format('YYYY-MM-DD'),
         invoiceNumber: invoiceNumber,
         serviceSeekerId: currentPatient.id,
         patientName: currentPatient.name,
-        items: billingItems,
+        items: [...billingItems],
         subTotal: subTotal,
         discount: discountAmount,
         grandTotal: grandTotal,
