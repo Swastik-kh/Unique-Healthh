@@ -1371,6 +1371,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                           billingRecords={billingRecords} 
                                           currentFiscalYear={currentFiscalYear} 
                                           generalSettings={generalSettings} 
+                                          currentUser={currentUser}
+                                          users={users}
                                         />;
       case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;

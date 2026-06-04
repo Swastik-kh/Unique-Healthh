@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark } from 'lucide-react';
-import { BillingRecord, OrganizationSettings } from '../types';
+import { BillingRecord, OrganizationSettings, User } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { LogoDisplay } from './LogoDisplay';
 
 interface LabBillingReportProps {
   billingRecords: BillingRecord[];
   currentFiscalYear: string;
   generalSettings: OrganizationSettings;
+  currentUser?: User | null;
+  users?: User[];
 }
 
 const NEPALI_MONTH_OPTIONS = [
@@ -35,6 +38,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   billingRecords = [],
   currentFiscalYear,
   generalSettings,
+  currentUser,
+  users = [],
 }) => {
   // Determine current Nepali state
   const curNepaliDate = useMemo(() => {
@@ -44,6 +49,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       return null;
     }
   }, []);
+
+  const preparerName = currentUser?.fullName || currentUser?.username || '-';
+  const preparerDesignation = currentUser?.designation || '-';
+
+  const adminUser = useMemo(() => {
+    if (!users || users.length === 0) return null;
+    // Find admin for current organization first
+    const orgAdmin = users.find(u => (u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') && u.organizationName === currentUser?.organizationName);
+    if (orgAdmin) return orgAdmin;
+
+    // Fallback to any ADMIN
+    return users.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || null;
+  }, [users, currentUser]);
+
+  const approverName = adminUser?.fullName || adminUser?.username || 'प्रशासक (Administrator)';
+  const approverDesignation = adminUser?.designation || 'कार्यालय प्रमुख';
 
   const defaultMonth = useMemo(() => {
     if (curNepaliDate) {
@@ -57,13 +78,27 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
+  const [selectedService, setSelectedService] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
+
+  // Compute unique services/tests from all billing records
+  const uniqueServices = useMemo(() => {
+    const servicesSet = new Set<string>();
+    billingRecords.forEach((record) => {
+      record.items?.forEach((item) => {
+        if (item.serviceName) {
+          servicesSet.add(item.serviceName.trim());
+        }
+      });
+    });
+    return Array.from(servicesSet).sort((a, b) => a.localeCompare(b));
+  }, [billingRecords]);
   
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    return `आ.व. ${selectedFiscalYear} ${monthName} म. को बाकि महिनाको आय विवरण`;
+    return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको आय विवरण`;
   }, [selectedFiscalYear, selectedMonth]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
@@ -72,7 +107,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Sync custom title suggestion when month or fiscal year changes
   React.useEffect(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} म. को बाकि महिनाको आय विवरण`);
+    setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको आय विवरण`);
   }, [selectedFiscalYear, selectedMonth]);
 
   // Translate numeric helper
@@ -141,12 +176,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         }
       }
 
+      // 5. Individual Service/Test filter match
+      if (selectedService !== 'All') {
+        const hasService = record.items?.some(i => i.serviceName?.trim() === selectedService.trim());
+        if (!hasService) return false;
+      }
+
       return true;
     }).sort((a,b) => {
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery]);
+  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedService]);
 
   // Totals calculations
   const totalAmountSum = useMemo(() => {
@@ -234,7 +275,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       </div>
 
       {/* Filter panel - Hide on print */}
-      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end print:hidden">
+      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end print:hidden">
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">आर्थिक वर्ष (Fiscal Year)</label>
           <div className="relative">
@@ -287,7 +328,26 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        <div className="md:col-span-1 lg:col-span-2">
+        <div>
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">विशेष सेवा/टेस्ट (Specific Service/Test)</label>
+          <div className="relative">
+            <select
+              value={selectedService}
+              onChange={(e) => setSelectedService(e.target.value)}
+              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+            >
+              <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
+              {uniqueServices.map((srv) => (
+                <option key={srv} value={srv}>
+                  {srv}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+          </div>
+        </div>
+
+        <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">सेवाग्राही वा बिल खोजी (Search Name/Bill)</label>
           <div className="relative">
             <input
@@ -301,14 +361,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        <div className="md:col-span-4 lg:col-span-5 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
+        <div className="sm:col-span-2 md:col-span-3 lg:col-span-5 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
           <label className="block text-xs font-bold text-slate-600">रिपोर्टको मुख्य शीर्षक शब्द परिवर्तन वा संशोधन (Report Form Custom Headline Wordings)</label>
           <input
             type="text"
             value={reportTitleCustom}
             onChange={(e) => setReportTitleCustom(e.target.value)}
             className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl outline-none font-medium focus:ring-2 focus:ring-emerald-500"
-            placeholder="उदा: आ.व. ०८२।८३ चैत्र म. को बाकि महिनाको आय विवरण"
+            placeholder="उदा: आ.व. ०८२।८३ चैत्र महिनाको आय विवरण"
           />
         </div>
       </div>
@@ -338,19 +398,41 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       {/* Printable Sheet */}
       <div className="bg-white p-6 md:p-12 border border-slate-200 rounded-3xl shadow-xs print:shadow-none print:border-none print:p-0">
         
-        {/* Government Style Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-base font-bold font-nepali tracking-wide leading-tight">
-            {generalSettings?.orgNameNepali || 'चौदण्डीगढी नगरपालिका'}
-          </h3>
-          <p className="text-sm font-bold font-nepali leading-tight mt-0.5">
-            {generalSettings?.subTitleNepali || 'नगरकार्यपालिकाको कार्यालय'}
-          </p>
-          <p className="text-base font-bold font-nepali tracking-wide mt-1 text-slate-900 border-b-2 border-slate-900 pb-1.5 max-w-sm mx-auto">
-            {generalSettings?.subTitleNepali2 || 'स्वास्थ्य चौकी हडिया'}
-          </p>
+        {/* Government Style Header with Logo */}
+        <div className="relative flex flex-col items-center mb-6 border-b-2 border-slate-950 pb-4">
+          <div className="w-full grid grid-cols-[100px_1fr_100px] items-center gap-4">
+            {/* Left side: Logo */}
+            <div className="flex justify-start">
+              <LogoDisplay settings={generalSettings} width={75} height={75} />
+            </div>
+
+            {/* Center: Headings 1, 2, 3, 4 */}
+            <div className="text-center space-y-0.5">
+              <h1 className="text-lg font-bold font-nepali tracking-wide leading-tight text-slate-950">
+                {generalSettings?.orgNameNepali || 'चौदण्डीगढी नगरपालिका'}
+              </h1>
+              {generalSettings?.subTitleNepali && (
+                <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                  {generalSettings.subTitleNepali}
+                </p>
+              )}
+              {generalSettings?.subTitleNepali2 && (
+                <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                  {generalSettings.subTitleNepali2}
+                </p>
+              )}
+              {generalSettings?.subTitleNepali3 && (
+                <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                  {generalSettings.subTitleNepali3}
+                </p>
+              )}
+            </div>
+
+            {/* Right side spacer to keep center balanced */}
+            <div className="w-[100px]"></div>
+          </div>
           
-          <h2 className="text-lg font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
+          <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
             ल्याब सेवा
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
@@ -446,16 +528,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </table>
         </div>
 
-        {/* Print Signatures - only visible when printed */}
-        <div className="hidden print:flex justify-between items-center mt-20 pt-10 text-sm">
-          <div className="text-center w-48">
-            <span className="block border-t border-dashed border-slate-900 pt-1 font-bold">तयार गर्ने</span>
+        {/* Signatures */}
+        <div className="flex justify-between items-end mt-20 pt-10 text-xs md:text-sm">
+          {/* Tayar Garne (Left) */}
+          <div className="text-center w-64 pb-2 border-t-2 border-slate-900 pt-3">
+            <p className="font-bold text-slate-900 font-nepali text-sm">{preparerName}</p>
+            <p className="text-xs text-slate-600 font-nepali mt-0.5">{preparerDesignation}</p>
+            <p className="text-xs font-bold font-nepali text-slate-800 mt-2">तयार गर्ने</p>
+            <p className="text-[10px] text-slate-500 mt-1">मिति: {useNepaliNumerals && curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : (curNepaliDate?.format('YYYY-MM-DD') || '-')}</p>
           </div>
-          <div className="text-center w-48">
-            <span className="block border-t border-dashed border-slate-900 pt-1 font-bold">जाँच्ने</span>
-          </div>
-          <div className="text-center w-48">
-            <span className="block border-t border-dashed border-slate-900 pt-1 font-bold">स्वीकृत गर्ने</span>
+
+          {/* Pramanit Garne (Right) */}
+          <div className="text-center w-64 pb-2 border-t-2 border-slate-900 pt-3">
+            <p className="font-bold text-slate-900 font-nepali text-sm">{approverName}</p>
+            <p className="text-xs text-slate-600 font-nepali mt-0.5">{approverDesignation}</p>
+            <p className="text-xs font-bold font-nepali text-slate-800 mt-2">प्रमाणित गर्ने / स्वीकृत गर्ने</p>
+            <p className="text-[10px] text-slate-500 mt-1">मिति: {useNepaliNumerals && curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : (curNepaliDate?.format('YYYY-MM-DD') || '-')}</p>
           </div>
         </div>
 
