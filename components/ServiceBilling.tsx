@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X } from 'lucide-react';
 import { ServiceSeekerRecord, OPDRecord, BillingRecord, BillingItem, ServiceItem, CBIMNCIRecord, EmergencyRecord } from '../types/coreTypes';
 import { Input } from './Input';
+import { NepaliDatePicker } from './NepaliDatePicker';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
@@ -572,6 +573,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           paymentMode: paymentMode,
           createdBy: currentUser?.username || 'Unknown',
           remarks: directRemarks || undefined,
+          isDirectBilling: true,
         };
 
         await onSaveRecord(newBill);
@@ -774,12 +776,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">मिति (Date - BS) *</label>
-                    <input
-                      type="text"
+                    <NepaliDatePicker
                       value={directMiti}
-                      onChange={(e) => setDirectMiti(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white font-bold focus:ring-2 focus:ring-emerald-500"
-                      placeholder="YYYY-MM-DD"
+                      onChange={setDirectMiti}
+                      label=""
                       required
                     />
                   </div>

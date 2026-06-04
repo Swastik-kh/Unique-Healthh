@@ -72,6 +72,7 @@ import { ECGSewa } from './ECGSewa';
 import { USGSewa } from './USGSewa';
 import { PhysiotherapySewa } from './PhysiotherapySewa';
 import { TBDSTReport } from './TBDSTReport';
+import { LabBillingReport } from './LabBillingReport';
 import { FamilyPlanningReport } from './FamilyPlanningReport';
 import { GESIReport } from './GESIReport';
 import { GESIOPDReport } from './GESIOPDReport';
@@ -588,6 +589,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'report_mch', label: 'MCH रिपोर्ट', icon: <Baby size={16} /> },
         { id: 'report_tb_dst', label: 'TBDST रिपोर्ट', icon: <FileText size={16} /> },
         { id: 'report_inventory_monthly', label: 'जिन्सी मासिक रिपोर्ट', icon: <FileText size={16} /> },
+        { id: 'report_lab_billing', label: 'ल्याब बिलिङ रिपोर्ट', icon: <FileText size={16} /> },
         { 
           id: 'report_dhis', 
           label: 'DHIS रिपोर्ट',
@@ -1365,6 +1367,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                               stockEntryRequests={stockEntryRequests} 
                                               stores={stores} 
                                             />;
+      case 'report_lab_billing': return <LabBillingReport 
+                                          billingRecords={billingRecords} 
+                                          currentFiscalYear={currentFiscalYear} 
+                                          generalSettings={generalSettings} 
+                                        />;
       case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
