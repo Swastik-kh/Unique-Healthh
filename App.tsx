@@ -503,7 +503,8 @@ const App: React.FC = () => {
   const handleSaveOPDRecord = async (record: OPDRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`opdRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`opdRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("OPD रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -521,7 +522,8 @@ const App: React.FC = () => {
   const handleSaveDispensaryRecord = async (record: DispensaryRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`dispensaryRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`dispensaryRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("डिस्पेन्सरी रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -539,7 +541,8 @@ const App: React.FC = () => {
   const handleSaveEmergencyRecord = async (record: EmergencyRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`emergencyRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`emergencyRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("Emergency रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -557,7 +560,8 @@ const App: React.FC = () => {
   const handleSaveCBIMNCIRecord = async (record: CBIMNCIRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`cbimnciRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`cbimnciRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("CBIMNCI रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -575,7 +579,8 @@ const App: React.FC = () => {
   const handleSaveBillingRecord = async (record: BillingRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`billingRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`billingRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("बिलिङ रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -593,7 +598,8 @@ const App: React.FC = () => {
   const handleSaveServiceItem = async (item: ServiceItem) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`serviceItems/${item.id}`), item);
+      const sanitized = JSON.parse(JSON.stringify(item));
+      await set(getOrgRef(`serviceItems/${item.id}`), sanitized);
     } catch (error) {
       alert("सेवा सुरक्षित गर्न सकिएन।");
     }
@@ -611,7 +617,8 @@ const App: React.FC = () => {
   const handleSaveLabReport = async (record: LabReport) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`labReports/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`labReports/${record.id}`), sanitized);
     } catch (error) {
       alert("ल्याब रिपोर्ट सुरक्षित गर्न सकिएन।");
     }
@@ -629,7 +636,8 @@ const App: React.FC = () => {
   const handleSavePariwarSewaRecord = async (record: PariwarSewaRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`pariwarSewaRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`pariwarSewaRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("परिवार नियोजन रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -647,7 +655,8 @@ const App: React.FC = () => {
   const handleSaveXRayRecord = async (record: XRayRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`xrayRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`xrayRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("एक्स-रे रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -665,7 +674,8 @@ const App: React.FC = () => {
   const handleSaveECGRecord = async (record: ECGRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`ecgRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`ecgRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("ई.सी.जी. रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -683,7 +693,8 @@ const App: React.FC = () => {
   const handleSaveUSGRecord = async (record: USGRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`usgRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`usgRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("यु.एस.जी. रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -701,7 +712,8 @@ const App: React.FC = () => {
   const handleSavePhysiotherapyRecord = async (record: PhysiotherapyRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`physiotherapyRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`physiotherapyRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("फिजियोथेरापी रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -719,7 +731,8 @@ const App: React.FC = () => {
   const handleSaveIPDRecord = async (record: IPDRecord) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`ipdRecords/${record.id}`), record);
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`ipdRecords/${record.id}`), sanitized);
     } catch (error) {
       alert("IPD रेकर्ड सुरक्षित गर्न सकिएन।");
     }
