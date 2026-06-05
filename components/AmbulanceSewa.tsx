@@ -1,34 +1,55 @@
 import React, { useState, useMemo } from 'react';
-import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info } from 'lucide-react';
+import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord } from '../types';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
+  expenseRecords?: AmbulanceExpenseRecord[];
   serviceSeekerRecords: ServiceSeekerRecord[];
   currentUser?: User | null;
   onSave: (record: AmbulanceRecord) => void;
   onDelete: (id: string) => void;
+  onSaveExpense?: (record: AmbulanceExpenseRecord) => void;
+  onDeleteExpense?: (id: string) => void;
   currentFiscalYear: string;
   generalSettings?: OrganizationSettings;
 }
 
 export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   records = [],
+  expenseRecords = [],
   serviceSeekerRecords = [],
   currentUser,
   onSave,
   onDelete,
+  onSaveExpense,
+  onDeleteExpense,
   currentFiscalYear,
   generalSettings
 }) => {
+  const [activeTab, setActiveTab] = useState<'trips' | 'expenses'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [patientSearchInput, setPatientSearchInput] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  
+  // Expense related states
+  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
+  const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
+  const [expenseFormData, setExpenseFormData] = useState<Partial<AmbulanceExpenseRecord>>({
+    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+    expenseCategory: 'fuel',
+    amount: 0,
+    billNo: '',
+    paidTo: '',
+    driverName: generalSettings?.ambulanceDriverName || '',
+    remarks: ''
+  });
 
   const [formData, setFormData] = useState<Partial<AmbulanceRecord>>({
     dateBs: new NepaliDate().format('YYYY-MM-DD'),
@@ -123,6 +144,55 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsFormOpen(true);
   };
 
+  const handleExpenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expenseFormData.amount || Number(expenseFormData.amount) <= 0) {
+      alert('कृपया मान्य रकम प्रविष्ट गर्नुहोस्');
+      return;
+    }
+
+    const expRecord: AmbulanceExpenseRecord = {
+      id: editingExpense?.id || `AMB-EXP-${Date.now()}`,
+      fiscalYear: currentFiscalYear,
+      dateBs: expenseFormData.dateBs || new NepaliDate().format('YYYY-MM-DD'),
+      expenseCategory: expenseFormData.expenseCategory || 'fuel',
+      amount: Number(expenseFormData.amount) || 0,
+      billNo: expenseFormData.billNo || '',
+      paidTo: expenseFormData.paidTo || '',
+      driverName: expenseFormData.driverName || '',
+      remarks: expenseFormData.remarks || ''
+    };
+
+    if (onSaveExpense) {
+      onSaveExpense(expRecord);
+    }
+    setIsExpenseFormOpen(false);
+    setEditingExpense(null);
+    setExpenseFormData({
+      dateBs: new NepaliDate().format('YYYY-MM-DD'),
+      expenseCategory: 'fuel',
+      amount: 0,
+      billNo: '',
+      paidTo: '',
+      driverName: generalSettings?.ambulanceDriverName || '',
+      remarks: ''
+    });
+  };
+
+  const handleExpenseEdit = (record: AmbulanceExpenseRecord) => {
+    setEditingExpense(record);
+    setExpenseFormData(record);
+    setIsExpenseFormOpen(true);
+  };
+
+  const filteredExpenseRecords = (expenseRecords || []).filter(e => 
+    (e.expenseCategory && e.expenseCategory.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
+    (e.driverName && e.driverName.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
+    (e.paidTo && e.paidTo.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
+    (e.billNo && e.billNo.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
+    (e.remarks && e.remarks.toLowerCase().includes(expenseSearchTerm.toLowerCase()))
+  );
+
   const filteredRecords = records.filter(r => 
     r.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (r.ambulanceNo && r.ambulanceNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -148,43 +218,98 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 font-nepali flex items-center gap-2">
               <Truck className="text-rose-600 size-7" />
               एम्बुलेन्स सेवा (Ambulance Service)
             </h2>
-            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण तथा बिलिङ रेकर्ड</p>
+            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकर्ड</p>
           </div>
-          <button
-            onClick={() => {
-              setEditingRecord(null);
-              setPatientSearchInput('');
-              setFormData({
-                dateBs: new NepaliDate().format('YYYY-MM-DD'),
-                patientName: '',
-                age: '',
-                address: '',
-                phone: '',
-                driverName: generalSettings?.ambulanceDriverName || '',
-                ambulanceNo: generalSettings?.ambulanceNo || '',
-                startLocation: '',
-                destination: '',
-                distanceKm: undefined,
-                amountCharged: 0,
-                receivedAmount: 0,
-                remarks: ''
-              });
-              setIsFormOpen(true);
-            }}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-600 text-white px-4 py-2.5 rounded-xl hover:bg-rose-700 transition-all shadow-sm font-medium hover:scale-[1.02]"
-          >
-            <Plus size={20} />
-            <span className="font-nepali text-sm">नयाँ रेकर्ड थप्नुहोस्न्</span>
-          </button>
         </div>
 
-        {isFormOpen && (
+        {/* Tab Switcher & Dynamic Adding Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-150 shadow-sm">
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab('trips')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'trips'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Truck size={15} />
+              <span>यात्रा विवरण (Travel logs)</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('expenses')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'expenses'
+                  ? 'bg-emerald-600 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Receipt size={15} />
+              <span>खर्च विवरण (Expenses)</span>
+            </button>
+          </div>
+
+          <div>
+            {activeTab === 'trips' ? (
+              <button
+                onClick={() => {
+                  setEditingRecord(null);
+                  setPatientSearchInput('');
+                  setFormData({
+                    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+                    patientName: '',
+                    age: '',
+                    address: '',
+                    phone: '',
+                    driverName: generalSettings?.ambulanceDriverName || '',
+                    ambulanceNo: generalSettings?.ambulanceNo || '',
+                    startLocation: '',
+                    destination: '',
+                    distanceKm: undefined,
+                    amountCharged: 0,
+                    receivedAmount: 0,
+                    remarks: ''
+                  });
+                  setIsFormOpen(true);
+                  setIsExpenseFormOpen(false);
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-rose-600 text-white px-4 py-2.5 rounded-xl hover:bg-rose-700 transition-all shadow-sm font-bold text-xs hover:scale-[1.02]"
+              >
+                <Plus size={16} />
+                <span className="font-nepali">यात्रा रेकर्ड थप्नुहोस् (Add Trip)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingExpense(null);
+                  setExpenseFormData({
+                    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+                    expenseCategory: 'fuel',
+                    amount: 0,
+                    billNo: '',
+                    paidTo: '',
+                    driverName: generalSettings?.ambulanceDriverName || '',
+                    remarks: ''
+                  });
+                  setIsExpenseFormOpen(true);
+                  setIsFormOpen(false);
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-700 transition-all shadow-sm font-bold text-xs hover:scale-[1.02]"
+              >
+                <Plus size={16} />
+                <span className="font-nepali">खर्च रेकर्ड थप्नुहोस् (Add Expense)</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {activeTab === 'trips' && isFormOpen && (
           <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 ring-4 ring-slate-50">
             <h3 className="text-lg font-bold text-slate-800 mb-4 font-nepali border-b pb-3 border-slate-100">
               {editingRecord ? 'रेकर्ड परिमार्जन गर्नुहोस्' : 'नयाँ एम्बुलेन्स यात्रा विबरण प्रविष्टि'}
@@ -464,136 +589,423 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
           </div>
         )}
 
-        {/* Filters and List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
-              <FileText className="text-slate-500 size-5" />
-              यात्रा विबरण सूची (Travel Logs List)
+        {activeTab === 'expenses' && isExpenseFormOpen && (
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 ring-4 ring-slate-50">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 font-nepali border-b pb-3 border-slate-100">
+              {editingExpense ? 'एम्बुलेन्स खर्च विवरण परिमार्जन गर्नुहोस्' : 'नयाँ एम्बुलेन्स खर्च रेकर्ड प्रविष्टि'}
             </h3>
-            <div className="relative max-w-sm w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="खोज्नुहोस् (नाम, एम्बुलेन्स नं, चालक वा गन्तव्य...)"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all"
-              />
+            <form onSubmit={handleExpenseSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                
+                {/* Expense Date */}
+                <div className="space-y-1.5 flex flex-col justify-end">
+                  <NepaliDatePicker
+                    label="मिति (B.S.) *"
+                    required
+                    value={expenseFormData.dateBs || ''}
+                    onChange={(val) => setExpenseFormData(prev => ({ ...prev, dateBs: val }))}
+                  />
+                </div>
+
+                {/* Expense Category */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">खर्च वर्ग (Expense Category) *</label>
+                  <select
+                    required
+                    value={expenseFormData.expenseCategory || 'fuel'}
+                    onChange={e => setExpenseFormData({...expenseFormData, expenseCategory: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-bold text-slate-700"
+                  >
+                    <option value="fuel">इन्धन (Fuel)</option>
+                    <option value="maintenance">मर्मत संभार (Maintenance)</option>
+                    <option value="driver_allowance">चालक भत्ता (Driver Allowance)</option>
+                    <option value="other">अन्य (Other)</option>
+                  </select>
+                </div>
+
+                {/* Amount */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">कूल खर्च रकम रु. (Amount) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="जस्तै: 1000"
+                    value={expenseFormData.amount || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, amount: Number(e.target.value)})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-mono font-bold text-emerald-600"
+                  />
+                </div>
+
+                {/* Bill No. */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">बील नम्बर (Bill No.)</label>
+                  <input
+                    type="text"
+                    placeholder="बील नम्बर प्रविष्ट गर्नुहोस्"
+                    value={expenseFormData.billNo || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, billNo: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold"
+                  />
+                </div>
+
+                {/* Paid To */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">भुक्तानी प्राप्त गर्ने (Paid To)</label>
+                  <input
+                    type="text"
+                    placeholder="जस्तै: एबीसी फ्यूल सेन्टर"
+                    value={expenseFormData.paidTo || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, paidTo: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm"
+                  />
+                </div>
+
+                {/* Driver Name */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">चालकको नाम (Driver Name)</label>
+                  <input
+                    type="text"
+                    placeholder="चालकको नाम"
+                    value={expenseFormData.driverName || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, driverName: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold"
+                  />
+                </div>
+
+                {/* Remarks/Notes */}
+                <div className="space-y-1.5 lg:col-span-3">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">कैफियत / विवरण (Remarks / Notes)</label>
+                  <input
+                    type="text"
+                    placeholder="खर्च सम्बन्धी केही विशेष भए यहाँ उल्लेख गर्नुहोस्..."
+                    value={expenseFormData.remarks || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, remarks: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Expense Submit Buttons */}
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpenseFormOpen(false);
+                    setEditingExpense(null);
+                  }}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all text-sm font-semibold"
+                >
+                  रद्द गर्नुहोस् (Cancel)
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold text-white rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
+                >
+                  {editingExpense ? 'सुरक्षित गर्नुहोस् (Update)' : 'खर्च रेकर्ड राख्नुहोस् (Save Expense)'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Stats Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
+              <p className="text-lg font-extrabold text-rose-950 mt-1 font-mono">
+                रु. {records.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-rose-600 shadow-sm">
+              <Truck size={18} />
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[1000px] w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-100">
-                  <th className="p-4 font-nepali">मिति (Date)</th>
-                  <th className="p-4 font-nepali">बिरामीको नाम (Patient Name)</th>
-                  <th className="p-4 font-nepali">चालक र सवारी (Driver/Vehicle)</th>
-                  <th className="p-4 font-nepali">प्रस्थान-गन्तव्य (From - To)</th>
-                  <th className="p-4 font-nepali">दुरी (Dist.)</th>
-                  <th className="p-4 font-nepali text-right">कूल शुल्क</th>
-                  <th className="p-4 font-nepali text-right">प्राप्त रकम</th>
-                  <th className="p-4 font-nepali text-center">कैफियत / स्थिति</th>
-                  <th className="p-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="p-8 text-center text-slate-400">
-                      <div className="max-w-[300px] mx-auto flex flex-col items-center gap-3">
-                        <AlertCircle className="text-slate-300 size-10" />
-                        <p className="text-sm font-semibold">कुनै पनि एम्बुलेन्स यात्रा विवरण फेला परेन।</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecords.map(record => {
-                    const due = (record.amountCharged || 0) - (record.receivedAmount || 0);
-                    const isFullyPaid = due <= 0;
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 rounded-2xl border border-emerald-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-emerald-800">कुल प्राप्त भएको (Received)</p>
+              <p className="text-lg font-extrabold text-emerald-950 mt-1 font-mono">
+                रु. {records.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
+              <Receipt size={18} />
+            </div>
+          </div>
 
-                    return (
-                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-600 font-semibold">{record.dateBs}</td>
-                        <td className="p-4">
-                          <p className="font-bold text-slate-800 text-sm">{record.patientName}</p>
-                          <p className="text-xs text-slate-400">
-                            {[record.age && `उमेर: ${record.age}`, record.phone && `फोन: ${record.phone}`].filter(Boolean).join(' • ')}
-                          </p>
-                        </td>
-                        <td className="p-4">
-                          <p className="font-semibold text-slate-700 text-sm">{record.driverName}</p>
-                          <p className="text-xs bg-slate-100 text-slate-600 font-bold font-mono px-1.5 py-0.5 rounded w-max">{record.ambulanceNo}</p>
-                        </td>
-                        <td className="p-4 text-sm">
-                          <div className="flex items-center gap-2 text-slate-600">
-                            <span className="font-bold text-rose-600">{record.startLocation}</span>
-                            <span>➔</span>
-                            <span className="font-bold text-emerald-600">{record.destination}</span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-sm font-mono text-slate-600 font-bold whitespace-nowrap">
-                          {record.distanceKm ? `${record.distanceKm} KM` : '-'}
-                        </td>
-                        <td className="p-4 text-sm font-mono font-bold text-slate-700 text-right whitespace-nowrap">
-                          रु. {record.amountCharged?.toFixed(2)}
-                        </td>
-                        <td className="p-4 text-sm font-mono font-bold text-emerald-600 text-right whitespace-nowrap">
-                          रु. {record.receivedAmount?.toFixed(2)}
-                        </td>
-                        <td className="p-4 text-center whitespace-nowrap">
-                          <div className="flex flex-col items-center gap-1.5">
-                            {isFullyPaid ? (
-                              <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-100">Paid</span>
-                            ) : (
-                              <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-100">Due: रु. {due.toFixed(2)}</span>
-                            )}
-                            {record.remarks && (
-                              <p className="text-[11px] text-slate-500 italic max-w-[150px] truncate" title={record.remarks}>{record.remarks}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => handleEdit(record)}
-                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-all"
-                              title="सम्पादन गर्नुहोस्"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            {canDelete ? (
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('के तपाईं निश्चित रूपमा यो एम्बुलेन्स यात्रा विवरण हटाउन चाहनुहुन्छ?')) {
-                                    onDelete(record.id);
-                                  }
-                                }}
-                                className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all"
-                                title="मेटाउनुहोस्"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            ) : (
-                              <button
-                                disabled
-                                className="p-1.5 text-slate-200 cursor-not-allowed"
-                                title="हटाउने अधिकार छैन"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 rounded-2xl border border-amber-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-amber-800">बाँकी बक्यौता (Total Due)</p>
+              <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">
+                रु. {(records.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - records.reduce((sum, r) => sum + (r.receivedAmount || 0), 0)).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm">
+              <AlertCircle size={18} />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4 rounded-2xl border border-indigo-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-indigo-800">कूल एम्बुलेन्स खर्च (Total Expense)</p>
+              <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">
+                रु. {(expenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
+              <Receipt size={18} />
+            </div>
           </div>
         </div>
+
+        {/* Tab Specific Content lists */}
+        {activeTab === 'trips' ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                <FileText className="text-slate-500 size-5" />
+                यात्रा विबरण सूची (Travel Logs List)
+              </h3>
+              <div className="relative max-w-sm w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="खोज्नुहोस् (नाम, एम्बुलेन्स नं, चालक वा गन्तव्य...)"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-100">
+                    <th className="p-4 font-nepali">मिति (Date)</th>
+                    <th className="p-4 font-nepali">बिरामीको नाम (Patient Name)</th>
+                    <th className="p-4 font-nepali">चालक र सवारी (Driver/Vehicle)</th>
+                    <th className="p-4 font-nepali">प्रस्थान-गन्तव्य (From - To)</th>
+                    <th className="p-4 font-nepali">दुरी (Dist.)</th>
+                    <th className="p-4 font-nepali text-right">कूल शुल्क</th>
+                    <th className="p-4 font-nepali text-right">प्राप्त रकम</th>
+                    <th className="p-4 font-nepali text-center">कैफियत / स्थिति</th>
+                    <th className="p-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-slate-400">
+                        <div className="max-w-[300px] mx-auto flex flex-col items-center gap-3">
+                          <AlertCircle className="text-slate-300 size-10" />
+                          <p className="text-sm font-semibold">कुनै पनि एम्बुलेन्स यात्रा विवरण फेला परेन।</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRecords.map(record => {
+                      const due = (record.amountCharged || 0) - (record.receivedAmount || 0);
+                      const isFullyPaid = due <= 0;
+
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-600 font-semibold">{record.dateBs}</td>
+                          <td className="p-4">
+                            <p className="font-bold text-slate-800 text-sm">{record.patientName}</p>
+                            <p className="text-xs text-slate-400">
+                              {[record.age && `उमेर: ${record.age}`, record.phone && `फोन: ${record.phone}`].filter(Boolean).join(' • ')}
+                            </p>
+                          </td>
+                          <td className="p-4">
+                            <p className="font-semibold text-slate-700 text-sm">{record.driverName}</p>
+                            <p className="text-xs bg-slate-100 text-slate-600 font-bold font-mono px-1.5 py-0.5 rounded w-max">{record.ambulanceNo}</p>
+                          </td>
+                          <td className="p-4 text-sm">
+                            <div className="flex items-center gap-2 text-slate-600">
+                              <span className="font-bold text-rose-600">{record.startLocation}</span>
+                              <span>➔</span>
+                              <span className="font-bold text-emerald-600">{record.destination}</span>
+                            </div>
+                          </td>
+                          <td className="p-4 text-sm font-mono text-slate-600 font-bold whitespace-nowrap">
+                            {record.distanceKm ? `${record.distanceKm} KM` : '-'}
+                          </td>
+                          <td className="p-4 text-sm font-mono font-bold text-slate-700 text-right whitespace-nowrap">
+                            रु. {record.amountCharged?.toFixed(2)}
+                          </td>
+                          <td className="p-4 text-sm font-mono font-bold text-emerald-600 text-right whitespace-nowrap">
+                            रु. {record.receivedAmount?.toFixed(2)}
+                          </td>
+                          <td className="p-4 text-center whitespace-nowrap">
+                            <div className="flex flex-col items-center gap-1.5">
+                              {isFullyPaid ? (
+                                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-100">Paid</span>
+                              ) : (
+                                <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-100">Due: रु. {due.toFixed(2)}</span>
+                              )}
+                              {record.remarks && (
+                                <p className="text-[11px] text-slate-500 italic max-w-[150px] truncate" title={record.remarks}>{record.remarks}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleEdit(record)}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-all"
+                                title="सम्पादन गर्नुहोस्"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              {canDelete ? (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('के तपाईं निश्चित रूपमा यो एम्बुलेन्स यात्रा विवरण हटाउन चाहनुहुन्छ?')) {
+                                      onDelete(record.id);
+                                    }
+                                  }}
+                                  className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all"
+                                  title="मेटाउनुहोस्"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="p-1.5 text-slate-200 cursor-not-allowed"
+                                  title="हटाउने अधिकार छैन"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                <Receipt className="text-slate-500 size-5" />
+                एम्बुलेन्स खर्च सूची (Ambulance Expenditure List)
+              </h3>
+              <div className="relative max-w-sm w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="खर्च खोज्नुहोस् (विवरण, चालक, बील नम्बर...)"
+                  value={expenseSearchTerm}
+                  onChange={e => setExpenseSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-100">
+                    <th className="p-4 font-nepali">मिति (Date)</th>
+                    <th className="p-4 font-nepali">खर्च वर्ग (Category)</th>
+                    <th className="p-4 font-nepali text-right">रकम (Amount)</th>
+                    <th className="p-4 font-nepali">बील नम्बर (Bill No.)</th>
+                    <th className="p-4 font-nepali">प्राप्त गर्ने (Paid To)</th>
+                    <th className="p-4 font-nepali">चालकको नाम (Driver)</th>
+                    <th className="p-4 font-nepali">कैफियत (Remarks)</th>
+                    <th className="p-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredExpenseRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400">
+                        <div className="max-w-[300px] mx-auto flex flex-col items-center gap-3">
+                          <AlertCircle className="text-slate-300 size-10" />
+                          <p className="text-sm font-semibold">कुनै पनि खर्च रेकर्ड फेला परेन।</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredExpenseRecords.map(record => {
+                      const getCategoryLabel = (cat: string) => {
+                        switch (cat) {
+                          case 'fuel': return 'इन्धन (Fuel)';
+                          case 'maintenance': return 'मर्मत संभार (Maintenance)';
+                          case 'driver_allowance': return 'चालक भत्ता (Driver Allowance)';
+                          default: return 'अन्य (Other)';
+                        }
+                      };
+
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-600 font-semibold">{record.dateBs}</td>
+                          <td className="p-4">
+                            <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${
+                              record.expenseCategory === 'fuel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              record.expenseCategory === 'maintenance' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                              record.expenseCategory === 'driver_allowance' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                              'bg-slate-50 text-slate-700 border border-slate-150'
+                            }`}>
+                              {getCategoryLabel(record.expenseCategory)}
+                            </span>
+                          </td>
+                          <td className="p-4 text-sm font-mono font-bold text-red-650 text-right whitespace-nowrap">
+                            रु. {record.amount?.toFixed(2)}
+                          </td>
+                          <td className="p-4 text-sm font-mono font-bold text-slate-600">{record.billNo || '-'}</td>
+                          <td className="p-4 text-sm font-semibold text-slate-800">{record.paidTo || '-'}</td>
+                          <td className="p-4 text-sm text-slate-700 font-semibold">{record.driverName || '-'}</td>
+                          <td className="p-4 text-sm text-slate-500 italic max-w-[200px] truncate" title={record.remarks}>{record.remarks || '-'}</td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleExpenseEdit(record)}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-all"
+                                title="सम्पादन गर्नुहोस्"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              {canDelete ? (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('के तपाईं निश्चित रूपमा यो एम्बुलेन्स खर्च हटाउन चाहनुहुन्छ?')) {
+                                      if (onDeleteExpense) onDeleteExpense(record.id);
+                                    }
+                                  }}
+                                  className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all"
+                                  title="मेटाउनुहोस्"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="p-1.5 text-slate-200 cursor-not-allowed"
+                                  title="हटाउने अधिकार छैन"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

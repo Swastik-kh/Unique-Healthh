@@ -277,3 +277,16 @@ export interface AmbulanceRecord {
   remarks?: string;
 }
 
+export interface AmbulanceExpenseRecord {
+  id: string;
+  fiscalYear: string;
+  dateBs: string;
+  expenseCategory: string; // fuel, maintenance, driver_allowance, other
+  amount: number;
+  billNo?: string;
+  paidTo?: string;
+  driverName?: string;
+  remarks?: string;
+}
+
+

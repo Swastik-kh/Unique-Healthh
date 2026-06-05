@@ -14,7 +14,7 @@ import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
-import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord } from '../types';
+import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
@@ -137,6 +137,9 @@ interface ExtendedDashboardProps extends DashboardProps {
   ambulanceRecords: AmbulanceRecord[];
   onSaveAmbulanceRecord: (record: AmbulanceRecord) => void;
   onDeleteAmbulanceRecord: (id: string) => void;
+  ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
+  onSaveAmbulanceExpense?: (record: AmbulanceExpenseRecord) => void;
+  onDeleteAmbulanceExpense?: (id: string) => void;
   ipdRecords: IPDRecord[];
   onSaveIPDRecord: (record: IPDRecord) => void;
   onDeleteIPDRecord: (id: string) => void;
@@ -219,6 +222,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   usgRecords = [], onSaveUSGRecord, onDeleteUSGRecord,
   physiotherapyRecords = [], onSavePhysiotherapyRecord, onDeletePhysiotherapyRecord,
   ambulanceRecords = [], onSaveAmbulanceRecord, onDeleteAmbulanceRecord,
+  ambulanceExpenseRecords = [], onSaveAmbulanceExpense = () => {}, onDeleteAmbulanceExpense = () => {},
   ipdRecords = [], onSaveIPDRecord, onDeleteIPDRecord, onDeleteAllIPDRecords,
   interFacilityRequests = [], onAddInterFacilityRequest, onUpdateInterFacilityRequest,
   onUpdateReadNotifications,
@@ -1361,10 +1365,13 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                     />;
       case 'ambulance_sewa': return <AmbulanceSewa 
                                       records={ambulanceRecords}
+                                      expenseRecords={ambulanceExpenseRecords}
                                       serviceSeekerRecords={serviceSeekerRecords}
                                       currentUser={currentUser}
                                       onSave={onSaveAmbulanceRecord}
                                       onDelete={onDeleteAmbulanceRecord}
+                                      onSaveExpense={onSaveAmbulanceExpense}
+                                      onDeleteExpense={onDeleteAmbulanceExpense}
                                       currentFiscalYear={currentFiscalYear}
                                       generalSettings={generalSettings}
                                     />;
