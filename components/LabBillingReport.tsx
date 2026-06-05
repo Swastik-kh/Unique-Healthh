@@ -150,10 +150,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     };
   }, [serviceItems, billingRecords]);
 
-  // Dynamic price calculation depending on the selected test or sub-test
-  const getRecordAmountForSelectedService = (record: BillingRecord): number => {
+  // Helper to get the gross amount for selected service in a record (before flat discount)
+  const getRecordGrossAmountForSelectedService = (record: BillingRecord): number => {
     if (selectedService === 'All') {
-      return record.grandTotal || 0;
+      return record.subTotal || 0;
     }
 
     const selServiceLower = selectedService.toLowerCase().trim();
@@ -193,6 +193,30 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     });
 
     return totalAmt;
+  };
+
+  // Helper to get the pro-rated discount for a selected service
+  const getRecordDiscountForSelectedService = (record: BillingRecord): number => {
+    const totalDiscount = record.discount || 0;
+    if (totalDiscount <= 0) return 0;
+    
+    // Pro-rate the discount based on the gross portion of the selected service
+    const grossPortion = getRecordGrossAmountForSelectedService(record);
+    const billSubTotal = record.subTotal || 1;
+    
+    return (grossPortion / billSubTotal) * totalDiscount;
+  };
+
+  // Dynamic price calculation depending on the selected test or sub-test (Net amount)
+  const getRecordAmountForSelectedService = (record: BillingRecord): number => {
+    if (selectedService === 'All') {
+      return record.grandTotal || 0;
+    }
+    
+    const grossAmt = getRecordGrossAmountForSelectedService(record);
+    const discountPortion = getRecordDiscountForSelectedService(record);
+    
+    return grossAmt - discountPortion;
   };
   
   // Custom wording for header
@@ -334,8 +358,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
       const amt = getRecordAmountForSelectedService(r).toString();
       const baseR = r.remarks || '';
-      const dVal = r.discount || 0;
-      const dNote = dVal > 0 ? `रु. ${dVal} छुट` : '';
+      const dVal = getRecordDiscountForSelectedService(r);
+      const dNote = dVal > 0 ? `रु. ${dVal.toFixed(2)} छुट` : '';
       const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
       
       return [serial, patient, billNo, date, services, amt, remarks];
@@ -619,9 +643,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   const priceTotal = getRecordAmountForSelectedService(record);
                   const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
                   const baseRemarks = record.remarks || '';
-                  const discountVal = record.discount || 0;
+                  const discountVal = getRecordDiscountForSelectedService(record);
                   const discountNote = discountVal > 0 
-                    ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toString()) : discountVal} छुट` 
+                    ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2)} छुट` 
                     : '';
                   const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
 
