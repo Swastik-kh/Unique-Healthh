@@ -116,16 +116,6 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
         let maxSeq = 0;
         directInMonth.forEach(r => {
-          const inv = r.invoiceNumber || '';
-          const lastParts = inv.split('-');
-          const lastPart = lastParts[lastParts.length - 1];
-          if (lastPart) {
-            const num = parseInt(lastPart, 10);
-            if (!isNaN(num) && num > maxSeq) {
-              maxSeq = num;
-            }
-          }
-          
           const snVal = parseInt(r.serviceSeekerId || '', 10);
           if (!isNaN(snVal) && snVal > maxSeq) {
             maxSeq = snVal;
@@ -134,12 +124,28 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
         const nextSeq = maxSeq + 1;
         setDirectPatientSn(nextSeq.toString());
-        setDirectBillNo(`DB-${year}-${month}-${nextSeq.toString().padStart(4, '0')}`);
+
+        // Continuous global sequence for Bill No across months to avoid duplicates and keep it continuous
+        const allDbRecords = billingRecords.filter(r => r.isDirectBilling || r.invoiceNumber?.startsWith('DB-'));
+        let maxGlobalSeq = 0;
+        allDbRecords.forEach(r => {
+          const inv = r.invoiceNumber || '';
+          const lastParts = inv.split('-');
+          const lastPart = lastParts[lastParts.length - 1];
+          if (lastPart) {
+            const num = parseInt(lastPart, 10);
+            if (!isNaN(num) && num < 100000 && num > maxGlobalSeq) {
+              maxGlobalSeq = num;
+            }
+          }
+        });
+        const nextGlobalSeq = maxGlobalSeq + 1;
+        setDirectBillNo(`DB-${currentFiscalYear.replace('/', '')}-${nextGlobalSeq.toString().padStart(4, '0')}`);
       }
     } else if (!isDirectBilling && prevIsDirect) {
       setPrevIsDirect(false);
     }
-  }, [isDirectBilling, directMiti, billingRecords, prevMiti, prevIsDirect]);
+  }, [isDirectBilling, directMiti, billingRecords, prevMiti, prevIsDirect, currentFiscalYear]);
 
   const handleStartDirectBilling = () => {
     setIsDirectBilling(true);
@@ -758,13 +764,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             {!isDirectBilling ? (
               <button 
                 type="button" 
-                onClick={() => {
-                  setIsDirectBilling(true);
-                  setCurrentPatient(null);
-                  setBillingItems([]);
-                  // Set random direct bill number
-                  setDirectBillNo('DB-' + Date.now().toString().slice(-6));
-                }}
+                onClick={handleStartDirectBilling}
                 className="bg-emerald-600 border border-transparent text-white px-6 py-3 rounded-lg hover:bg-emerald-700 font-medium shadow-sm font-nepali flex items-center gap-1"
               >
                 <Plus size={18} /> प्रत्यक्ष बिलिङ (Direct Billing)
