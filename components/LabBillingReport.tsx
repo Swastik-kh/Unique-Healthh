@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark } from 'lucide-react';
-import { BillingRecord, OrganizationSettings, User, ServiceItem } from '../types';
+import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -8,6 +8,7 @@ import { LogoDisplay } from './LogoDisplay';
 
 interface LabBillingReportProps {
   billingRecords: BillingRecord[];
+  ambulanceRecords?: AmbulanceRecord[];
   currentFiscalYear: string;
   generalSettings: OrganizationSettings;
   currentUser?: User | null;
@@ -37,6 +38,7 @@ const NEPALI_MONTH_NAMES = [
 
 export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   billingRecords = [],
+  ambulanceRecords = [],
   currentFiscalYear,
   generalSettings,
   currentUser,
@@ -77,6 +79,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   }, [curNepaliDate]);
 
   // Filters state
+  const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance'>('Sewa');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
@@ -148,7 +151,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       mainServices: sortedMain, 
       individualAndSubServices: sortedIndividual 
     };
-  }, [serviceItems, billingRecords]);
+  }, [serviceItems, serviceItems]);
 
   // Helper to get the gross amount for selected service in a record (before flat discount)
   const getRecordGrossAmountForSelectedService = (record: BillingRecord): number => {
@@ -222,17 +225,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको आय विवरण`;
-  }, [selectedFiscalYear, selectedMonth]);
+    const sourceLabel = reportSource === 'Sewa' ? 'सेवा बिलिङ' : 'एम्बुलेन्स सेवा';
+    return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${sourceLabel} आय विवरण`;
+  }, [selectedFiscalYear, selectedMonth, reportSource]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
 
-  // Sync custom title suggestion when month or fiscal year changes
+  // Sync custom title suggestion when month, fiscal year or reportSource changes
   React.useEffect(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको आय विवरण`);
-  }, [selectedFiscalYear, selectedMonth]);
+    const sourceLabel = reportSource === 'Sewa' ? 'सेवा बिलिङ' : 'एम्बुलेन्स सेवा';
+    setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${sourceLabel} आय विवरण`);
+  }, [selectedFiscalYear, selectedMonth, reportSource]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
@@ -336,44 +341,123 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     });
   }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedService, testSubRelations]);
 
+  // Filtered Ambulance Records
+  const filteredAmbulanceRecords = useMemo(() => {
+    return (ambulanceRecords || []).filter((record) => {
+      // 1. Fiscal Year Match
+      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
+      if (!fyMatch) return false;
+
+      // 2. Month Match
+      const dateStr = record.dateBs || '';
+      const dateParts = dateStr.split(/[-/]/);
+      if (dateParts.length < 2) return false;
+      const recordMonth = dateParts[1];
+      
+      const targetMonthParsed = parseInt(selectedMonth);
+      const recordMonthParsed = parseInt(recordMonth);
+      if (targetMonthParsed !== recordMonthParsed) return false;
+
+      // 3. Search Query Match
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        const pName = record.patientName?.toLowerCase() || '';
+        const drName = record.driverName?.toLowerCase() || '';
+        const ambNo = record.ambulanceNo?.toLowerCase() || '';
+        const dest = record.destination?.toLowerCase() || '';
+        const start = record.startLocation?.toLowerCase() || '';
+        if (!pName.includes(query) && !drName.includes(query) && !ambNo.includes(query) && !dest.includes(query) && !start.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      return (a.dateBs || '').localeCompare(b.dateBs || '');
+    });
+  }, [ambulanceRecords, selectedFiscalYear, selectedMonth, searchQuery]);
+
   // Totals calculations
   const totalAmountSum = useMemo(() => {
-    return filteredRecords.reduce((sum, r) => sum + getRecordAmountForSelectedService(r), 0);
-  }, [filteredRecords, selectedService, serviceItems, testSubRelations]);
+    if (reportSource === 'Sewa') {
+      return filteredRecords.reduce((sum, r) => sum + getRecordAmountForSelectedService(r), 0);
+    } else {
+      return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0);
+    }
+  }, [reportSource, filteredRecords, filteredAmbulanceRecords, selectedService, serviceItems, testSubRelations]);
+
+  const totalAmbulanceChargedSum = useMemo(() => {
+    return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
+  }, [filteredAmbulanceRecords]);
 
   // Export to CSV function
   const handleExportCSV = () => {
-    if (filteredRecords.length === 0) {
-      alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
-      return;
-    }
+    if (reportSource === 'Sewa') {
+      if (filteredRecords.length === 0) {
+        alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+        return;
+      }
 
-    const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "रकम (Amount)", "कैफियत (Remarks)"];
-    
-    const rows = filteredRecords.map((r, idx) => {
-      const serial = (idx + 1).toString();
-      const patient = r.patientName || '-';
-      const billNo = r.invoiceNumber || '-';
-      const date = r.billDate || '-';
-      const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
-      const amt = getRecordAmountForSelectedService(r).toString();
-      const baseR = r.remarks || '';
-      const dVal = getRecordDiscountForSelectedService(r);
-      const dNote = dVal > 0 ? `रु. ${dVal.toFixed(2)} छुट` : '';
-      const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
+      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "रकम (Amount)", "कैफियत (Remarks)"];
       
-      return [serial, patient, billNo, date, services, amt, remarks];
-    });
+      const rows = filteredRecords.map((r, idx) => {
+        const serial = (idx + 1).toString();
+        const patient = r.patientName || '-';
+        const billNo = r.invoiceNumber || '-';
+        const date = r.billDate || '-';
+        const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
+        const amt = getRecordAmountForSelectedService(r).toString();
+        const baseR = r.remarks || '';
+        const dVal = getRecordDiscountForSelectedService(r);
+        const dNote = dVal > 0 ? `रु. ${dVal.toFixed(2)} छुट` : '';
+        const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
+        
+        return [serial, patient, billNo, date, services, amt, remarks];
+      });
 
-    const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Lab_Billing_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Service_Billing_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      if (filteredAmbulanceRecords.length === 0) {
+        alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+        return;
+      }
+
+      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
+      
+      const rows = filteredAmbulanceRecords.map((r, idx) => {
+        const serial = (idx + 1).toString();
+        const patient = r.patientName || '-';
+        const ambNo = r.ambulanceNo || '-';
+        const driver = r.driverName || '-';
+        const date = r.dateBs || '-';
+        const fromLoc = r.startLocation || '-';
+        const toLoc = r.destination || '-';
+        const dist = r.distanceKm ? r.distanceKm.toString() : '-';
+        const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
+        const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
+        const remarks = r.remarks || '-';
+        
+        return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarks];
+      });
+
+      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Ambulance_Sewa_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -425,7 +509,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       </div>
 
       {/* Filter panel - Hide on print */}
-      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end print:hidden">
+      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end print:hidden">
+        <div>
+          <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-700 text-white px-2 py-0.5 rounded-sm">रिपोर्ट प्रकार (Report Type)</label>
+          <div className="relative">
+            <select
+              value={reportSource}
+              onChange={(e) => setReportSource(e.target.value as any)}
+              className="w-full text-xs p-2.5 bg-white border-2 border-emerald-500 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-emerald-800"
+            >
+              <option value="Sewa">सेवा बिलिङ (Sewa Billing)</option>
+              <option value="Ambulance">एम्बुलेन्स सेवा (Ambulance Sewa)</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">आर्थिक वर्ष (Fiscal Year)</label>
           <div className="relative">
@@ -462,69 +561,73 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">बिलिङ वर्ग (Billing Category)</label>
-          <div className="relative">
-            <select
-              value={billingType}
-              onChange={(e) => setBillingType(e.target.value as any)}
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="All">सबै बिलिङहरू (All Bills)</option>
-              <option value="Direct">प्रत्यक्ष मात्र (Direct Billing Only)</option>
-              <option value="Regular">नियमित सेवा मात्र (Regular Booking Only)</option>
-            </select>
-            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
-          </div>
-        </div>
+        {reportSource === 'Sewa' ? (
+          <>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">बिलिङ वर्ग (Billing Category)</label>
+              <div className="relative">
+                <select
+                  value={billingType}
+                  onChange={(e) => setBillingType(e.target.value as any)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  <option value="All">सबै बिलिङहरू (All Bills)</option>
+                  <option value="Direct">प्रत्यक्ष मात्र (Direct Billing Only)</option>
+                  <option value="Regular">नियमित सेवा मात्र (Regular Booking Only)</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">विशेष सेवा/टेस्ट (Specific Service/Test)</label>
-          <div className="relative">
-            <select
-              value={selectedService}
-              onChange={(e) => setSelectedService(e.target.value)}
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
-            >
-              <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
-              {testSubRelations.mainServices.length > 0 && (
-                <optgroup label="मुख्य टेस्ट प्याकेज/समूह (Main Test Packages)">
-                  {testSubRelations.mainServices.map((srv) => (
-                    <option key={`main-${srv}`} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {testSubRelations.individualAndSubServices.length > 0 && (
-                <optgroup label="व्यक्तिगत टेस्ट / उप-परीक्षण (Individual & Subtests)">
-                  {testSubRelations.individualAndSubServices.map((srv) => (
-                    <option key={`indiv-${srv}`} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">विशेष सेवा/टेस्ट (Specific Service/Test)</label>
+              <div className="relative">
+                <select
+                  value={selectedService}
+                  onChange={(e) => setSelectedService(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
+                  {testSubRelations.mainServices.length > 0 && (
+                    <optgroup label="मुख्य टेस्ट प्याकेज/समूह (Main Test Packages)">
+                      {testSubRelations.mainServices.map((srv) => (
+                        <option key={`main-${srv}`} value={srv}>
+                          {srv}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {testSubRelations.individualAndSubServices.length > 0 && (
+                    <optgroup label="व्यक्तिगत टेस्ट / उप-परीक्षण (Individual & Subtests)">
+                      {testSubRelations.individualAndSubServices.map((srv) => (
+                        <option key={`indiv-${srv}`} value={srv}>
+                          {srv}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
+          </>
+        ) : null}
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">सेवाग्राही वा बिल खोजी (Search Name/Bill)</label>
+        <div className={reportSource === 'Sewa' ? 'col-span-1' : 'sm:col-span-2'}>
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">खोज्नुहोस् (Search Name/Details)</label>
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="नाम, विल नम्बर वा टेस्ट खोजी गर्नुहोस्"
+              placeholder={reportSource === 'Sewa' ? "नाम, विल नम्बर वा टेस्ट" : "नाम, चालक, नम्बर वा गन्तव्य"}
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none pl-9"
             />
             <Search className="absolute left-2.5 top-3.5 text-slate-400" size={14} />
           </div>
         </div>
 
-        <div className="sm:col-span-2 md:col-span-3 lg:col-span-5 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-6 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
           <label className="block text-xs font-bold text-slate-600">रिपोर्टको मुख्य शीर्षक शब्द परिवर्तन वा संशोधन (Report Form Custom Headline Wordings)</label>
           <input
             type="text"
@@ -539,23 +642,38 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       {/* Stats Summary Panel - Hide on print */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
         <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">जम्मा बिल संख्या (Total Invoices)</p>
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+            {reportSource === 'Sewa' ? 'जम्मा बिल संख्या (Total Invoices)' : 'जम्मा यात्रा संख्या (Total Trips)'}
+          </p>
           <p className="text-2xl font-black mt-1 text-slate-800">
-            {formatNumberValue(filteredRecords.length)}
+            {formatNumberValue(reportSource === 'Sewa' ? filteredRecords.length : filteredAmbulanceRecords.length)}
           </p>
         </div>
+
         <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">जम्मा संकलित रकम (Total Collected Amount)</p>
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+            {reportSource === 'Sewa' ? 'जम्मा संकलित रकम (Total Collected)' : 'प्राप्त रकम (Total Received Amount)'}
+          </p>
           <p className="text-2xl font-black mt-1 text-emerald-600">
             रु. {formatNumberValue(totalAmountSum.toFixed(2))}
           </p>
         </div>
-        <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">बिल श्रेणी (Category Filters)</p>
-          <p className="text-lg font-bold mt-1 text-slate-700">
-            {billingType === 'All' ? 'सबै ल्याब बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
-          </p>
-        </div>
+
+        {reportSource === 'Sewa' ? (
+          <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">बिल श्रेणी (Category Filters)</p>
+            <p className="text-lg font-bold mt-1 text-slate-700">
+              {billingType === 'All' ? 'सबै ल्याब बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">कुल चार्ज्ड रकम (Total Charged Amount)</p>
+            <p className="text-2xl font-black mt-1 text-amber-600">
+              रु. {formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Printable Sheet */}
@@ -596,7 +714,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
           
           <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
-            ल्याब सेवा
+            {reportSource === 'Sewa' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : 'एम्बुलेन्स सेवा'}
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
             {activeReportTitle}
@@ -605,95 +723,190 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
         {/* Report Spreadsheet Table */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
-                  सि.न.
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
-                  सेवाग्राहीको नामथर
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-24">
-                  विल नं.
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
-                  मिति
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
-                  सेवाहरूको विवरण
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-28">
-                  रकम
-                </th>
-                <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-28">
-                  कैफियत
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((record, index) => {
-                  const sNoStr = formatNumberValue(index + 1);
-                  const clientName = record.patientName || '-';
-                  const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
-                  const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
-                  const displayDate = formatRawDateToNepaliUi(record.billDate);
-                  const servicesList = selectedService !== 'All' ? selectedService : (record.items?.map((item) => item.serviceName).join(', ') || '-');
-                  const priceTotal = getRecordAmountForSelectedService(record);
-                  const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
-                  const baseRemarks = record.remarks || '';
-                  const discountVal = getRecordDiscountForSelectedService(record);
-                  const discountNote = discountVal > 0 
-                    ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2)} छुट` 
-                    : '';
-                  const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
-
-                  return (
-                    <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
-                      <td className="border border-slate-950 p-2 text-center font-bold">
-                        {sNoStr}
-                      </td>
-                      <td className="border border-slate-950 p-2 font-medium">
-                        {clientName}
-                      </td>
-                      <td className="border border-slate-950 p-2 text-center font-mono font-medium">
-                        {displayBillNo}
-                      </td>
-                      <td className="border border-slate-950 p-2 text-center font-medium">
-                        {displayDate}
-                      </td>
-                      <td className="border border-slate-950 p-2 font-medium">
-                        {servicesList}
-                      </td>
-                      <td className="border border-slate-950 p-2 text-right font-bold font-mono">
-                        {formattedPrice}
-                      </td>
-                      <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
-                        {clientRemarks}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={7} className="border border-slate-950 p-10 text-center text-slate-400 italic">
-                    चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।
-                  </td>
+          {reportSource === 'Sewa' ? (
+            <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
+                    सि.न.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
+                    सेवाग्राहीको नामथर
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-24">
+                    विल नं.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    मिति
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    सेवाहरूको विवरण
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-28">
+                    रकम
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-28">
+                    कैफियत
+                  </th>
                 </tr>
-              )}
-              {/* Grand Total Row */}
-              <tr className="bg-slate-50 font-bold">
-                <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
-                  कुल जम्मा रकम (Grand Total):
-                </td>
-                <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
-                  {formatNumberValue(totalAmountSum.toFixed(2))}
-                </td>
-                <td className="border-2 border-slate-950 p-2.5"></td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredRecords.length > 0 ? (
+                  filteredRecords.map((record, index) => {
+                    const sNoStr = formatNumberValue(index + 1);
+                    const clientName = record.patientName || '-';
+                    const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
+                    const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
+                    const displayDate = formatRawDateToNepaliUi(record.billDate);
+                    const servicesList = selectedService !== 'All' ? selectedService : (record.items?.map((item) => item.serviceName).join(', ') || '-');
+                    const priceTotal = getRecordAmountForSelectedService(record);
+                    const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
+                    const baseRemarks = record.remarks || '';
+                    const discountVal = getRecordDiscountForSelectedService(record);
+                    const discountNote = discountVal > 0 
+                      ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2)} छुट` 
+                      : '';
+                    const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
+
+                    return (
+                      <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                        <td className="border border-slate-950 p-2 text-center font-bold">
+                          {sNoStr}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {clientName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-mono font-medium">
+                          {displayBillNo}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {displayDate}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {servicesList}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedPrice}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
+                          {clientRemarks}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                      चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।
+                    </td>
+                  </tr>
+                )}
+                {/* Grand Total Row */}
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                    कुल जम्मा रकम (Grand Total):
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmountSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
+                    सि.न.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
+                    सेवाग्राहीको नामथर
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">
+                    एम्बुलेन्स नं / चालक
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    मिति
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    यात्रा विवरण (From ➔ To)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">
+                    कूल शुल्क
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">
+                    प्राप्त रकम
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
+                    कैफियत
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAmbulanceRecords.length > 0 ? (
+                  filteredAmbulanceRecords.map((record, index) => {
+                    const sNoStr = formatNumberValue(index + 1);
+                    const clientName = record.patientName || '-';
+                    const driverDetail = `${record.ambulanceNo || '-'} / ${record.driverName || '-'}`;
+                    const displayDate = formatRawDateToNepaliUi(record.dateBs);
+                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)`;
+                    const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
+                    const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
+                    const clientRemarks = record.remarks || '-';
+
+                    return (
+                      <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                        <td className="border border-slate-950 p-2 text-center font-bold">
+                          {sNoStr}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {clientName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {driverDetail}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {displayDate}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium text-xs">
+                          {travelDetail}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedCharged}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedReceived}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
+                          {clientRemarks}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।
+                    </td>
+                  </tr>
+                )}
+                {/* Grand Total Row */}
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                    कुल जम्मा रकम (Grand Total):
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmountSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
+                </tr>
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Signatures */}

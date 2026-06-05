@@ -1383,6 +1383,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                             />;
       case 'report_lab_billing': return <LabBillingReport 
                                           billingRecords={billingRecords} 
+                                          ambulanceRecords={ambulanceRecords}
                                           currentFiscalYear={currentFiscalYear} 
                                           generalSettings={generalSettings} 
                                           currentUser={currentUser}
