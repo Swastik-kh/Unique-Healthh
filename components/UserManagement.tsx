@@ -52,6 +52,7 @@ const PERMISSION_STRUCTURE = [
             { id: 'ecg_sewa', label: 'ई.सी.जी. सेवा (ECG Service)' },
             { id: 'usg_sewa', label: 'यु.एस.जी. सेवा (USG Service)' },
             { id: 'phisiotherapy', label: 'फिजियोथेरापी सेवा (Physiotherapy)' },
+            { id: 'ambulance_sewa', label: 'एम्बुलेन्स सेवा (Ambulance Service)' },
             { 
                 id: 'administration', 
                 label: 'प्रशासन (Administration)',
@@ -122,7 +123,7 @@ const PERMISSION_STRUCTURE = [
             { id: 'report_mch', label: 'MCH रिपोर्ट (MCH Report)' },
             { id: 'report_tb_dst', label: 'TBDST रिपोर्ट (TBDST Report)' },
             { id: 'report_inventory_monthly', label: 'जिन्सी मासिक प्रतिवेदन (Monthly Report)' },
-            { id: 'report_lab_billing', label: 'ल्याब बिलिङ रिपोर्ट (Lab Billing Report)' },
+            { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट (Billing Report)' },
             { 
                 id: 'report_dhis', 
                 label: 'DHIS रिपोर्ट (DHIS Report)',

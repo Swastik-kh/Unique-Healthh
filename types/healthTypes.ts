@@ -257,3 +257,23 @@ export interface PhysiotherapyRecord {
   isViewedByDoctor?: boolean;
   remarks?: string;
 }
+
+export interface AmbulanceRecord {
+  id: string;
+  fiscalYear: string;
+  dateBs: string;
+  serviceSeekerId?: string;
+  patientName: string;
+  age?: string;
+  address?: string;
+  phone?: string;
+  driverName: string;
+  ambulanceNo: string;
+  startLocation: string;
+  destination: string;
+  distanceKm?: number;
+  amountCharged: number;
+  receivedAmount: number;
+  remarks?: string;
+}
+

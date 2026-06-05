@@ -383,10 +383,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Landmark className="text-emerald-600" size={24} />
-            ल्याब बिलिङ रिपोर्ट (Lab Billing Report)
+            बिलिङ रिपोर्ट (Billing Report)
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            प्रत्यक्ष र नियमित प्रयोगशाला बिलहरूको मासिक तथा वार्षिक आय विवरण रिपोर्ट।
+            प्रत्यक्ष र नियमित बिलहरूको मासिक तथा वार्षिक आय विवरण रिपोर्ट।
           </p>
         </div>
         

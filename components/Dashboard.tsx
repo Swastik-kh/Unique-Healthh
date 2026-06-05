@@ -7,14 +7,14 @@ import {
   BookOpen, Book, Archive, RotateCcw, Wrench, Scroll, BarChart3,
   Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
   Eye, ShieldAlert, ChevronLeft, Send, MapPin, Search, HeartHandshake,
-  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare
+  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck
 } from 'lucide-react';
 import { APP_NAME, FISCAL_YEARS } from '../constants';
 import { db } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
-import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest } from '../types';
+import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
@@ -81,6 +81,7 @@ import { MCHReport } from './MCHReport';
 import { MedicineStatusReport } from './MedicineStatusReport';
 import { DHISReport } from './DHISReport';
 import { VitaminAProgram } from './VitaminAProgram';
+import { AmbulanceSewa } from './AmbulanceSewa';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -133,6 +134,9 @@ interface ExtendedDashboardProps extends DashboardProps {
   physiotherapyRecords: PhysiotherapyRecord[];
   onSavePhysiotherapyRecord: (record: PhysiotherapyRecord) => void;
   onDeletePhysiotherapyRecord: (id: string) => void;
+  ambulanceRecords: AmbulanceRecord[];
+  onSaveAmbulanceRecord: (record: AmbulanceRecord) => void;
+  onDeleteAmbulanceRecord: (id: string) => void;
   ipdRecords: IPDRecord[];
   onSaveIPDRecord: (record: IPDRecord) => void;
   onDeleteIPDRecord: (id: string) => void;
@@ -214,6 +218,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   ecgRecords = [], onSaveECGRecord, onDeleteECGRecord,
   usgRecords = [], onSaveUSGRecord, onDeleteUSGRecord,
   physiotherapyRecords = [], onSavePhysiotherapyRecord, onDeletePhysiotherapyRecord,
+  ambulanceRecords = [], onSaveAmbulanceRecord, onDeleteAmbulanceRecord,
   ipdRecords = [], onSaveIPDRecord, onDeleteIPDRecord, onDeleteAllIPDRecords,
   interFacilityRequests = [], onAddInterFacilityRequest, onUpdateInterFacilityRequest,
   onUpdateReadNotifications,
@@ -509,6 +514,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'ecg_sewa', label: 'ई.सी.जी. सेवा', icon: <Activity size={16} /> },
         { id: 'usg_sewa', label: 'यु.एस.जी. सेवा', icon: <Waves size={16} /> },
         { id: 'phisiotherapy', label: 'फिजियोथेरापी सेवा', icon: <Accessibility size={16} /> },
+        { id: 'ambulance_sewa', label: 'एम्बुलेन्स सेवा', icon: <Truck size={16} /> },
         { 
           id: 'administration', 
           label: 'प्रशासन', 
@@ -589,7 +595,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'report_mch', label: 'MCH रिपोर्ट', icon: <Baby size={16} /> },
         { id: 'report_tb_dst', label: 'TBDST रिपोर्ट', icon: <FileText size={16} /> },
         { id: 'report_inventory_monthly', label: 'जिन्सी मासिक रिपोर्ट', icon: <FileText size={16} /> },
-        { id: 'report_lab_billing', label: 'ल्याब बिलिङ रिपोर्ट', icon: <FileText size={16} /> },
+        { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट', icon: <FileText size={16} /> },
         { 
           id: 'report_dhis', 
           label: 'DHIS रिपोर्ट',
@@ -1351,6 +1357,14 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                       cbimnciRecords={cbimnciRecords}
                                       onSave={onSavePhysiotherapyRecord}
                                       onDelete={onDeletePhysiotherapyRecord}
+                                      currentFiscalYear={currentFiscalYear}
+                                    />;
+      case 'ambulance_sewa': return <AmbulanceSewa 
+                                      records={ambulanceRecords}
+                                      serviceSeekerRecords={serviceSeekerRecords}
+                                      currentUser={currentUser}
+                                      onSave={onSaveAmbulanceRecord}
+                                      onDelete={onDeleteAmbulanceRecord}
                                       currentFiscalYear={currentFiscalYear}
                                     />;
       case 'log_book': return <LogBook currentUser={currentUser} currentFiscalYear={currentFiscalYear} inventoryItems={inventoryItems} logBookEntries={logBookEntries} onAddLogEntry={onSaveLogBookEntry} />;

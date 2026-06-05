@@ -1080,8 +1080,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               </h3>
 
               {/* Add Item Form */}
-              <div className="grid grid-cols-12 gap-4 mb-6 items-end bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="col-span-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6 items-end bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="col-span-1 md:col-span-4">
                   <label className="block text-xs font-bold text-slate-600 mb-1">सेवाको नाम (Service Name)</label>
                   <input
                     type="text"
@@ -1120,7 +1120,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     ))}
                   </datalist>
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-2">
                   <label className="block text-xs font-bold text-slate-600 mb-1">मूल्य (Price)</label>
                   <input
                     type="number"
@@ -1130,7 +1130,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     placeholder="0.00"
                   />
                 </div>
-                <div className="col-span-1">
+                <div className="col-span-1 md:col-span-1">
                   <label className="block text-xs font-bold text-slate-600 mb-1">संख्या (Qty)</label>
                   <input
                     type="number"
@@ -1140,7 +1140,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     min="1"
                   />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-1 md:col-span-3">
                   <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत (Remarks / Test Details)</label>
                   <input
                     type="text"
@@ -1150,7 +1150,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     placeholder="कैफियत प्रविष्ट गर्नुहोस्"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-1 md:col-span-2">
                   <button 
                     onClick={handleAddItem}
                     className="w-full bg-primary-600 text-white p-2 rounded hover:bg-primary-700 text-sm flex items-center justify-center gap-1 font-nepali min-h-[38px] border border-transparent font-medium"
@@ -1161,8 +1161,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               </div>
 
               {/* Items Table */}
-              <div className="border rounded-lg overflow-hidden mb-6">
-                <table className="w-full text-sm text-left">
+              <div className="border rounded-lg overflow-hidden mb-6 overflow-x-auto">
+                <table className="min-w-[650px] md:min-w-full w-full text-sm text-left">
                   <thead className="bg-slate-100 text-slate-700 font-bold">
                     <tr>
                       <th className="p-3">S.N.</th>
@@ -1222,23 +1222,23 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div className="w-full md:w-1/2 space-y-4">
                    <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-2">भुक्तानी माध्यम (Payment Mode)</label>
-                     <div className="flex flex-wrap gap-4">
-                       <label className="flex items-center gap-2 cursor-pointer">
-                         <input type="radio" name="paymentMode" checked={paymentMode === 'Cash'} onChange={() => setPaymentMode('Cash')} />
-                         <span className="text-sm">Cash</span>
+                     <label className="block text-sm font-medium text-slate-707 mb-2 font-nepali">भुक्तानी माध्यम (Payment Mode)</label>
+                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                       <label className={`flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border text-xs font-semibold transition-all ${paymentMode === 'Cash' ? 'bg-emerald-50 border-emerald-500 text-emerald-800 ring-4 ring-emerald-500/10 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                         <input type="radio" name="paymentMode" checked={paymentMode === 'Cash'} onChange={() => setPaymentMode('Cash')} className="accent-emerald-600 size-3 px-0.5 shrink-0" />
+                         <span className="truncate">Cash</span>
                        </label>
-                       <label className="flex items-center gap-2 cursor-pointer">
-                         <input type="radio" name="paymentMode" checked={paymentMode === 'Online'} onChange={() => setPaymentMode('Online')} />
-                         <span className="text-sm">Online / QR</span>
+                       <label className={`flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border text-xs font-semibold transition-all ${paymentMode === 'Online' ? 'bg-sky-50 border-sky-500 text-sky-800 ring-4 ring-sky-500/10 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                         <input type="radio" name="paymentMode" checked={paymentMode === 'Online'} onChange={() => setPaymentMode('Online')} className="accent-sky-600 size-3 px-0.5 shrink-0" />
+                         <span className="truncate">Online/QR</span>
                        </label>
-                       <label className="flex items-center gap-2 cursor-pointer">
-                         <input type="radio" name="paymentMode" checked={paymentMode === 'Credit'} onChange={() => setPaymentMode('Credit')} />
-                         <span className="text-sm">Credit</span>
+                       <label className={`flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border text-xs font-semibold transition-all ${paymentMode === 'Credit' ? 'bg-amber-50 border-amber-500 text-amber-800 ring-4 ring-amber-500/10 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                         <input type="radio" name="paymentMode" checked={paymentMode === 'Credit'} onChange={() => setPaymentMode('Credit')} className="accent-amber-600 size-3 px-0.5 shrink-0" />
+                         <span className="truncate">Credit</span>
                        </label>
-                       <label className="flex items-center gap-2 cursor-pointer">
-                         <input type="radio" name="paymentMode" checked={paymentMode === 'Bima'} onChange={() => setPaymentMode('Bima')} />
-                         <span className="text-sm text-indigo-700 font-bold font-nepali">स्वास्थ्य बीमा (Bima)</span>
+                       <label className={`flex items-center gap-2 cursor-pointer p-2.5 rounded-xl border text-xs font-bold transition-all ${paymentMode === 'Bima' ? 'bg-indigo-50 border-indigo-500 text-indigo-800 ring-4 ring-indigo-500/10 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'}`}>
+                         <input type="radio" name="paymentMode" checked={paymentMode === 'Bima'} onChange={() => setPaymentMode('Bima')} className="accent-indigo-600 size-3 px-0.5 shrink-0" />
+                         <span className="truncate font-nepali text-indigo-700">स्वास्थ्य बीमा (Bima)</span>
                        </label>
                      </div>
                    </div>
