@@ -48,6 +48,7 @@ export interface User {
   biometricCredential?: BiometricCredential;
   hasSaveAccess?: boolean;
   canDeleteBilling?: boolean;
+  canDeleteAmbulance?: boolean;
 }
 
 export interface WardConfig {

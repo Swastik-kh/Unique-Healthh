@@ -131,7 +131,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     (r.phone && r.phone.includes(searchTerm))
   );
 
-  const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+  const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteAmbulance === true;
 
   const configuredRoutes = useMemo(() => {
     if (!generalSettings?.ambulanceRoutes) return [];

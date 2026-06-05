@@ -195,6 +195,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     serviceType: 'Permanent' | 'Temporary' | 'Contract';
     hasSaveAccess: boolean;
     canDeleteBilling: boolean;
+    canDeleteAmbulance: boolean;
     parentId?: string;
   }>({
     id: '',
@@ -209,6 +210,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     serviceType: 'Permanent',
     hasSaveAccess: true,
     canDeleteBilling: false,
+    canDeleteAmbulance: false,
     parentId: currentUser.id
   });
 
@@ -252,6 +254,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         serviceType: 'Permanent',
         hasSaveAccess: true,
         canDeleteBilling: false,
+        canDeleteAmbulance: false,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -270,6 +273,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
           canDeleteBilling: user.canDeleteBilling ?? false,
+          canDeleteAmbulance: user.canDeleteAmbulance ?? false,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -373,6 +377,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         serviceType: formData.serviceType,
         hasSaveAccess: formData.hasSaveAccess,
         canDeleteBilling: formData.canDeleteBilling,
+        canDeleteAmbulance: formData.canDeleteAmbulance,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -531,6 +536,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteBilling ? 'bg-rose-600' : 'bg-slate-300'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteBilling ? 'left-7' : 'left-1'}`}></div>
+                </button>
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-rose-600 shadow-sm">
+                        <Trash2 size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">एम्बुलेन्स रेकर्ड मेटाउने अधिकार (Ambulance Delete Access)</p>
+                        <p className="text-xs text-slate-500">यो अनुमति भएको प्रयोगकर्ताले मात्र एम्बुलेन्स सेवा रेकर्ड मेटाउन (Delete) पाउनेछन्।</p>
+                    </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, canDeleteAmbulance: !prev.canDeleteAmbulance }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteAmbulance ? 'bg-rose-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteAmbulance ? 'left-7' : 'left-1'}`}></div>
                 </button>
             </div>
 
