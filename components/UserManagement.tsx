@@ -193,6 +193,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     allowedMenus: string[];
     serviceType: 'Permanent' | 'Temporary' | 'Contract';
     hasSaveAccess: boolean;
+    canDeleteBilling: boolean;
     parentId?: string;
   }>({
     id: '',
@@ -206,6 +207,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     allowedMenus: [],
     serviceType: 'Permanent',
     hasSaveAccess: true,
+    canDeleteBilling: false,
     parentId: currentUser.id
   });
 
@@ -248,6 +250,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowedMenus: [],
         serviceType: 'Permanent',
         hasSaveAccess: true,
+        canDeleteBilling: false,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -265,6 +268,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           allowedMenus: user.allowedMenus || [],
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
+          canDeleteBilling: user.canDeleteBilling ?? false,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -367,6 +371,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowedMenus: finalMenus,
         serviceType: formData.serviceType,
         hasSaveAccess: formData.hasSaveAccess,
+        canDeleteBilling: formData.canDeleteBilling,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -506,6 +511,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   className={`w-12 h-6 rounded-full transition-all relative ${formData.hasSaveAccess ? 'bg-indigo-600' : 'bg-slate-300'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.hasSaveAccess ? 'left-7' : 'left-1'}`}></div>
+                </button>
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-rose-600 shadow-sm">
+                        <Trash2 size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">बिलिङ रेकर्ड मेटाउने अधिकार (Billing Delete Access)</p>
+                        <p className="text-xs text-slate-500">यो अनुमति भएको प्रयोगकर्ताले मात्र हालसालै काटिएको बिल रेकर्ड मेटाउन (Delete) पाउनेछन्।</p>
+                    </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, canDeleteBilling: !prev.canDeleteBilling }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteBilling ? 'bg-rose-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
             </div>
 

@@ -47,6 +47,7 @@ export interface User {
   isSubscribed?: boolean;
   biometricCredential?: BiometricCredential;
   hasSaveAccess?: boolean;
+  canDeleteBilling?: boolean;
 }
 
 export interface WardConfig {

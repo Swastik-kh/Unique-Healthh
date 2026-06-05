@@ -94,14 +94,61 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [directMiti, setDirectMiti] = useState('');
   const [directRemarks, setDirectRemarks] = useState('');
 
+  const [prevMiti, setPrevMiti] = useState('');
+  const [prevIsDirect, setPrevIsDirect] = useState(false);
+
+  React.useEffect(() => {
+    if (isDirectBilling && (directMiti !== prevMiti || isDirectBilling !== prevIsDirect)) {
+      setPrevMiti(directMiti || '');
+      setPrevIsDirect(isDirectBilling);
+
+      if (directMiti) {
+        const parts = directMiti.split('-');
+        const year = parts[0] || '2083';
+        const month = parts[1] || '01';
+
+        const directInMonth = billingRecords.filter(r => {
+          if (!r.isDirectBilling) return false;
+          const rMiti = r.billDate || '';
+          const rParts = rMiti.split('-');
+          return rParts[0] === year && rParts[1] === month;
+        });
+
+        let maxSeq = 0;
+        directInMonth.forEach(r => {
+          const inv = r.invoiceNumber || '';
+          const lastParts = inv.split('-');
+          const lastPart = lastParts[lastParts.length - 1];
+          if (lastPart) {
+            const num = parseInt(lastPart, 10);
+            if (!isNaN(num) && num > maxSeq) {
+              maxSeq = num;
+            }
+          }
+          
+          const snVal = parseInt(r.serviceSeekerId || '', 10);
+          if (!isNaN(snVal) && snVal > maxSeq) {
+            maxSeq = snVal;
+          }
+        });
+
+        const nextSeq = maxSeq + 1;
+        setDirectPatientSn(nextSeq.toString());
+        setDirectBillNo(`DB-${year}-${month}-${nextSeq.toString().padStart(4, '0')}`);
+      }
+    } else if (!isDirectBilling && prevIsDirect) {
+      setPrevIsDirect(false);
+    }
+  }, [isDirectBilling, directMiti, billingRecords, prevMiti, prevIsDirect]);
+
   const handleStartDirectBilling = () => {
     setIsDirectBilling(true);
     setCurrentPatient(null);
     setBillingItems([]);
     setDirectPatientName("");
     setDirectRemarks("");
-    setDirectPatientSn((Math.floor(100 + Math.random() * 900)).toString());
-    setDirectBillNo("DB-" + currentFiscalYear.replace('/', '') + "-" + Date.now().toString().slice(-6));
+    setPrevMiti('');
+    setPrevIsDirect(false);
     setDirectMiti(new NepaliDate().format('YYYY-MM-DD'));
     
     // Reset standard form inputs too
@@ -594,8 +641,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         // Reset direct billing fields
         setDirectPatientName('');
         setDirectRemarks('');
-        setDirectPatientSn((Math.floor(100 + Math.random() * 900)).toString());
-        setDirectBillNo("DB-" + currentFiscalYear.replace('/', '') + "-" + Date.now().toString().slice(-6));
+        setPrevMiti('');
+        setPrevIsDirect(false);
         setDirectMiti(new NepaliDate().format('YYYY-MM-DD'));
         setIsDirectBilling(false);
 
@@ -1544,13 +1591,35 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                           </td>
                           <td className="p-3 font-medium text-slate-700">{bill.patientName}</td>
                           <td className="p-3 text-right font-mono font-bold text-slate-900">Rs. {bill.grandTotal?.toFixed(2)}</td>
-                          <td className="p-3 text-center">
+                          <td className="p-3 text-center flex items-center justify-center gap-2">
                             <button
                               onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
                               className="px-3 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg text-xs font-semibold transition-all duration-150"
                             >
                               Reprint
                             </button>
+                            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteBilling === true) ? (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`के तपाईं निश्चित रूपमा बिल नम्बर ${bill.invoiceNumber} लाई हटाउन चाहनुहुन्छ? यो हटाएपछि रकम विवरणमा पनि सममिश्रण हुनेछैन।`)) {
+                                    onDeleteRecord(bill.id);
+                                  }
+                                }}
+                                className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
+                              >
+                                <Trash2 size={12} />
+                                Delete
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                title="मेटाउन अनुमति छैन (No deletion access)"
+                                className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed inline-flex items-center gap-1"
+                              >
+                                <Trash2 size={12} className="opacity-50" />
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
