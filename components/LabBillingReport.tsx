@@ -443,9 +443,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const dist = r.distanceKm ? r.distanceKm.toString() : '-';
         const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
         const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
-        const remarks = r.remarks || '-';
         
-        return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarks];
+        const dueAmt = (r.amountCharged || 0) - (r.receivedAmount || 0);
+        const dueText = dueAmt > 0 ? `बाँकी: रु. ${dueAmt.toFixed(2)}` : '';
+        const baseRemarks = r.remarks || '';
+        const remarksCombined = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
+        
+        return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
       });
 
       const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -853,7 +857,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)`;
                     const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
                     const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
-                    const clientRemarks = record.remarks || '-';
+                    const dueAmt = (record.amountCharged || 0) - (record.receivedAmount || 0);
+                    const dueText = dueAmt > 0 
+                      ? `बाँकी: रु. ${useNepaliNumerals ? toNepaliDigits(dueAmt.toFixed(2)) : dueAmt.toFixed(2)}` 
+                      : '';
+                    const baseRemarks = record.remarks || '';
+                    const clientRemarks = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
 
                     return (
                       <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">

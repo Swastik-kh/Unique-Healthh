@@ -1366,6 +1366,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                                       onSave={onSaveAmbulanceRecord}
                                       onDelete={onDeleteAmbulanceRecord}
                                       currentFiscalYear={currentFiscalYear}
+                                      generalSettings={generalSettings}
                                     />;
       case 'log_book': return <LogBook currentUser={currentUser} currentFiscalYear={currentFiscalYear} inventoryItems={inventoryItems} logBookEntries={logBookEntries} onAddLogEntry={onSaveLogBookEntry} />;
       case 'report_tb_dst': return <TBDSTReport patients={tbPatients} currentFiscalYear={currentFiscalYear} />;

@@ -92,6 +92,9 @@ export interface OrganizationSettings {
   enableEnglishDate: string;
   logoUrl: string;
   ambulancePhone?: string; // Added field
+  ambulanceNo?: string;
+  ambulanceDriverName?: string;
+  ambulanceRoutes?: string[]; // stored as "From|To|Rate"
   availableServices?: string[];
   allServiceOptions?: string[]; // Added for managing master list of services
   vaccinationSessions?: number[]; 

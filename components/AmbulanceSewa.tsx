@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { AmbulanceRecord, ServiceSeekerRecord, User } from '../types';
+import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings } from '../types';
 import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { NepaliDatePicker } from './NepaliDatePicker';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
@@ -11,6 +12,7 @@ interface AmbulanceSewaProps {
   onSave: (record: AmbulanceRecord) => void;
   onDelete: (id: string) => void;
   currentFiscalYear: string;
+  generalSettings?: OrganizationSettings;
 }
 
 export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
@@ -19,7 +21,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   currentUser,
   onSave,
   onDelete,
-  currentFiscalYear
+  currentFiscalYear,
+  generalSettings
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
@@ -130,6 +133,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
 
+  const configuredRoutes = useMemo(() => {
+    if (!generalSettings?.ambulanceRoutes) return [];
+    return generalSettings.ambulanceRoutes.map(route => {
+      const parts = route.split('|');
+      return {
+        from: parts[0] || '',
+        to: parts[1] || '',
+        rate: Number(parts[2]) || 0
+      };
+    }).filter(r => r.from || r.to);
+  }, [generalSettings?.ambulanceRoutes]);
+
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 space-y-6">
@@ -151,8 +166,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 age: '',
                 address: '',
                 phone: '',
-                driverName: '',
-                ambulanceNo: '',
+                driverName: generalSettings?.ambulanceDriverName || '',
+                ambulanceNo: generalSettings?.ambulanceNo || '',
                 startLocation: '',
                 destination: '',
                 distanceKm: undefined,
@@ -178,19 +193,13 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 
                 {/* Date Selection */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 font-nepali">मिति (B.S.) *</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                      type="text"
-                      required
-                      placeholder="YYYY-MM-DD"
-                      value={formData.dateBs || ''}
-                      onChange={e => setFormData({...formData, dateBs: e.target.value})}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-semibold text-slate-700"
-                    />
-                  </div>
+                <div className="space-y-1.5 flex flex-col justify-end">
+                  <NepaliDatePicker
+                    label="मिति (B.S.) *"
+                    required
+                    value={formData.dateBs || ''}
+                    onChange={(val) => setFormData(prev => ({ ...prev, dateBs: val }))}
+                  />
                 </div>
 
                 {/* Patient / Seeker Name Selector with Search */}
@@ -314,6 +323,42 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     />
                   </div>
                 </div>
+
+                {/* Route Pre-selector if configured */}
+                {configuredRoutes.length > 0 && (
+                  <div className="space-y-1.5 lg:col-span-3 bg-rose-50/50 border border-rose-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                        <Truck size={14} className="text-rose-600" />
+                        पूर्व-सुरक्षित एम्बुलेन्स मार्ग छान्नुहोस् (Choose Configured Route)
+                      </h4>
+                      <p className="text-[11px] text-rose-700/80">नियमित मार्गको भाडा र विवरण स्वचालित भर्न यहाँबाट मार्ग चयन गर्नुहोस्</p>
+                    </div>
+                    <select
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val) {
+                          const [fromLoc, toLoc, rate] = val.split('|');
+                          setFormData(prev => ({
+                            ...prev,
+                            startLocation: fromLoc,
+                            destination: toLoc,
+                            amountCharged: Number(rate) || 0,
+                            receivedAmount: Number(rate) || 0
+                          }));
+                        }
+                      }}
+                      className="text-xs p-2.5 bg-white border border-rose-300 rounded-xl text-rose-900 font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none w-full sm:w-64 cursor-pointer"
+                    >
+                      <option value="">-- मार्ग छनौट गर्नुहोस् (Select Route) --</option>
+                      {configuredRoutes.map((r, i) => (
+                        <option key={i} value={`${r.from}|${r.to}|${r.rate}`}>
+                          {r.from} ➔ {r.to} (रु. {r.rate})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Starting Location */}
                 <div className="space-y-1.5">
