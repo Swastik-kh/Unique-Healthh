@@ -333,7 +333,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const date = r.billDate || '-';
       const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
       const amt = getRecordAmountForSelectedService(r).toString();
-      const remarks = r.remarks || '-';
+      const baseR = r.remarks || '';
+      const dVal = r.discount || 0;
+      const dNote = dVal > 0 ? `रु. ${dVal} छुट` : '';
+      const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
       
       return [serial, patient, billNo, date, services, amt, remarks];
     });
@@ -615,7 +618,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   const servicesList = selectedService !== 'All' ? selectedService : (record.items?.map((item) => item.serviceName).join(', ') || '-');
                   const priceTotal = getRecordAmountForSelectedService(record);
                   const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
-                  const clientRemarks = record.remarks || '-';
+                  const baseRemarks = record.remarks || '';
+                  const discountVal = record.discount || 0;
+                  const discountNote = discountVal > 0 
+                    ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toString()) : discountVal} छुट` 
+                    : '';
+                  const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
 
                   return (
                     <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
