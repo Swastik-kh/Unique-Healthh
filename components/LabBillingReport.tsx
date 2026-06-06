@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark } from 'lucide-react';
-import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord } from '../types';
+import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -9,6 +9,7 @@ import { LogoDisplay } from './LogoDisplay';
 interface LabBillingReportProps {
   billingRecords: BillingRecord[];
   ambulanceRecords?: AmbulanceRecord[];
+  ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
   currentFiscalYear: string;
   generalSettings: OrganizationSettings;
   currentUser?: User | null;
@@ -39,6 +40,7 @@ const NEPALI_MONTH_NAMES = [
 export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   billingRecords = [],
   ambulanceRecords = [],
+  ambulanceExpenseRecords = [],
   currentFiscalYear,
   generalSettings,
   currentUser,
@@ -80,6 +82,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Filters state
   const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance'>('Sewa');
+  const [ambulanceReportType, setAmbulanceReportType] = useState<'income' | 'expense'>('income');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
@@ -225,19 +228,27 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    const sourceLabel = reportSource === 'Sewa' ? 'सेवा बिलिङ' : 'एम्बुलेन्स सेवा';
-    return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${sourceLabel} आय विवरण`;
-  }, [selectedFiscalYear, selectedMonth, reportSource]);
+    if (reportSource === 'Sewa') {
+      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको सेवा बिलिङ आय विवरण`;
+    } else {
+      const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`;
+    }
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
 
-  // Sync custom title suggestion when month, fiscal year or reportSource changes
+  // Sync custom title suggestion when month, fiscal year, reportSource, or ambulanceReportType changes
   React.useEffect(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
-    const sourceLabel = reportSource === 'Sewa' ? 'सेवा बिलिङ' : 'एम्बुलेन्स सेवा';
-    setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${sourceLabel} आय विवरण`);
-  }, [selectedFiscalYear, selectedMonth, reportSource]);
+    if (reportSource === 'Sewa') {
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको सेवा बिलिङ आय विवरण`);
+    } else {
+      const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`);
+    }
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
@@ -377,14 +388,54 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     });
   }, [ambulanceRecords, selectedFiscalYear, selectedMonth, searchQuery]);
 
+  // Filtered Ambulance Expenses
+  const filteredAmbulanceExpenses = useMemo(() => {
+    return (ambulanceExpenseRecords || []).filter((record) => {
+      // 1. Fiscal Year Match
+      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
+      if (!fyMatch) return false;
+
+      // 2. Month Match
+      const dateStr = record.dateBs || '';
+      const dateParts = dateStr.split(/[-/]/);
+      if (dateParts.length < 2) return false;
+      const recordMonth = dateParts[1];
+      
+      const targetMonthParsed = parseInt(selectedMonth);
+      const recordMonthParsed = parseInt(recordMonth);
+      if (targetMonthParsed !== recordMonthParsed) return false;
+
+      // 3. Search Query Match
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        const cat = record.expenseCategory?.toLowerCase() || '';
+        const remarks = record.remarks?.toLowerCase() || '';
+        const paidTo = record.paidTo?.toLowerCase() || '';
+        const dName = record.driverName?.toLowerCase() || '';
+        const bNo = record.billNo?.toLowerCase() || '';
+        if (!cat.includes(query) && !remarks.includes(query) && !paidTo.includes(query) && !dName.includes(query) && !bNo.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a,b) => {
+      return (a.dateBs || '').localeCompare(b.dateBs || '');
+    });
+  }, [ambulanceExpenseRecords, selectedFiscalYear, selectedMonth, searchQuery]);
+
   // Totals calculations
   const totalAmountSum = useMemo(() => {
     if (reportSource === 'Sewa') {
       return filteredRecords.reduce((sum, r) => sum + getRecordAmountForSelectedService(r), 0);
     } else {
-      return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0);
+      if (ambulanceReportType === 'expense') {
+        return filteredAmbulanceExpenses.reduce((sum, r) => sum + (r.amount || 0), 0);
+      } else {
+        return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0);
+      }
     }
-  }, [reportSource, filteredRecords, filteredAmbulanceRecords, selectedService, serviceItems, testSubRelations]);
+  }, [reportSource, ambulanceReportType, filteredRecords, filteredAmbulanceRecords, filteredAmbulanceExpenses, selectedService, serviceItems, testSubRelations]);
 
   const totalAmbulanceChargedSum = useMemo(() => {
     return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
@@ -425,42 +476,83 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       link.click();
       document.body.removeChild(link);
     } else {
-      if (filteredAmbulanceRecords.length === 0) {
-        alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
-        return;
+      if (ambulanceReportType === 'expense') {
+        if (filteredAmbulanceExpenses.length === 0) {
+          alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+          return;
+        }
+
+        const headers = ["सि.न. (S.N.)", "मिति (Date)", "खर्च वर्ग (Category)", "रकम (Amount)", "बील नम्बर (Bill No.)", "भुक्तानी प्राप्त गर्ने (Paid To)", "चालकको नाम (Driver)", "कैफियत (Remarks)"];
+        
+        const getCategoryLabel = (cat: string) => {
+          switch (cat) {
+            case 'fuel': return 'इन्धन';
+            case 'maintenance': return 'मर्मत संभार';
+            case 'driver_allowance': return 'चालक भत्ता';
+            default: return 'अन्य';
+          }
+        };
+
+        const rows = filteredAmbulanceExpenses.map((r, idx) => {
+          const serial = (idx + 1).toString();
+          const date = r.dateBs || '-';
+          const category = getCategoryLabel(r.expenseCategory || 'other');
+          const amount = r.amount ? r.amount.toString() : '0';
+          const billNo = r.billNo || '-';
+          const paidTo = r.paidTo || '-';
+          const driver = r.driverName || '-';
+          const remarks = r.remarks || '-';
+          
+          return [serial, date, category, amount, billNo, paidTo, driver, remarks];
+        });
+
+        const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Ambulance_Expense_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        if (filteredAmbulanceRecords.length === 0) {
+          alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+          return;
+        }
+
+        const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
+        
+        const rows = filteredAmbulanceRecords.map((r, idx) => {
+          const serial = (idx + 1).toString();
+          const patient = r.patientName || '-';
+          const ambNo = r.ambulanceNo || '-';
+          const driver = r.driverName || '-';
+          const date = r.dateBs || '-';
+          const fromLoc = r.startLocation || '-';
+          const toLoc = r.destination || '-';
+          const dist = r.distanceKm ? r.distanceKm.toString() : '-';
+          const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
+          const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
+          
+          const dueAmt = (r.amountCharged || 0) - (r.receivedAmount || 0);
+          const dueText = dueAmt > 0 ? `बाँकी: रु. ${dueAmt.toFixed(2)}` : '';
+          const baseRemarks = r.remarks || '';
+          const remarksCombined = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
+          
+          return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
+        });
+
+        const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Ambulance_Sewa_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-
-      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
-      
-      const rows = filteredAmbulanceRecords.map((r, idx) => {
-        const serial = (idx + 1).toString();
-        const patient = r.patientName || '-';
-        const ambNo = r.ambulanceNo || '-';
-        const driver = r.driverName || '-';
-        const date = r.dateBs || '-';
-        const fromLoc = r.startLocation || '-';
-        const toLoc = r.destination || '-';
-        const dist = r.distanceKm ? r.distanceKm.toString() : '-';
-        const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
-        const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
-        
-        const dueAmt = (r.amountCharged || 0) - (r.receivedAmount || 0);
-        const dueText = dueAmt > 0 ? `बाँकी: रु. ${dueAmt.toFixed(2)}` : '';
-        const baseRemarks = r.remarks || '';
-        const remarksCombined = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
-        
-        return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
-      });
-
-      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Ambulance_Sewa_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     }
   };
 
@@ -528,6 +620,23 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
           </div>
         </div>
+
+        {reportSource === 'Ambulance' && (
+          <div>
+            <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-600 text-white px-2 py-0.5 rounded-sm">कारोबार प्रकार (Trans. Type)</label>
+            <div className="relative">
+              <select
+                value={ambulanceReportType}
+                onChange={(e) => setAmbulanceReportType(e.target.value as 'income' | 'expense')}
+                className="w-full text-xs p-2.5 bg-white border-2 border-emerald-500 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-emerald-800"
+              >
+                <option value="income">आम्दानी विवरण (Income)</option>
+                <option value="expense">खर्च विवरण (Expenses)</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">आर्थिक वर्ष (Fiscal Year)</label>
@@ -617,14 +726,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </>
         ) : null}
 
-        <div className={reportSource === 'Sewa' ? 'col-span-1' : 'sm:col-span-2'}>
+        <div className={reportSource === 'Sewa' ? 'col-span-1' : 'col-span-1 sm:col-span-2'}>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">खोज्नुहोस् (Search Name/Details)</label>
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={reportSource === 'Sewa' ? "नाम, विल नम्बर वा टेस्ट" : "नाम, चालक, नम्बर वा गन्तव्य"}
+              placeholder={reportSource === 'Sewa' ? "नाम, विल नम्बर वा टेस्ट" : (ambulanceReportType === 'expense' ? "श्रेणी, विवरण, भुक्तानी प्राप्त गर्ने वा चालक" : "नाम, चालक, नम्बर वा गन्तव्य")}
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none pl-9"
             />
             <Search className="absolute left-2.5 top-3.5 text-slate-400" size={14} />
@@ -647,16 +756,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
         <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
           <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-            {reportSource === 'Sewa' ? 'जम्मा बिल संख्या (Total Invoices)' : 'जम्मा यात्रा संख्या (Total Trips)'}
+            {reportSource === 'Sewa' ? 'जम्मा बिल संख्या (Total Invoices)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रेकर्ड संख्या (Total Expenses)' : 'जम्मा यात्रा संख्या (Total Trips)')}
           </p>
           <p className="text-2xl font-black mt-1 text-slate-800">
-            {formatNumberValue(reportSource === 'Sewa' ? filteredRecords.length : filteredAmbulanceRecords.length)}
+            {formatNumberValue(reportSource === 'Sewa' ? filteredRecords.length : (ambulanceReportType === 'expense' ? filteredAmbulanceExpenses.length : filteredAmbulanceRecords.length))}
           </p>
         </div>
 
         <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
           <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-            {reportSource === 'Sewa' ? 'जम्मा संकलित रकम (Total Collected)' : 'प्राप्त रकम (Total Received Amount)'}
+            {reportSource === 'Sewa' ? 'जम्मा संकलित रकम (Total Collected)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रकम (Total Expenses)' : 'प्राप्त रकम (Total Received Amount)')}
           </p>
           <p className="text-2xl font-black mt-1 text-emerald-600">
             रु. {formatNumberValue(totalAmountSum.toFixed(2))}
@@ -672,9 +781,15 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         ) : (
           <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">कुल चार्ज्ड रकम (Total Charged Amount)</p>
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+              {ambulanceReportType === 'expense' ? 'औसत प्रति खर्च (Avg Expense)' : 'कुल चार्ज्ड रकम (Total Charged Amount)'}
+            </p>
             <p className="text-2xl font-black mt-1 text-amber-600">
-              रु. {formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}
+              {ambulanceReportType === 'expense' ? (
+                `रु. ${formatNumberValue((filteredAmbulanceExpenses.length > 0 ? (totalAmountSum / filteredAmbulanceExpenses.length) : 0).toFixed(2))}`
+              ) : (
+                `रु. ${formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}`
+              )}
             </p>
           </div>
         )}
@@ -809,6 +924,103 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <tr className="bg-slate-50 font-bold">
                   <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा रकम (Grand Total):
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmountSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
+                </tr>
+              </tbody>
+            </table>
+          ) : ambulanceReportType === 'expense' ? (
+            <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
+                    सि.न.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    मिति (B.S.)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
+                    खर्च वर्ग (Category)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">
+                    बील नम्बर (Bill No.)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    भुक्तानी प्राप्त गर्ने (Paid To)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    चालकको नाम
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-28">
+                    कुल खर्च रकम
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    कैफियत
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAmbulanceExpenses.length > 0 ? (
+                  filteredAmbulanceExpenses.map((record, index) => {
+                    const sNoStr = formatNumberValue(index + 1);
+                    const displayDate = formatRawDateToNepaliUi(record.dateBs);
+                    const categoryLabel = (() => {
+                      switch (record.expenseCategory) {
+                        case 'fuel': return 'इन्धन (Fuel)';
+                        case 'maintenance': return 'मर्मत संभार (Maintenance)';
+                        case 'driver_allowance': return 'चालक भत्ता (Driver Allowance)';
+                        default: return 'अन्य (Other)';
+                      }
+                    })();
+                    const billNo = record.billNo || '-';
+                    const paidTo = record.paidTo || '-';
+                    const driverName = record.driverName || '-';
+                    const formattedAmount = formatNumberValue((record.amount || 0).toFixed(2));
+                    const remarks = record.remarks || '-';
+
+                    return (
+                      <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                        <td className="border border-slate-950 p-2 text-center font-bold">
+                          {sNoStr}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {displayDate}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {categoryLabel}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-bold font-mono">
+                          {billNo}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {paidTo}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {driverName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedAmount}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
+                          {remarks}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स खर्च विवरण रेकर्ड भेटिएन।
+                    </td>
+                  </tr>
+                )}
+                {/* Grand Total Row */}
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                    कुल जम्मा सिफारिस/खर्च रकम (Grand Total):
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
                     {formatNumberValue(totalAmountSum.toFixed(2))}
