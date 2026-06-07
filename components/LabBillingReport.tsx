@@ -1004,7 +1004,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">बिल श्रेणी (Category Filters)</p>
             <p className="text-lg font-bold mt-1 text-slate-700">
-              {billingType === 'All' ? 'सबै ल्याब बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
+              {billingType === 'All' ? 'सबै बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
             </p>
           </div>
         ) : (
