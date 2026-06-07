@@ -293,30 +293,51 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return grossAmt - discountPortion;
   };
   
+   const categorySuffix = useMemo(() => {
+    if (reportSource !== 'Sewa') return '';
+    if (selectedService !== 'All') {
+      return `${selectedService} सेवा`;
+    }
+    switch (selectedCategory) {
+      case 'Lab': return 'ल्याब (Lab Investigation)';
+      case 'X-Ray': return 'एक्स-रे (X-Ray)';
+      case 'USG': return 'USG (भिडियो एक्स-रे) सेवा';
+      case 'ECG': return 'ECG (मुटुको जाँच) सेवा';
+      case 'OPD': return 'OPD सेवा';
+      case 'Emergency': return 'इमर्जेन्सी सेवा';
+      case 'Pharmacy': return 'डिस्पेन्सरी / फार्मेसी सेवा';
+      case 'Physiotherapy': return 'फिजियोथेरापी सेवा';
+      case 'TB': return 'क्षयरोग (TB) सेवा';
+      case 'Leprosy': return 'कुष्ठरोग (Leprosy) सेवा';
+      case 'Other': return 'अन्य सेवाहरू';
+      default: return 'सेवा बिलिङ';
+    }
+  }, [reportSource, selectedCategory, selectedService]);
+  
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
     if (reportSource === 'Sewa') {
-      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको सेवा बिलिङ आय विवरण`;
+      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${categorySuffix} आय विवरण`;
     } else {
       const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
       return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`;
     }
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType]);
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
 
-  // Sync custom title suggestion when month, fiscal year, reportSource, or ambulanceReportType changes
+  // Sync custom title suggestion when month, fiscal year, reportSource, ambulanceReportType, or category/service changes
   React.useEffect(() => {
     const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
     if (reportSource === 'Sewa') {
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको सेवा बिलिङ आय विवरण`);
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${categorySuffix} आय विवरण`);
     } else {
       const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`);
     }
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType]);
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
@@ -829,8 +850,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <option value="USG">USG (भिडियो एक्स-रे)</option>
                   <option value="ECG">ECG (मुटुको जाँच)</option>
                   <option value="OPD">OPD सेवा</option>
-                  <option value="Emergency font-nepali">इमर्जेन्सी सेवा</option>
-                  <option value="Pharmacy text-nepali">डिस्पेन्सरी / फार्मेसी</option>
+                  <option value="Emergency">इमर्जेन्सी सेवा</option>
+                  <option value="Pharmacy">डिस्पेन्सरी / फार्मेसी</option>
                   <option value="Physiotherapy">फिजियोथेरापी</option>
                   <option value="TB">क्षयरोग (TB)</option>
                   <option value="Leprosy">कुष्ठरोग (Leprosy)</option>
@@ -995,7 +1016,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
           
           <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
-            {reportSource === 'Sewa' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : 'एम्बुलेन्स सेवा'}
+            {reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
             {activeReportTitle}
