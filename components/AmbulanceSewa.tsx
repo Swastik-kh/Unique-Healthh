@@ -81,6 +81,124 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     remarks: ''
   });
 
+  const [isSirenAudioPlaying, setIsSirenAudioPlaying] = useState(false);
+  const [strobeState, setStrobeState] = useState<'red' | 'blue' | 'off'>('red');
+
+  const audioContextRef = React.useRef<any>(null);
+  const oscillatorRef = React.useRef<any>(null);
+
+  const stopSiren = () => {
+    if (oscillatorRef.current) {
+      try {
+        oscillatorRef.current.stop();
+      } catch (_) {}
+      oscillatorRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (_) {}
+      audioContextRef.current = null;
+    }
+    setIsSirenAudioPlaying(false);
+  };
+
+  const startSiren = (durationSeconds = 12) => {
+    try {
+      stopSiren(); // ensure previous is completely cleaned up first
+      
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      audioContextRef.current = ctx;
+
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.type = 'sawtooth'; // gives that buzzing realistic physical alarm sound
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      const now = ctx.currentTime;
+      osc.frequency.setValueAtTime(500, now);
+      
+      // STAGE 1: WAIL (Slow, 0.0s to 4.0s) - cycle is 1.6s
+      let t = now;
+      osc.frequency.linearRampToValueAtTime(1050, t + 0.8);
+      osc.frequency.linearRampToValueAtTime(500, t + 1.6);
+      osc.frequency.linearRampToValueAtTime(1050, t + 2.4);
+      osc.frequency.linearRampToValueAtTime(500, t + 3.2);
+      osc.frequency.linearRampToValueAtTime(650, t + 4.0);
+      
+      // STAGE 2: YELP (Rapid Traffic Clearing, 4.0s to 8.0s) - cycle is 0.35s
+      t = now + 4.0;
+      for (let i = 0; i < 11; i++) {
+        osc.frequency.linearRampToValueAtTime(1250, t + 0.17);
+        osc.frequency.linearRampToValueAtTime(650, t + 0.35);
+        t += 0.35;
+      }
+      
+      // STAGE 3: HI-LO (Alternating European paramedic steps, 8.0s to 11.2s) - intervals of 0.3s
+      t = now + 8.0;
+      for (let i = 0; i < 5; i++) {
+        osc.frequency.setValueAtTime(850, t);
+        osc.frequency.setValueAtTime(530, t + 0.3);
+        t += 0.6;
+      }
+      
+      // STAGE 4: POWER DOWN SLIDE (Pitch drop-off, 11.0s to 12.2s)
+      t = now + 11.0;
+      osc.frequency.setValueAtTime(530, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 1.2);
+      
+      // Volume envelope to smoothly scale volume and ramp to 0 for automatic sleep/mute
+      const playDuration = 12.2;
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.12, now + 0.15); // fade in to friendly volume
+      gainNode.gain.setValueAtTime(0.12, now + playDuration - 0.4);
+      gainNode.gain.linearRampToValueAtTime(0, now + playDuration); // fade out nicely to complete silent stop
+      
+      osc.start(now);
+      setIsSirenAudioPlaying(true);
+      
+      oscillatorRef.current = osc;
+      
+      const timeoutId = setTimeout(() => {
+        setIsSirenAudioPlaying(false);
+      }, playDuration * 1000);
+      
+      return timeoutId;
+    } catch (e) {
+      console.warn("AudioContext init error", e);
+    }
+  };
+
+  // Play a dynamic synthetic ambulance siren sound once on mount
+  React.useEffect(() => {
+    // Automatically trigger structured sequential siren sound on mount (approx 12.2 seconds)
+    const timeoutId = startSiren(12);
+
+    return () => {
+      stopSiren();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Rapid or regular strobe blinking loop
+  React.useEffect(() => {
+    let interval: any = null;
+    if (isSirenAudioPlaying) {
+      interval = setInterval(() => {
+        setStrobeState(prev => (prev === 'red' ? 'blue' : 'red'));
+      }, 120); // rapid frantic strobe flash
+    } else {
+      interval = setInterval(() => {
+        setStrobeState(prev => (prev === 'red' ? 'blue' : 'red'));
+      }, 450); // slow calm alternating standby pulse
+    }
+    return () => clearInterval(interval);
+  }, [isSirenAudioPlaying]);
+
   const [formData, setFormData] = useState<Partial<AmbulanceRecord>>({
     dateBs: new NepaliDate().format('YYYY-MM-DD'),
     patientName: '',
@@ -347,13 +465,117 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white/40 p-1 rounded-3xl border border-transparent print:hidden w-full">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 font-nepali flex items-center gap-2">
               <Truck className="text-rose-600 size-7" />
               एम्बुलेन्स सेवा (Ambulance Service)
             </h2>
             <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकर्ड</p>
+          </div>
+
+          {/* Right Side Ambulance Siren & Light Simulation Panel */}
+          <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 text-white px-4 py-2.5 rounded-2xl shadow-xl w-full lg:w-auto self-stretch lg:self-auto transition-all">
+            <div className="flex items-center gap-3 w-full justify-between lg:justify-start">
+              {/* Rotating Emergency Lights Bar */}
+              <div className="relative flex items-center gap-3.5 h-11 bg-slate-950 px-3.5 rounded-xl border border-slate-800/80 overflow-hidden shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] shrink-0 select-none">
+                {/* Red Rotating Reflector Dome */}
+                <div className="relative w-8 h-8 rounded-full bg-red-950 border border-red-800/60 overflow-hidden flex items-center justify-center">
+                  {/* Rotating Conic Beam (Reflector) */}
+                  <div 
+                    className="absolute inset-[-100%]"
+                    style={{
+                      background: 'conic-gradient(from 0deg, transparent 0%, rgba(239, 68, 68, 0) 30%, rgba(255, 50, 50, 0.95) 50%, rgba(239, 68, 68, 0) 70%, transparent 100%)',
+                      animation: isSirenAudioPlaying 
+                        ? 'spin 0.4s linear infinite' 
+                        : 'spin 1.8s linear infinite',
+                    }}
+                  />
+                  {/* Internal metal reflector ring */}
+                  <div className="absolute inset-1 rounded-full border border-white/15 pointer-events-none"></div>
+                  {/* Core white LED bulb filament */}
+                  <span className={`absolute w-1.5 h-1.5 rounded-full bg-white z-10 shadow-[0_0_8px_#ffffff] transition-all duration-100 ${
+                    isSirenAudioPlaying ? 'scale-125' : 'opacity-80'
+                  }`} />
+                  {/* Outer pulsating color flare */}
+                  {isSirenAudioPlaying && (
+                    <div className="absolute inset-0 bg-red-500/10 pointer-events-none animate-pulse"></div>
+                  )}
+                </div>
+
+                {/* Status Indicator Label */}
+                <div className="flex flex-col items-center justify-center font-mono">
+                  <span className="text-[9px] font-black tracking-widest text-slate-400">BEACON</span>
+                  <div className="flex gap-0.5 items-center justify-center mt-0.5">
+                    <span className={`w-1 h-1 rounded-full ${isSirenAudioPlaying ? 'bg-red-500 animate-ping' : 'bg-slate-600'}`}></span>
+                    <span className={`w-1 h-1 rounded-full ${isSirenAudioPlaying ? 'bg-blue-500 animate-ping delay-75' : 'bg-slate-600'}`}></span>
+                  </div>
+                </div>
+
+                {/* Blue Rotating Reflector Dome */}
+                <div className="relative w-8 h-8 rounded-full bg-blue-950 border border-blue-800/60 overflow-hidden flex items-center justify-center">
+                  {/* Rotating Conic Beam, offset 180 degrees */}
+                  <div 
+                    className="absolute inset-[-100%]"
+                    style={{
+                      background: 'conic-gradient(from 180deg, transparent 0%, rgba(59, 130, 246, 0) 30%, rgba(50, 150, 255, 0.95) 50%, rgba(59, 130, 246, 0) 70%, transparent 100%)',
+                      animation: isSirenAudioPlaying 
+                        ? 'spin 0.4s linear infinite' 
+                        : 'spin 1.8s linear infinite',
+                    }}
+                  />
+                  {/* Internal metal reflector ring */}
+                  <div className="absolute inset-1 rounded-full border border-white/15 pointer-events-none"></div>
+                  {/* Core white LED bulb filament */}
+                  <span className={`absolute w-1.5 h-1.5 rounded-full bg-white z-10 shadow-[0_0_8px_#ffffff] transition-all duration-100 ${
+                    isSirenAudioPlaying ? 'scale-125' : 'opacity-80'
+                  }`} />
+                  {/* Outer pulsating color flare */}
+                  {isSirenAudioPlaying && (
+                    <div className="absolute inset-0 bg-blue-500/10 pointer-events-none animate-pulse"></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Siren Audio Trigger Controls */}
+              <div className="flex flex-col items-start">
+                <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest font-nepali flex items-center gap-1">
+                  <Radio size={11} className={`${isSirenAudioPlaying ? 'animate-bounce text-rose-500' : 'animate-pulse text-indigo-400'}`} />
+                  आपतकालीन साइरन (Siren Simulation)
+                </span>
+                
+                <div className="flex items-center gap-2 mt-0.5">
+                  <button
+                    onClick={() => {
+                      if (isSirenAudioPlaying) {
+                        stopSiren();
+                      } else {
+                        startSiren(15);
+                      }
+                    }}
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer font-nepali shadow-sm select-none ${
+                      isSirenAudioPlaying 
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse' 
+                        : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700/80'
+                    }`}
+                  >
+                    {isSirenAudioPlaying ? (
+                      <>
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+                        </span>
+                        <span>साइरन बन्द (Mute)</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🚨 साइरन बजाउनुहोस्</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
