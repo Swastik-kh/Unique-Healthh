@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
+import { AmbulanceTracker } from './AmbulanceTracker';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
@@ -30,7 +31,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   currentFiscalYear,
   generalSettings
 }) => {
-  const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook'>('trips');
+  const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -337,6 +338,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <FileText size={15} />
               <span>लगबुक (Log Book)</span>
             </button>
+            <button
+              onClick={() => setActiveTab('tracking')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'tracking'
+                  ? 'bg-rose-600 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <MapPin size={15} />
+              <span>लाइभ ट्र्याकिङ (Live Tracking)</span>
+            </button>
           </div>
 
           <div>
@@ -391,6 +403,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <Plus size={16} />
                 <span className="font-nepali">खर्च रेकर्ड थप्नुहोस् (Add Expense)</span>
               </button>
+            ) : activeTab === 'tracking' ? (
+              <div className="flex items-center gap-2 bg-rose-950/40 text-rose-400 border border-rose-900/40 px-4 py-2.5 rounded-xl text-xs font-black">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span className="font-nepali">जीपीएस सक्रिय छ (GPS Status: Live)</span>
+              </div>
             ) : (
               <button
                 onClick={() => window.print()}
@@ -1148,6 +1168,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </table>
             </div>
           </div>
+        ) : activeTab === 'tracking' ? (
+          <AmbulanceTracker currentUser={currentUser} generalSettings={generalSettings} />
         ) : (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print:border-none print:shadow-none print:bg-transparent">
             <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 print:hidden">
