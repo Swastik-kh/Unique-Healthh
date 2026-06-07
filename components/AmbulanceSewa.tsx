@@ -289,6 +289,37 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     }).filter(r => r.from || r.to);
   }, [generalSettings?.ambulanceRoutes]);
 
+  const hasTabAccess = (tab: 'trips' | 'expenses' | 'logbook' | 'tracking') => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    const key = `ambulance_${tab === 'trips' ? 'trips' : tab === 'expenses' ? 'expenses' : tab === 'logbook' ? 'logbook' : 'tracking'}`;
+    return currentUser.allowedMenus?.includes(key) || false;
+  };
+
+  const hasAnyAmbulanceAccess = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    return (
+      currentUser.allowedMenus?.includes('ambulance_trips') ||
+      currentUser.allowedMenus?.includes('ambulance_expenses') ||
+      currentUser.allowedMenus?.includes('ambulance_logbook') ||
+      currentUser.allowedMenus?.includes('ambulance_tracking')
+    );
+  }, [currentUser]);
+
+  // Adjust active tab if it's not allowed
+  React.useEffect(() => {
+    if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
+      if (!hasTabAccess(activeTab)) {
+        const tabs: ('trips' | 'expenses' | 'logbook' | 'tracking')[] = ['trips', 'expenses', 'logbook', 'tracking'];
+        const firstAllowed = tabs.find(t => hasTabAccess(t));
+        if (firstAllowed) {
+          setActiveTab(firstAllowed);
+        }
+      }
+    }
+  }, [currentUser, activeTab]);
+
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 space-y-6">
@@ -298,58 +329,85 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <Truck className="text-rose-600 size-7" />
               एम्बुलेन्स सेवा (Ambulance Service)
             </h2>
-            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकرد</p>
+            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकर्ड</p>
           </div>
         </div>
 
-        {/* Tab Switcher & Dynamic Adding Button */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-150 shadow-sm print:hidden">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab('trips')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'trips'
-                  ? 'bg-rose-600 text-white shadow'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <Truck size={15} />
-              <span>यात्रा विवरण (Travel logs)</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('expenses')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'expenses'
-                  ? 'bg-emerald-600 text-white shadow'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <Receipt size={15} />
-              <span>खर्च विवरण (Expenses)</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('logbook')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'logbook'
-                  ? 'bg-amber-600 text-white shadow'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <FileText size={15} />
-              <span>लगबुक (Log Book)</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('tracking')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                activeTab === 'tracking'
-                  ? 'bg-rose-600 text-white shadow'
-                  : 'text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <MapPin size={15} />
-              <span>लाइभ ट्र्याकिङ (Live Tracking)</span>
-            </button>
+        {!hasAnyAmbulanceAccess ? (
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl max-w-lg mx-auto text-center space-y-5 my-12">
+            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto ring-8 ring-rose-50/50">
+              <AlertCircle size={32} />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-bold text-slate-800 font-nepali">अनुमति अस्वीकृत (Access Denied)</h3>
+              <p className="text-slate-500 text-xs font-nepali leading-relaxed">
+                तपाईंसँग एम्बुलेन्स सेवा अन्तर्गत कुनै पनि विभाग (यात्रा विवरण, खर्च विवरण, लगबुक वा लाइभ ट्र्याकिङ) को पहुँच अनुमति छैन। कृपया एडमिन वा स्वास्थ्य शाखासँग सम्पर्क गरी आवश्यक अनुमति प्राप्त गर्नुहोस्।
+              </p>
+            </div>
+            <div className="pt-2">
+              <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+                PERMISSION_REQUIRED: AMBULANCE_SUB_MODULES
+              </span>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Tab Switcher & Dynamic Adding Button */}
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-150 shadow-sm print:hidden">
+              <div className="flex bg-slate-100 p-1 rounded-xl flex-wrap gap-1">
+                {hasTabAccess('trips') && (
+                  <button
+                    onClick={() => setActiveTab('trips')}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                      activeTab === 'trips'
+                        ? 'bg-rose-600 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Truck size={15} />
+                    <span>यात्रा विवरण (Travel logs)</span>
+                  </button>
+                )}
+                {hasTabAccess('expenses') && (
+                  <button
+                    onClick={() => setActiveTab('expenses')}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                      activeTab === 'expenses'
+                        ? 'bg-emerald-600 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Receipt size={15} />
+                    <span>खर्च विवरण (Expenses)</span>
+                  </button>
+                )}
+                {hasTabAccess('logbook') && (
+                  <button
+                    onClick={() => setActiveTab('logbook')}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                      activeTab === 'logbook'
+                        ? 'bg-amber-600 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <FileText size={15} />
+                    <span>लगबुक (Log Book)</span>
+                  </button>
+                )}
+                {hasTabAccess('tracking') && (
+                  <button
+                    onClick={() => setActiveTab('tracking')}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                      activeTab === 'tracking'
+                        ? 'bg-rose-600 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <MapPin size={15} />
+                    <span>लाइभ ट्र्याकिङ (Live Tracking)</span>
+                  </button>
+                )}
+              </div>
 
           <div>
             {activeTab === 'trips' ? (
@@ -1367,6 +1425,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

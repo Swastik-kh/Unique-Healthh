@@ -52,7 +52,16 @@ const PERMISSION_STRUCTURE = [
             { id: 'ecg_sewa', label: 'ई.सी.जी. सेवा (ECG Service)' },
             { id: 'usg_sewa', label: 'यु.एस.जी. सेवा (USG Service)' },
             { id: 'phisiotherapy', label: 'फिजियोथेरापी सेवा (Physiotherapy)' },
-            { id: 'ambulance_sewa', label: 'एम्बुलेन्स सेवा (Ambulance Service)' },
+            { 
+                id: 'ambulance_sewa', 
+                label: 'एम्बुलेन्स सेवा (Ambulance Service)',
+                children: [
+                    { id: 'ambulance_trips', label: 'एम्बुलेन्स यात्रा विवरण (Travel logs)' },
+                    { id: 'ambulance_expenses', label: 'खर्च विवरण (Expenses)' },
+                    { id: 'ambulance_logbook', label: 'लग बुक (Log Book)' },
+                    { id: 'ambulance_tracking', label: 'लाइभ ट्र्याकिङ (Live Tracking)' }
+                ]
+            },
             { 
                 id: 'administration', 
                 label: 'प्रशासन (Administration)',
@@ -123,7 +132,14 @@ const PERMISSION_STRUCTURE = [
             { id: 'report_mch', label: 'MCH रिपोर्ट (MCH Report)' },
             { id: 'report_tb_dst', label: 'TBDST रिपोर्ट (TBDST Report)' },
             { id: 'report_inventory_monthly', label: 'जिन्सी मासिक प्रतिवेदन (Monthly Report)' },
-            { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट (Billing Report)' },
+            { 
+                id: 'report_lab_billing', 
+                label: 'बिलिङ रिपोर्ट (Billing Report)',
+                children: [
+                    { id: 'report_billing_sewa', label: 'सेवा बिलिङ रिपोर्ट (Service Billing Report)' },
+                    { id: 'report_billing_ambulance', label: 'एम्बुलेन्स सेवा आय/व्यय रिपोर्ट (Ambulance Service Report)' }
+                ]
+            },
             { 
                 id: 'report_dhis', 
                 label: 'DHIS रिपोर्ट (DHIS Report)',

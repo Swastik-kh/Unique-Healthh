@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark } from 'lucide-react';
+import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle } from 'lucide-react';
 import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
@@ -86,9 +86,54 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedService, setSelectedService] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
+
+  // Map service name and sub-tests to their high-level category
+  const serviceCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    serviceItems.forEach(item => {
+      const cat = item.category;
+      map.set(item.serviceName.trim().toLowerCase(), cat);
+      if (item.subTests && item.subTests.length > 0) {
+        item.subTests.forEach(sub => {
+          map.set(sub.testName.trim().toLowerCase(), cat);
+        });
+      }
+    });
+    return map;
+  }, [serviceItems]);
+
+  const hasSourceAccess = (source: 'Sewa' | 'Ambulance') => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    const key = source === 'Sewa' ? 'report_billing_sewa' : 'report_billing_ambulance';
+    return currentUser.allowedMenus?.includes(key) || false;
+  };
+
+  const hasAnyBillingReportAccess = useMemo(() => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    return (
+      currentUser.allowedMenus?.includes('report_billing_sewa') ||
+      currentUser.allowedMenus?.includes('report_billing_ambulance')
+    );
+  }, [currentUser]);
+
+  // Adjust report source if current is not allowed
+  React.useEffect(() => {
+    if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
+      if (!hasSourceAccess(reportSource)) {
+        const sources: ('Sewa' | 'Ambulance')[] = ['Sewa', 'Ambulance'];
+        const firstAllowed = sources.find(s => hasSourceAccess(s));
+        if (firstAllowed) {
+          setReportSource(firstAllowed);
+        }
+      }
+    }
+  }, [currentUser, reportSource]);
 
   // Compute parent-child relationships and grouped options for service dropdown
   const testSubRelations = useMemo(() => {
@@ -156,46 +201,69 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     };
   }, [serviceItems, serviceItems]);
 
-  // Helper to get the gross amount for selected service in a record (before flat discount)
+  // Helper to get the gross amount for selected service or category in a record (before flat discount)
   const getRecordGrossAmountForSelectedService = (record: BillingRecord): number => {
-    if (selectedService === 'All') {
+    if (selectedCategory === 'All' && selectedService === 'All') {
       return record.subTotal || 0;
     }
 
-    const selServiceLower = selectedService.toLowerCase().trim();
     let totalAmt = 0;
 
     record.items?.forEach((item) => {
       const itemLower = (item.serviceName || '').toLowerCase().trim();
 
-      // A: Direct match
-      if (itemLower === selServiceLower) {
-        totalAmt += item.total || 0;
-        return;
-      }
-
-      // B: Parent-to-Child match (We selected a parent package e.g. "CBC", item in bill is e.g. "HB")
-      if (testSubRelations.childrenOfParent.has(selectedService)) {
-        const children = testSubRelations.childrenOfParent.get(selectedService) || [];
-        if (children.some(child => child.toLowerCase().trim() === itemLower)) {
-          totalAmt += item.total || 0;
+      // 1. Category Filter check
+      if (selectedCategory !== 'All') {
+        let itemCategory = serviceCategoryMap.get(itemLower);
+        if (!itemCategory) {
+          const parentName = testSubRelations.parentOfService.get(itemLower);
+          if (parentName) {
+            itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
+          }
+        }
+        if (itemCategory !== selectedCategory) {
+          // Skip if category does not match
           return;
         }
       }
 
-      // C: Child-to-Parent match (We selected a subtest e.g. "HB", item in bill is e.g. "CBC")
-      const parentName = testSubRelations.parentOfService.get(itemLower);
-      if (parentName && parentName.toLowerCase().trim() === selServiceLower) {
-        // Look up standalone or subtest rate
-        const parentServiceItem = serviceItems.find(si => si.serviceName.toLowerCase().trim() === itemLower);
-        const subTestObj = parentServiceItem?.subTests?.find(st => st.testName.toLowerCase().trim() === selServiceLower);
-        if (subTestObj && typeof subTestObj.price === 'number') {
-          totalAmt += (subTestObj.price * (item.quantity || 1));
-        } else {
-          // Fallback if not specified: use parent item total
+      // 2. Specific Service filter check
+      if (selectedService !== 'All') {
+        const selServiceLower = selectedService.toLowerCase().trim();
+
+        // A: Direct match
+        if (itemLower === selServiceLower) {
           totalAmt += item.total || 0;
+          return;
         }
+
+        // B: Parent-to-Child match (We selected a parent package e.g. "CBC", item in bill is e.g. "HB")
+        if (testSubRelations.childrenOfParent.has(selectedService)) {
+          const children = testSubRelations.childrenOfParent.get(selectedService) || [];
+          if (children.some(child => child.toLowerCase().trim() === itemLower)) {
+            totalAmt += item.total || 0;
+            return;
+          }
+        }
+
+        // C: Child-to-Parent match (We selected a subtest e.g. "HB", item in bill is e.g. "CBC")
+        const parentName = testSubRelations.parentOfService.get(itemLower);
+        if (parentName && parentName.toLowerCase().trim() === selServiceLower) {
+          // Look up standalone or subtest rate
+          const parentServiceItem = serviceItems.find(si => si.serviceName.toLowerCase().trim() === itemLower);
+          const subTestObj = parentServiceItem?.subTests?.find(st => st.testName.toLowerCase().trim() === selServiceLower);
+          if (subTestObj && typeof subTestObj.price === 'number') {
+            totalAmt += (subTestObj.price * (item.quantity || 1));
+          } else {
+            // Fallback if not specified: use parent item total
+            totalAmt += item.total || 0;
+          }
+        }
+        return;
       }
+
+      // If specific service is 'All' but matches category
+      totalAmt += item.total || 0;
     });
 
     return totalAmt;
@@ -213,9 +281,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return (grossPortion / billSubTotal) * totalDiscount;
   };
 
-  // Dynamic price calculation depending on the selected test or sub-test (Net amount)
+  // Dynamic price calculation depending on the selected test, category or sub-test (Net amount)
   const getRecordAmountForSelectedService = (record: BillingRecord): number => {
-    if (selectedService === 'All') {
+    if (selectedCategory === 'All' && selectedService === 'All') {
       return record.grandTotal || 0;
     }
     
@@ -316,6 +384,23 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         }
       }
 
+      // 4.5. Service Category filter match
+      if (selectedCategory !== 'All') {
+        const hasCategory = record.items?.some((item) => {
+          const itemLower = (item.serviceName || '').toLowerCase().trim();
+          let itemCategory = serviceCategoryMap.get(itemLower);
+          if (!itemCategory) {
+            const parentName = testSubRelations.parentOfService.get(itemLower);
+            if (parentName) {
+              itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
+            }
+          }
+          return itemCategory === selectedCategory;
+        });
+
+        if (!hasCategory) return false;
+      }
+
       // 5. Individual Service/Test filter match with smart bidirectional mapping (e.g. CBC / HB / HCV)
       if (selectedService !== 'All') {
         const selServiceLower = selectedService.toLowerCase().trim();
@@ -350,7 +435,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedService, testSubRelations]);
+  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
@@ -435,7 +520,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0);
       }
     }
-  }, [reportSource, ambulanceReportType, filteredRecords, filteredAmbulanceRecords, filteredAmbulanceExpenses, selectedService, serviceItems, testSubRelations]);
+  }, [reportSource, ambulanceReportType, filteredRecords, filteredAmbulanceRecords, filteredAmbulanceExpenses, selectedCategory, selectedService, serviceItems, testSubRelations, serviceCategoryMap]);
 
   const totalAmbulanceChargedSum = useMemo(() => {
     return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
@@ -556,6 +641,41 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }
   };
 
+  if (!hasAnyBillingReportAccess) {
+    return (
+      <div className="w-full space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs print:hidden">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Landmark className="text-emerald-600" size={24} />
+              बिलिङ रिपोर्ट (Billing Report)
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              प्रत्यक्ष र नियमित बिलहरूको मासिक तथा वार्षिक आय विवरण रिपोर्ट।
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl max-w-lg mx-auto text-center space-y-5 my-12">
+          <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto ring-8 ring-rose-50/50">
+            <AlertCircle size={32} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-slate-800 font-nepali">अनुमति अस्वीकृत (Access Denied)</h3>
+            <p className="text-slate-500 text-xs font-nepali leading-relaxed">
+              तपाईंसँग बिलिङ रिपोर्टअन्तर्गत कुनै भी सेवा (सेवा बिलिङ रिपोर्ट वा एम्बुलेन्स सेवा रिपोर्ट) को पहुँच अनुमति छैन। कृपया एडमिन वा स्वास्थ्य शाखासँग सम्पर्क गरी आवश्यक अनुमति प्राप्त गर्नुहोस्।
+            </p>
+          </div>
+          <div className="pt-2">
+            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+              PERMISSION_REQUIRED: BILLING_REPORT_SUB_MODULES
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-6">
       {/* Title Panel - Hide on print */}
@@ -605,7 +725,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       </div>
 
       {/* Filter panel - Hide on print */}
-      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end print:hidden">
+      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 items-end print:hidden">
         <div>
           <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-700 text-white px-2 py-0.5 rounded-sm">रिपोर्ट प्रकार (Report Type)</label>
           <div className="relative">
@@ -614,8 +734,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               onChange={(e) => setReportSource(e.target.value as any)}
               className="w-full text-xs p-2.5 bg-white border-2 border-emerald-500 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-emerald-800"
             >
-              <option value="Sewa">सेवा बिलिङ (Sewa Billing)</option>
-              <option value="Ambulance">एम्बुलेन्स सेवा (Ambulance Sewa)</option>
+              {hasSourceAccess('Sewa') && <option value="Sewa">सेवा बिलिङ (Sewa Billing)</option>}
+              {hasSourceAccess('Ambulance') && <option value="Ambulance">एम्बुलेन्स सेवा (Ambulance Sewa)</option>}
             </select>
             <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
           </div>
@@ -693,6 +813,34 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             </div>
 
             <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">सेवा प्रकार (Service Category)</label>
+              <div className="relative">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setSelectedService('All'); // Reset specific service filter when category changes
+                  }}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  <option value="All">सबै सेवा प्रकार (All Categories)</option>
+                  <option value="Lab">ल्याब (Lab Investigation)</option>
+                  <option value="X-Ray">एक्स-रे (X-Ray)</option>
+                  <option value="USG">USG (भिडियो एक्स-रे)</option>
+                  <option value="ECG">ECG (मुटुको जाँच)</option>
+                  <option value="OPD">OPD सेवा</option>
+                  <option value="Emergency font-nepali">इमर्जेन्सी सेवा</option>
+                  <option value="Pharmacy text-nepali">डिस्पेन्सरी / फार्मेसी</option>
+                  <option value="Physiotherapy">फिजियोथेरापी</option>
+                  <option value="TB">क्षयरोग (TB)</option>
+                  <option value="Leprosy">कुष्ठरोग (Leprosy)</option>
+                  <option value="Other">अन्य सेवाहरू (Others)</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
+
+            <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5">विशेष सेवा/टेस्ट (Specific Service/Test)</label>
               <div className="relative">
                 <select
@@ -703,20 +851,34 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
                   {testSubRelations.mainServices.length > 0 && (
                     <optgroup label="मुख्य टेस्ट प्याकेज/समूह (Main Test Packages)">
-                      {testSubRelations.mainServices.map((srv) => (
-                        <option key={`main-${srv}`} value={srv}>
-                          {srv}
-                        </option>
-                      ))}
+                      {testSubRelations.mainServices
+                        .filter(srv => selectedCategory === 'All' || serviceCategoryMap.get(srv.toLowerCase().trim()) === selectedCategory)
+                        .map((srv) => (
+                          <option key={`main-${srv}`} value={srv}>
+                            {srv}
+                          </option>
+                        ))}
                     </optgroup>
                   )}
                   {testSubRelations.individualAndSubServices.length > 0 && (
                     <optgroup label="व्यक्तिगत टेस्ट / उप-परीक्षण (Individual & Subtests)">
-                      {testSubRelations.individualAndSubServices.map((srv) => (
-                        <option key={`indiv-${srv}`} value={srv}>
-                          {srv}
-                        </option>
-                      ))}
+                      {testSubRelations.individualAndSubServices
+                        .filter(srv => {
+                          if (selectedCategory === 'All') return true;
+                          let cat = serviceCategoryMap.get(srv.toLowerCase().trim());
+                          if (!cat) {
+                            const parentName = testSubRelations.parentOfService.get(srv.toLowerCase().trim());
+                            if (parentName) {
+                              cat = serviceCategoryMap.get(parentName.toLowerCase().trim());
+                            }
+                          }
+                          return cat === selectedCategory;
+                        })
+                        .map((srv) => (
+                          <option key={`indiv-${srv}`} value={srv}>
+                            {srv}
+                          </option>
+                        ))}
                     </optgroup>
                   )}
                 </select>
@@ -740,7 +902,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-6 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-7 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
           <label className="block text-xs font-bold text-slate-600">रिपोर्टको मुख्य शीर्षक शब्द परिवर्तन वा संशोधन (Report Form Custom Headline Wordings)</label>
           <input
             type="text"
