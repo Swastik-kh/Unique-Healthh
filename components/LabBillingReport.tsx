@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle } from 'lucide-react';
-import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
+import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -15,6 +15,7 @@ interface LabBillingReportProps {
   currentUser?: User | null;
   users?: User[];
   serviceItems?: ServiceItem[];
+  serviceSeekerRecords?: ServiceSeekerRecord[];
 }
 
 const NEPALI_MONTH_OPTIONS = [
@@ -46,6 +47,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   currentUser,
   users = [],
   serviceItems = [],
+  serviceSeekerRecords = [],
 }) => {
   // Determine current Nepali state
   const curNepaliDate = useMemo(() => {
@@ -103,8 +105,51 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         });
       }
     });
+    
+    // Explicit mappings for registration/muldarta fees
+    const virtualCategories = ['OPD', 'Emergency', 'IPD', 'Vaccination', 'Lab', 'X-Ray', 'USG', 'ECG', 'Pharmacy', 'Physiotherapy', 'TB', 'Leprosy', 'Other'];
+    virtualCategories.forEach(cat => {
+      map.set(`${cat.toLowerCase()} दर्ता शुल्क`, cat);
+    });
+    map.set('opd ticket', 'OPD');
+    map.set('opd registration fee', 'OPD');
+    map.set('emergency ticket', 'Emergency');
+    
     return map;
   }, [serviceItems]);
+
+  // Combine real billing records with virtual billing records created from Muldarta (ServiceSeekerRecord)
+  const allBillingRecordsCombined = useMemo(() => {
+    const virtualRecords: BillingRecord[] = (serviceSeekerRecords || [])
+      .map(r => {
+        const sType = r.serviceType || 'OPD';
+        const serviceName = sType === 'OPD' ? 'OPD दर्ता शुल्क' : (sType === 'Emergency' ? 'Emergency दर्ता शुल्क' : `${sType} दर्ता शुल्क`);
+        return {
+          id: `muldarta-${r.id}`,
+          fiscalYear: r.fiscalYear || currentFiscalYear,
+          billDate: r.date || '',
+          invoiceNumber: r.mulDartaNo ? `MD-${r.mulDartaNo}` : (r.registrationNumber ? `REG-${r.registrationNumber}` : `MD-${r.id.substring(0, 8)}`),
+          serviceSeekerId: r.uniquePatientId || r.id,
+          patientName: r.name,
+          subTotal: r.serviceFee || 0,
+          discount: 0,
+          grandTotal: r.serviceFee || 0,
+          paymentMode: 'Cash' as const,
+          isDirectBilling: true,
+          items: [
+            {
+              id: `item-${r.id}`,
+              serviceName,
+              price: r.serviceFee || 0,
+              quantity: 1,
+              total: r.serviceFee || 0
+            }
+          ]
+        };
+      });
+
+    return [...billingRecords, ...virtualRecords];
+  }, [billingRecords, serviceSeekerRecords, currentFiscalYear]);
 
   const hasSourceAccess = (source: 'Sewa' | 'Ambulance') => {
     if (!currentUser) return false;
@@ -158,7 +203,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
     // Extract all unique items ever billed in the system
     const billedSet = new Set<string>();
-    billingRecords.forEach(record => {
+    allBillingRecordsCombined.forEach(record => {
       record.items?.forEach(item => {
         if (item.serviceName) {
           billedSet.add(item.serviceName.trim());
@@ -199,7 +244,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       mainServices: sortedMain, 
       individualAndSubServices: sortedIndividual 
     };
-  }, [serviceItems, serviceItems]);
+  }, [serviceItems, allBillingRecordsCombined]);
 
   // Helper to get the gross amount for selected service or category in a record (before flat discount)
   const getRecordGrossAmountForSelectedService = (record: BillingRecord): number => {
@@ -368,7 +413,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Filtered Billing Records
   const filteredRecords = useMemo(() => {
-    return billingRecords.filter((record) => {
+    return allBillingRecordsCombined.filter((record) => {
       // 1. Fiscal Year Match (Check lowercase/trimmed comparisons)
       const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
       if (!fyMatch) return false;
@@ -456,7 +501,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [billingRecords, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap]);
+  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
