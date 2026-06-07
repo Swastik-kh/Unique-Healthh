@@ -106,6 +106,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   
   // Driver Panel Local Tracking States
   const [drivingVehicle, setDrivingVehicle] = useState<string>('amb_1');
+  const [customVehicleNo, setCustomVehicleNo] = useState<string>('');
+  const [currentSharingVehicleId, setCurrentSharingVehicleId] = useState<string>('');
   const [driverNameInput, setDriverNameInput] = useState<string>(currentUser?.fullName || '');
   const [driverPhoneInput, setDriverPhoneInput] = useState<string>(currentUser?.phone || '');
   const [isActivelySharing, setIsActivelySharing] = useState<boolean>(false);
@@ -128,7 +130,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     { id: 'amb_1', name: 'बा २ झ ५६३० (Ambulance #1)' },
     { id: 'amb_2', name: 'स.प्र. १ झ ४१२ (Ambulance #2)' },
     { id: 'amb_3', name: 'को १ च १९४५ (Ambulance #3)' },
-    { id: 'amb_executive', name: 'सरकारी सवारी साधन (#Executive)' }
+    { id: 'amb_executive', name: 'सरकारी सवारी साधन (#Executive)' },
+    { id: 'custom', name: '✏️ नयाँ / अन्य गाडी थप्नुहोस् (Custom Vehicle No)' }
   ];
 
   // Dispatch fields state
@@ -475,11 +478,23 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
       return;
     }
 
+    let finalId = drivingVehicle;
+    let finalName = '';
+    if (drivingVehicle === 'custom') {
+      if (!customVehicleNo.trim()) {
+        alert("कृपया गाडी नम्बर प्रविष्ट गर्नुहोस्।");
+        return;
+      }
+      finalName = customVehicleNo.trim();
+      finalId = 'custom_' + finalName.replace(/[^a-zA-Z0-9\u0900-\u097F_-]/g, '_');
+    } else {
+      const vehicleObj = VEHICLE_TEMPLATES.find(v => v.id === drivingVehicle);
+      finalName = vehicleObj ? vehicleObj.name : drivingVehicle;
+    }
+
     setGpsErrorMsg(null);
     setIsActivelySharing(true);
-
-    const vehicleObj = VEHICLE_TEMPLATES.find(v => v.id === drivingVehicle);
-    const vehicleName = vehicleObj ? vehicleObj.name : drivingVehicle;
+    setCurrentSharingVehicleId(finalId);
 
     // Start native high speed interval tracking
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -488,9 +503,9 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         setCurrentGpsCoords({ lat: latitude, lng: longitude, accuracy });
 
         // Update real position directly to the Firebase database path!
-        update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${drivingVehicle}`), {
-          id: drivingVehicle,
-          name: vehicleName,
+        update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${finalId}`), {
+          id: finalId,
+          name: finalName,
           driver: driverNameInput,
           phone: driverPhoneInput || 'संजालमा उपलब्ध छैन',
           latitude: latitude,
@@ -533,7 +548,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     }
     
     // Mark database record offline/idle
-    update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${drivingVehicle}`), {
+    const idToTurnOff = currentSharingVehicleId || drivingVehicle;
+    update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${idToTurnOff}`), {
       isActive: false,
       speed: 0
     });
@@ -917,7 +933,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
 
           <div className="space-y-4">
             
-            {/* Template selector */}
+             {/* Template selector */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-400 font-nepali">एम्बुलेन्स / गाडी रोज्नुहोस् (Select Vehicle)</label>
               <select
@@ -931,6 +947,22 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                 ))}
               </select>
             </div>
+
+            {/* Custom vehicle input field */}
+            {drivingVehicle === 'custom' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 font-nepali">गाडी नम्बर प्रविष्ट गर्नुहोस् (Enter Vehicle/Plate Number) *</label>
+                <input
+                  type="text"
+                  required
+                  disabled={isActivelySharing}
+                  placeholder="उदा: बा १ झ ९४८८"
+                  value={customVehicleNo}
+                  onChange={e => setCustomVehicleNo(e.target.value)}
+                  className="w-full bg-slate-900 text-white border border-slate-800 p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50 font-semibold"
+                />
+              </div>
+            )}
 
             {/* Input Driver metadata */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

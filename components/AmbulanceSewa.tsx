@@ -31,6 +31,30 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   currentFiscalYear,
   generalSettings
 }) => {
+  // Helper to find the latest endOdometer for a given ambulance vehicle number
+  const getLastOdometerForAmbulance = (vehicleNo: string): number | undefined => {
+    if (!vehicleNo || !records || records.length === 0) return undefined;
+    const ambulanceRecords = records.filter(
+      r => r.ambulanceNo && r.ambulanceNo.trim().toLowerCase() === vehicleNo.trim().toLowerCase()
+    );
+    if (ambulanceRecords.length === 0) return undefined;
+    
+    // Sort chronologically using dateBs, then id
+    const sorted = [...ambulanceRecords].sort((a, b) => {
+      const dateComp = (a.dateBs || '').localeCompare(b.dateBs || '');
+      if (dateComp !== 0) return dateComp;
+      return (a.id || '').localeCompare(b.id || '');
+    });
+    
+    // Scan backwards for a valid endOdometer
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (sorted[i].endOdometer !== undefined) {
+        return sorted[i].endOdometer;
+      }
+    }
+    return undefined;
+  };
+
   const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
@@ -415,6 +439,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 onClick={() => {
                   setEditingRecord(null);
                   setPatientSearchInput('');
+                  const defaultAmbNo = generalSettings?.ambulanceNo || '';
+                  const lastOdo = getLastOdometerForAmbulance(defaultAmbNo);
                   setFormData({
                     dateBs: new NepaliDate().format('YYYY-MM-DD'),
                     patientName: '',
@@ -422,11 +448,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     address: '',
                     phone: '',
                     driverName: generalSettings?.ambulanceDriverName || '',
-                    ambulanceNo: generalSettings?.ambulanceNo || '',
+                    ambulanceNo: defaultAmbNo,
                     startLocation: '',
                     destination: '',
                     distanceKm: undefined,
-                    startOdometer: undefined,
+                    startOdometer: lastOdo,
                     endOdometer: undefined,
                     amountCharged: 0,
                     receivedAmount: 0,
@@ -615,7 +641,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       required
                       placeholder="जस्तै: बा १ झ ९४८८"
                       value={formData.ambulanceNo || ''}
-                      onChange={e => setFormData({...formData, ambulanceNo: e.target.value})}
+                      onChange={e => {
+                        const newAmbNo = e.target.value;
+                        setFormData(prev => {
+                          const lastOdo = !editingRecord ? getLastOdometerForAmbulance(newAmbNo) : undefined;
+                          return {
+                            ...prev,
+                            ambulanceNo: newAmbNo,
+                            startOdometer: (!editingRecord && lastOdo !== undefined) ? lastOdo : prev.startOdometer
+                          };
+                        });
+                      }}
                       className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-semibold text-slate-700"
                     />
                   </div>
@@ -636,14 +672,22 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         const val = e.target.value;
                         if (val) {
                           const [fromLoc, toLoc, rate, distance] = val.split('|');
-                          setFormData(prev => ({
-                            ...prev,
-                            startLocation: fromLoc,
-                            destination: toLoc,
-                            amountCharged: Number(rate) || 0,
-                            receivedAmount: Number(rate) || 0,
-                            distanceKm: distance ? Number(distance) : undefined
-                          }));
+                          const dVal = distance ? Number(distance) : undefined;
+                          setFormData(prev => {
+                            const startOdo = prev.startOdometer;
+                            const endOdo = (startOdo !== undefined && dVal !== undefined)
+                              ? Number((startOdo + dVal).toFixed(1))
+                              : prev.endOdometer;
+                            return {
+                              ...prev,
+                              startLocation: fromLoc,
+                              destination: toLoc,
+                              amountCharged: Number(rate) || 0,
+                              receivedAmount: Number(rate) || 0,
+                              distanceKm: dVal,
+                              endOdometer: endOdo
+                            };
+                          });
                         }
                       }}
                       className="text-xs p-2.5 bg-white border border-rose-300 rounded-xl text-rose-900 font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none w-full sm:w-64 cursor-pointer"
@@ -695,12 +739,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     onChange={e => {
                       const start = e.target.value === '' ? undefined : Number(e.target.value);
                       setFormData(prev => {
-                        const end = prev.endOdometer;
-                        const distance = (start !== undefined && end !== undefined && end >= start) ? Number((end - start).toFixed(1)) : prev.distanceKm;
+                        const dVal = prev.distanceKm;
+                        const end = (start !== undefined && dVal !== undefined)
+                          ? Number((start + dVal).toFixed(1))
+                          : prev.endOdometer;
                         return {
                           ...prev,
                           startOdometer: start,
-                          distanceKm: distance
+                          endOdometer: end
                         };
                       });
                     }}
@@ -740,7 +786,20 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     step="0.1"
                     placeholder="दुरी (किलोमिटरमा)"
                     value={formData.distanceKm === undefined ? '' : formData.distanceKm}
-                    onChange={e => setFormData({...formData, distanceKm: e.target.value === '' ? undefined : Number(e.target.value)})}
+                    onChange={e => {
+                      const dVal = e.target.value === '' ? undefined : Number(e.target.value);
+                      setFormData(prev => {
+                        const start = prev.startOdometer;
+                        const end = (start !== undefined && dVal !== undefined)
+                          ? Number((start + dVal).toFixed(1))
+                          : prev.endOdometer;
+                        return {
+                          ...prev,
+                          distanceKm: dVal,
+                          endOdometer: end
+                        };
+                      });
+                    }}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono"
                   />
                 </div>
