@@ -210,7 +210,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       return {
         from: parts[0] || '',
         to: parts[1] || '',
-        rate: Number(parts[2]) || 0
+        rate: Number(parts[2]) || 0,
+        distance: parts[3] ? Number(parts[3]) : undefined
       };
     }).filter(r => r.from || r.to);
   }, [generalSettings?.ambulanceRoutes]);
@@ -463,13 +464,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val) {
-                          const [fromLoc, toLoc, rate] = val.split('|');
+                          const [fromLoc, toLoc, rate, distance] = val.split('|');
                           setFormData(prev => ({
                             ...prev,
                             startLocation: fromLoc,
                             destination: toLoc,
                             amountCharged: Number(rate) || 0,
-                            receivedAmount: Number(rate) || 0
+                            receivedAmount: Number(rate) || 0,
+                            distanceKm: distance ? Number(distance) : undefined
                           }));
                         }
                       }}
@@ -477,8 +479,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     >
                       <option value="">-- मार्ग छनौट गर्नुहोस् (Select Route) --</option>
                       {configuredRoutes.map((r, i) => (
-                        <option key={i} value={`${r.from}|${r.to}|${r.rate}`}>
-                          {r.from} ➔ {r.to} (रु. {r.rate})
+                        <option key={i} value={`${r.from}|${r.to}|${r.rate}|${r.distance !== undefined ? r.distance : ''}`}>
+                          {r.from} ➔ {r.to} (रु. {r.rate}){r.distance !== undefined ? ` - ${r.distance} KM` : ''}
                         </option>
                       ))}
                     </select>

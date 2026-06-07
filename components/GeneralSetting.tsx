@@ -230,15 +230,15 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <p className="text-xs text-slate-400 mb-3">यहाँ नयाँ रुट तथा सो रुटको भाडा दर प्रविष्ट गर्नुहोस्। एम्बुलेन्स सेवा इन्ट्री गर्दा यी रुटहरू छान्न मिल्नेछ र भाडा दर स्वयम् भरिनेछ।</p>
                     <div className="space-y-3">
                         {(localSettings.ambulanceRoutes || []).map((route, index) => {
-                            const [fromLoc, toLoc, rate] = route.includes('|') ? route.split('|') : ['', '', '0'];
+                            const [fromLoc, toLoc, rate, distance = ''] = route.includes('|') ? route.split('|') : ['', '', '0', ''];
                             return (
-                                <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end border p-2 rounded-lg bg-slate-50 relative">
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border border-slate-200 p-3 rounded-xl bg-slate-50 relative shadow-sm hover:border-slate-300 transition-all">
                                     <Input 
                                         label="कहाँबाट (From)" 
                                         value={fromLoc} 
                                         onChange={(e) => {
                                             const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                            newRoutes[index] = `${e.target.value}|${toLoc}|${rate}`;
+                                            newRoutes[index] = `${e.target.value}|${toLoc}|${rate}|${distance}`;
                                             handleChange('ambulanceRoutes', newRoutes);
                                         }} 
                                         placeholder="प्रस्थान स्थान"
@@ -248,10 +248,22 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         value={toLoc} 
                                         onChange={(e) => {
                                             const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                            newRoutes[index] = `${fromLoc}|${e.target.value}|${rate}`;
+                                            newRoutes[index] = `${fromLoc}|${e.target.value}|${rate}|${distance}`;
                                             handleChange('ambulanceRoutes', newRoutes);
                                         }} 
                                         placeholder="गन्तव्य स्थान"
+                                    />
+                                    <Input 
+                                        label="दुरी कि.मी. (Distance KM)" 
+                                        type="number"
+                                        step="0.1"
+                                        value={distance} 
+                                        onChange={(e) => {
+                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
+                                            newRoutes[index] = `${fromLoc}|${toLoc}|${rate}|${e.target.value}`;
+                                            handleChange('ambulanceRoutes', newRoutes);
+                                        }} 
+                                        placeholder="उदा: 12.5"
                                     />
                                     <div className="flex gap-2 items-center">
                                         <div className="flex-1">
@@ -261,7 +273,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                                 value={rate} 
                                                 onChange={(e) => {
                                                     const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                                    newRoutes[index] = `${fromLoc}|${toLoc}|${e.target.value}`;
+                                                    newRoutes[index] = `${fromLoc}|${toLoc}|${e.target.value}|${distance}`;
                                                     handleChange('ambulanceRoutes', newRoutes);
                                                 }} 
                                                 placeholder="भाडा रकम"
@@ -273,7 +285,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                                 const newRoutes = (localSettings.ambulanceRoutes || []).filter((_, i) => i !== index);
                                                 handleChange('ambulanceRoutes', newRoutes);
                                             }} 
-                                            className="text-rose-500 hover:text-rose-700 p-2.5 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors mt-5"
+                                            className="text-rose-500 hover:text-rose-700 p-2.5 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors mt-5 shadow-sm border border-rose-100"
                                             title="हटाउनुहोस्"
                                         >
                                             <Trash2 size={16}/>
@@ -285,9 +297,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                         <button 
                             type="button" 
                             onClick={() => {
-                                handleChange('ambulanceRoutes', [...(localSettings.ambulanceRoutes || []), '||0']);
+                                handleChange('ambulanceRoutes', [...(localSettings.ambulanceRoutes || []), '||0|']);
                             }} 
-                            className="flex items-center gap-2 text-rose-600 hover:text-rose-700 text-sm font-bold bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors"
+                            className="flex items-center gap-2 text-rose-600 hover:text-rose-700 text-sm font-bold bg-rose-50 hover:bg-rose-100 p-2.5 rounded-xl transition-all shadow-sm border border-rose-100 border-dashed"
                         >
                             <Plus size={16}/> नयाँ मार्ग / भाडा दर थप्नुहोस् (Add New Route)
                         </button>
