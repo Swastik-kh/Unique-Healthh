@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
-import { OrganizationSettings, BillingRecord, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord, ServiceItem } from '../types';
+import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -25,11 +25,6 @@ interface LekhaPrashasanProps {
   payments: PartyPaymentRecord[];
   paymentRequests: PaymentRequest[];
   allowances: AllowanceRecord[];
-  billingRecords?: BillingRecord[];
-  ambulanceRecords?: AmbulanceRecord[];
-  ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
-  serviceSeekerRecords?: ServiceSeekerRecord[];
-  serviceItems?: ServiceItem[];
   onSaveProgram: (program: any) => void;
   onDeleteProgram: (id: string) => void;
   onSaveParty: (party: any) => void;
@@ -52,15 +47,10 @@ interface LekhaPrashasanProps {
 export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   programs = [],
   parties = [],
-  transactions: propTransactions = [],
+  transactions = [],
   payments = [],
   paymentRequests = [],
   allowances = [],
-  billingRecords = [],
-  ambulanceRecords = [],
-  ambulanceExpenseRecords = [],
-  serviceSeekerRecords = [],
-  serviceItems = [],
   onSaveProgram,
   onDeleteProgram,
   onSaveParty,
@@ -113,178 +103,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   }
 
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
-
-  // Map service name and sub-tests to their high-level category inside LekhaPrashasan
-  const serviceCategoryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    (serviceItems || []).forEach(item => {
-      const cat = item.category;
-      map.set(item.serviceName.trim().toLowerCase(), cat);
-      if (item.subTests && item.subTests.length > 0) {
-        item.subTests.forEach(sub => {
-          map.set(sub.testName.trim().toLowerCase(), cat);
-        });
-      }
-    });
-
-    const virtualCategories = ['OPD', 'Emergency', 'IPD', 'Vaccination', 'Lab', 'X-Ray', 'USG', 'ECG', 'Pharmacy', 'Physiotherapy', 'TB', 'Leprosy', 'Other'];
-    virtualCategories.forEach(cat => {
-      map.set(`${cat.toLowerCase()} दर्ता शुल्क`, cat);
-    });
-    map.set('opd ticket', 'OPD');
-    map.set('opd registration fee', 'OPD');
-    map.set('emergency ticket', 'Emergency');
-    
-    return map;
-  }, [serviceItems]);
-
-  const transactions = useMemo(() => {
-    const list: FinancialTransaction[] = [...propTransactions];
-
-    // Helper to format English date securely
-    const getSafeAdDate = (dateBsStr: string) => {
-      try {
-        return new NepaliDate(dateBsStr || today).toJsDate().toISOString();
-      } catch {
-        return new Date().toISOString();
-      }
-    };
-
-    // 1. Direct billing income from real billingRecords
-    (billingRecords || []).forEach(record => {
-      const isDirect = record.isDirectBilling || 
-                       record.serviceSeekerId?.startsWith('DIR-') || 
-                       record.invoiceNumber?.startsWith('DB-');
-      if (!isDirect) return;
-
-      const dateBs = record.billDate || today;
-      const dateAd = getSafeAdDate(dateBs);
-
-      // Avoid double counting if physically entered with exact same invoice number as referenceNo
-      if (propTransactions.some(t => t.referenceNo === record.invoiceNumber)) {
-        return;
-      }
-
-      record.items?.forEach((item, idx) => {
-        const itemLower = (item.serviceName || '').toLowerCase().trim();
-        let mappedCategory: 'Lab' | 'General' = 'General';
-        
-        let itemCategory = serviceCategoryMap.get(itemLower);
-        if (!itemCategory) {
-          const parentItem = (serviceItems || []).find(parent => 
-            parent.subTests?.some(sub => sub.testName.toLowerCase().trim() === itemLower)
-          );
-          if (parentItem) {
-            itemCategory = parentItem.category;
-          }
-        }
-        if (itemCategory === 'Lab' || itemLower.includes('lab') || itemLower.includes('ल्याब')) {
-          mappedCategory = 'Lab';
-        }
-
-        const amt = item.total || 0;
-        if (amt <= 0) return;
-
-        list.push({
-          id: `v-bill-${record.id}-${idx}`,
-          dateBs,
-          dateAd,
-          category: mappedCategory,
-          type: 'Income',
-          incomeSource: 'Internal',
-          amount: amt,
-          remarks: `Direct Bill (${item.serviceName}) - Inv: ${record.invoiceNumber} - Patient: ${record.patientName}`,
-          fiscalYear: record.fiscalYear || currentFiscalYear,
-          referenceNo: record.invoiceNumber,
-        });
-      });
-    });
-
-    // 2. Direct ticketing/registration from serviceSeekerRecords (Mul Darta)
-    (serviceSeekerRecords || []).forEach(r => {
-      const amt = r.serviceFee || 0;
-      if (amt <= 0) return;
-
-      const dateBs = r.date || today;
-      const dateAd = getSafeAdDate(dateBs);
-
-      const sType = r.serviceType || 'OPD';
-      const serviceName = sType === 'OPD' ? 'OPD दर्ता शुल्क' : (sType === 'Emergency' ? 'Emergency दर्ता शुल्क' : `${sType} दर्ता शुल्क`);
-      const invNo = r.mulDartaNo ? `MD-${r.mulDartaNo}` : (r.registrationNumber ? `REG-${r.registrationNumber}` : `MD-${r.id.substring(0, 8)}`);
-
-      if (propTransactions.some(t => t.referenceNo === invNo)) {
-        return;
-      }
-
-      list.push({
-        id: `v-muldarta-${r.id}`,
-        dateBs,
-        dateAd,
-        category: 'General',
-        type: 'Income',
-        incomeSource: 'Internal',
-        amount: amt,
-        remarks: `Direct Register Ticket (${serviceName}) - No: ${invNo} - Patient: ${r.name}`,
-        fiscalYear: r.fiscalYear || currentFiscalYear,
-        referenceNo: invNo,
-      });
-    });
-
-    // 3. Ambulance Service Travel Details Income
-    (ambulanceRecords || []).forEach(record => {
-      const amt = record.receivedAmount || 0;
-      if (amt <= 0) return;
-
-      const dateBs = record.dateBs || today;
-      const dateAd = getSafeAdDate(dateBs);
-      const refNo = record.id.substring(0, 8);
-
-      if (propTransactions.some(t => t.id === record.id || t.remarks.includes(record.id) || (t.referenceNo && t.referenceNo === `AMB-IN-${refNo.toUpperCase()}`))) {
-        return;
-      }
-
-      list.push({
-        id: `v-amb-inc-${record.id}`,
-        dateBs,
-        dateAd,
-        category: 'Ambulance',
-        type: 'Income',
-        incomeSource: 'Internal',
-        amount: amt,
-        remarks: `Ambulance Travel Income (${record.startLocation} to ${record.destination}) - Passenger: ${record.patientName} - Driver: ${record.driverName}`,
-        fiscalYear: record.fiscalYear || currentFiscalYear,
-        referenceNo: `AMB-IN-${refNo.toUpperCase()}`,
-      });
-    });
-
-    // 4. Ambulance Service Expense Details (Kharcha)
-    (ambulanceExpenseRecords || []).forEach(record => {
-      const amt = record.amount || 0;
-      if (amt <= 0) return;
-
-      const dateBs = record.dateBs || today;
-      const dateAd = getSafeAdDate(dateBs);
-      const refNo = record.billNo || record.id.substring(0, 8);
-
-      if (propTransactions.some(t => t.id === record.id || t.remarks.includes(record.id) || (t.referenceNo && t.referenceNo === record.billNo))) {
-        return;
-      }
-
-      list.push({
-        id: `v-amb-exp-${record.id}`,
-        dateBs,
-        dateAd,
-        category: 'Ambulance',
-        type: 'Expense',
-        amount: amt,
-        remarks: `Ambulance Expense (${record.expenseCategory})${record.paidTo ? ` - Paid to: ${record.paidTo}` : ''}${record.remarks ? ` - Note: ${record.remarks}` : ''}`,
-        fiscalYear: record.fiscalYear || currentFiscalYear,
-        referenceNo: record.billNo || `AMB-EX-${refNo.toUpperCase()}`,
-      });
-    });
-
-    return list;
-  }, [propTransactions, billingRecords, serviceSeekerRecords, ambulanceRecords, ambulanceExpenseRecords, serviceCategoryMap, serviceItems, currentFiscalYear, today]);
 
   // Derived State
   const stats = useMemo(() => {
