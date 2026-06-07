@@ -20,7 +20,8 @@ import {
   Smartphone, 
   ExternalLink,
   Check,
-  Locate
+  Locate,
+  Trash2
 } from 'lucide-react';
 
 interface AmbulanceTrackerProps {
@@ -168,7 +169,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             lastUpdated: Date.now(),
             batteryLevel: 88,
             sirenActive: false,
-            isActive: true,
+            isActive: false,
             locationName: 'लैनचौर, काठमाडौँ'
           },
           'amb_2': {
@@ -185,7 +186,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             sirenActive: true,
             currentPatient: 'सरिता थामी (आपतकालीन सुत्केरी)',
             destinationName: 'प्राथमिक स्वास्थ्य केन्द्र',
-            isActive: true,
+            isActive: false,
             locationName: 'महाराजगञ्ज, काठमाडौँ'
           }
         };
@@ -198,10 +199,15 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     };
   }, [safeOrg]);
 
+  // Only consider ambulances with active sharing to be on the live display
+  const liveAmbulances = useMemo(() => {
+    return activeAmbulances.filter(amb => amb.isActive === true);
+  }, [activeAmbulances]);
+
   // Selected Ambulance Object
   const selectedAmb = useMemo(() => {
-    return activeAmbulances.find(a => a.id === selectedAmbulanceId) || activeAmbulances[0];
-  }, [activeAmbulances, selectedAmbulanceId]);
+    return liveAmbulances.find(a => a.id === selectedAmbulanceId) || liveAmbulances[0];
+  }, [liveAmbulances, selectedAmbulanceId]);
 
   // 1.5. Background Automatic Geocoder to resolve and cache place names
   useEffect(() => {
@@ -330,12 +336,23 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   // Live Sync Firebase coordinates onto the Leaflet Map
   useEffect(() => {
     const L = (window as any).L;
-    if (!leafletMapRef.current || !L || activeAmbulances.length === 0) return;
+    if (!leafletMapRef.current || !L) return;
+
+    // Clean up markers that are no longer in live/active ambulances
+    const liveKeys = new Set(liveAmbulances.map(a => a.id));
+    Object.keys(leafletMarkersRef.current).forEach(key => {
+      if (!liveKeys.has(key)) {
+        leafletMapRef.current.removeLayer(leafletMarkersRef.current[key]);
+        delete leafletMarkersRef.current[key];
+      }
+    });
+
+    if (liveAmbulances.length === 0) return;
 
     // Track coordinates list to center map bounds
     const validCoords: any[] = [];
 
-    activeAmbulances.forEach(amb => {
+    liveAmbulances.forEach(amb => {
       if (!amb.latitude || !amb.longitude) return;
       const key = amb.id;
       const coord = [amb.latitude, amb.longitude];
@@ -444,7 +461,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         leafletMapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       }
     }
-  }, [activeAmbulances, selectedAmbulanceId, activeSubTab]);
+  }, [liveAmbulances, selectedAmb, activeSubTab]);
 
   // 3. Driver Location Transmitter Code (REAL-TIME GPS SHARING)
   const beginGpsLocationSharing = () => {
@@ -712,7 +729,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             <div className="bg-slate-950 rounded-2xl p-4 border border-slate-805 space-y-1">
               <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 font-mono">Real-time GPS Diagnostic Logs</span>
               <div className="text-[11px] font-mono text-slate-300 space-y-1.5">
-                {activeAmbulances.map((amb) => {
+                {liveAmbulances.map((amb) => {
                   const formatTime = new Date(amb.lastUpdated).toLocaleTimeString('ne-NP', { hour: '2-digit', minute: '2-digit' });
                   return (
                     <div key={amb.id} className="flex justify-between items-center border-b border-slate-900 pb-1">
@@ -735,16 +752,16 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             {/* Active Connected Trackers list */}
             <div className="bg-slate-850 p-4 sm:p-5 rounded-2xl border border-slate-750 space-y-4">
               <span className="text-xs uppercase font-black text-rose-400 tracking-wider font-nepali block">
-                🔴 अनलाईन एम्बुलेन्सहरू ({activeAmbulances.length})
+                🔴 अनलाईन एम्बुलेन्सहरू ({liveAmbulances.length})
               </span>
 
-              {activeAmbulances.length === 0 ? (
-                <div className="p-6 text-center text-slate-500 text-xs">
-                  सक्रिय चालकहरू कोही छैन। चलाउन चालक मोर्ड अन्तर्गत दर्ता सुरु गर्नुहोस्।
+              {liveAmbulances.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs font-nepali">
+                  सक्रिय चालकहरू कोही छैन। चलाउन 'चालक दर्ता/प्रशारण' अन्तर्गत दर्ता सुरु गर्नुहोस्।
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {activeAmbulances.map(amb => (
+                  {liveAmbulances.map(amb => (
                     <div 
                       key={amb.id}
                       onClick={() => setSelectedAmbulanceId(amb.id)}
@@ -754,26 +771,38 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                           : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      <div className="flex items-center justify-between pointer-events-none">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Truck className={`size-4 ${amb.status === 'en_route' ? 'text-rose-500 animate-bounce' : 'text-slate-400'}`} />
+                          <Truck className={`size-4 shrink-0 ${amb.status === 'en_route' ? 'text-rose-500 animate-bounce' : 'text-slate-400'}`} />
                           <span className="text-xs font-black font-mono text-slate-100">{amb.name.split(' (')[0]}</span>
                         </div>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
-                          amb.status === 'idle' ? 'bg-emerald-500/20 text-emerald-400' :
-                          amb.status === 'en_route' ? 'bg-rose-500/20 text-rose-400 animate-pulse' : 'bg-sky-500/20 text-sky-400'
-                        }`}>
-                          {amb.status === 'idle' ? 'मिसन छैन' : amb.status === 'en_route' ? 'बिरामी' : 'फर्कदै'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
+                            amb.status === 'idle' ? 'bg-emerald-500/20 text-emerald-400' :
+                            amb.status === 'en_route' ? 'bg-rose-500/20 text-rose-400 animate-pulse' : 'bg-sky-500/20 text-sky-400'
+                          }`}>
+                            {amb.status === 'idle' ? 'मिसन छैन' : amb.status === 'en_route' ? 'बिरामी' : 'फर्कदै'}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveTracer(amb.id);
+                            }}
+                            className="p-1 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded transition-all"
+                            title="हटाउनुहोस् (Remove from Live tracking)"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-nepali pointer-events-none">
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-nepali">
                         <span>चालक: {amb.driver}</span>
                         <span className="font-mono text-cyan-400 font-bold">{amb.speed} km/h</span>
                       </div>
 
                       {amb.locationName && (
-                        <div className="mt-1 flex items-center gap-1 text-[10px] text-teal-400 font-nepali pointer-events-none bg-slate-950/40 px-1 py-0.5 rounded border border-slate-800/40">
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-teal-400 font-nepali bg-slate-950/40 px-1 py-0.5 rounded border border-slate-800/40">
                           <MapPin size={10} className="shrink-0 text-rose-500" />
                           <span className="truncate">{amb.locationName}</span>
                         </div>
