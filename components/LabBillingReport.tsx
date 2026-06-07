@@ -729,7 +729,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           <div className="space-y-2">
             <h3 className="text-lg font-bold text-slate-800 font-nepali">अनुमति अस्वीकृत (Access Denied)</h3>
             <p className="text-slate-500 text-xs font-nepali leading-relaxed">
-              तपाईंसँग बिलिङ रिपोर्टअन्तर्गत कुनै भी सेवा (सेवा बिलिङ रिपोर्ट वा एम्बुलेन्स सेवा रिपोर्ट) को पहुँच अनुमति छैन। कृपया एडमिन वा स्वास्थ्य शाखासँग सम्पर्क गरी आवश्यक अनुमति प्राप्त गर्नुहोस्।
+              तपाईंसँग बिलिङ रिपोर्टअन्तर्गत कुनै पनी सेवा (सेवा बिलिङ रिपोर्ट वा एम्बुलेन्स सेवा रिपोर्ट) को पहुँच अनुमति छैन। कृपया एडमिन वा स्वास्थ्य शाखासँग सम्पर्क गरी आवश्यक अनुमति प्राप्त गर्नुहोस्।
             </p>
           </div>
           <div className="pt-2">
