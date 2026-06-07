@@ -1066,7 +1066,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const clientName = record.patientName || '-';
                     const driverDetail = `${record.ambulanceNo || '-'} / ${record.driverName || '-'}`;
                     const displayDate = formatRawDateToNepaliUi(record.dateBs);
-                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)`;
+                    const odoText = (record.startOdometer !== undefined && record.endOdometer !== undefined)
+                      ? ` [Odo: ${record.startOdometer} ➔ ${record.endOdometer}]`
+                      : '';
+                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)${odoText}`;
                     const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
                     const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
                     const dueAmt = (record.amountCharged || 0) - (record.receivedAmount || 0);

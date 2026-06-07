@@ -272,6 +272,8 @@ export interface AmbulanceRecord {
   startLocation: string;
   destination: string;
   distanceKm?: number;
+  startOdometer?: number;
+  endOdometer?: number;
   amountCharged: number;
   receivedAmount: number;
   remarks?: string;

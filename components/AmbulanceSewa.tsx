@@ -30,7 +30,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   currentFiscalYear,
   generalSettings
 }) => {
-  const [activeTab, setActiveTab] = useState<'trips' | 'expenses'>('trips');
+  const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,6 +62,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     startLocation: '',
     destination: '',
     distanceKm: undefined,
+    startOdometer: undefined,
+    endOdometer: undefined,
     amountCharged: 0,
     receivedAmount: 0,
     remarks: ''
@@ -111,6 +113,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       startLocation: formData.startLocation || '',
       destination: formData.destination || '',
       distanceKm: formData.distanceKm ? Number(formData.distanceKm) : undefined,
+      startOdometer: formData.startOdometer !== undefined ? Number(formData.startOdometer) : undefined,
+      endOdometer: formData.endOdometer !== undefined ? Number(formData.endOdometer) : undefined,
       amountCharged: Number(formData.amountCharged) || 0,
       receivedAmount: Number(formData.receivedAmount) || 0,
       remarks: formData.remarks || ''
@@ -131,6 +135,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       startLocation: '',
       destination: '',
       distanceKm: undefined,
+      startOdometer: undefined,
+      endOdometer: undefined,
       amountCharged: 0,
       receivedAmount: 0,
       remarks: ''
@@ -254,6 +260,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <Receipt size={15} />
               <span>खर्च विवरण (Expenses)</span>
             </button>
+            <button
+              onClick={() => setActiveTab('logbook')}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                activeTab === 'logbook'
+                  ? 'bg-amber-600 text-white shadow'
+                  : 'text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <FileText size={15} />
+              <span>लगबुक (Log Book)</span>
+            </button>
           </div>
 
           <div>
@@ -273,6 +290,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     startLocation: '',
                     destination: '',
                     distanceKm: undefined,
+                    startOdometer: undefined,
+                    endOdometer: undefined,
                     amountCharged: 0,
                     receivedAmount: 0,
                     remarks: ''
@@ -285,7 +304,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <Plus size={16} />
                 <span className="font-nepali">यात्रा रेकर्ड थप्नुहोस् (Add Trip)</span>
               </button>
-            ) : (
+            ) : activeTab === 'expenses' ? (
               <button
                 onClick={() => {
                   setEditingExpense(null);
@@ -305,6 +324,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               >
                 <Plus size={16} />
                 <span className="font-nepali">खर्च रेकर्ड थप्नुहोस् (Add Expense)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => window.print()}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-600 text-white px-4 py-2.5 rounded-xl hover:bg-amber-700 transition-all shadow-sm font-bold text-xs hover:scale-[1.02]"
+              >
+                <FileText size={16} />
+                <span className="font-nepali">लगबुक प्रिन्ट गर्नुहोस् (Print Log Book)</span>
               </button>
             )}
           </div>
@@ -510,6 +537,54 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     value={formData.destination || ''}
                     onChange={e => setFormData({...formData, destination: e.target.value})}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                  />
+                </div>
+
+                {/* Start Odometer */}
+                <div className="space-y-1.5 p-3 rounded-xl bg-orange-50/40 border border-orange-100">
+                  <label className="text-xs font-bold text-orange-950 font-nepali">शुरुको मि. / किलोमिटर (Start Odometer)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="उदा: 14520.5"
+                    value={formData.startOdometer === undefined ? '' : formData.startOdometer}
+                    onChange={e => {
+                      const start = e.target.value === '' ? undefined : Number(e.target.value);
+                      setFormData(prev => {
+                        const end = prev.endOdometer;
+                        const distance = (start !== undefined && end !== undefined && end >= start) ? Number((end - start).toFixed(1)) : prev.distanceKm;
+                        return {
+                          ...prev,
+                          startOdometer: start,
+                          distanceKm: distance
+                        };
+                      });
+                    }}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all text-sm font-mono text-orange-850"
+                  />
+                </div>
+
+                {/* End Odometer */}
+                <div className="space-y-1.5 p-3 rounded-xl bg-orange-50/40 border border-orange-100">
+                  <label className="text-xs font-bold text-orange-950 font-nepali">अन्तिम मि. / किलोमिटर (End Odometer)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="उदा: 14585.2"
+                    value={formData.endOdometer === undefined ? '' : formData.endOdometer}
+                    onChange={e => {
+                      const end = e.target.value === '' ? undefined : Number(e.target.value);
+                      setFormData(prev => {
+                        const start = prev.startOdometer;
+                        const distance = (start !== undefined && end !== undefined && end >= start) ? Number((end - start).toFixed(1)) : prev.distanceKm;
+                        return {
+                          ...prev,
+                          endOdometer: end,
+                          distanceKm: distance
+                        };
+                      });
+                    }}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all text-sm font-mono text-orange-850"
                   />
                 </div>
 
@@ -893,7 +968,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'expenses' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
               <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
@@ -1005,6 +1080,117 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 print:hidden">
+              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                <FileText className="text-amber-600 size-5" />
+                एम्बुलेन्स लगबुक विवरण (Ambulance Log Book)
+              </h3>
+              <div className="relative max-w-sm w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="खोज्नुहोस् (नाम, एम्बुलेन्स नं, चालक वा मार्ग...)"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-semibold"
+                />
+              </div>
+            </div>
+
+            {/* Print Header */}
+            <div className="hidden print:block text-center space-y-2 p-6 border-b-2 border-slate-900">
+              <h1 className="text-2xl font-black font-nepali text-slate-950">{generalSettings?.orgName || 'स्थानीय तह स्वास्थ्य संस्था'}</h1>
+              <h2 className="text-lg font-bold font-nepali text-slate-900">एम्बुलेन्स सेवा लगबुक रेकर्ड (Executive Vehicle Log Book)</h2>
+              <p className="text-xs text-slate-700 font-medium">आर्थिक वर्ष: {currentFiscalYear} | छापिएको मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
+            </div>
+
+            <div className="overflow-x-auto p-2 print:p-0">
+              <table className="min-w-[1000px] w-full text-left border-collapse border-2 border-slate-900 text-xs md:text-sm">
+                <thead>
+                  <tr className="bg-slate-50 print:bg-slate-100/50 text-slate-850 font-bold border-b border-2 border-slate-900">
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center w-12">सि.नं.</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center w-28">मिति (Date)</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali">गाडी / एम्बुलेन्स नं.</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali">बिरामी/सेवाग्राही</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali">रुट विवरण (मार्ग)</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">शुरु कि.मी.</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">अन्तिम कि.मी.</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">चलेको दूरी (KM)</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali">चालक (Driver)</th>
+                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-right text-red-700 font-bold">रकम (Charged)</th>
+                    <th className="p-3 font-nepali">कैफियत</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-300">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="p-8 text-center text-slate-400 font-nepali">
+                        लगबुकमा कुनै रेकर्ड फेला परेन।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRecords.map((record, index) => (
+                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-bold">{index + 1}</td>
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-mono">{record.dateBs}</td>
+                        <td className="p-3 border-r-2 border-slate-900 font-semibold font-mono">{record.ambulanceNo}</td>
+                        <td className="p-3 border-r-2 border-slate-900">
+                          <p className="font-bold text-slate-950 text-sm">{record.patientName}</p>
+                          {record.phone && <p className="text-[10px] text-slate-500 print:hidden">संपर्क: {record.phone}</p>}
+                        </td>
+                        <td className="p-3 border-r-2 border-slate-900">
+                          <span className="font-medium text-amber-800">{record.startLocation}</span> ➔ <span className="font-medium text-teal-800">{record.destination}</span>
+                        </td>
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-mono font-bold text-slate-600">
+                          {record.startOdometer !== undefined ? record.startOdometer.toFixed(1) : '-'}
+                        </td>
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-mono font-bold text-slate-600">
+                          {record.endOdometer !== undefined ? record.endOdometer.toFixed(1) : '-'}
+                        </td>
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-mono font-extrabold text-teal-700">
+                          {record.distanceKm ? `${record.distanceKm.toFixed(1)} KM` : '-'}
+                        </td>
+                        <td className="p-3 border-r-2 border-slate-900 font-semibold text-slate-800">{record.driverName}</td>
+                        <td className="p-3 border-r-2 border-slate-900 text-right font-mono font-bold">
+                          रु. {(record.amountCharged || 0).toFixed(2)}
+                        </td>
+                        <td className="p-3 text-slate-600 italic select-all text-xs">{record.remarks || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+
+                  {/* Summary row */}
+                  <tr className="bg-slate-100 font-black text-slate-950 border-t-2 border-slate-900">
+                    <td colSpan={7} className="p-3 border-r-2 border-slate-900 text-right font-nepali">कुल जम्मा योग (Grand Total):</td>
+                    <td className="p-3 border-r-2 border-slate-900 text-center font-mono text-teal-850 font-black">
+                      {filteredRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1)} KM
+                    </td>
+                    <td className="p-3 border-r-2 border-slate-900"></td>
+                    <td className="p-3 border-r-2 border-slate-900 text-right font-mono font-black">
+                      रु. {filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toFixed(2)}
+                    </td>
+                    <td className="p-3"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Print Signatures */}
+            <div className="hidden print:grid grid-cols-2 gap-10 mt-20 pt-10 text-center text-sm font-nepali">
+              <div className="space-y-1">
+                <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
+                <p className="font-bold text-slate-900">तयार गर्ने (चालकको दस्तखत)</p>
+                <p className="text-xs text-slate-500">मिति: ........................</p>
+              </div>
+              <div className="space-y-1">
+                <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
+                <p className="font-bold text-slate-900">स्वीकृत गर्ने अधिकारी</p>
+                <p className="text-xs text-slate-500">मिति: ........................</p>
+              </div>
             </div>
           </div>
         )}
