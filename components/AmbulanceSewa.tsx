@@ -37,6 +37,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [patientSearchInput, setPatientSearchInput] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   
+  // Log book specific filters setup
+  const [logBookMonthFilter, setLogBookMonthFilter] = useState('');
+  const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
+  const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
+  
   // Expense related states
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
@@ -207,6 +212,67 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     (r.phone && r.phone.includes(searchTerm))
   );
 
+  // Constants & memoized helpers for advanced log book filtering
+  const NEPALI_MONTHS = useMemo(() => [
+    { id: '01', name: 'बैशाख (Baisakh)' },
+    { id: '02', name: 'जेठ (Jestha)' },
+    { id: '03', name: 'असार (Ashadh)' },
+    { id: '04', name: 'साउन (Shrawan)' },
+    { id: '05', name: 'भदौ (Bhadra)' },
+    { id: '06', name: 'असोज (Ashoj)' },
+    { id: '07', name: 'कात्तिक (Kartik)' },
+    { id: '08', name: 'मंसिर (Mangsir)' },
+    { id: '09', name: 'पुस (Poush)' },
+    { id: '10', name: 'माघ (Magh)' },
+    { id: '11', name: 'फागुन (Falgun)' },
+    { id: '12', name: 'चैत (Chaitra)' },
+  ], []);
+
+  const uniqueLogBookDrivers = useMemo(() => {
+    const drivers = records.map(r => r.driverName).filter(Boolean);
+    return Array.from(new Set(drivers));
+  }, [records]);
+
+  const uniqueLogBookVehicles = useMemo(() => {
+    const vehicles = records.map(r => r.ambulanceNo).filter(Boolean);
+    return Array.from(new Set(vehicles));
+  }, [records]);
+
+  const filteredLogBookRecords = useMemo(() => {
+    return records.filter(r => {
+      // 1. General Search
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        r.patientName.toLowerCase().includes(searchLower) ||
+        (r.ambulanceNo && r.ambulanceNo.toLowerCase().includes(searchLower)) ||
+        (r.driverName && r.driverName.toLowerCase().includes(searchLower)) ||
+        (r.startLocation && r.startLocation.toLowerCase().includes(searchLower)) ||
+        (r.destination && r.destination.toLowerCase().includes(searchLower)) ||
+        (r.phone && r.phone.includes(searchTerm)) ||
+        (r.remarks && r.remarks.toLowerCase().includes(searchLower));
+
+      // 2. Month Filter
+      let matchesMonth = true;
+      if (logBookMonthFilter) {
+        const parts = (r.dateBs || '').split('-');
+        if (parts.length >= 2) {
+          const m = parts[1];
+          matchesMonth = m === logBookMonthFilter || Number(m) === Number(logBookMonthFilter);
+        } else {
+          matchesMonth = false;
+        }
+      }
+
+      // 3. Driver Filter
+      const matchesDriver = !logBookDriverFilter || r.driverName === logBookDriverFilter;
+
+      // 4. Vehicle Filter
+      const matchesVehicle = !logBookVehicleFilter || r.ambulanceNo === logBookVehicleFilter;
+
+      return matchesSearch && matchesMonth && matchesDriver && matchesVehicle;
+    });
+  }, [records, searchTerm, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter]);
+
   const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteAmbulance === true;
 
   const configuredRoutes = useMemo(() => {
@@ -225,18 +291,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   return (
     <div className="relative min-h-screen">
       <div className="relative z-10 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 font-nepali flex items-center gap-2">
               <Truck className="text-rose-600 size-7" />
               एम्बुलेन्स सेवा (Ambulance Service)
             </h2>
-            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकर्ड</p>
+            <p className="text-sm text-slate-500">एम्बुलेन्स सेवा प्रयोगको विवरण, बिलिङ तथा खर्च रेकرد</p>
           </div>
         </div>
 
         {/* Tab Switcher & Dynamic Adding Button */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-150 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-white p-3 rounded-2xl border border-slate-150 shadow-sm print:hidden">
           <div className="flex bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('trips')}
@@ -787,7 +853,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         )}
 
         {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
@@ -1083,9 +1149,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 print:hidden">
-              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print:border-none print:shadow-none print:bg-transparent">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 print:hidden">
+              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 shrink-0">
                 <FileText className="text-amber-600 size-5" />
                 एम्बुलेन्स लगबुक विवरण (Ambulance Log Book)
               </h3>
@@ -1093,7 +1159,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input
                   type="text"
-                  placeholder="खोज्नुहोस् (नाम, एम्बुलेन्स नं, चालक वा मार्ग...)"
+                  placeholder="खोज्नुहोस् (नाम, गाडी नम्बर, चालक वा रुट...)"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-semibold"
@@ -1101,11 +1167,97 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </div>
             </div>
 
+            {/* Advanced Filters Section */}
+            <div className="p-4 sm:p-5 bg-slate-50/40 border-b border-slate-150 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4 items-end print:hidden">
+              {/* Month Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] sm:text-xs font-bold text-slate-500 font-nepali flex items-center gap-1.5">
+                  <Calendar size={13} className="text-amber-600" />
+                  महिना चयन गर्नुहोस् (Month)
+                </label>
+                <select
+                  value={logBookMonthFilter}
+                  onChange={e => setLogBookMonthFilter(e.target.value)}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-700 cursor-pointer"
+                >
+                  <option value="">सबै महिना (All Months)</option>
+                  {NEPALI_MONTHS.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Driver Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] sm:text-xs font-bold text-slate-500 font-nepali flex items-center gap-1.5">
+                  <UserIcon size={13} className="text-amber-600" />
+                  चालक छान्नुहोस् (Driver)
+                </label>
+                <select
+                  value={logBookDriverFilter}
+                  onChange={e => setLogBookDriverFilter(e.target.value)}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-700 cursor-pointer"
+                >
+                  <option value="">सबै चालक (All Drivers)</option>
+                  {uniqueLogBookDrivers.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Vehicle Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] sm:text-xs font-bold text-slate-500 font-nepali flex items-center gap-1.5">
+                  <Truck size={13} className="text-amber-600" />
+                  एम्बुलेन्स / गाडी नं. (Vehicle)
+                </label>
+                <select
+                  value={logBookVehicleFilter}
+                  onChange={e => setLogBookVehicleFilter(e.target.value)}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-700 cursor-pointer"
+                >
+                  <option value="">सबै गाडी नम्बर (All Vehicles)</option>
+                  {uniqueLogBookVehicles.map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear/Reset Option */}
+              {(logBookMonthFilter || logBookDriverFilter || logBookVehicleFilter || searchTerm) && (
+                <div className="flex">
+                  <button
+                    onClick={() => {
+                      setLogBookMonthFilter('');
+                      setLogBookDriverFilter('');
+                      setLogBookVehicleFilter('');
+                      setSearchTerm('');
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-bold border border-rose-200 bg-rose-50 hover:bg-rose-100 px-4 py-2 rounded-xl transition-all w-full sm:w-auto text-center"
+                  >
+                    फिल्टरहरू रिसेट गर्नुहोस् (Reset)
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Print Header */}
-            <div className="hidden print:block text-center space-y-2 p-6 border-b-2 border-slate-900">
+            <div className="hidden print:block text-center space-y-2.5 p-6 border-b-2 border-slate-900">
               <h1 className="text-2xl font-black font-nepali text-slate-950">{generalSettings?.orgName || 'स्थानीय तह स्वास्थ्य संस्था'}</h1>
               <h2 className="text-lg font-bold font-nepali text-slate-900">एम्बुलेन्स सेवा लगबुक रेकर्ड (Executive Vehicle Log Book)</h2>
-              <p className="text-xs text-slate-700 font-medium">आर्थिक वर्ष: {currentFiscalYear} | छापिएको मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
+              <div className="text-xs text-slate-700 font-medium flex flex-wrap items-center justify-center gap-4">
+                <span>आर्थिक वर्ष: {currentFiscalYear}</span>
+                <span>छापिएको मिति: {new NepaliDate().format('YYYY-MM-DD')}</span>
+                {logBookMonthFilter && (
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
+                )}
+                {logBookDriverFilter && (
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">चालक: {logBookDriverFilter}</span>
+                )}
+                {logBookVehicleFilter && (
+                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">गाडी नं.: {logBookVehicleFilter}</span>
+                )}
+              </div>
             </div>
 
             <div className="overflow-x-auto p-2 print:p-0">
@@ -1126,14 +1278,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-300">
-                  {filteredRecords.length === 0 ? (
+                  {filteredLogBookRecords.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="p-8 text-center text-slate-400 font-nepali">
                         लगबुकमा कुनै रेकर्ड फेला परेन।
                       </td>
                     </tr>
                   ) : (
-                    filteredRecords.map((record, index) => (
+                    filteredLogBookRecords.map((record, index) => (
                       <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-3 border-r-2 border-slate-900 text-center font-bold">{index + 1}</td>
                         <td className="p-3 border-r-2 border-slate-900 text-center font-mono">{record.dateBs}</td>
@@ -1167,11 +1319,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   <tr className="bg-slate-100 font-black text-slate-950 border-t-2 border-slate-900">
                     <td colSpan={7} className="p-3 border-r-2 border-slate-900 text-right font-nepali">कुल जम्मा योग (Grand Total):</td>
                     <td className="p-3 border-r-2 border-slate-900 text-center font-mono text-teal-850 font-black">
-                      {filteredRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1)} KM
+                      {filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1)} KM
                     </td>
                     <td className="p-3 border-r-2 border-slate-900"></td>
                     <td className="p-3 border-r-2 border-slate-900 text-right font-mono font-black">
-                      रु. {filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toFixed(2)}
+                      रु. {filteredLogBookRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toFixed(2)}
                     </td>
                     <td className="p-3"></td>
                   </tr>
