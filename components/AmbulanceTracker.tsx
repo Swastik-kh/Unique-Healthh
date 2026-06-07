@@ -43,9 +43,54 @@ interface RealtimeAmbulance {
   currentPatient?: string;
   destinationName?: string;
   isActive: boolean;
+  locationName?: string;
+  geocodedLat?: number;
+  geocodedLng?: number;
 }
 
 export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser, generalSettings }) => {
+  // Helper to reverse geocode lat/lng to Nepal place names
+  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+        headers: {
+          'Accept-Language': 'ne,np,en'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address;
+        if (addr) {
+          const settlement = addr.village || addr.suburb || addr.town || addr.neighbourhood || addr.city_district || addr.hamlet || addr.isolated_dwelling;
+          const county = addr.county || addr.district || addr.state;
+          
+          let parts = [];
+          if (settlement) parts.push(settlement);
+          if (county) parts.push(county.replace(" District", ""));
+          
+          if (parts.length > 0) {
+            return parts.join(', ');
+          }
+        }
+        
+        if (data.display_name) {
+          const splitted = data.display_name.split(',');
+          return splitted.slice(0, 3).join(',');
+        }
+      }
+    } catch (err) {
+      console.error("Geocoding fetch error:", err);
+    }
+    
+    // Nepal default bounding boxes for fallback
+    if (lat > 27.65 && lat < 27.75 && lng > 85.25 && lng < 85.4) {
+      return "काठमाडौँ (Kathmandu)";
+    }
+    if (lat > 27.8 && lat < 28.0 && lng > 85.1 && lng < 85.3) {
+      return "नुवाकोट (Nuwakot)";
+    }
+    return `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+  };
   // Sanitize and derive organization key for private namespace
   const sanitizeOrgName = (name: string) => {
     return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
@@ -74,6 +119,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   const leafletMapRef = useRef<any>(null);
   const leafletMarkersRef = useRef<{ [key: string]: any }>({});
   const [leafletLoaded, setLeafletLoaded] = useState<boolean>(false);
+  const [mapMode, setMapMode] = useState<'streets' | 'satellite'>('streets');
+  const leafletTileLayerRef = useRef<any>(null);
 
   // Pre-configured ambulances list that can be owned/shared
   const VEHICLE_TEMPLATES = [
@@ -121,7 +168,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             lastUpdated: Date.now(),
             batteryLevel: 88,
             sirenActive: false,
-            isActive: true
+            isActive: true,
+            locationName: 'लैनचौर, काठमाडौँ'
           },
           'amb_2': {
             id: 'amb_2',
@@ -137,7 +185,8 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             sirenActive: true,
             currentPatient: 'सरिता थामी (आपतकालीन सुत्केरी)',
             destinationName: 'प्राथमिक स्वास्थ्य केन्द्र',
-            isActive: true
+            isActive: true,
+            locationName: 'महाराजगञ्ज, काठमाडौँ'
           }
         };
         set(ref(db, `orgData/${safeOrg}/ambulanceTracking`), seedData);
@@ -153,6 +202,41 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   const selectedAmb = useMemo(() => {
     return activeAmbulances.find(a => a.id === selectedAmbulanceId) || activeAmbulances[0];
   }, [activeAmbulances, selectedAmbulanceId]);
+
+  // 1.5. Background Automatic Geocoder to resolve and cache place names
+  useEffect(() => {
+    if (activeAmbulances.length === 0) return;
+
+    const resolveMissingAddresses = async () => {
+      for (const amb of activeAmbulances) {
+        if (!amb.latitude || !amb.longitude) continue;
+
+        const prevLat = amb.geocodedLat;
+        const prevLng = amb.geocodedLng;
+        const needsGeocode = !amb.locationName || 
+          !prevLat || !prevLng || 
+          Math.abs(amb.latitude - prevLat) > 0.003 || 
+          Math.abs(amb.longitude - prevLng) > 0.003;
+
+        if (needsGeocode) {
+          try {
+            const locName = await reverseGeocode(amb.latitude, amb.longitude);
+            if (locName) {
+              update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${amb.id}`), {
+                locationName: locName,
+                geocodedLat: amb.latitude,
+                geocodedLng: amb.longitude
+              });
+            }
+          } catch (e) {
+            console.error("Geocoding failed for amb:", amb.id, e);
+          }
+        }
+      }
+    };
+
+    resolveMissingAddresses();
+  }, [activeAmbulances, safeOrg]);
 
   // 2. Map Rendering Engine (Loads beautiful Leaflet client-side)
   useEffect(() => {
@@ -203,12 +287,6 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         scrollWheelZoom: true
       });
 
-      // Overlay beautiful, clean dark/light map tiles from standard free OpenStreetMap
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(leafletMapRef.current);
-
       setLeafletLoaded(true);
     };
 
@@ -220,9 +298,34 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         leafletMapRef.current = null;
       }
       setLeafletLoaded(false);
+      leafletTileLayerRef.current = null;
       leafletMarkersRef.current = {};
     };
   }, [activeSubTab]);
+
+  // Effect to handle dynamic tile switching when mapMode changes or Leaflet completes loading
+  useEffect(() => {
+    const L = (window as any).L;
+    if (!leafletMapRef.current || !L || !leafletLoaded) return;
+
+    // Remove current tile layer if it has been registered
+    if (leafletTileLayerRef.current) {
+      leafletMapRef.current.removeLayer(leafletTileLayerRef.current);
+    }
+
+    const tileUrl = mapMode === 'streets' 
+      ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      
+    const attribution = mapMode === 'streets'
+      ? '© OpenStreetMap contributors'
+      : 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community';
+
+    leafletTileLayerRef.current = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      attribution: attribution
+    }).addTo(leafletMapRef.current);
+  }, [mapMode, leafletLoaded]);
 
   // Live Sync Firebase coordinates onto the Leaflet Map
   useEffect(() => {
@@ -256,10 +359,20 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             <h5 class="font-bold text-xs m-0 text-slate-900">${amb.name}</h5>
             <p class="text-[10px] m-1 font-bold text-slate-500">चालक: ${amb.driver}</p>
             <p class="text-[10px] m-1 font-mono">गति: <b class="text-rose-500">${amb.speed} Km/hr</b></p>
+            <p class="text-[10px] m-1 font-nepali text-teal-600">स्थान: <b>${amb.locationName || 'पहिचान हुँदै...'}</b></p>
             <span class="inline-block text-[9px] px-1.5 py-0.5 mt-1 rounded font-bold text-white bg-[${statusColor}]">${amb.status.toUpperCase()}</span>
           </div>
         `;
         leafletMarkersRef.current[key].getPopup().setContent(popupHtml);
+
+        // Update permanent tooltip content
+        const tooltipHtml = `
+          <div class="px-2 py-1 text-[10px] text-center font-bold bg-slate-950/95 border border-rose-500/50 text-white rounded-xl shadow-xl font-nepali">
+            <span class="text-rose-400 block text-[10px] font-black">${amb.name.split(' (')[0]}</span>
+            <span class="text-teal-300 block text-[9px] font-bold">📍 ${amb.locationName || 'खोजिदै...'}</span>
+          </div>
+        `;
+        leafletMarkersRef.current[key].getTooltip().setContent(tooltipHtml);
 
       } else {
         // Create custom Leaflet icon resembling emergency vehicle
@@ -297,10 +410,25 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
             <h5 class="font-bold text-xs m-0 text-slate-900">${amb.name}</h5>
             <p class="text-[10px] m-1 font-bold text-slate-500 text-slate-600">चालक: ${amb.driver}</p>
             <p class="text-[10px] m-1 font-mono text-cyan-600">गति: <b>${amb.speed} Km/hr</b></p>
+            <p class="text-[10px] m-1 font-nepali text-teal-600">स्थान: <b>${amb.locationName || 'पहिचान हुँदै...'}</b></p>
             <p class="text-[10px] m-1 font-bold text-amber-600">${sirenLabel}</p>
           </div>
         `);
         marker.bindPopup(markerPopup);
+
+        // Bind permanent Floating map tooltip for vehicle + place address 
+        const tooltipHtml = `
+          <div class="px-2 py-1 text-[10px] text-center font-bold bg-slate-950/95 border border-rose-500/50 text-white rounded-xl shadow-xl font-nepali">
+            <span class="text-rose-400 block text-[10px] font-black">${amb.name.split(' (')[0]}</span>
+            <span class="text-teal-300 block text-[9px] font-bold">📍 ${amb.locationName || 'खोजिदै...'}</span>
+          </div>
+        `;
+        marker.bindTooltip(tooltipHtml, {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -15],
+          className: 'custom-tracker-tooltip'
+        });
 
         leafletMarkersRef.current[key] = marker;
       }
@@ -528,13 +656,54 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                 id="leaflet-gis-map-frame"
               />
 
-              {/* Float Legend panel overlay */}
-              <div className="absolute top-3 right-3 z-20 bg-slate-900/90 backdrop-blur border border-slate-700 p-2.5 rounded-xl text-[10px] sm:text-xs">
-                <span className="font-bold text-slate-300 font-nepali block mb-1 text-center border-b border-slate-700 pb-1">अवस्था संकेतक</span>
-                <div className="space-y-1 font-nepali">
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>तैनाथ (Idle)</span></div>
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span><span>बिरामी बोकेको</span></div>
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span><span>फर्किँदै (Returning)</span></div>
+              {/* Float Legend panel overlay with Map Mode selectors */}
+              <div className="absolute top-3 right-3 z-20 bg-slate-900/95 backdrop-blur border border-slate-700 p-3 rounded-2xl text-[10px] sm:text-xs space-y-3.5 shadow-2xl max-w-[190px]">
+                {/* Map Mode Selector */}
+                <div className="space-y-1.5">
+                  <span className="font-bold text-slate-300 font-nepali block text-center border-b border-slate-800 pb-1.5 text-[11px]">नक्सा प्रकार (Map Layer)</span>
+                  <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setMapMode('streets')}
+                      className={`py-1 px-1.5 rounded-lg text-[9px] font-black font-nepali transition-all text-center leading-none ${
+                        mapMode === 'streets'
+                          ? 'bg-rose-600 text-white shadow font-extrabold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      साधारण
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapMode('satellite')}
+                      className={`py-1 px-1.5 rounded-lg text-[9px] font-black font-nepali transition-all text-center leading-none ${
+                        mapMode === 'satellite'
+                          ? 'bg-rose-600 text-white shadow font-extrabold'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      स्याटेलाइट
+                    </button>
+                  </div>
+                </div>
+
+                {/* Legend Indicator Section */}
+                <div className="space-y-1.5 border-t border-slate-800 pt-2.5">
+                  <span className="font-bold text-slate-300 font-nepali block text-center border-b border-slate-800 pb-1.5 text-[11px]">अवस्था संकेतक</span>
+                  <div className="space-y-1.5 font-nepali text-[9px] sm:text-[10px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                      <span>तैनाथ (Idle)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 animate-pulse"></span>
+                      <span>बिरामी बोकेको</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0"></span>
+                      <span>फर्किँदै (Returning)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -602,6 +771,13 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                         <span>चालक: {amb.driver}</span>
                         <span className="font-mono text-cyan-400 font-bold">{amb.speed} km/h</span>
                       </div>
+
+                      {amb.locationName && (
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-teal-400 font-nepali pointer-events-none bg-slate-950/40 px-1 py-0.5 rounded border border-slate-800/40">
+                          <MapPin size={10} className="shrink-0 text-rose-500" />
+                          <span className="truncate">{amb.locationName}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -617,6 +793,13 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                 </div>
 
                 <div className="space-y-3 text-xs font-nepali">
+                  {selectedAmb.locationName && (
+                    <div className="flex justify-between items-start gap-2 bg-slate-950/40 p-2 rounded-xl border border-slate-800">
+                      <span className="text-slate-400 shrink-0">📍 हालको ठेगाना:</span>
+                      <span className="text-teal-300 font-bold text-right break-words">{selectedAmb.locationName}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
                     <span className="text-slate-400">चालक फोन नम्बर (Call Driver):</span>
                     <a href={`tel:${selectedAmb.phone}`} className="text-teal-400 font-bold hover:underline flex items-center gap-1">
