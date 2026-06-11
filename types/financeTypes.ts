@@ -27,12 +27,15 @@ export interface FinancialTransaction {
   category: 'Ambulance' | 'Lab' | 'General' | 'Program Payment';
   type: 'Income' | 'Expense';
   incomeSource?: 'Nagarpalika' | 'Wada' | 'Internal' | 'Other';
-  amount: number;
+  amountWithoutVAT?: number;
+  amountWithVAT?: number;
+  amount?: number;
   remarks: string;
   partyId?: string;
   programId?: string;
   fiscalYear: string;
   referenceNo?: string;
+  tdsAmount?: number;
 }
 
 export interface PartyPaymentRecord {

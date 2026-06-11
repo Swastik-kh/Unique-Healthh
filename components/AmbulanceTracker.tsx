@@ -52,6 +52,37 @@ interface RealtimeAmbulance {
 export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser, generalSettings }) => {
   // Helper to reverse geocode lat/lng to Nepal place names
   const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
+    // 1. High-precision predefined landmarks mapping for guaranteed accuracy in Nepal
+    const landmarks = [
+      { name: "हडिया, चौदण्डीगढी (Hadiya, Chaudandigadhi)", lat: 26.8181, lng: 86.9961 },
+      { name: "बेल्टार, चौदण्डीगढी (Beltar, Chaudandigadhi)", lat: 26.9360, lng: 86.9208 },
+      { name: "चौदण्डीगढी बजार क्षेत्र (Chaudandigadhi Bazar)", lat: 26.8920, lng: 86.9740 },
+      { name: "दरबार क्षेत्र, चौदण्डीगढी (Chaudandigadhi Fort)", lat: 26.9015, lng: 86.9542 },
+      { name: "गाईघाट, उदयपुर (Gaighat, Udayapur)", lat: 26.7912, lng: 86.7115 },
+      { name: "कटारी, उदयपुर (Katari, Udayapur)", lat: 26.8580, lng: 86.1312 },
+      { name: "देवधार, चौदण्डीगढी (Devdhar, Chaudandigadhi)", lat: 26.8520, lng: 86.9830 },
+      { name: "सुन्दरपुर, चौदण्डीगढी (Sundarpur, Chaudandigadhi)", lat: 26.8120, lng: 86.9320 },
+      { name: "सिवाई, चौदण्डीगढी (Siwai, Chaudandigadhi)", lat: 26.9150, lng: 86.9650 },
+      { name: "लैनचौर, काठमाडौँ (Lainchaur, Kathmandu)", lat: 27.7120, lng: 85.3120 },
+      { name: "महाराजगञ्ज, काठमाडौँ (Maharajgunj, Kathmandu)", lat: 27.7280, lng: 85.3340 }
+    ];
+
+    let closestLandmark = null;
+    let minDistance = Infinity;
+
+    for (const lm of landmarks) {
+      const dist = Math.sqrt(Math.pow(lat - lm.lat, 2) + Math.pow(lng - lm.lng, 2));
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestLandmark = lm;
+      }
+    }
+
+    // If extremely close (within 1.2km), serve the local Nepali address immediately
+    if (closestLandmark && minDistance < 0.012) {
+      return closestLandmark.name;
+    }
+
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
         headers: {
@@ -60,14 +91,37 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
       });
       if (res.ok) {
         const data = await res.json();
+        
+        // English-to-Nepali dictionary mappings for common places
+        const translations: { [key: string]: string } = {
+          'hadiya': 'हडिया (Hadiya)',
+          'beltar': 'बेल्टार (Beltar)',
+          'chaudandigadhi': 'चौदण्डीगढी (Chaudandigadhi)',
+          'chaudandi': 'चौदण्डीगढी (Chaudandigadhi)',
+          'udayapur': 'उदयपुर (Udayapur)',
+          'gaighat': 'गाईघाट (Gaighat)',
+          'katari': 'कटारी (Katari)',
+          'kathmandu': 'काठमाडौँ (Kathmandu)',
+          'nuwakot': 'नुवाकोट',
+          'nepal': 'नेपाल'
+        };
+
+        const translateWord = (text: string) => {
+          const lower = text.toLowerCase();
+          for (const key of Object.keys(translations)) {
+            if (lower.includes(key)) return translations[key];
+          }
+          return text;
+        };
+
         const addr = data.address;
         if (addr) {
           const settlement = addr.village || addr.suburb || addr.town || addr.neighbourhood || addr.city_district || addr.hamlet || addr.isolated_dwelling;
           const county = addr.county || addr.district || addr.state;
           
           let parts = [];
-          if (settlement) parts.push(settlement);
-          if (county) parts.push(county.replace(" District", ""));
+          if (settlement) parts.push(translateWord(settlement));
+          if (county) parts.push(translateWord(county.replace(" District", "")));
           
           if (parts.length > 0) {
             return parts.join(', ');
@@ -76,20 +130,20 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         
         if (data.display_name) {
           const splitted = data.display_name.split(',');
-          return splitted.slice(0, 3).join(',');
+          const translatedParts = splitted.slice(0, 3).map((p: string) => translateWord(p.trim()));
+          return translatedParts.join(', ');
         }
       }
     } catch (err) {
       console.error("Geocoding fetch error:", err);
     }
     
-    // Nepal default bounding boxes for fallback
-    if (lat > 27.65 && lat < 27.75 && lng > 85.25 && lng < 85.4) {
-      return "काठमाडौँ (Kathmandu)";
+    // Proximity fallback if network is blocked or Nominatim is down
+    if (closestLandmark && minDistance < 0.08) {
+      const distanceText = minDistance > 0.005 ? ` (लगभग ${Math.round(minDistance * 111)} किमी दुरी)` : '';
+      return `${closestLandmark.name}${distanceText}`;
     }
-    if (lat > 27.8 && lat < 28.0 && lng > 85.1 && lng < 85.3) {
-      return "नुवाकोट (Nuwakot)";
-    }
+
     return `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
   };
   // Sanitize and derive organization key for private namespace
@@ -103,6 +157,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   const [activeSubTab, setActiveSubTab] = useState<'dispatcher' | 'driver' | 'instructions'>('dispatcher');
   const [activeAmbulances, setActiveAmbulances] = useState<RealtimeAmbulance[]>([]);
   const [selectedAmbulanceId, setSelectedAmbulanceId] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'idle' | 'en_route' | 'returning' | 'maintenance'>('all');
   
   // Driver Panel Local Tracking States
   const [drivingVehicle, setDrivingVehicle] = useState<string>('amb_1');
@@ -113,6 +168,11 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   const [isActivelySharing, setIsActivelySharing] = useState<boolean>(false);
   const [currentGpsCoords, setCurrentGpsCoords] = useState<{lat: number, lng: number, accuracy: number} | null>(null);
   const [gpsErrorMsg, setGpsErrorMsg] = useState<string | null>(null);
+  
+  // GPS Simulation engine state for developers & testers inside standard container/iframe settings
+  const [isSimulatingGps, setIsSimulatingGps] = useState<boolean>(true); // default true for super easy simulation testing
+  const [simulatedPreset, setSimulatedPreset] = useState<string>('hadiya');
+  const simulatorIntervalRef = useRef<any>(null);
   
   // Local active watchPosition ID
   const watchIdRef = useRef<number | null>(null);
@@ -207,10 +267,18 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     return activeAmbulances.filter(amb => amb.isActive === true);
   }, [activeAmbulances]);
 
+  // Filter the live list of ambulances by status when clicking buttons
+  const filteredLiveAmbulances = useMemo(() => {
+    if (statusFilter === 'all') return liveAmbulances;
+    return liveAmbulances.filter(amb => amb.status === statusFilter);
+  }, [liveAmbulances, statusFilter]);
+
   // Selected Ambulance Object
   const selectedAmb = useMemo(() => {
-    return liveAmbulances.find(a => a.id === selectedAmbulanceId) || liveAmbulances[0];
-  }, [liveAmbulances, selectedAmbulanceId]);
+    const fromFiltered = filteredLiveAmbulances.find(a => a.id === selectedAmbulanceId);
+    if (fromFiltered) return fromFiltered;
+    return filteredLiveAmbulances[0] || liveAmbulances.find(a => a.id === selectedAmbulanceId) || liveAmbulances[0];
+  }, [filteredLiveAmbulances, liveAmbulances, selectedAmbulanceId]);
 
   // 1.5. Background Automatic Geocoder to resolve and cache place names
   useEffect(() => {
@@ -332,6 +400,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
 
     leafletTileLayerRef.current = L.tileLayer(tileUrl, {
       maxZoom: 19,
+      maxNativeZoom: mapMode === 'satellite' ? 17 : undefined,
       attribution: attribution
     }).addTo(leafletMapRef.current);
   }, [mapMode, leafletLoaded]);
@@ -342,7 +411,7 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     if (!leafletMapRef.current || !L) return;
 
     // Clean up markers that are no longer in live/active ambulances
-    const liveKeys = new Set(liveAmbulances.map(a => a.id));
+    const liveKeys = new Set(filteredLiveAmbulances.map(a => a.id));
     Object.keys(leafletMarkersRef.current).forEach(key => {
       if (!liveKeys.has(key)) {
         leafletMapRef.current.removeLayer(leafletMarkersRef.current[key]);
@@ -350,12 +419,12 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
       }
     });
 
-    if (liveAmbulances.length === 0) return;
+    if (filteredLiveAmbulances.length === 0) return;
 
     // Track coordinates list to center map bounds
     const validCoords: any[] = [];
 
-    liveAmbulances.forEach(amb => {
+    filteredLiveAmbulances.forEach(amb => {
       if (!amb.latitude || !amb.longitude) return;
       const key = amb.id;
       const coord = [amb.latitude, amb.longitude];
@@ -464,15 +533,19 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
         leafletMapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       }
     }
-  }, [liveAmbulances, selectedAmb, activeSubTab]);
+  }, [filteredLiveAmbulances, selectedAmb, activeSubTab]);
 
   // 3. Driver Location Transmitter Code (REAL-TIME GPS SHARING)
-  const beginGpsLocationSharing = () => {
-    if (!navigator.geolocation) {
-      setGpsErrorMsg("नराम्रो समाचार! तपाईंको ब्राउजर वा फोनले GPS लोकेसन सेवा समर्थन गर्दैन।");
-      return;
-    }
+  const SIMULATION_PRESETS = [
+    { id: 'hadiya', name: 'हडिया, चौदण्डीगढी (Hadiya, Chaudandigadhi)', lat: 26.8181, lng: 86.9961 },
+    { id: 'beltar', name: 'बेल्टार, चौदण्डीगढी (Beltar, Chaudandigadhi)', lat: 26.9360, lng: 86.9208 },
+    { id: 'chaudandi_durbar', name: 'चौदण्डीगढी दरबार क्षेत्र (Chaudandigadhi Fort)', lat: 26.9015, lng: 86.9542 },
+    { id: 'gaighat', name: 'गाईघाट, उदयपुर (Gaighat, Udayapur)', lat: 26.7912, lng: 86.7115 },
+    { id: 'katari', name: 'कटारी, उदयपुर (Katari, Udayapur)', lat: 26.8580, lng: 86.1312 },
+    { id: 'kathmandu', name: 'लैनचौर, काठमाडौँ (Lainchaur, Kathmandu)', lat: 27.7120, lng: 85.3120 }
+  ];
 
+  const beginGpsLocationSharing = () => {
     if (!driverNameInput) {
       alert("कृपया चालकको पूरा नाम प्रविष्ट गर्नुहोस्।");
       return;
@@ -496,7 +569,60 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     setIsActivelySharing(true);
     setCurrentSharingVehicleId(finalId);
 
-    // Start native high speed interval tracking
+    // Setup GPS simulation if enabled
+    if (isSimulatingGps) {
+      const presetObj = SIMULATION_PRESETS.find(p => p.id === simulatedPreset) || SIMULATION_PRESETS[0];
+      const startLat = presetObj.lat;
+      const startLng = presetObj.lng;
+      
+      setCurrentGpsCoords({ lat: startLat, lng: startLng, accuracy: 10 });
+
+      // First state broadcast
+      update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${finalId}`), {
+        id: finalId,
+        name: finalName,
+        driver: driverNameInput,
+        phone: driverPhoneInput || 'संजालमा उपलब्ध छैन',
+        latitude: startLat,
+        longitude: startLng,
+        speed: 45, // starting speed
+        lastUpdated: Date.now(),
+        isActive: true,
+        status: 'en_route',
+        sirenActive: false,
+        batteryLevel: 98
+      });
+
+      // Simple real-time physics simulator loops to drive slightly over time
+      let currentLat = startLat;
+      let currentLng = startLng;
+      
+      simulatorIntervalRef.current = setInterval(() => {
+        // Move slightly to simulate live driving movement in the map
+        currentLat += (Math.random() - 0.5) * 0.0003;
+        currentLng += (Math.random() - 0.5) * 0.0003;
+        const currentSpeed = Math.floor(Math.random() * 20) + 30; // 30 - 50 km/h
+        
+        setCurrentGpsCoords({ lat: currentLat, lng: currentLng, accuracy: 8 });
+        
+        update(ref(db, `orgData/${safeOrg}/ambulanceTracking/${finalId}`), {
+          latitude: currentLat,
+          longitude: currentLng,
+          speed: currentSpeed,
+          lastUpdated: Date.now()
+        });
+      }, 4000);
+
+      return;
+    }
+
+    // Standard Real GPS location lookup on phones/browsers
+    if (!navigator.geolocation) {
+      setGpsErrorMsg("नराम्रो समाचार! तपाईंको ब्राउजर वा फोनले GPS लोकेसन सेवा समर्थन गर्दैन।");
+      setIsActivelySharing(false);
+      return;
+    }
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, speed, accuracy } = position.coords;
@@ -542,6 +668,11 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   };
 
   const stopGpsLocationSharing = () => {
+    if (simulatorIntervalRef.current !== null) {
+      clearInterval(simulatorIntervalRef.current);
+      simulatorIntervalRef.current = null;
+    }
+
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -561,6 +692,9 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
   // Turn off GPS sharing on unmount to save driver's mobile battery
   useEffect(() => {
     return () => {
+      if (simulatorIntervalRef.current !== null) {
+        clearInterval(simulatorIntervalRef.current);
+      }
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
@@ -766,18 +900,85 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
           <div className="xl:col-span-4 space-y-6">
             
             {/* Active Connected Trackers list */}
-            <div className="bg-slate-850 p-4 sm:p-5 rounded-2xl border border-slate-750 space-y-4">
-              <span className="text-xs uppercase font-black text-rose-400 tracking-wider font-nepali block">
+            <div className="bg-slate-850 p-4 sm:p-5 rounded-2xl border border-slate-750 space-y-4 font-nepali">
+              <span className="text-xs uppercase font-black text-rose-400 tracking-wider block">
                 🔴 अनलाईन एम्बुलेन्सहरू ({liveAmbulances.length})
               </span>
 
+              {/* Status categories tab-buttons for filtering */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className={`py-1.5 px-2 text-[10px] font-black rounded-xl border transition-all text-center flex items-center justify-center gap-1 ${
+                    statusFilter === 'all'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow'
+                      : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  सबै ({liveAmbulances.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('idle')}
+                  className={`py-1.5 px-2 text-[10px] font-black rounded-xl border transition-all text-center flex items-center justify-center gap-1 ${
+                    statusFilter === 'idle'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow'
+                      : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  तैयार ({liveAmbulances.filter(a => a.status === 'idle').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('en_route')}
+                  className={`py-1.5 px-2 text-[10px] font-black rounded-xl border transition-all text-center flex items-center justify-center gap-1 ${
+                    statusFilter === 'en_route'
+                      ? 'bg-rose-600 text-white border-rose-500 shadow'
+                      : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                  डिसप्याच ({liveAmbulances.filter(a => a.status === 'en_route').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('returning')}
+                  className={`py-1.5 px-2 text-[10px] font-black rounded-xl border transition-all text-center flex items-center justify-center gap-1 ${
+                    statusFilter === 'returning'
+                      ? 'bg-sky-600 text-white border-sky-500 shadow'
+                      : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                  फर्किँदै ({liveAmbulances.filter(a => a.status === 'returning').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('maintenance')}
+                  className={`py-1.5 px-2 text-[10px] font-black rounded-xl border transition-all text-center flex items-center justify-center gap-1 ${
+                    statusFilter === 'maintenance'
+                      ? 'bg-amber-600 text-white border-amber-500 shadow'
+                      : 'bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  मर्मत ({liveAmbulances.filter(a => a.status === 'maintenance').length})
+                </button>
+              </div>
+
               {liveAmbulances.length === 0 ? (
-                <div className="p-6 text-center text-slate-500 text-xs font-nepali">
+                <div className="p-6 text-center text-slate-500 text-xs">
                   सक्रिय चालकहरू कोही छैन। चलाउन 'चालक दर्ता/प्रशारण' अन्तर्गत दर्ता सुरु गर्नुहोस्।
+                </div>
+              ) : filteredLiveAmbulances.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs">
+                  यस सूचीमा कुनै एम्बुलेन्सहरू भेटिएन।
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {liveAmbulances.map(amb => (
+                  {filteredLiveAmbulances.map(amb => (
                     <div 
                       key={amb.id}
                       onClick={() => setSelectedAmbulanceId(amb.id)}
@@ -795,9 +996,10 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                         <div className="flex items-center gap-1.5">
                           <span className={`text-[9px] font-black px-2 py-0.5 rounded ${
                             amb.status === 'idle' ? 'bg-emerald-500/20 text-emerald-400' :
-                            amb.status === 'en_route' ? 'bg-rose-500/20 text-rose-400 animate-pulse' : 'bg-sky-500/20 text-sky-400'
+                            amb.status === 'en_route' ? 'bg-rose-500/20 text-rose-400 animate-pulse' :
+                            amb.status === 'returning' ? 'bg-sky-500/20 text-sky-400' : 'bg-amber-500/20 text-amber-400'
                           }`}>
-                            {amb.status === 'idle' ? 'मिसन छैन' : amb.status === 'en_route' ? 'बिरामी' : 'फर्कदै'}
+                            {amb.status === 'idle' ? 'तैयार अवस्था' : amb.status === 'en_route' ? 'बिरामी' : amb.status === 'returning' ? 'फर्कदै' : 'मर्मत'}
                           </span>
                           <button
                             onClick={(e) => {
@@ -812,13 +1014,13 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                         </div>
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 font-nepali">
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                         <span>चालक: {amb.driver}</span>
                         <span className="font-mono text-cyan-400 font-bold">{amb.speed} km/h</span>
                       </div>
 
                       {amb.locationName && (
-                        <div className="mt-1 flex items-center gap-1 text-[10px] text-teal-400 font-nepali bg-slate-950/40 px-1 py-0.5 rounded border border-slate-800/40">
+                        <div className="mt-1 flex items-center gap-1 text-[10px] text-teal-400 bg-slate-950/40 px-1 py-0.5 rounded border border-slate-800/40">
                           <MapPin size={10} className="shrink-0 text-rose-500" />
                           <span className="truncate">{amb.locationName}</span>
                         </div>
@@ -989,6 +1191,54 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
                   className="w-full bg-slate-900 text-white border border-slate-800 p-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-50 font-semibold"
                 />
               </div>
+            </div>
+
+            {/* GPS Simulation Settings Area */}
+            <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-300 font-nepali flex items-center gap-2">
+                  <Locate className="text-rose-500 size-4" />
+                  <span>परीक्षण स्थान सिम्युलेटर (Location Simulator Preset)</span>
+                </label>
+                <div className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    disabled={isActivelySharing}
+                    checked={isSimulatingGps}
+                    onChange={e => setIsSimulatingGps(e.target.checked)}
+                    className="sr-only peer"
+                    id="toggle-sim"
+                  />
+                  <div className="w-9 h-5 bg-slate-900 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-500 after:border-slate-500 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500"></div>
+                </div>
+              </div>
+
+              {isSimulatingGps && (
+                <div className="space-y-2 pt-1 border-t border-slate-800/40">
+                  <p className="text-[10px] text-slate-400">सिमुलेशन स्थान रोज्नुहोस् (यो स्थान नक्सामा तत्काल अपडेट हुनेछ):</p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                    {SIMULATION_PRESETS.map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        disabled={isActivelySharing}
+                        onClick={() => setSimulatedPreset(preset.id)}
+                        className={`text-[10px] py-1.5 px-2 font-bold rounded-xl border text-center transition-all ${
+                          simulatedPreset === preset.id
+                            ? 'bg-rose-600/30 text-rose-300 border-rose-500'
+                            : 'bg-slate-950 text-slate-400 border-slate-900 hover:text-slate-200 hover:border-slate-800'
+                        }`}
+                      >
+                        {preset.id === 'hadiya' ? 'हडिया (Hadiya)' :
+                         preset.id === 'beltar' ? 'बेल्टार (Beltar)' :
+                         preset.id === 'chaudandi_durbar' ? 'चौदण्डी दरबार' :
+                         preset.id === 'gaighat' ? 'गाईघाट (Gaighat)' :
+                         preset.id === 'katari' ? 'कटारी (Katari)' : 'काठमाडौँ'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Action Big Button */}

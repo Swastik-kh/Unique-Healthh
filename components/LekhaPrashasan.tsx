@@ -246,13 +246,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const amountWithoutVAT = Number(formData.get('amountWithoutVAT'));
+    const amountWithVAT = Number(formData.get('amountWithVAT'));
+    const applyTds = formData.get('applyTds') === 'on';
+    const tdsAmount = applyTds ? amountWithoutVAT * 0.015 : 0;
+
     onSaveTransaction({
       ...editingItem,
       dateBs: txnFormDate,
       dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: formData.get('category') as any,
       type: formData.get('type') as any,
-      amount: Number(formData.get('amount')),
+      amountWithoutVAT: amountWithoutVAT,
+      amountWithVAT: amountWithVAT,
+      tdsAmount: tdsAmount,
       remarks: formData.get('remarks') as string,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
@@ -964,7 +971,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
                           </td>
-                          <td className="px-6 py-4 text-right font-black font-mono text-sm">रू {item.amount.toLocaleString()}</td>
+                          <td className="px-6 py-4 text-right font-black font-mono text-sm">
+                             <div className="text-[10px] text-slate-400">VAT बाहेक: रू {(item.amountWithoutVAT || item.amount || 0).toLocaleString()}</div>
+                             <div className="text-emerald-700">VAT सहित: रू {(item.amountWithVAT || item.amount || 0).toLocaleString()}</div>
+                          </td>
                         </>}
 
                         {activeTab === 'payments' && (() => {
@@ -1219,7 +1229,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             onChange={(val) => setTxnFormDate(val)}
                           />
                         </div>
-                        <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
+                        <Input label="रकम (VAT बाहेक)" name="amountWithoutVAT" type="number" defaultValue={editingItem?.amountWithoutVAT} required />
+                        <Input label="रकम (VAT सहित)" name="amountWithVAT" type="number" defaultValue={editingItem?.amountWithVAT} required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
@@ -1250,6 +1261,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         />
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
+                      <div className="flex items-center gap-2">
+                          <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
+                          <label htmlFor="applyTds" className="text-xs font-black text-rose-600 uppercase tracking-widest">१.५% TDS काट्ने? (Deduct 1.5% TDS?)</label>
+                      </div>
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
                     </>
                   )}
