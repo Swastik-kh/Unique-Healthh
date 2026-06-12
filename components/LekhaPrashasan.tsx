@@ -246,8 +246,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const amountWithoutVAT = Number(formData.get('amountWithoutVAT'));
-    const amountWithVAT = Number(formData.get('amountWithVAT'));
+    const amount = Number(formData.get('amount'));
+    const isVatBill = formData.get('isVatBill') === 'on';
+    const amountWithoutVAT = isVatBill ? amount / 1.13 : amount;
+    const amountWithVAT = isVatBill ? amount : amount;
     const applyTds = formData.get('applyTds') === 'on';
     const tdsAmount = applyTds ? amountWithoutVAT * 0.015 : 0;
 
@@ -260,6 +262,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amountWithoutVAT: amountWithoutVAT,
       amountWithVAT: amountWithVAT,
       tdsAmount: tdsAmount,
+      amount: amount,
       remarks: formData.get('remarks') as string,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
@@ -528,8 +531,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       return true;
     });
 
-    const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
-    const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
+    const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + (t.amountWithVAT || t.amount || 0), 0);
+    const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)), 0);
 
     const handlePrint = () => {
       const printWin = window.open('', '', 'width=900,height=600');
@@ -575,7 +578,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <tbody>
               ${reportData.map(t => {
                 const displayDate = reportFilter.type === 'Monthly' ? t.dateBs.split('-')[2] : t.dateBs;
-                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td></tr>`
+                const expenseAmount = (t.type === 'Expense' && (t.tdsAmount || 0) > 0) ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)) : (t.amountWithVAT || t.amount || 0);
+                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? (t.amountWithVAT || t.amount || 0).toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? expenseAmount.toLocaleString() : '-'}</td></tr>`
               }).join('')}
             </tbody>
             <tfoot>
@@ -588,12 +592,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </table>
           <div class="summary">
             <div class="box">
-              <p>मौज्दात रकम</p>
-              <h3>रू ${stats.balance.toLocaleString()}</h3>
+              <p>कुल आम्दानी</p>
+              <h3>रू ${reportIncome.toLocaleString()}</h3>
             </div>
             <div class="box">
-              <p>भुक्तानी गर्न बाँकी</p>
-              <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
+              <p>कुल खर्च</p>
+              <h3>रू ${reportExpense.toLocaleString()}</h3>
+            </div>
+            <div class="box">
+              <p>कुल बचत</p>
+              <h3>रू ${(reportIncome - reportExpense).toLocaleString()}</h3>
+            </div>
+            <div class="box">
+              <p>TDS (कुल)</p>
+              <h3>रू ${reportData.reduce((s, t) => s + (t.tdsAmount || 0), 0).toLocaleString()}</h3>
             </div>
           </div>
         </body>
@@ -707,7 +719,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 ३ वर्षको बजेट ढाँचा (3 Year Budget Pattern)
               </h3>
               <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="99%" height="100%" minHeight={300}>
+                <ResponsiveContainer width="100%" height={300} aspect={2}>
                   <BarChart data={budgetPatternData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
@@ -973,7 +985,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           </td>
                           <td className="px-6 py-4 text-right font-black font-mono text-sm">
                              <div className="text-[10px] text-slate-400">VAT बाहेक: रू {(item.amountWithoutVAT || item.amount || 0).toLocaleString()}</div>
-                             <div className="text-emerald-700">VAT सहित: रू {(item.amountWithVAT || item.amount || 0).toLocaleString()}</div>
+                             <div className="text-emerald-700">VAT सहित: रू {((item.type === 'Expense' && (item.tdsAmount || 0) > 0) ? ((item.amountWithVAT || item.amount || 0) - (item.tdsAmount || 0)) : (item.amountWithVAT || item.amount || 0)).toLocaleString()}</div>
+                             {item.tdsAmount && item.tdsAmount > 0 && (
+                                <div className="text-amber-600 text-[10px]">TDS: रू {item.tdsAmount.toLocaleString()}</div>
+                             )}
                           </td>
                         </>}
 
@@ -1229,8 +1244,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             onChange={(val) => setTxnFormDate(val)}
                           />
                         </div>
-                        <Input label="रकम (VAT बाहेक)" name="amountWithoutVAT" type="number" defaultValue={editingItem?.amountWithoutVAT} required />
-                        <Input label="रकम (VAT सहित)" name="amountWithVAT" type="number" defaultValue={editingItem?.amountWithVAT} required />
+                        <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount || editingItem?.amountWithVAT} required />
+                        <div className="flex items-center gap-2 mt-6">
+                            <input type="checkbox" name="isVatBill" id="isVatBill" className="rounded text-rose-600 focus:ring-rose-500" />
+                            <label htmlFor="isVatBill" className="text-xs font-black text-slate-700 uppercase tracking-widest">VAT बिल हो? (Is VAT Bill?)</label>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
