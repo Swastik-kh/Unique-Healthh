@@ -36,6 +36,7 @@ export interface FinancialTransaction {
   fiscalYear: string;
   referenceNo?: string;
   tdsAmount?: number;
+  sasukarAmount?: number;
 }
 
 export interface PartyPaymentRecord {

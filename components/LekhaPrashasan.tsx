@@ -249,9 +249,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const amount = Number(formData.get('amount'));
     const isVatBill = formData.get('isVatBill') === 'on';
     const amountWithoutVAT = isVatBill ? amount / 1.13 : amount;
-    const amountWithVAT = isVatBill ? amount : amount;
+    const amountWithVAT = amount;
     const applyTds = formData.get('applyTds') === 'on';
     const tdsAmount = applyTds ? amountWithoutVAT * 0.015 : 0;
+    const applySasukar = formData.get('applySasukar') === 'on';
+    const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
 
     onSaveTransaction({
       ...editingItem,
@@ -262,6 +264,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amountWithoutVAT: amountWithoutVAT,
       amountWithVAT: amountWithVAT,
       tdsAmount: tdsAmount,
+      sasukarAmount: sasukarAmount,
       amount: amount,
       remarks: formData.get('remarks') as string,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
@@ -532,7 +535,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     });
 
     const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + (t.amountWithVAT || t.amount || 0), 0);
-    const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)), 0);
+    const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)), 0);
 
     const handlePrint = () => {
       const printWin = window.open('', '', 'width=900,height=600');
@@ -690,7 +693,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <td className="px-4 py-3 font-mono text-xs">{t.dateBs}</td>
                   <td className="px-4 py-3 font-nepali font-bold text-slate-700">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
                   <td className="px-4 py-3 text-right text-emerald-600 font-black">{t.type === 'Income' ? (t.amountWithVAT || t.amount || 0).toLocaleString() : '-'}</td>
-                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)).toLocaleString() : '-'}</td>
+                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)).toLocaleString() : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -980,7 +983,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                VAT सहित: रू {(item.amountWithVAT || item.amount || 0).toLocaleString()}
                                {item.type === 'Expense' && item.tdsAmount > 0 && (
                                  <div className="text-rose-600 text-[10px]">
-                                   (नेट: रू {((item.amountWithVAT || item.amount || 0) - item.tdsAmount).toLocaleString()})
+                                   (TDS: रू {item.tdsAmount.toLocaleString()})
+                                 </div>
+                               )}
+                               {item.type === 'Expense' && item.sasukarAmount > 0 && (
+                                 <div className="text-rose-600 text-[10px]">
+                                   (सा.सु: रू {item.sasukarAmount.toLocaleString()})
                                  </div>
                                )}
                              </div>
@@ -1244,6 +1252,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <input type="checkbox" name="isVatBill" id="isVatBill" className="rounded text-rose-600 focus:ring-rose-500" />
                             <label htmlFor="isVatBill" className="text-xs font-black text-slate-700 uppercase tracking-widest">VAT बिल हो? (Is VAT Bill?)</label>
                         </div>
+                        <div className="flex items-center gap-2 mt-6">
+                            <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
+                            <label htmlFor="applyTds" className="text-xs font-black text-rose-600 uppercase tracking-widest">१.५% TDS काट्ने? (Deduct 1.5% TDS?)</label>
+                        </div>
+                        <div className="flex items-center gap-2 mt-6">
+                            <input type="checkbox" name="applySasukar" id="applySasukar" className="rounded text-rose-600 focus:ring-rose-500" />
+                            <label htmlFor="applySasukar" className="text-xs font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर काट्ने? (Deduct 1% SASUKAR?)</label>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
@@ -1274,10 +1290,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         />
                       </div>
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
-                      <div className="flex items-center gap-2">
-                          <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
-                          <label htmlFor="applyTds" className="text-xs font-black text-rose-600 uppercase tracking-widest">१.५% TDS काट्ने? (Deduct 1.5% TDS?)</label>
-                      </div>
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
                     </>
                   )}
