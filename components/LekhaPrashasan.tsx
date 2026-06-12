@@ -578,8 +578,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <tbody>
               ${reportData.map(t => {
                 const displayDate = reportFilter.type === 'Monthly' ? t.dateBs.split('-')[2] : t.dateBs;
-                const expenseAmount = (t.type === 'Expense' && (t.tdsAmount || 0) > 0) ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)) : (t.amountWithVAT || t.amount || 0);
-                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? (t.amountWithVAT || t.amount || 0).toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? expenseAmount.toLocaleString() : '-'}</td></tr>`
+                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td></tr>`
               }).join('')}
             </tbody>
             <tfoot>
@@ -592,20 +591,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </table>
           <div class="summary">
             <div class="box">
-              <p>कुल आम्दानी</p>
-              <h3>रू ${reportIncome.toLocaleString()}</h3>
+              <p>मौज्दात रकम</p>
+              <h3>रू ${stats.balance.toLocaleString()}</h3>
             </div>
             <div class="box">
-              <p>कुल खर्च</p>
-              <h3>रू ${reportExpense.toLocaleString()}</h3>
-            </div>
-            <div class="box">
-              <p>कुल बचत</p>
-              <h3>रू ${(reportIncome - reportExpense).toLocaleString()}</h3>
-            </div>
-            <div class="box">
-              <p>TDS (कुल)</p>
-              <h3>रू ${reportData.reduce((s, t) => s + (t.tdsAmount || 0), 0).toLocaleString()}</h3>
+              <p>भुक्तानी गर्न बाँकी</p>
+              <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
             </div>
           </div>
         </body>
@@ -698,8 +689,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs">{t.dateBs}</td>
                   <td className="px-4 py-3 font-nepali font-bold text-slate-700">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
-                  <td className="px-4 py-3 text-right text-emerald-600 font-black">{t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td>
-                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td>
+                  <td className="px-4 py-3 text-right text-emerald-600 font-black">{t.type === 'Income' ? (t.amountWithVAT || t.amount || 0).toLocaleString() : '-'}</td>
+                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0)).toLocaleString() : '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -719,7 +710,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 ३ वर्षको बजेट ढाँचा (3 Year Budget Pattern)
               </h3>
               <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="100%" height={300} aspect={2}>
+                <ResponsiveContainer width="99%" height="100%" minHeight={300}>
                   <BarChart data={budgetPatternData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
@@ -985,10 +976,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           </td>
                           <td className="px-6 py-4 text-right font-black font-mono text-sm">
                              <div className="text-[10px] text-slate-400">VAT बाहेक: रू {(item.amountWithoutVAT || item.amount || 0).toLocaleString()}</div>
-                             <div className="text-emerald-700">VAT सहित: रू {((item.type === 'Expense' && (item.tdsAmount || 0) > 0) ? ((item.amountWithVAT || item.amount || 0) - (item.tdsAmount || 0)) : (item.amountWithVAT || item.amount || 0)).toLocaleString()}</div>
-                             {item.tdsAmount && item.tdsAmount > 0 && (
-                                <div className="text-amber-600 text-[10px]">TDS: रू {item.tdsAmount.toLocaleString()}</div>
-                             )}
+                             <div className="text-emerald-700">
+                               VAT सहित: रू {(item.amountWithVAT || item.amount || 0).toLocaleString()}
+                               {item.type === 'Expense' && item.tdsAmount > 0 && (
+                                 <div className="text-rose-600 text-[10px]">
+                                   (नेट: रू {((item.amountWithVAT || item.amount || 0) - item.tdsAmount).toLocaleString()})
+                                 </div>
+                               )}
+                             </div>
                           </td>
                         </>}
 
