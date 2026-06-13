@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { Chalani, User, ChalaniTable } from '../types/coreTypes';
@@ -50,6 +50,48 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
   const [showTableBuilder, setShowTableBuilder] = useState(!!initialData?.tableData);
 
   const [editingCell, setEditingCell] = useState<{ r: number, c: number } | null>(null);
+
+  const [resizingCol, setResizingCol] = useState<{ index: number, startX: number, startWidth: number } | null>(null);
+  const [resizingRow, setResizingRow] = useState<{ index: number, startY: number, startHeight: number } | null>(null);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (resizingCol && formData.tableData) {
+      const diff = e.clientX - resizingCol.startX;
+      const newWidths = [...(formData.tableData.columnWidths || formData.tableData.headers.map(() => 120))];
+      newWidths[resizingCol.index] = Math.max(50, resizingCol.startWidth + diff);
+      setFormData({
+        ...formData,
+        tableData: { ...formData.tableData, columnWidths: newWidths }
+      });
+    } else if (resizingRow && formData.tableData) {
+      const diff = e.clientY - resizingRow.startY;
+      const newHeights = [...(formData.tableData.rowHeights || formData.tableData.rows.map(() => 40))];
+      newHeights[resizingRow.index] = Math.max(30, resizingRow.startHeight + diff);
+      setFormData({
+        ...formData,
+        tableData: { ...formData.tableData, rowHeights: newHeights }
+      });
+    }
+  }, [resizingCol, resizingRow, formData]);
+
+  const onMouseUp = useCallback(() => {
+    setResizingCol(null);
+    setResizingRow(null);
+  }, []);
+
+  useEffect(() => {
+    if (resizingCol || resizingRow) {
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    } else {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [resizingCol, resizingRow, onMouseMove, onMouseUp]);
 
   const indexToColumnName = (index: number) => {
     let name = '';
@@ -257,19 +299,38 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-x-auto">
                 <table className="w-full text-sm border-collapse bg-white">
                     <thead>
-                        <tr className="bg-slate-100">
-                            <th className="border border-slate-300 p-1 w-8 text-[10px] text-slate-400">#</th>
+                        <tr className="bg-transparent">
+                            <th className="border border-slate-300 p-1 w-10 text-[10px] text-slate-400">#</th>
                             {formData.tableData.headers.map((_, i) => (
-                                <th key={i} className="border border-slate-300 p-1 text-[10px] text-slate-400 font-mono">
+                                <th 
+                                    key={i} 
+                                    className="border border-slate-300 p-1 text-[10px] text-slate-400 font-mono relative"
+                                    style={{ width: formData.tableData?.columnWidths?.[i] || 120, minWidth: formData.tableData?.columnWidths?.[i] || 120 }}
+                                >
                                     {indexToColumnName(i)}
+                                    <div 
+                                        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary-400 active:bg-primary-600 z-20"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setResizingCol({
+                                                index: i,
+                                                startX: e.clientX,
+                                                startWidth: formData.tableData?.columnWidths?.[i] || 120
+                                            });
+                                        }}
+                                    />
                                 </th>
                             ))}
-                            <th className="border border-slate-300 bg-slate-100 w-10"></th>
+                            <th className="border border-slate-300 bg-transparent w-10"></th>
                         </tr>
                         <tr>
-                            <th className="border border-slate-300 bg-slate-50"></th>
+                            <th className="border border-slate-300 bg-transparent"></th>
                             {formData.tableData.headers.map((header, i) => (
-                                <th key={i} className="border border-slate-300 p-1 group">
+                                <th 
+                                    key={i} 
+                                    className="border border-slate-300 p-1 group relative"
+                                    style={{ width: formData.tableData?.columnWidths?.[i] || 120, minWidth: formData.tableData?.columnWidths?.[i] || 120 }}
+                                >
                                     <div className="flex items-center gap-1">
                                         <input 
                                             type="text"
@@ -286,9 +347,20 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
                                             <X size={12} />
                                         </button>
                                     </div>
+                                    <div 
+                                        className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary-400 active:bg-primary-600 z-20"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setResizingCol({
+                                                index: i,
+                                                startX: e.clientX,
+                                                startWidth: formData.tableData?.columnWidths?.[i] || 120
+                                            });
+                                        }}
+                                    />
                                 </th>
                             ))}
-                            <th className="border border-slate-300 p-1 bg-slate-50 w-10">
+                            <th className="border border-slate-300 p-1 bg-transparent w-10">
                                 <button 
                                     type="button"
                                     onClick={addColumn}
@@ -302,9 +374,20 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
                     </thead>
                     <tbody>
                         {formData.tableData.rows.map((row, rowIndex) => (
-                            <tr key={rowIndex}>
-                                <td className="border border-slate-300 bg-slate-100 text-[10px] text-center text-slate-400 font-mono font-bold">
+                            <tr key={rowIndex} style={{ height: formData.tableData?.rowHeights?.[rowIndex] || 40 }}>
+                                <td className="border border-slate-300 bg-transparent text-[10px] text-center text-slate-400 font-mono font-bold relative">
                                     {rowIndex + 1}
+                                    <div 
+                                        className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-primary-400 active:bg-primary-600 z-20"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setResizingRow({
+                                                index: rowIndex,
+                                                startY: e.clientY,
+                                                startHeight: formData.tableData?.rowHeights?.[rowIndex] || 40
+                                            });
+                                        }}
+                                    />
                                 </td>
                                 {row.map((cell, cellIndex) => {
                                     const isEditing = editingCell?.r === rowIndex && editingCell?.c === cellIndex;
@@ -315,13 +398,16 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
                                         <td 
                                             key={cellIndex} 
                                             className={`border border-slate-300 p-0 relative group ${!isEditing && isFormula ? 'cursor-pointer' : ''}`}
+                                            style={{ width: formData.tableData?.columnWidths?.[cellIndex] || 120, minWidth: formData.tableData?.columnWidths?.[cellIndex] || 120 }}
                                             onMouseDown={(e) => {
-                                                // Using onMouseDown to prevent focus loss before we can check if we should insert ref
                                                 if (editingCell && (editingCell.r !== rowIndex || editingCell.c !== cellIndex)) {
                                                     const sourceVal = formData.tableData?.rows[editingCell.r][editingCell.c];
                                                     if (sourceVal?.toString().startsWith('=')) {
-                                                        e.preventDefault();
-                                                        insertCellReference(rowIndex, cellIndex);
+                                                        const target = e.target as HTMLElement;
+                                                        if (!target.classList.contains('cursor-col-resize') && !target.classList.contains('cursor-row-resize')) {
+                                                            e.preventDefault();
+                                                            insertCellReference(rowIndex, cellIndex);
+                                                        }
                                                     }
                                                 }
                                             }}
@@ -332,26 +418,25 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
                                                 onChange={(e) => updateTableCell(rowIndex, cellIndex, e.target.value)}
                                                 onFocus={() => setEditingCell({ r: rowIndex, c: cellIndex })}
                                                 onBlur={(e) => {
-                                                    // Only clear editing cell if we didn't just click another cell for reference
                                                     setEditingCell(null);
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter') {
-                                                        e.preventDefault(); // Stop form submission
-                                                        (e.target as HTMLInputElement).blur(); // Commit and show result
+                                                        e.preventDefault();
+                                                        (e.target as HTMLInputElement).blur();
                                                     }
                                                 }}
-                                                className={`w-full border-none focus:ring-1 focus:ring-primary-500 p-2 ${isFormula && !isEditing ? 'text-primary-700 font-semibold bg-primary-50/30' : ''}`}
+                                                className={`w-full h-full border-none focus:ring-1 focus:ring-primary-500 px-2 flex items-center ${isFormula && !isEditing ? 'text-primary-700 font-semibold' : ''}`}
                                             />
                                             {isFormula && !isEditing && (
-                                                <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                <div className="absolute top-0 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                                     <Info size={10} className="text-primary-400" />
                                                 </div>
                                             )}
                                         </td>
                                     );
                                 })}
-                                <td className="border border-slate-300 p-1 text-center bg-slate-50">
+                                <td className="border border-slate-300 p-1 text-center bg-transparent relative">
                                     <button 
                                         type="button"
                                         onClick={() => removeRow(rowIndex)}
@@ -360,6 +445,17 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
                                     >
                                         <X size={14} />
                                     </button>
+                                    <div 
+                                        className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-primary-400 active:bg-primary-600 z-20"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            setResizingRow({
+                                                index: rowIndex,
+                                                startY: e.clientY,
+                                                startHeight: formData.tableData?.rowHeights?.[rowIndex] || 40
+                                            });
+                                        }}
+                                    />
                                 </td>
                             </tr>
                         ))}

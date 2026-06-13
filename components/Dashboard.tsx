@@ -968,7 +968,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         .letter-table { width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 30px; page-break-inside: auto; }
                         .letter-table tr { page-break-inside: avoid; page-break-after: auto; }
                         .letter-table th, .letter-table td { border: 1px solid #333; padding: 10px; text-align: left; }
-                        .letter-table th { background-color: #f9fafb; font-weight: bold; text-align: center; }
+                        .letter-table th { font-weight: bold; text-align: center; }
                         .tapashil-label { font-size: 17px; font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
                         .footer { margin-top: 20px; display: flex; justify-content: flex-end; page-break-inside: avoid; }
                         .signature-box { text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px; }
@@ -1027,13 +1027,21 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                         <table class="letter-table">
                             <thead>
                                 <tr>
-                                    ${chalani.tableData.headers.map(h => `<th>${toNepaliDigits(h)}</th>`).join('')}
+                                    ${chalani.tableData.headers.map((h, i) => `
+                                        <th style="width: ${chalani.tableData?.columnWidths?.[i] || 'auto'}px">
+                                            ${toNepaliDigits(h)}
+                                        </th>
+                                    `).join('')}
                                 </tr>
                             </thead>
                             <tbody>
-                                ${evaluatedTable!.map(row => `
-                                    <tr>
-                                        ${row.map(cell => `<td>${cell}</td>`).join('')}
+                                ${evaluatedTable!.map((row, rIdx) => `
+                                    <tr style="height: ${chalani.tableData?.rowHeights?.[rIdx] || 'auto'}px">
+                                        ${row.map((cell, cIdx) => `
+                                            <td style="width: ${chalani.tableData?.columnWidths?.[cIdx] || 'auto'}px">
+                                                ${cell}
+                                            </td>
+                                        `).join('')}
                                     </tr>
                                 `).join('')}
                             </tbody>

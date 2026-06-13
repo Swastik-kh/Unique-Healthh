@@ -184,6 +184,8 @@ export interface Darta {
 export interface ChalaniTable {
   headers: string[];
   rows: string[][];
+  columnWidths?: number[];
+  rowHeights?: number[];
 }
 
 export interface Chalani {
