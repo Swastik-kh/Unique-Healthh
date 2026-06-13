@@ -982,15 +982,25 @@ const App: React.FC = () => {
           // Create Goswara Voucher if it's an expense or income transaction
           if (transaction.type === 'Expense' || transaction.type === 'Income') {
               const entries: JournalEntry[] = [];
+              const progName = financialPrograms.find(p => p.id === transaction.programId)?.name || '';
+
               if (transaction.type === 'Expense') {
-                  entries.push({ accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, debit: transaction.amountWithVAT || transaction.amount || 0 });
+                  entries.push({ 
+                    accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
+                    activityName: progName,
+                    debit: transaction.amountWithVAT || transaction.amount || 0 
+                  });
                   entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) });
                   if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
                   if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
               } else {
                   // Income
                   entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', debit: transaction.amount || 0 });
-                  entries.push({ accountName: `${transaction.remarks}`, credit: transaction.amount || 0 });
+                  entries.push({ 
+                    accountName: `${transaction.remarks}`, 
+                    activityName: progName,
+                    credit: transaction.amount || 0 
+                  });
               }
 
               const voucher: GoswaraVoucher = {
@@ -1023,7 +1033,16 @@ const App: React.FC = () => {
       if (!currentUser) return;
       try {
           const id = payment.id || push(getOrgRef('partyPayments')).key;
-          await set(getOrgRef(`partyPayments/${id}`), { ...payment, id });
+          
+          // Clean undefined values for Firebase
+          const cleanedPayment = { ...payment, id };
+          Object.keys(cleanedPayment).forEach(key => {
+            if (cleanedPayment[key] === undefined) {
+              delete cleanedPayment[key];
+            }
+          });
+
+          await set(getOrgRef(`partyPayments/${id}`), cleanedPayment);
           
           // Update party's total paid amount
           if (payment.partyId !== 'manual') {
@@ -1044,8 +1063,13 @@ const App: React.FC = () => {
           // Automatically create Goswara Voucher for payment
           const voucherEntries: JournalEntry[] = [];
           const payeeName = payment.partyId === 'manual' ? payment.manualPartyName : (listedParties.find(p => p.id === payment.partyId)?.name || 'Payee');
+          const progName = financialPrograms.find(p => p.id === payment.programId)?.name || '';
           
-          voucherEntries.push({ accountName: `${payment.remarks || 'Payment'} (${payeeName})`, debit: payment.amount });
+          voucherEntries.push({ 
+            accountName: `${payment.remarks || 'Payment'} (${payeeName})`, 
+            activityName: progName,
+            debit: payment.amount 
+          });
           
           const netPayment = payment.amount - (payment.tdsAmount || 0) - (payment.sasukarAmount || 0);
           voucherEntries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: netPayment });
@@ -1078,6 +1102,7 @@ const App: React.FC = () => {
           await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
 
       } catch (error) {
+          console.error("Payment save error:", error);
           alert("भुक्तानी सुरक्षित गर्न सकिएन।");
       }
   };

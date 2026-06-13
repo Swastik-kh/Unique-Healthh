@@ -93,6 +93,7 @@ export interface GoswaraVoucher {
 
 export interface JournalEntry {
   accountName: string;
+  activityName?: string;
   debit?: number;
   credit?: number;
 }

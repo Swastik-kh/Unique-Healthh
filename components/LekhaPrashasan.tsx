@@ -621,7 +621,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <tr>
                     <td class="text-center">${idx + 1}</td>
                     <td></td>
-                    <td></td>
+                    <td style="font-size: 11px;">${e.activityName || ''}</td>
                     <td>
                        ${(e.accountName.includes('Expense Account') || e.accountName === 'खर्च') && voucher.remarks 
                          ? voucher.remarks 
