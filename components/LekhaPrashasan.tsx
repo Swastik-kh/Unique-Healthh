@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Calculator, Plus, Search, Printer, Trash2, Edit, Save, 
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
@@ -135,6 +135,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   };
 
   // Derived State
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // If predominantly vertical scroll, transform to horizontal
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        el.scrollLeft += e.deltaY;
+        // Block page scroll
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
   const stats = useMemo(() => {
     const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
     const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
@@ -1469,7 +1489,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
         {/* Search & Tabs */}
         <div className="flex flex-col md:flex-row gap-6 mb-8">
-          <div className="flex-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex overflow-x-auto no-scrollbar">
+          <div 
+            ref={scrollRef}
+            className="flex-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex overflow-x-auto no-scrollbar scroll-smooth"
+          >
             {[
               { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
               { id: 'payment_requests', label: 'Payment (भुक्तानी माग)', icon: <ClipboardList size={18} /> },
@@ -1483,16 +1506,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => { setActiveTab(tab.id as any); window.scrollTo(0, 0); }}
                 className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
                   activeTab === tab.id 
-                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-100' 
-                    : 'text-slate-500 hover:bg-slate-50'
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-100 scale-100' 
+                    : 'text-slate-500 hover:bg-slate-50 scale-95 opacity-80 hover:opacity-100 hover:scale-100'
                 }`}
               >
                 {tab.icon}
                 <span className="font-nepali">{tab.label.split(' ')[1] || tab.label}</span>
-                <span className="hidden md:inline opacity-60 text-[10px] ml-1">{tab.label.split(' ')[0]}</span>
+                <span className="hidden md:inline opacity-60 text-[10px] ml-1 uppercase">{tab.label.split(' ')[0]}</span>
               </button>
             ))}
           </div>
