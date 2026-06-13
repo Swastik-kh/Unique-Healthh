@@ -5,6 +5,7 @@ import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin,
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { AmbulanceTracker } from './AmbulanceTracker';
+import { LogoDisplay } from './LogoDisplay';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
@@ -1617,20 +1618,69 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             )}
 
             {/* Print Header */}
-            <div className="hidden print:block text-center space-y-2.5 p-6 border-b-2 border-slate-900">
-              <h1 className="text-2xl font-black font-nepali text-slate-950">{generalSettings?.orgName || 'स्थानीय तह स्वास्थ्य संस्था'}</h1>
-              <h2 className="text-lg font-bold font-nepali text-slate-900">एम्बुलेन्स सेवा लगबुक रेकर्ड (Executive Vehicle Log Book)</h2>
-              <div className="text-xs text-slate-700 font-medium flex flex-wrap items-center justify-center gap-4">
+            <div className="hidden print:block border-b-2 border-slate-900 pb-5 mb-5">
+              <div className="grid grid-cols-[100px_1fr_100px] items-center gap-4 text-center">
+                {/* Left side: Main/Organization Logo */}
+                <div className="flex justify-start">
+                  {generalSettings && (
+                    <LogoDisplay settings={generalSettings} width={75} height={75} />
+                  )}
+                </div>
+
+                {/* Center: Headings 1, 2, 3, 4 from general settings */}
+                <div className="space-y-1">
+                  <h1 className="text-xl font-bold font-nepali tracking-wide leading-tight text-slate-950">
+                    {generalSettings?.orgNameNepali || 'स्थानीय तह स्वास्थ्य संस्था'}
+                  </h1>
+                  {generalSettings?.subTitleNepali && (
+                    <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                      {generalSettings.subTitleNepali}
+                    </p>
+                  )}
+                  {generalSettings?.subTitleNepali2 && (
+                    <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                      {generalSettings.subTitleNepali2}
+                    </p>
+                  )}
+                  {generalSettings?.subTitleNepali3 && (
+                    <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                      {generalSettings.subTitleNepali3}
+                    </p>
+                  )}
+                  {generalSettings?.subTitleNepali4 && (
+                    <p className="text-xs font-bold font-nepali leading-tight text-slate-800">
+                      {generalSettings.subTitleNepali4}
+                    </p>
+                  )}
+                  
+                  <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 pt-2 underline decoration-double decoration-1 underline-offset-4">
+                    एम्बुलेन्स सेवा लगबुक रेकर्ड (Executive Vehicle Log Book)
+                  </h2>
+                </div>
+
+                {/* Right side: Pradesh Logo */}
+                <div className="flex justify-end">
+                  <img
+                    src={generalSettings?.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}
+                    style={{ width: 75, height: 75, objectFit: 'contain' }}
+                    alt="Province Logo"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
+
+              {/* Print Meta Values */}
+              <div className="text-xs text-slate-700 font-bold flex flex-wrap items-center justify-center gap-6 mt-4 pt-2 border-t border-dashed border-slate-300">
                 <span>आर्थिक वर्ष: {currentFiscalYear}</span>
                 <span>छापिएको मिति: {new NepaliDate().format('YYYY-MM-DD')}</span>
                 {logBookMonthFilter && (
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
+                  <span className="border border-slate-300 px-2 py-0.5 rounded">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
                 )}
                 {logBookDriverFilter && (
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">चालक: {logBookDriverFilter}</span>
+                  <span className="border border-slate-300 px-2 py-0.5 rounded">चालक: {logBookDriverFilter}</span>
                 )}
                 {logBookVehicleFilter && (
-                  <span className="bg-slate-100 px-1.5 py-0.5 rounded font-bold">गाडी नं.: {logBookVehicleFilter}</span>
+                  <span className="border border-slate-300 px-2 py-0.5 rounded">गाडी नं.: {logBookVehicleFilter}</span>
                 )}
               </div>
             </div>
