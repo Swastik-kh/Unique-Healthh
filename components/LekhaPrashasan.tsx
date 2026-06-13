@@ -111,7 +111,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [txnRefNo, setTxnRefNo] = useState('');
 
   const getNepaliMonthName = (dateBs: string) => {
-    const monthNo = parseInt(dateBs.split('-')[1]);
+    const parts = dateBs.split(/[-/]/);
+    if (parts.length < 2) return dateBs;
+    const monthNo = parseInt(parts[1]);
     const months = ['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत'];
     return months[monthNo-1] || dateBs;
   }
@@ -700,8 +702,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         <style>
           @page { size: A4 landscape; margin: 5mm; }
           body { font-family: 'Mukta', sans-serif; font-size: 10px; padding: 10px; }
-          .header { text-align: center; margin-bottom: 10px; }
-          .form-num { position: absolute; right: 10px; top: 10px; font-weight: bold; }
+          .print-header { display: flex; align-items: flex-start; margin-bottom: 15px; position: relative; }
+          .logo-side { width: 80px; flex-shrink: 0; }
+          .header-content { flex-grow: 1; text-align: center; margin-right: 80px; }
+          .h1 { font-size: 20px; font-weight: 800; margin: 0; line-height: 1.2; }
+          .h2 { font-size: 16px; font-weight: 700; margin: 0; line-height: 1.2; }
+          .h3 { font-size: 14px; font-weight: 600; margin: 0; line-height: 1.2; }
+          .h4 { font-size: 12px; font-weight: 500; margin: 0; line-height: 1.2; }
+          .address { font-size: 11px; margin-top: 2px; }
+          .report-title { font-size: 16px; font-weight: 800; margin-top: 10px; text-decoration: underline; }
+          .report-meta { font-size: 10px; margin-top: 5px; }
+          .form-num { position: absolute; right: 10px; top: 0px; font-weight: bold; font-size: 8px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th, td { border: 1px solid black; padding: 4px; text-align: center; }
           .text-left { text-align: left; }
@@ -711,14 +722,21 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         </style>
       </head>
       <body>
-        <div class="form-num text-[8px]">साविकको फारम न. ९</div>
-          <div class="header">
-            <div>संघ/प्रदेश/स्थानीय तह</div>
-            <div class="font-bold text-lg">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
-            <div>${generalSettings.address || 'ठेगाना'}</div>
-            <h2 class="font-bold mt-2">${title}</h2>
-            <div class="mt-1">${selectedMonth !== 'All' ? `महिना: ${selectedMonth}` : 'आर्थिक वर्ष भरिको विवरण'}</div>
+        <div class="form-num">साविकको फारम न. ९</div>
+        <div class="print-header">
+          <div class="logo-side">
+            <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px;">
           </div>
+          <div class="header-content">
+            <div class="h1">${generalSettings.orgNameNepali}</div>
+            <div class="h2">${generalSettings.subTitleNepali || ''}</div>
+            <div class="h3">${generalSettings.subTitleNepali2 || ''}</div>
+            <div class="h4">${generalSettings.subTitleNepali3 || ''}</div>
+            <div class="address">${generalSettings.address || ''}</div>
+            <h2 class="report-title">${title}</h2>
+            <div class="report-meta">${selectedMonth !== 'All' ? `महिना: ${selectedMonth}` : 'आर्थिक वर्ष भरिको विवरण'}</div>
+          </div>
+        </div>
         
         <div class="subheader">
           <div>बजेट उप-शीर्षक न: ................</div>
@@ -771,20 +789,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <td></td>
               </tr>
             `).join('')}
-            <tr class="font-bold">
-               <td colspan="3" class="text-left">यो महिनाको जम्मा</td>
-               <td class="text-right">${items.reduce((sum, i) => sum + (i.debitCash || 0), 0).toLocaleString()}</td>
-               <td class="text-right">${items.reduce((sum, i) => sum + (i.creditCash || 0), 0).toLocaleString()}</td>
-               <td class="text-right">${items.reduce((sum, i) => sum + (i.debitBank || 0), 0).toLocaleString()}</td>
-               <td class="text-right">${items.reduce((sum, i) => sum + (i.creditBank || 0), 0).toLocaleString()}</td>
-               <td></td>
-               <td></td>
-               <td></td>
-               <td class="text-right">${items.reduce((sum, i) => sum + (i.budgetExp || 0), 0).toLocaleString()}</td>
-               <td></td>
-               <td></td>
-               <td></td>
-            </tr>
           </tbody>
         </table>
       </body>
@@ -794,10 +798,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     printWin.document.close();
     setTimeout(() => printWin.print(), 500);
   };
-
   const handlePrintKharchaFatbari = (data: any[], month: string) => {
     const printWin = window.open('', '', 'width=1200,height=800');
     if (!printWin) return;
+
+    const title = "खर्चको फाँटबारी (Expenditure Statement)";
 
     const content = `
     <html>
@@ -807,7 +812,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         <style>
           @page { size: A4 landscape; margin: 5mm; }
           body { font-family: 'Mukta', sans-serif; font-size: 10px; padding: 10px; }
-          .header { text-align: center; margin-bottom: 10px; }
+          .print-header { display: flex; align-items: flex-start; margin-bottom: 15px; position: relative; }
+          .logo-side { width: 80px; flex-shrink: 0; }
+          .header-content { flex-grow: 1; text-align: center; margin-right: 80px; }
+          .h1 { font-size: 20px; font-weight: 800; margin: 0; line-height: 1.2; }
+          .h2 { font-size: 16px; font-weight: 700; margin: 0; line-height: 1.2; }
+          .h3 { font-size: 14px; font-weight: 600; margin: 0; line-height: 1.2; }
+          .h4 { font-size: 12px; font-weight: 500; margin: 0; line-height: 1.2; }
+          .address { font-size: 11px; margin-top: 2px; }
+          .report-title { font-size: 16px; font-weight: 800; margin-top: 10px; text-decoration: underline; }
+          .report-meta { font-size: 10px; margin-top: 5px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th, td { border: 1px solid black; padding: 4px; text-align: center; }
           .text-left { text-align: left; }
@@ -816,12 +830,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>संघ/प्रदेश/स्थानीय तह</div>
-          <div class="font-bold text-lg">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
-          <div>${generalSettings.address || 'ठेगाना'}</div>
-          <h2 class="font-bold mt-2">खर्चको फाँटबारी</h2>
-          <div class="mt-1">${month === 'All' ? 'आर्थिक वर्ष भरिको विवरण' : `महिना: ${month}`}</div>
+        <div class="print-header">
+          <div class="logo-side">
+            <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px;">
+          </div>
+          <div class="header-content">
+            <div class="h1">${generalSettings.orgNameNepali}</div>
+            <div class="h2">${generalSettings.subTitleNepali || ''}</div>
+            <div class="h3">${generalSettings.subTitleNepali2 || ''}</div>
+            <div class="h4">${generalSettings.subTitleNepali3 || ''}</div>
+            <div class="address">${generalSettings.address || ''}</div>
+            <h2 class="report-title">${title}</h2>
+            <div class="report-meta">${month === 'All' ? 'आर्थिक वर्ष भरिको विवरण' : `महिना: ${month}`}</div>
+          </div>
         </div>
         
         <table>
@@ -880,8 +901,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       let totalExp = 0;
 
       allProgramPayments.forEach(p => {
-        const pMonthStr = p.dateBs.split('/')[1];
-        const pMonthNum = parseInt(pMonthStr);
+        const parts = p.dateBs.split(/[-/]/);
+        if (parts.length < 2) return;
+        const pMonthNum = parseInt(parts[1]);
         const pMonthIdx = pMonthNum - 1;
 
         if (selectedMonth === 'All') {
@@ -1390,7 +1412,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             </thead>
             <tbody>
               ${reportData.map(t => {
-                const displayDate = reportFilter.type === 'Monthly' ? t.dateBs.split('-')[2] : t.dateBs;
+                const parts = t.dateBs.split(/[-/]/);
+                const displayDate = reportFilter.type === 'Monthly' ? (parts[2] || t.dateBs) : t.dateBs;
                 return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td></tr>`
               }).join('')}
             </tbody>
@@ -1606,8 +1629,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
     const monthFilteredItems = mergedItems.filter(item => {
       if (selectedMonth === 'All') return true;
-      const monthPart = item.dateBs.split('/')[1]; // assuming YYYY/MM/DD
-      const monthNum = parseInt(monthPart);
+      const parts = item.dateBs.split(/[-/]/);
+      if (parts.length < 2) return false;
+      const monthNum = parseInt(parts[1]);
       // In BS, 01 is Baishakh, 02 is Jestha, etc.
       return nepaliMonths[monthNum - 1] === selectedMonth;
     });
@@ -1758,17 +1782,27 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const totalLess = lessItems.reduce((sum, i) => sum + i.amount, 0);
     const adjusted = bookBalance + totalAdd - totalLess;
     const diff = adjusted - bankBalance;
+    const title = "बैंक हिसाब मिलान विवरण (Bank Reconciliation Statement)";
 
     const content = `
     <html>
       <head>
-        <title>बैंक हिसाब मिलान विवरण</title>
+        <title>${title}</title>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
           @page { size: A4 portrait; margin: 15mm; }
           body { font-family: 'Mukta', sans-serif; font-size: 11px; padding: 10px; color: #333; }
-          .header { text-align: center; margin-bottom: 20px; }
-          .org-name { font-size: 18px; font-weight: 800; }
+          .print-header { display: flex; align-items: flex-start; margin-bottom: 15px; position: relative; }
+          .logo-side { width: 70px; flex-shrink: 0; }
+          .header-content { flex-grow: 1; text-align: center; margin-right: 70px; }
+          .h1 { font-size: 18px; font-weight: 800; margin: 0; line-height: 1.2; }
+          .h2 { font-size: 14px; font-weight: 700; margin: 0; line-height: 1.2; }
+          .h3 { font-size: 13px; font-weight: 600; margin: 0; line-height: 1.2; }
+          .h4 { font-size: 11px; font-weight: 500; margin: 0; line-height: 1.2; }
+          .address { font-size: 10px; margin-top: 2px; }
+          .report-title { font-size: 15px; font-weight: 800; margin-top: 10px; text-decoration: underline; }
+          .report-meta { font-size: 10px; margin-top: 5px; }
+          
           .form-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 9px; }
           table { width: 100%; border-collapse: collapse; margin: 15px 0; }
           th, td { border: 1px solid black; padding: 6px; text-align: left; }
@@ -1783,15 +1817,22 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       </head>
       <body>
         <div class="form-meta">
-           <div>नेपाल सरकारको छाप</div>
+           <div></div>
            <div style="text-align: right;">म.ले.प. फारम न: २१२<br>साविकको फारम न: १५</div>
         </div>
-        <div class="header">
-          <div>संघ/प्रदेश/स्थानीय तह</div>
-          <div class="org-name">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
-          <div>${generalSettings.address || 'ठेगाना'}</div>
-          <h2 style="margin-top: 10px;">बैंक हिसाब मिलान विवरण</h2>
-          <div>मिति: ${new NepaliDate().format('YYYY/MM/DD')} (महिना: ${selectedMonth})</div>
+        <div class="print-header">
+          <div class="logo-side">
+            <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 70px;">
+          </div>
+          <div class="header-content">
+            <div class="h1">${generalSettings.orgNameNepali}</div>
+            <div class="h2">${generalSettings.subTitleNepali || ''}</div>
+            <div class="h3">${generalSettings.subTitleNepali2 || ''}</div>
+            <div class="h4">${generalSettings.subTitleNepali3 || ''}</div>
+            <div class="address">${generalSettings.address || ''}</div>
+            <h2 class="report-title">${title}</h2>
+            <div class="report-meta">मिति: ${new NepaliDate().format('YYYY/MM/DD')} (महिना: ${selectedMonth})</div>
+          </div>
         </div>
 
         <div class="summary-row font-bold" style="background: #f3f4f6;">
@@ -1914,7 +1955,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     // Calculate Book Balance up to the end of selected month
     let currentBookBalance = 0;
     allItemsParsed.forEach(item => {
-      const parts = item.dateBs.split('/');
+      const parts = item.dateBs.split(/[-/]/);
       if (parts.length < 2) return;
       const mNum = parseInt(parts[1]);
       const mIdx = mNum - 1;
@@ -1931,7 +1972,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     // Items specifically from the selected month for selection
     const monthItems = allItemsParsed.filter(item => {
       if (selectedMonth === 'All') return true;
-      const mNum = parseInt(item.dateBs.split('/')[1]);
+      const parts = item.dateBs.split(/[-/]/);
+      if (parts.length < 2) return false;
+      const mNum = parseInt(parts[1]);
       return nepaliMonths[mNum - 1] === selectedMonth;
     });
 
