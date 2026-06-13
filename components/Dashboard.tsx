@@ -951,7 +951,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         @page { size: A4; margin: 20mm; }
                         body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
                         .header { display: flex; align-items: start; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-                        .logo { width: 80px; height: 80px; margin-right: 20px; }
+                        .logo { width: 80px; height: 80px; object-fit: contain; }
                         .org-details { flex: 1; text-align: center; }
                         .org-name { font-size: 24px; font-weight: 800; color: #b91c1c; margin: 0; }
                         .org-sub { font-size: 14px; font-weight: 600; margin: 0; }
@@ -974,6 +974,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                             <p class="org-sub">${generalSettings.subTitleNepali || ''}</p>
                             <p class="org-sub">${generalSettings.subTitleNepali2 || ''}</p>
                             <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
+                            <p class="org-sub">${generalSettings.subTitleNepali4 || ''}</p>
                         </div>
                         <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
                     </div>

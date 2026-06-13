@@ -104,7 +104,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <Input label="२. उप-शीर्षक १" value={localSettings.subTitleNepali} onChange={(e) => handleChange('subTitleNepali', e.target.value)} />
                     <Input label="३. उप-शीर्षक २" value={localSettings.subTitleNepali2 || ''} onChange={(e) => handleChange('subTitleNepali2', e.target.value)} />
                     <Input label="४. उप-शीर्षक ३" value={localSettings.subTitleNepali3 || ''} onChange={(e) => handleChange('subTitleNepali3', e.target.value)} />
-                    <Input label="५. कार्यालय कोड नं." value={localSettings.officeCode || ''} onChange={(e) => handleChange('officeCode', e.target.value)} />
+                    <Input label="५. उप-शीर्षक ४" value={localSettings.subTitleNepali4 || ''} onChange={(e) => handleChange('subTitleNepali4', e.target.value)} />
+                    <Input label="६. कार्यालय कोड नं." value={localSettings.officeCode || ''} onChange={(e) => handleChange('officeCode', e.target.value)} />
                 </div>
                 <hr className="my-4 border-slate-100" />
                 <div className="grid md:grid-cols-2 gap-4">
