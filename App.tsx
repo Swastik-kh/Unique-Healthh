@@ -936,7 +936,7 @@ const App: React.FC = () => {
       if (!currentUser) return;
       try {
           const id = program.id || push(getOrgRef('financialPrograms')).key;
-          await set(getOrgRef(`financialPrograms/${id}`), { ...program, id });
+          await set(getOrgRef(`financialPrograms/${id}`), cleanObject({ ...program, id }));
       } catch (error) {
           alert("कार्यक्रम सुरक्षित गर्न सकिएन।");
       }
@@ -957,7 +957,7 @@ const App: React.FC = () => {
       try {
           const id = party.id || push(getOrgRef('listedParties')).key;
           const currentTotalPaid = party.totalPaidAmount || 0;
-          await set(getOrgRef(`listedParties/${id}`), { ...party, id, totalPaidAmount: currentTotalPaid });
+          await set(getOrgRef(`listedParties/${id}`), cleanObject({ ...party, id, totalPaidAmount: currentTotalPaid }));
       } catch (error) {
           alert("पार्टी विवरण सुरक्षित गर्न सकिएन।");
       }
@@ -977,7 +977,8 @@ const App: React.FC = () => {
       if (!currentUser) return;
       try {
           const id = transaction.id || push(getOrgRef('financialTransactions')).key;
-          await set(getOrgRef(`financialTransactions/${id}`), { ...transaction, id });
+          const cleanedTransaction = cleanObject({ ...transaction, id });
+          await set(getOrgRef(`financialTransactions/${id}`), cleanedTransaction);
 
           // Create Goswara Voucher if it's an expense or income transaction
           if (transaction.type === 'Expense' || transaction.type === 'Income') {
@@ -1012,7 +1013,7 @@ const App: React.FC = () => {
                   fiscalYear: transaction.fiscalYear,
                   remarks: transaction.remarks
               };
-              await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
+              await set(getOrgRef(`goswaraVouchers/${voucher.id}`), cleanObject({ ...voucher }));
           }
       } catch (error) {
           alert("कारोबार र भौचर सुरक्षित गर्न सकिएन।");
