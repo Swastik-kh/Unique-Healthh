@@ -93,6 +93,7 @@ export interface OrganizationSettings {
   activeFiscalYear: string;
   enableEnglishDate: string;
   logoUrl: string;
+  provinceLogoUrl?: string;
   ambulancePhone?: string; // Added field
   ambulanceNo?: string;
   ambulanceDriverName?: string;

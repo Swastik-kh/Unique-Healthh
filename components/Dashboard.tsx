@@ -975,6 +975,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                             <p class="org-sub">${generalSettings.subTitleNepali2 || ''}</p>
                             <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
                         </div>
+                        <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
                     </div>
 
                     <div class="meta-row">

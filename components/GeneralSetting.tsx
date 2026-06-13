@@ -320,36 +320,72 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Image size={18} className="text-primary-600"/>लोगो सेटिङ</h3>
-                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('logo-upload')?.click()}>
-                    <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                                const base64String = reader.result as string;
-                                const updatedSettings = { ...localSettings, logoUrl: base64String };
-                                setLocalSettings(updatedSettings);
-                                onUpdateSettings(updatedSettings);
-                                alert('लोगो सफलतापूर्वक सेट भयो!');
-                            };
-                            reader.onerror = () => {
-                                alert('लोगो लोड गर्न समस्या भयो');
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('logo-upload')?.click()}>
+                        <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64String = reader.result as string;
+                                    const updatedSettings = { ...localSettings, logoUrl: base64String };
+                                    setLocalSettings(updatedSettings);
+                                    onUpdateSettings(updatedSettings);
+                                    alert('लोगो सफलतापूर्वक सेट भयो!');
+                                };
+                                reader.onerror = () => {
+                                    alert('लोगो लोड गर्न समस्या भयो');
+                                }
+                                reader.readAsDataURL(file);
                             }
-                            reader.readAsDataURL(file);
-                        }
-                    }} />
-                    <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative">
-                        <img 
-                            key={localSettings.logoUrl}
-                            src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
-                            alt="Logo" 
-                            className="w-full h-full object-cover" 
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
-                            लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                        }} />
+                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
+                            <img 
+                                key={localSettings.logoUrl}
+                                src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                alt="Logo" 
+                                className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
+                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                            </div>
                         </div>
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">नेपाल सरकारको लोगो</span>
+                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
                     </div>
-                    <span className="text-sm font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
+
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('province-logo-upload')?.click()}>
+                        <input type="file" id="province-logo-upload" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64String = reader.result as string;
+                                    const updatedSettings = { ...localSettings, provinceLogoUrl: base64String };
+                                    setLocalSettings(updatedSettings);
+                                    onUpdateSettings(updatedSettings);
+                                    alert('प्रदेश लोगो सफलतापूर्वक सेट भयो!');
+                                };
+                                reader.onerror = () => {
+                                    alert('लोगो लोड गर्न समस्या भयो');
+                                }
+                                reader.readAsDataURL(file);
+                            }
+                        }} />
+                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
+                            <img 
+                                key={localSettings.provinceLogoUrl}
+                                src={localSettings.provinceLogoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                alt="Province Logo" 
+                                className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
+                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                            </div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">प्रदेश लोगो</span>
+                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
+                    </div>
                 </div>
             </div>
             <div className="bg-slate-50 p-6 rounded-xl border shadow-inner"><div className="flex flex-col gap-3">
