@@ -994,12 +994,13 @@ const App: React.FC = () => {
               }
 
               const voucher: GoswaraVoucher = {
-                  id: `GV-${Date.now()}`,
+                  id: `GV-${id}`,
                   dateBs: transaction.dateBs,
                   transactionId: id,
                   entries,
                   totalAmount: transaction.amountWithVAT || transaction.amount || 0,
-                  fiscalYear: transaction.fiscalYear
+                  fiscalYear: transaction.fiscalYear,
+                  remarks: transaction.remarks
               };
               await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
           }
@@ -1044,12 +1045,13 @@ const App: React.FC = () => {
               { accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount },
           ];
           const voucher: GoswaraVoucher = {
-              id: `GV-PAY-${Date.now()}`,
+              id: `GV-PAY-${id}`,
               dateBs: payment.dateBs,
               transactionId: id,
               entries: voucherEntries,
               totalAmount: payment.amount,
-              fiscalYear: payment.fiscalYear
+              fiscalYear: payment.fiscalYear,
+              remarks: payment.remarks
           };
           await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
 

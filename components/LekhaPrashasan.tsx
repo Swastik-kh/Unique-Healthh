@@ -18,7 +18,7 @@ import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
 import { db } from '../firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, remove } from 'firebase/database';
 
 interface LekhaPrashasanProps {
   programs: FinancialProgram[];
@@ -119,6 +119,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       });
       return () => unsub();
   }, [generalSettings.orgNameEnglish]);
+
+  const handleDeleteVoucher = async (id: string) => {
+    if (window.confirm('के तपाईं निश्चित रूपमा यो गोश्वारा भौचर हटाउन चाहनुहुन्छ?')) {
+      const orgName = generalSettings.orgNameEnglish;
+      if (!orgName) return;
+      const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
+      try {
+        await remove(ref(db, `orgData/${safeOrgName}/goswaraVouchers/${id}`));
+      } catch (error) {
+        console.error('Error deleting voucher:', error);
+        alert('भौचर हटाउन सकिएन।');
+      }
+    }
+  };
 
   // Derived State
   const stats = useMemo(() => {
@@ -541,7 +555,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
           <div class="meta-row">
             <div class="meta-item" style="flex: 2;">
-               गोश्वारा भौचरको प्रकार: प्राप्ती/खर्च/धरौटी/अन्य: <span class="dots" style="min-width: 150px;">खर्च</span>
+               गोश्वारा भौचरको प्रकार: प्राप्ती/खर्च/धरौटी/अन्य: <span class="dots" style="min-width: 150px;">
+                 ${voucher.id.includes('PAY') || voucher.entries.some(e => e.debit && !e.accountName.includes('Bank/Cash')) ? 'खर्च' : 'प्राप्ती'}
+               </span>
             </div>
             <div class="meta-item">
                मिति : <span class="dots" style="min-width: 150px;">${voucher.dateBs}</span>
@@ -590,7 +606,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <td class="text-center">${idx + 1}</td>
                     <td></td>
                     <td></td>
-                    <td>${e.accountName}</td>
+                    <td>
+                       ${(e.accountName.includes('Expense Account') || e.accountName === 'खर्च') && voucher.remarks 
+                         ? voucher.remarks 
+                         : e.accountName}
+                    </td>
                     <td></td>
                     <td style="padding: 0;">
                        <div style="display: flex; height: 100%;">
@@ -604,6 +624,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <td class="text-right">${e.credit ? e.credit.toLocaleString() : ''}</td>
                 </tr>
               `).join('')}
+              ${voucher.remarks ? `
+                <tr>
+                    <td class="text-center"></td>
+                    <td></td>
+                    <td></td>
+                    <td colspan="5" style="font-size: 11px; padding: 5px; background: #fff;">
+                      <strong>कारोबारको संक्षिप्त व्यहोरा (Narration):</strong> ${voucher.remarks}
+                    </td>
+                </tr>
+              ` : ''}
               <!-- Fill remaining rows for height if needed -->
               ${voucher.entries.length < 5 ? Array(5 - voucher.entries.length).fill('').map(() => `
                 <tr style="height: 30px;">
@@ -1022,6 +1052,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
              <tr className="bg-slate-50 border-b">
                <th className="px-6 py-4">मिति</th>
                <th className="px-6 py-4">भौचर नं</th>
+               <th className="px-6 py-4">प्रकार</th>
+               <th className="px-6 py-4">विवरण (Remarks)</th>
                <th className="px-6 py-4 text-right">रकम</th>
                <th className="px-6 py-4 text-center">कार्य</th>
              </tr>
@@ -1030,10 +1062,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
              {goswaraVouchers.map(v => (
                <tr key={v.id} className="border-b">
                   <td className="px-6 py-4">{v.dateBs}</td>
-                  <td className="px-6 py-4 font-mono">{v.id}</td>
-                  <td className="px-6 py-4 text-right">रू {v.totalAmount.toLocaleString()}</td>
+                  <td className="px-6 py-4 font-mono text-xs">{v.id}</td>
+                  <td className="px-6 py-4 text-xs">
+                    <span className={`px-2 py-1 rounded-full ${v.id.includes('PAY') || v.entries.some(e => e.debit && !e.accountName.includes('Bank/Cash')) ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                      {v.id.includes('PAY') || v.entries.some(e => e.debit && !e.accountName.includes('Bank/Cash')) ? 'खर्च' : 'प्राप्ती'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-nepali">{v.remarks || '-'}</td>
+                  <td className="px-6 py-4 text-right font-bold text-slate-700 font-nepali">रू {v.totalAmount.toLocaleString()}</td>
                   <td className="px-6 py-4 text-center">
-                    <button onClick={() => handlePrintVoucher(v)} className="text-indigo-600 hover:text-indigo-900"><Printer size={16} /></button>
+                    <div className="flex items-center justify-center gap-2">
+                       <button onClick={() => handlePrintVoucher(v)} className="text-indigo-600 hover:text-indigo-900" title="प्रिन्ट">
+                         <Printer size={16} />
+                       </button>
+                       <button onClick={() => handleDeleteVoucher(v.id)} className="text-rose-500 hover:text-rose-700" title="हटाउनुहोस्">
+                         <Trash2 size={16} />
+                       </button>
+                    </div>
                   </td>
                </tr>
              ))}

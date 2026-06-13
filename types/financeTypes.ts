@@ -85,6 +85,7 @@ export interface GoswaraVoucher {
   entries: JournalEntry[];
   totalAmount: number;
   fiscalYear: string;
+  remarks?: string;
 }
 
 export interface JournalEntry {
