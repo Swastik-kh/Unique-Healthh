@@ -353,6 +353,43 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     })).filter(item => item.liters > 0 || item.cost > 0); // Only show months with data
   }, [expenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
+  const totalDrivenDistance = useMemo(() => {
+    return filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
+  }, [filteredLogBookRecords]);
+
+  const totalFuelLiters = useMemo(() => {
+    let liters = 0;
+    (expenseRecords || []).forEach(record => {
+      if (record.expenseCategory === 'fuel' && record.fuelLiters) {
+        // Vehicle Filter compatibility
+        if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
+          return;
+        }
+        // Driver filter compatibility
+        if (logBookDriverFilter && record.driverName && record.driverName !== logBookDriverFilter) {
+          return;
+        }
+        // Month filter compatibility
+        if (logBookMonthFilter) {
+          const parts = (record.dateBs || '').split(/[-/]/);
+          if (parts.length >= 2) {
+            const m = parts[1].padStart(2, '0');
+            const targetM = logBookMonthFilter.padStart(2, '0');
+            if (m !== targetM) return;
+          } else {
+            return;
+          }
+        }
+        liters += Number(record.fuelLiters) || 0;
+      }
+    });
+    return liters;
+  }, [expenseRecords, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
+
+  const averageMileage = useMemo(() => {
+    return totalFuelLiters > 0 ? (totalDrivenDistance / totalFuelLiters) : 0;
+  }, [totalDrivenDistance, totalFuelLiters]);
+
   const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteAmbulance === true;
 
   const configuredRoutes = useMemo(() => {
@@ -1480,34 +1517,100 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               )}
             </div>
 
-            {/* Monthly Fuel Summary Display */}
-            {monthlyFuelSummary.length > 0 && (
-              <div className="mx-4 sm:mx-5 my-4 p-4 bg-amber-50/50 border border-amber-200 rounded-2xl print:hidden">
-                <h4 className="text-xs sm:text-sm font-bold text-amber-900 font-nepali flex items-center gap-2 mb-3">
-                  <span className="flex h-2.5 w-2.5 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                  </span>
-                  महिना अनुसार इन्धन खपत विवरण (Monthly Fuel Consumption Summary from Expenses)
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                  {monthlyFuelSummary.map(item => (
-                    <div key={item.id} className="bg-white p-3 rounded-xl border border-amber-150/80 shadow-sm hover:shadow transition-all space-y-1">
-                      <p className="text-[11px] font-black text-slate-500 font-nepali">{item.name.split(' ')[0]}</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-lg font-black text-amber-700 font-mono">{item.liters.toFixed(1)}</span>
-                        <span className="text-[10px] text-slate-500 font-bold font-nepali">लिटर</span>
+            {/* Monthly Fuel Summary Display & Average Mileage Card */}
+            {(monthlyFuelSummary.length > 0 || totalDrivenDistance > 0 || totalFuelLiters > 0) && (
+              <div className="mx-4 sm:mx-5 my-4 grid grid-cols-1 lg:grid-cols-3 gap-4 print:hidden">
+                {/* Left Side: Fuel Consumption by Month */}
+                {monthlyFuelSummary.length > 0 ? (
+                  <div className="lg:col-span-2 p-4 bg-amber-50/50 border border-amber-200 rounded-2xl flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-amber-900 font-nepali flex items-center gap-2 mb-3">
+                        <span className="flex h-2.5 w-2.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                        </span>
+                        महिना अनुसार इन्धन खपत विवरण (Monthly Fuel Consumption Summary)
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {monthlyFuelSummary.map(item => (
+                          <div key={item.id} className="bg-white p-3 rounded-xl border border-amber-150/80 shadow-sm hover:shadow transition-all space-y-1">
+                            <p className="text-[11px] font-black text-slate-500 font-nepali">{item.name.split(' ')[0]}</p>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-lg font-black text-amber-700 font-mono">{item.liters.toFixed(1)}</span>
+                              <span className="text-[10px] text-slate-500 font-bold font-nepali">लिटर</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-bold font-mono">रु. {item.cost.toLocaleString()}</p>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-[10px] text-slate-400 font-bold font-mono font-bold">रु. {item.cost.toLocaleString()}</p>
                     </div>
-                  ))}
-                  <div className="bg-amber-600 p-3 rounded-xl text-white shadow-sm space-y-1 col-span-2 sm:col-span-1">
-                    <p className="text-[11px] font-bold font-nepali opacity-90">कूल जम्मा (Total Fuel)</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-lg font-black font-mono">{monthlyFuelSummary.reduce((sum, i) => sum + i.liters, 0).toFixed(1)}</span>
-                      <span className="text-[10px] font-bold font-nepali opacity-90">लिटर</span>
+                    
+                    <div className="mt-4 pt-3 border-t border-amber-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <p className="text-xs font-bold font-nepali text-amber-850">कूल जम्मा इन्धन खर्च (Total Fuel loaded):</p>
+                      <div className="flex items-center gap-3">
+                        <div className="bg-amber-600 px-3 py-1 rounded-lg text-white font-mono font-bold text-xs">
+                          {totalFuelLiters.toFixed(1)} Ltr
+                        </div>
+                        <p className="text-xs font-bold font-mono text-slate-600">
+                          रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[10px] font-bold font-mono opacity-90">रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toLocaleString()}</p>
+                  </div>
+                ) : (
+                  <div className="lg:col-span-2 p-5 bg-amber-50/20 border border-dashed border-amber-200 rounded-2xl flex flex-col items-center justify-center text-center">
+                    <p className="text-xs sm:text-sm font-bold text-slate-400 font-nepali">यो अवधिमा कुनै इन्धन खपत रेकर्ड फेला परेन।</p>
+                  </div>
+                )}
+
+                {/* Right Side: Average Mileage Card */}
+                <div className="lg:col-span-1 p-4 bg-emerald-50/50 border border-emerald-250 rounded-2xl flex flex-col justify-between shadow-sm">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-emerald-900 font-nepali flex items-center gap-2 mb-4">
+                      <span className="flex h-2.5 w-2.5 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      औसत एम्बुलेन्स माइलेज (Ambulance Mileage)
+                    </h4>
+
+                    <div className="space-y-3.5">
+                      {/* Metric display box */}
+                      <div className="bg-white p-3.5 rounded-xl border border-emerald-100 shadow-sm flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 font-nepali uppercase tracking-wider">औसत माइलेज (Average Mileage)</p>
+                          <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-2xl font-black text-emerald-700 font-mono">
+                              {averageMileage > 0 ? averageMileage.toFixed(2) : '0.00'}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-600 font-nepali">कि.मी./लिटर (KM/L)</span>
+                          </div>
+                        </div>
+                        <div className="p-2.5 bg-emerald-100/50 text-emerald-700 rounded-xl">
+                          <Truck size={20} className="stroke-[2.5]" />
+                        </div>
+                      </div>
+
+                      {/* Detail distance and fuel parameters */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white p-2.5 rounded-xl border border-emerald-100 shadow-sm">
+                          <p className="text-[10px] font-bold text-slate-400 font-nepali">कूल दूरी (Total KM)</p>
+                          <p className="text-sm font-black text-slate-700 font-mono mt-1">
+                            {totalDrivenDistance.toFixed(1)} <span className="text-[10px] text-slate-400 font-nepali">KM</span>
+                          </p>
+                        </div>
+                        <div className="bg-white p-2.5 rounded-xl border border-emerald-100 shadow-sm">
+                          <p className="text-[10px] font-bold text-slate-400 font-nepali">कूल इन्धन (Total Liters)</p>
+                          <p className="text-sm font-black text-slate-700 font-mono mt-1">
+                            {totalFuelLiters.toFixed(1)} <span className="text-[10px] text-slate-400 font-nepali">Ltr</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3.5 border-t border-emerald-250/20 text-[10px] sm:text-xs text-slate-500 font-semibold font-nepali">
+                    <span className="font-bold text-emerald-800">विधि (Formula):</span> कूल चलेको दूरी कि.मी. / खपत भएको इन्धन लिटर (KM / Fuel Liters)
                   </div>
                 </div>
               </div>
@@ -1552,13 +1655,26 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         <td className="p-1.5 text-right font-mono font-bold">रु. {item.cost.toFixed(2)}</td>
                       </tr>
                     ))}
-                    <tr className="bg-slate-100 font-extrabold font-mono">
+                    <tr className="bg-slate-100 font-extrabold font-mono border-t border-slate-900">
                       <td className="p-1.5 border-r border-slate-900 text-center font-nepali font-black">कुल योग (Total):</td>
-                      <td className="p-1.5 border-r border-slate-900 text-center font-mono font-black">{monthlyFuelSummary.reduce((sum, i) => sum + i.liters, 0).toFixed(1)} L</td>
+                      <td className="p-1.5 border-r border-slate-900 text-center font-mono font-black">{totalFuelLiters.toFixed(1)} L</td>
                       <td className="p-1.5 text-right font-mono font-black">रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toFixed(2)}</td>
                     </tr>
                   </tbody>
                 </table>
+
+                {/* Print Fuel Mileage Stats */}
+                <div className="mt-4 pt-3 border-t border-slate-900 grid grid-cols-3 gap-2 text-center text-[11px]">
+                  <div>
+                    <span className="font-bold font-nepali">कूल यात्रा दूरी (Total Distance):</span> <span className="font-mono font-bold">{totalDrivenDistance.toFixed(1)} KM</span>
+                  </div>
+                  <div>
+                    <span className="font-bold font-nepali">कूल खपत इन्धन (Total Fuel):</span> <span className="font-mono font-bold">{totalFuelLiters.toFixed(1)} Liters</span>
+                  </div>
+                  <div>
+                    <span className="font-bold font-nepali">औसत माइलेज (Average Mileage):</span> <span className="font-mono font-black">{averageMileage > 0 ? averageMileage.toFixed(2) : '0.00'} KM/Ltr</span>
+                  </div>
+                </div>
               </div>
             )}
 
