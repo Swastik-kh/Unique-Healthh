@@ -869,12 +869,26 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-bold text-slate-700 font-mono">Rs. {bill.grandTotal}</p>
-                            <button 
-                              onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              Reprint
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Reprint
+                              </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteBilling === true) && (
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm(`के तपाईं निश्चित रूपमा बिल नम्बर ${bill.invoiceNumber} लाई हटाउन चाहनुहुन्छ?`)) {
+                                      onDeleteRecord(bill.id);
+                                    }
+                                  }}
+                                  className="text-xs text-red-600 hover:underline flex items-center gap-0.5"
+                                >
+                                  <Trash2 size={10} /> Delete
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1047,18 +1061,32 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     {patientBills.length > 0 ? (
                       patientBills.map(bill => (
                         <div key={bill.id} className="flex justify-between items-center p-2 hover:bg-slate-50 border-b border-slate-100 text-sm">
-                          <div>
-                             <p className="font-medium">{bill.invoiceNumber}</p>
-                             <p className="text-xs text-slate-500">{bill.billDate}</p>
+                          <div className="flex-1 min-w-0 pr-2">
+                            <p className="font-medium text-slate-800 truncate">{bill.invoiceNumber}</p>
+                            <p className="text-xs text-slate-500">{bill.billDate}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             <p className="font-bold text-slate-700">Rs. {bill.grandTotal}</p>
-                            <button 
-                              onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
-                              className="text-xs text-blue-600 hover:underline"
-                            >
-                              Reprint
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Reprint
+                              </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteBilling === true) && (
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm(`के तपाईं निश्चित रूपमा बिल नम्बर ${bill.invoiceNumber} लाई हटाउन चाहनुहुन्छ?`)) {
+                                      onDeleteRecord(bill.id);
+                                    }
+                                  }}
+                                  className="text-xs text-red-600 hover:underline flex items-center gap-0.5"
+                                >
+                                  <Trash2 size={10} /> Delete
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))
