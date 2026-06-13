@@ -979,14 +979,19 @@ const App: React.FC = () => {
           const id = transaction.id || push(getOrgRef('financialTransactions')).key;
           await set(getOrgRef(`financialTransactions/${id}`), { ...transaction, id });
 
-          // Create Goswara Voucher if it's an expense transaction
-          if (transaction.type === 'Expense') {
-              const entries: JournalEntry[] = [
-                  { accountName: 'खर्च (Expense Account)', debit: transaction.amountWithVAT || transaction.amount || 0 },
-                  { accountName: 'बैंक/नगद (Bank/Cash)', credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) },
-              ];
-              if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
-              if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
+          // Create Goswara Voucher if it's an expense or income transaction
+          if (transaction.type === 'Expense' || transaction.type === 'Income') {
+              const entries: JournalEntry[] = [];
+              if (transaction.type === 'Expense') {
+                  entries.push({ accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, debit: transaction.amountWithVAT || transaction.amount || 0 });
+                  entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) });
+                  if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
+                  if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
+              } else {
+                  // Income
+                  entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', debit: transaction.amount || 0 });
+                  entries.push({ accountName: `${transaction.remarks}`, credit: transaction.amount || 0 });
+              }
 
               const voucher: GoswaraVoucher = {
                   id: `GV-${Date.now()}`,
@@ -1035,7 +1040,7 @@ const App: React.FC = () => {
 
           // Automatically create Goswara Voucher for payment
           const voucherEntries: JournalEntry[] = [
-              { accountName: `पार्टी भुक्तानी: ${payment.remarks}`, debit: payment.amount },
+              { accountName: `${payment.remarks}`, debit: payment.amount },
               { accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount },
           ];
           const voucher: GoswaraVoucher = {

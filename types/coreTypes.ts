@@ -83,6 +83,7 @@ export interface OrganizationSettings {
   subTitleNepali: string;
   subTitleNepali2?: string;
   subTitleNepali3?: string;
+  officeCode?: string;
   address: string;
   phone: string;
   email: string;

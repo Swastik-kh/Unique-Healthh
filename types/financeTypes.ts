@@ -35,6 +35,7 @@ export interface FinancialTransaction {
   programId?: string;
   fiscalYear: string;
   referenceNo?: string;
+  partyName?: string;
   tdsAmount?: number;
   sasukarAmount?: number;
 }

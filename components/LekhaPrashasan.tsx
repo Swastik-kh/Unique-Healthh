@@ -283,6 +283,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       sasukarAmount: sasukarAmount,
       amount: amount,
       remarks: formData.get('remarks') as string,
+      partyName: formData.get('partyName') as string || undefined,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
       incomeSource: formData.get('incomeSource') as any || undefined,
@@ -422,51 +423,241 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     writeFile(wb, "Party_Details.xlsx");
   };
 
+  const numberToWords = (num: number) => {
+    const ones = ['', 'एक', 'दुई', 'तीन', 'चार', 'पाँच', 'छ', 'सात', 'आठ', 'नौ'];
+    const teens = ['दश', 'एघार', 'बाह्र', 'तेह्र', 'चौध', 'पन्ध्र', 'सोह्र', 'सत्र', 'अठार', 'उन्नाइस'];
+    const tens = ['', '', 'बीस', 'तीस', 'चालीस', 'पचास', 'साठी', 'सत्तर', 'असी', 'नब्बे'];
+    
+    if (num === 0) return 'शून्य';
+    
+    function convert(n: number) {
+      let word = '';
+      if (n >= 100) {
+        word += ones[Math.floor(n / 100)] + ' सय ';
+        n %= 100;
+      }
+      if (n >= 20) {
+        word += tens[Math.floor(n / 10)] + ' ';
+        n %= 10;
+      }
+      if (n >= 10) {
+        word += teens[n - 10] + ' ';
+        n = 0;
+      }
+      if (n > 0) {
+        word += ones[n] + ' ';
+      }
+      return word;
+    }
+    
+    let result = '';
+    const crore = Math.floor(num / 10000000);
+    num %= 10000000;
+    const lakh = Math.floor(num / 100000);
+    num %= 100000;
+    const thousand = Math.floor(num / 1000);
+    num %= 1000;
+    
+    if (crore > 0) result += convert(crore) + 'करोड ';
+    if (lakh > 0) result += convert(lakh) + 'लाख ';
+    if (thousand > 0) result += convert(thousand) + 'हजार ';
+    if (num > 0) result += convert(num);
+    
+    return result.trim();
+  };
+
   const handlePrintVoucher = (voucher: GoswaraVoucher) => {
-    const printWin = window.open('', '', 'width=800,height=600');
+    const printWin = window.open('', '', 'width=1000,height=800');
     if (!printWin) return;
     
+    const logoUrl = generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png";
+
     const content = `
       <html>
         <head>
-          <title>गोश्वारा भौचर</title>
+          <title>गोश्वारा भौचर - ${voucher.id}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
-             @page { size: A4 portrait; margin: 10mm; } 
-             body { font-family: 'Mukta', Arial, sans-serif; } 
-             table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
-             th, td { border: 1px solid black; padding: 10px; } 
-             th { background: #f3f4f6; }
+             @page { size: A4 landscape; margin: 10mm; } 
+             body { font-family: 'Mukta', sans-serif; margin: 0; padding: 10px; font-size: 14px; } 
+             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+             .header-center { text-align: center; flex: 1; }
+             .header-side { width: 150px; }
+             .org-info h1 { margin: 0; font-size: 20px; font-weight: 800; color: #000; }
+             .org-info h2 { margin: 0; font-size: 16px; font-weight: 600; }
+             .org-info p { margin: 2px 0; font-size: 14px; }
+             
+             .form-number { text-align: right; font-size: 12px; }
+             .main-title { text-align: center; margin: 10px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: 5px 0; }
+             .main-title h3 { margin: 0; font-size: 18px; font-weight: 800; text-decoration: underline; }
+             
+             .meta-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: 500; }
+             .meta-item { display: flex; gap: 5px; }
+             .dots { border-bottom: 1px dotted #000; flex: 1; min-width: 100px; display: inline-block; padding-left: 5px; }
+             
+             table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; } 
+             th, td { border: 1px solid black; padding: 5px; text-align: left; font-size: 13px; word-wrap: break-word; } 
+             th { background: #f9fafb; text-align: center; font-weight: 700; }
              .text-right { text-align: right; }
+             .text-center { text-align: center; }
+             
+             .source-header { text-align: center; border-bottom: 1px solid black; }
+             .source-sub-cols { display: flex; }
+             .source-sub-col { flex: 1; text-align: center; font-size: 10px; padding: 2px; }
+             .source-sub-col:not(:last-child) { border-right: 1px solid black; }
+             
+             .footer { margin-top: 30px; display: flex; justify-content: space-between; }
+             .sign-box { text-align: center; width: 180px; border-top: 1px solid #000; padding-top: 5px; }
+             
+             .qr-code { width: 80px; height: 80px; border: 1px solid #ccc; background: #fafafa; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #aaa; }
           </style>
         </head>
         <body>
-          <h2 style="text-align: center;">गोश्वारा भौचर</h2>
-          <p>मिति: ${voucher.dateBs}</p>
+          <div class="header">
+            <div class="header-side">
+               <img src="${logoUrl}" style="width: 70px;">
+               <div style="font-size: 10px; margin-top: 5px;">नेपाल सरकारको छाप</div>
+            </div>
+            <div class="header-center org-info">
+               <h2>${generalSettings.subTitleNepali || 'संघ/ प्रदेश / स्थानीय तह'}</h2>
+               <h1>${generalSettings.orgNameNepali}</h1>
+               <p>${generalSettings.subTitleNepali2 || 'मन्त्रालय / विभाग / कार्यालय'}</p>
+               <p>कार्यालय कोड नं.: <span class="dots">${generalSettings.officeCode || '......................'}</span></p>
+            </div>
+            <div class="header-side" style="display: flex; flex-direction: column; align-items: flex-end;">
+               <div class="form-number">
+                 म.ले.प.फारम नं: २०३<br>
+                 साबिकको फारम नं: १०
+               </div>
+               <div class="qr-code" style="margin-top: 10px;">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${voucher.id}" style="width: 100%; height: 100%;">
+               </div>
+            </div>
+          </div>
+
+          <div class="main-title">
+            <h3>गोश्वारा भौचर (खर्च/विविध)</h3>
+          </div>
+
+          <div class="meta-row">
+            <div class="meta-item" style="flex: 2;">
+               गोश्वारा भौचरको प्रकार: प्राप्ती/खर्च/धरौटी/अन्य: <span class="dots" style="min-width: 150px;">खर्च</span>
+            </div>
+            <div class="meta-item">
+               मिति : <span class="dots" style="min-width: 150px;">${voucher.dateBs}</span>
+            </div>
+          </div>
+
+          <div class="meta-row">
+            <div class="meta-item" style="flex: 2;">
+               बजेट उप शीर्षक नं : <span class="dots" style="min-width: 150px;"></span>
+            </div>
+            <div class="meta-item">
+               मुल गो.भौ.न. : <span class="dots" style="min-width: 150px;">${voucher.id}</span>
+            </div>
+          </div>
+          
+          <div class="meta-row">
+             <div class="meta-item" style="flex: 2;">
+                विद्युतीय कारोवार नं.: <span class="dots" style="min-width:150px;"></span>
+             </div>
+          </div>
+
           <table>
-            <thead><tr><th>विवरण</th><th>डेबिट (रू)</th><th>क्रेडिट (रू)</th></tr></thead>
+            <thead>
+              <tr>
+                <th style="width: 40px;">क्र.सं.</th>
+                <th style="width: 100px;">संकेत / उप-शीर्षक नम्बर</th>
+                <th style="width: 120px;">क्रियाकलाप / कार्यक्रम संकेत नं:</th>
+                <th>कारोवारको ब्यहोरा</th>
+                <th style="width: 50px;">खाता पाना नं</th>
+                <th style="width: 240px; padding: 0;">
+                   <div style="border-bottom: 1px solid black; padding: 2px;">स्रोतको</div>
+                   <div style="display: flex; font-size: 11px;">
+                      <div style="flex: 1; border-right: 1px solid black; padding: 2px;">तह</div>
+                      <div style="flex: 1.5; border-right: 1px solid black; padding: 2px;">स्रोत व्यहोर्ने संस्था</div>
+                      <div style="flex: 1; border-right: 1px solid black; padding: 2px;">प्रकार</div>
+                      <div style="flex: 1.5; padding: 2px;">भुक्तानी विधि</div>
+                   </div>
+                </th>
+                <th style="width: 100px;">डेबिट</th>
+                <th style="width: 100px;">क्रेडिट</th>
+              </tr>
+            </thead>
             <tbody>
-              ${voucher.entries.map(e => `
+              ${voucher.entries.map((e, idx) => `
                 <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td></td>
+                    <td></td>
                     <td>${e.accountName}</td>
-                    <td class="text-right">${e.debit ? e.debit.toLocaleString() : '-'}</td>
-                    <td class="text-right">${e.credit ? e.credit.toLocaleString() : '-'}</td>
+                    <td></td>
+                    <td style="padding: 0;">
+                       <div style="display: flex; height: 100%;">
+                          <div style="flex: 1; border-right: 1px solid black;"></div>
+                          <div style="flex: 1.5; border-right: 1px solid black;"></div>
+                          <div style="flex: 1; border-right: 1px solid black;"></div>
+                          <div style="flex: 1.5;"></div>
+                       </div>
+                    </td>
+                    <td class="text-right">${e.debit ? e.debit.toLocaleString() : ''}</td>
+                    <td class="text-right">${e.credit ? e.credit.toLocaleString() : ''}</td>
                 </tr>
               `).join('')}
+              <!-- Fill remaining rows for height if needed -->
+              ${voucher.entries.length < 5 ? Array(5 - voucher.entries.length).fill('').map(() => `
+                <tr style="height: 30px;">
+                    <td></td><td></td><td></td><td></td><td></td><td>
+                      <div style="display: flex; height: 100%;">
+                          <div style="flex: 1; border-right: 1px solid black;"></div>
+                          <div style="flex: 1.5; border-right: 1px solid black;"></div>
+                          <div style="flex: 1; border-right: 1px solid black;"></div>
+                          <div style="flex: 1.5;"></div>
+                       </div>
+                    </td><td></td><td></td>
+                </tr>
+              `).join('') : ''}
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold;">
-                    <td>जम्मा रकम (Total)</td>
-                    <td class="text-right">${voucher.totalAmount.toLocaleString()}</td>
-                    <td class="text-right">${voucher.totalAmount.toLocaleString()}</td>
+                    <td colspan="6" class="text-right">जम्मा (Total)</td>
+                    <td class="text-right">रू ${voucher.totalAmount.toLocaleString()}</td>
+                    <td class="text-right">रू ${voucher.totalAmount.toLocaleString()}</td>
                 </tr>
             </tfoot>
           </table>
+          
+          <div style="margin-top: 15px; font-weight: bold;">अक्षरेपि : रू ${numberToWords(voucher.totalAmount)} मात्र ।</div>
+
+          <div class="footer">
+            <div class="sign-box">
+              पेस गर्ने
+              <div style="margin-top: 30px;">नाम : ....................</div>
+              <div>पद : ....................</div>
+              <div>मिति : ....................</div>
+            </div>
+            <div class="sign-box">
+              जाँच गर्ने
+              <div style="margin-top: 30px;">नाम : ....................</div>
+              <div>पद : ....................</div>
+              <div>मिति : ....................</div>
+            </div>
+            <div class="sign-box">
+              सदर गर्ने
+              <div style="margin-top: 30px;">नाम : ....................</div>
+              <div>पद : ....................</div>
+              <div>मिति : ....................</div>
+            </div>
+          </div>
         </body>
       </html>
     `;
     printWin.document.write(content);
     printWin.document.close();
-    printWin.print();
+    setTimeout(() => {
+        printWin.focus();
+        printWin.print();
+    }, 500);
   };
 
   const openEditForm = (item: any, type: typeof formType) => {
@@ -1067,7 +1258,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         })()}
 
                         {activeTab === 'transactions' && <>
-                          <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600 font-nepali">
+                            <div className="font-bold">{item.remarks}</div>
+                            {item.partyName && <div className="text-[10px] text-rose-600 mt-1 italic">फर्म/पार्टी: {item.partyName}</div>}
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
                           </td>
@@ -1395,6 +1589,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           options={[...programs].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }))} 
                         />
                       </div>
+                      <Input label="फर्म/पार्टीको नाम (Form/Party Name)" name="partyName" defaultValue={editingItem?.partyName} placeholder="खर्च हुने फर्म वा व्यक्तिको नाम" />
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
                     </>
