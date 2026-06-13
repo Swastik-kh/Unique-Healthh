@@ -60,18 +60,31 @@ export function getEvaluatedCell(rows: string[][], colIndex: number, rowIndex: n
 }
 
 /**
+ * Converts English digits in a string to Nepali digits.
+ */
+export function toNepaliDigits(str: string | number): string {
+  const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+  return str.toString().replace(/\d/g, (digit) => nepaliDigits[parseInt(digit)]);
+}
+
+/**
  * Evaluates an entire grid of data.
  */
-export function evaluateTableData(rows: string[][]): string[][] {
+export function evaluateTableData(rows: string[][], convertToNepali = false): string[][] {
   if (!rows || rows.length === 0) return [];
   
   return rows.map((row, rIdx) => {
     return row.map((cell, cIdx) => {
+      let finalValue = cell;
       if (cell && cell.toString().startsWith('=')) {
         const val = getEvaluatedCell(rows, cIdx, rIdx);
-        return val !== null && val !== undefined ? val.toString() : '';
+        finalValue = val !== null && val !== undefined ? val.toString() : '';
       }
-      return cell;
+      
+      if (convertToNepali && finalValue) {
+        return toNepaliDigits(finalValue);
+      }
+      return finalValue;
     });
   });
 }

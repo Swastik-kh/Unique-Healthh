@@ -940,7 +940,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         };
 
         const handlePrintLetter = (chalani: Chalani) => {
-            const evaluatedTable = chalani.tableData ? evaluateTableData(chalani.tableData.rows) : null;
+            const evaluatedTable = chalani.tableData ? evaluateTableData(chalani.tableData.rows, true) : null;
             
             const printWindow = window.open('', '_blank');
             if (!printWindow) return;
@@ -964,8 +964,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         .meta-row { display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 600; }
                         .recipient-box { margin-bottom: 40px; }
                         .subject-line { text-align: center; font-size: 18px; font-weight: 800; text-decoration: underline; margin-bottom: 40px; }
-                        .content { text-align: justify; white-space: pre-wrap; margin-bottom: 40px; font-size: 16px; padding-bottom: 80px; text-indent: 50px; }
-                        .letter-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; page-break-inside: auto; }
+                        .content { text-align: justify; white-space: pre-wrap; margin-bottom: 20px; font-size: 16px; padding-bottom: 10px; text-indent: 50px; }
+                        .letter-table { width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 30px; page-break-inside: auto; }
                         .letter-table tr { page-break-inside: avoid; page-break-after: auto; }
                         .letter-table th, .letter-table td { border: 1px solid #333; padding: 10px; text-align: left; }
                         .letter-table th { background-color: #f9fafb; font-weight: bold; text-align: center; }
@@ -1027,7 +1027,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                         <table class="letter-table">
                             <thead>
                                 <tr>
-                                    ${chalani.tableData.headers.map(h => `<th>${h}</th>`).join('')}
+                                    ${chalani.tableData.headers.map(h => `<th>${toNepaliDigits(h)}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>
