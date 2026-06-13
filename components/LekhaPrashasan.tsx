@@ -1056,12 +1056,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <div class="header">
             <div class="header-side">
                <img src="${logoUrl}" style="width: 70px;">
-               <div style="font-size: 10px; margin-top: 5px;">नेपाल सरकारको छाप</div>
             </div>
             <div class="header-center org-info">
-               <h2>${generalSettings.subTitleNepali || 'संघ/ प्रदेश / स्थानीय तह'}</h2>
-               <h1>${generalSettings.orgNameNepali}</h1>
-               <p>${generalSettings.subTitleNepali2 || 'मन्त्रालय / विभाग / कार्यालय'}</p>
+               <h2>${generalSettings.orgNameNepali}</h2>
+               <h1>${generalSettings.subTitleNepali || ''}</h1>
+               <p>${generalSettings.subTitleNepali2 || ''}</p>
+               <p>${generalSettings.subTitleNepali3 || ''}</p>
                <p>कार्यालय कोड नं.: <span class="dots">${generalSettings.officeCode || '......................'}</span></p>
             </div>
             <div class="header-side" style="display: flex; flex-direction: column; align-items: flex-end;">
