@@ -954,7 +954,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                     <style>
                         @page { size: A4; margin: 20mm; }
                         body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
-                        .header { display: flex; align-items: start; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+                        .header-main { display: flex; align-items: start; margin-bottom: 20px; }
+                        .header-section { margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
                         .logo { width: 110px; height: 110px; object-fit: contain; }
                         .org-details { flex: 1; text-align: center; }
                         .org-name { font-size: 28px; font-weight: 800; color: #b91c1c; margin: 0; }
@@ -992,21 +993,22 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                     </style>
                 </head>
                 <body>
-                    <div class="header">
-                        <img class="logo" src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
-                        <div class="org-details">
-                            <h1 class="org-name">${generalSettings.orgNameNepali}</h1>
-                            <p class="org-sub">${generalSettings.subTitleNepali || ''}</p>
-                            <p class="org-sub">${generalSettings.subTitleNepali2 || ''}</p>
-                            <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
-                            <p class="org-sub">${generalSettings.subTitleNepali4 || ''}</p>
+                    <div class="header-section">
+                        <div class="header-main">
+                            <img class="logo" src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
+                            <div class="org-details">
+                                <h1 class="org-name">${generalSettings.orgNameNepali}</h1>
+                                <p class="org-sub">${generalSettings.subTitleNepali || ''}</p>
+                                <p class="org-sub">${generalSettings.subTitleNepali2 || ''}</p>
+                                <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
+                                <p class="org-sub">${generalSettings.subTitleNepali4 || ''}</p>
+                            </div>
+                            <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
                         </div>
-                        <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
-                    </div>
-
-                    <div class="meta-row">
-                        <span>चलानी नम्बर: ${toNepaliDigits(chalani.dispatchNumber)}</span>
-                        <span>मिति: ${toNepaliDigits(chalani.date)}</span>
+                        <div class="meta-row" style="margin-bottom: 0;">
+                            <span>चलानी नम्बर: ${toNepaliDigits(chalani.dispatchNumber)}</span>
+                            <span>मिति: ${toNepaliDigits(chalani.date)}</span>
+                        </div>
                     </div>
 
                     <div class="recipient-box">
