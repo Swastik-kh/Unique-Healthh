@@ -11,7 +11,7 @@ import {
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest,
-  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord
+  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push } from "firebase/database";
@@ -978,8 +978,28 @@ const App: React.FC = () => {
       try {
           const id = transaction.id || push(getOrgRef('financialTransactions')).key;
           await set(getOrgRef(`financialTransactions/${id}`), { ...transaction, id });
+
+          // Create Goswara Voucher if it's an expense transaction
+          if (transaction.type === 'Expense') {
+              const entries: JournalEntry[] = [
+                  { accountName: 'खर्च (Expense Account)', debit: transaction.amountWithVAT || transaction.amount || 0 },
+                  { accountName: 'बैंक/नगद (Bank/Cash)', credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) },
+              ];
+              if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
+              if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
+
+              const voucher: GoswaraVoucher = {
+                  id: `GV-${Date.now()}`,
+                  dateBs: transaction.dateBs,
+                  transactionId: id,
+                  entries,
+                  totalAmount: transaction.amountWithVAT || transaction.amount || 0,
+                  fiscalYear: transaction.fiscalYear
+              };
+              await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
+          }
       } catch (error) {
-          alert("कारोबार सुरक्षित गर्न सकिएन।");
+          alert("कारोबार र भौचर सुरक्षित गर्न सकिएन।");
       }
   };
 
@@ -1012,6 +1032,22 @@ const App: React.FC = () => {
               const newSpent = (program.spentAmount || 0) + payment.amount;
               await update(getOrgRef(`financialPrograms/${payment.programId}`), { spentAmount: newSpent });
           }
+
+          // Automatically create Goswara Voucher for payment
+          const voucherEntries: JournalEntry[] = [
+              { accountName: `पार्टी भुक्तानी: ${payment.remarks}`, debit: payment.amount },
+              { accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount },
+          ];
+          const voucher: GoswaraVoucher = {
+              id: `GV-PAY-${Date.now()}`,
+              dateBs: payment.dateBs,
+              transactionId: id,
+              entries: voucherEntries,
+              totalAmount: payment.amount,
+              fiscalYear: payment.fiscalYear
+          };
+          await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
+
       } catch (error) {
           alert("भुक्तानी सुरक्षित गर्न सकिएन।");
       }

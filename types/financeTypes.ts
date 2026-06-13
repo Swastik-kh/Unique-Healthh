@@ -76,3 +76,18 @@ export interface AllowanceRecord {
   fiscalYear: string;
   _orgName?: string;
 }
+
+export interface GoswaraVoucher {
+  id: string;
+  dateBs: string;
+  transactionId: string;
+  entries: JournalEntry[];
+  totalAmount: number;
+  fiscalYear: string;
+}
+
+export interface JournalEntry {
+  accountName: string;
+  debit?: number;
+  credit?: number;
+}

@@ -1,22 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Calculator, Plus, Search, Printer, Trash2, Edit, Save, 
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
   Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download,
-  ClipboardList, Building2
+  ClipboardList, Building2, Eye
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher, JournalEntry } from '../types/financeTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
+import { db } from '../firebase';
+import { ref, onValue } from 'firebase/database';
 
 interface LekhaPrashasanProps {
   programs: FinancialProgram[];
@@ -69,7 +71,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports' | 'journal_voucher'>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
@@ -103,6 +105,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   }
 
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
+  const [goswaraVouchers, setGoswaraVouchers] = useState<GoswaraVoucher[]>([]);
+
+  useEffect(() => {
+      const orgName = generalSettings.orgNameEnglish;
+      if (!orgName) return;
+      const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
+      const vouchersRef = ref(db, `orgData/${safeOrgName}/goswaraVouchers`);
+      const unsub = onValue(vouchersRef, (snap) => {
+          const data = snap.val();
+          const vouchers = data ? Object.keys(data).map(key => ({ ...data[key], id: key })) : [];
+          setGoswaraVouchers(vouchers);
+      });
+      return () => unsub();
+  }, [generalSettings.orgNameEnglish]);
 
   // Derived State
   const stats = useMemo(() => {
@@ -251,7 +267,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const amountWithoutVAT = isVatBill ? amount / 1.13 : amount;
     const amountWithVAT = amount;
     const applyTds = formData.get('applyTds') === 'on';
-    const tdsAmount = applyTds ? amountWithoutVAT * 0.015 : 0;
+    const tdsAmount = applyTds ? amount * 0.015 : 0;
     const applySasukar = formData.get('applySasukar') === 'on';
     const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
 
@@ -404,6 +420,53 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "Parties");
     writeFile(wb, "Party_Details.xlsx");
+  };
+
+  const handlePrintVoucher = (voucher: GoswaraVoucher) => {
+    const printWin = window.open('', '', 'width=800,height=600');
+    if (!printWin) return;
+    
+    const content = `
+      <html>
+        <head>
+          <title>गोश्वारा भौचर</title>
+          <style>
+             @page { size: A4 portrait; margin: 10mm; } 
+             body { font-family: 'Mukta', Arial, sans-serif; } 
+             table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
+             th, td { border: 1px solid black; padding: 10px; } 
+             th { background: #f3f4f6; }
+             .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h2 style="text-align: center;">गोश्वारा भौचर</h2>
+          <p>मिति: ${voucher.dateBs}</p>
+          <table>
+            <thead><tr><th>विवरण</th><th>डेबिट (रू)</th><th>क्रेडिट (रू)</th></tr></thead>
+            <tbody>
+              ${voucher.entries.map(e => `
+                <tr>
+                    <td>${e.accountName}</td>
+                    <td class="text-right">${e.debit ? e.debit.toLocaleString() : '-'}</td>
+                    <td class="text-right">${e.credit ? e.credit.toLocaleString() : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold;">
+                    <td>जम्मा रकम (Total)</td>
+                    <td class="text-right">${voucher.totalAmount.toLocaleString()}</td>
+                    <td class="text-right">${voucher.totalAmount.toLocaleString()}</td>
+                </tr>
+            </tfoot>
+          </table>
+        </body>
+      </html>
+    `;
+    printWin.document.write(content);
+    printWin.document.close();
+    printWin.print();
   };
 
   const openEditForm = (item: any, type: typeof formType) => {
@@ -759,9 +822,40 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     );
   };
 
+
+  const renderJournalVouchers = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+           <thead>
+             <tr className="bg-slate-50 border-b">
+               <th className="px-6 py-4">मिति</th>
+               <th className="px-6 py-4">भौचर नं</th>
+               <th className="px-6 py-4 text-right">रकम</th>
+               <th className="px-6 py-4 text-center">कार्य</th>
+             </tr>
+           </thead>
+           <tbody>
+             {goswaraVouchers.map(v => (
+               <tr key={v.id} className="border-b">
+                  <td className="px-6 py-4">{v.dateBs}</td>
+                  <td className="px-6 py-4 font-mono">{v.id}</td>
+                  <td className="px-6 py-4 text-right">रू {v.totalAmount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-center">
+                    <button onClick={() => handlePrintVoucher(v)} className="text-indigo-600 hover:text-indigo-900"><Printer size={16} /></button>
+                  </td>
+               </tr>
+             ))}
+           </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
   const renderTable = () => {
     if (activeTab === 'dashboard') return renderDashboard();
     if (activeTab === 'reports') return renderReports();
+    if (activeTab === 'journal_voucher') return renderJournalVouchers();
 
     return (
       <div className="space-y-6">
@@ -1028,6 +1122,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                              >
                                 <Edit size={16} />
                              </button>
+                             {activeTab === 'payments' && (() => {
+                                 const voucher = goswaraVouchers.find(v => v.transactionId === item.transactionId);
+                                 return voucher ? (
+                                   <button 
+                                     onClick={() => handlePrintVoucher(voucher)}
+                                     className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                   >
+                                      <Printer size={16} />
+                                   </button>
+                                 ) : null;
+                             })()}
                              <button 
                                onClick={() => {
                                  if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
@@ -1134,6 +1239,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
               { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
               { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
+              { id: 'journal_voucher', label: 'Journal (गोश्वारा भौचर)', icon: <ClipboardList size={18} /> },
               { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
             ].map(tab => (
               <button
