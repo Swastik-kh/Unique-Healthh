@@ -19,6 +19,7 @@ interface LabBillingReportProps {
 }
 
 const NEPALI_MONTH_OPTIONS = [
+  { value: 'all', label: 'सबै महिना (All Months)' },
   { value: '01', label: 'बैशाख (Baishakh)' },
   { value: '02', label: 'जेठ (Jestha)' },
   { value: '03', label: 'असार (Ashad)' },
@@ -361,12 +362,15 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   
   // Custom wording for header
   const initialCustomTitle = useMemo(() => {
-    const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
+    const isAllMonths = selectedMonth === 'all';
+    const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
+    const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
+    
     if (reportSource === 'Sewa') {
-      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${categorySuffix} आय विवरण`;
+      return `आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`;
     } else {
       const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
-      return `आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`;
+      return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`;
     }
   }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
 
@@ -375,12 +379,15 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Sync custom title suggestion when month, fiscal year, reportSource, ambulanceReportType, or category/service changes
   React.useEffect(() => {
-    const monthName = NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र';
+    const isAllMonths = selectedMonth === 'all';
+    const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
+    const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
+    
     if (reportSource === 'Sewa') {
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको ${categorySuffix} आय विवरण`);
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`);
     } else {
       const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${monthName} महिनाको एम्बुलेन्स सेवा ${suffix}`);
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`);
     }
   }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
 
@@ -419,14 +426,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       if (!fyMatch) return false;
 
       // 2. Month Match
-      const dateStr = record.billDate || '';
-      const dateParts = dateStr.split(/[-/]/);
-      if (dateParts.length < 2) return false;
-      const recordMonth = dateParts[1]; // e.g. "12" or "02"
-      
-      const targetMonthParsed = parseInt(selectedMonth);
-      const recordMonthParsed = parseInt(recordMonth);
-      if (targetMonthParsed !== recordMonthParsed) return false;
+      if (selectedMonth !== 'all') {
+        const dateStr = record.billDate || '';
+        const dateParts = dateStr.split(/[-/]/);
+        if (dateParts.length < 2) return false;
+        const recordMonth = dateParts[1]; // e.g. "12" or "02"
+        
+        const targetMonthParsed = parseInt(selectedMonth);
+        const recordMonthParsed = parseInt(recordMonth);
+        if (targetMonthParsed !== recordMonthParsed) return false;
+      }
 
       // 3. Billing Type Filter
       const isDirect = !!record.isDirectBilling || 
@@ -511,14 +520,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       if (!fyMatch) return false;
 
       // 2. Month Match
-      const dateStr = record.dateBs || '';
-      const dateParts = dateStr.split(/[-/]/);
-      if (dateParts.length < 2) return false;
-      const recordMonth = dateParts[1];
-      
-      const targetMonthParsed = parseInt(selectedMonth);
-      const recordMonthParsed = parseInt(recordMonth);
-      if (targetMonthParsed !== recordMonthParsed) return false;
+      if (selectedMonth !== 'all') {
+        const dateStr = record.dateBs || '';
+        const dateParts = dateStr.split(/[-/]/);
+        if (dateParts.length < 2) return false;
+        const recordMonth = dateParts[1];
+        
+        const targetMonthParsed = parseInt(selectedMonth);
+        const recordMonthParsed = parseInt(recordMonth);
+        if (targetMonthParsed !== recordMonthParsed) return false;
+      }
 
       // 3. Search Query Match
       if (searchQuery.trim() !== '') {
@@ -547,14 +558,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       if (!fyMatch) return false;
 
       // 2. Month Match
-      const dateStr = record.dateBs || '';
-      const dateParts = dateStr.split(/[-/]/);
-      if (dateParts.length < 2) return false;
-      const recordMonth = dateParts[1];
-      
-      const targetMonthParsed = parseInt(selectedMonth);
-      const recordMonthParsed = parseInt(recordMonth);
-      if (targetMonthParsed !== recordMonthParsed) return false;
+      if (selectedMonth !== 'all') {
+        const dateStr = record.dateBs || '';
+        const dateParts = dateStr.split(/[-/]/);
+        if (dateParts.length < 2) return false;
+        const recordMonth = dateParts[1];
+        
+        const targetMonthParsed = parseInt(selectedMonth);
+        const recordMonthParsed = parseInt(recordMonth);
+        if (targetMonthParsed !== recordMonthParsed) return false;
+      }
 
       // 3. Search Query Match
       if (searchQuery.trim() !== '') {
