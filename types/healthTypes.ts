@@ -285,6 +285,8 @@ export interface AmbulanceExpenseRecord {
   dateBs: string;
   expenseCategory: string; // fuel, maintenance, driver_allowance, other
   amount: number;
+  fuelLiters?: number;
+  ambulanceNo?: string;
   billNo?: string;
   paidTo?: string;
   driverName?: string;

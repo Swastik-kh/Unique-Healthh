@@ -75,6 +75,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     dateBs: new NepaliDate().format('YYYY-MM-DD'),
     expenseCategory: 'fuel',
     amount: 0,
+    fuelLiters: undefined,
+    ambulanceNo: generalSettings?.ambulanceNo || '',
     billNo: '',
     paidTo: '',
     driverName: generalSettings?.ambulanceDriverName || '',
@@ -193,6 +195,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       dateBs: expenseFormData.dateBs || new NepaliDate().format('YYYY-MM-DD'),
       expenseCategory: expenseFormData.expenseCategory || 'fuel',
       amount: Number(expenseFormData.amount) || 0,
+      fuelLiters: expenseFormData.fuelLiters !== undefined ? Number(expenseFormData.fuelLiters) : undefined,
+      ambulanceNo: expenseFormData.ambulanceNo || '',
       billNo: expenseFormData.billNo || '',
       paidTo: expenseFormData.paidTo || '',
       driverName: expenseFormData.driverName || '',
@@ -208,6 +212,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       dateBs: new NepaliDate().format('YYYY-MM-DD'),
       expenseCategory: 'fuel',
       amount: 0,
+      fuelLiters: undefined,
+      ambulanceNo: generalSettings?.ambulanceNo || '',
       billNo: '',
       paidTo: '',
       driverName: generalSettings?.ambulanceDriverName || '',
@@ -297,6 +303,55 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       return matchesSearch && matchesMonth && matchesDriver && matchesVehicle;
     });
   }, [records, searchTerm, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter]);
+
+  const monthlyFuelSummary = useMemo(() => {
+    // Initialize standard 12 months sum
+    const monthlyData: { [key: string]: { liters: number; cost: number } } = {};
+    NEPALI_MONTHS.forEach(m => {
+      monthlyData[m.id] = { liters: 0, cost: 0 };
+    });
+
+    // Sum fuel expenses with filters
+    (expenseRecords || []).forEach(record => {
+      if (record.expenseCategory === 'fuel') {
+        // Vehicle Filter compatibility
+        if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
+          return;
+        }
+        // Driver filter compatibility
+        if (logBookDriverFilter && record.driverName && record.driverName !== logBookDriverFilter) {
+          return;
+        }
+        // Month filter compatibility
+        if (logBookMonthFilter) {
+          const parts = (record.dateBs || '').split(/[-/]/);
+          if (parts.length >= 2) {
+            const m = parts[1].padStart(2, '0');
+            const targetM = logBookMonthFilter.padStart(2, '0');
+            if (m !== targetM) return;
+          } else {
+            return;
+          }
+        }
+        
+        const parts = (record.dateBs || '').split(/[-/]/);
+        if (parts.length >= 2) {
+          const monthKey = parts[1].padStart(2, '0');
+          if (monthlyData[monthKey]) {
+            monthlyData[monthKey].liters += Number(record.fuelLiters) || 0;
+            monthlyData[monthKey].cost += Number(record.amount) || 0;
+          }
+        }
+      }
+    });
+
+    return NEPALI_MONTHS.map(m => ({
+      id: m.id,
+      name: m.name,
+      liters: monthlyData[m.id].liters,
+      cost: monthlyData[m.id].cost
+    })).filter(item => item.liters > 0 || item.cost > 0); // Only show months with data
+  }, [expenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
   const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteAmbulance === true;
 
@@ -474,6 +529,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     dateBs: new NepaliDate().format('YYYY-MM-DD'),
                     expenseCategory: 'fuel',
                     amount: 0,
+                    fuelLiters: undefined,
+                    ambulanceNo: generalSettings?.ambulanceNo || '',
                     billNo: '',
                     paidTo: '',
                     driverName: generalSettings?.ambulanceDriverName || '',
@@ -903,6 +960,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   </select>
                 </div>
 
+                {/* Ambulance Vehicle-No */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 font-nepali">एम्बुलेन्स नं. (Ambulance Vehicle No.)</label>
+                  <input
+                    type="text"
+                    placeholder="जस्तै: बा १ झ ९४८८"
+                    value={expenseFormData.ambulanceNo || ''}
+                    onChange={e => setExpenseFormData({...expenseFormData, ambulanceNo: e.target.value})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold text-slate-700"
+                  />
+                </div>
+
                 {/* Amount */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-600 font-nepali">कूल खर्च रकम रु. (Amount) *</label>
@@ -916,6 +985,25 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-mono font-bold text-emerald-600"
                   />
                 </div>
+
+                {/* Fuel Liters (Only shown if category is 'fuel') */}
+                {expenseFormData.expenseCategory === 'fuel' && (
+                  <div className="space-y-1.5 animate-in fade-in duration-200">
+                    <label className="text-xs font-bold text-slate-600 font-nepali flex items-center gap-1">
+                      इन्धन मात्रा लिटर (Fuel Liters) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      step="any"
+                      min="0.1"
+                      placeholder="जस्तै: 15.5"
+                      value={expenseFormData.fuelLiters === undefined ? '' : expenseFormData.fuelLiters}
+                      onChange={e => setExpenseFormData({...expenseFormData, fuelLiters: e.target.value === '' ? undefined : Number(e.target.value)})}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-mono font-bold text-amber-600"
+                    />
+                  </div>
+                )}
 
                 {/* Bill No. */}
                 <div className="space-y-1.5">
@@ -1229,14 +1317,26 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-600 font-semibold">{record.dateBs}</td>
                           <td className="p-4">
-                            <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${
-                              record.expenseCategory === 'fuel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                              record.expenseCategory === 'maintenance' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                              record.expenseCategory === 'driver_allowance' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                              'bg-slate-50 text-slate-700 border border-slate-150'
-                            }`}>
-                              {getCategoryLabel(record.expenseCategory)}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full w-max ${
+                                record.expenseCategory === 'fuel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                record.expenseCategory === 'maintenance' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                record.expenseCategory === 'driver_allowance' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                                'bg-slate-50 text-slate-700 border border-slate-150'
+                              }`}>
+                                {getCategoryLabel(record.expenseCategory)}
+                              </span>
+                              {record.expenseCategory === 'fuel' && record.fuelLiters && (
+                                <span className="text-xs font-bold text-amber-600 font-mono">
+                                  {record.fuelLiters} Liters
+                                </span>
+                              )}
+                              {record.ambulanceNo && (
+                                <span className="text-[10px] text-slate-500 font-mono font-bold">
+                                  {record.ambulanceNo}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 text-sm font-mono font-bold text-red-650 text-right whitespace-nowrap">
                             रु. {record.amount?.toFixed(2)}
@@ -1380,6 +1480,39 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               )}
             </div>
 
+            {/* Monthly Fuel Summary Display */}
+            {monthlyFuelSummary.length > 0 && (
+              <div className="mx-4 sm:mx-5 my-4 p-4 bg-amber-50/50 border border-amber-200 rounded-2xl print:hidden">
+                <h4 className="text-xs sm:text-sm font-bold text-amber-900 font-nepali flex items-center gap-2 mb-3">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                  </span>
+                  महिना अनुसार इन्धन खपत विवरण (Monthly Fuel Consumption Summary from Expenses)
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                  {monthlyFuelSummary.map(item => (
+                    <div key={item.id} className="bg-white p-3 rounded-xl border border-amber-150/80 shadow-sm hover:shadow transition-all space-y-1">
+                      <p className="text-[11px] font-black text-slate-500 font-nepali">{item.name.split(' ')[0]}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-amber-700 font-mono">{item.liters.toFixed(1)}</span>
+                        <span className="text-[10px] text-slate-500 font-bold font-nepali">लिटर</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold font-mono font-bold">रु. {item.cost.toLocaleString()}</p>
+                    </div>
+                  ))}
+                  <div className="bg-amber-600 p-3 rounded-xl text-white shadow-sm space-y-1 col-span-2 sm:col-span-1">
+                    <p className="text-[11px] font-bold font-nepali opacity-90">कूल जम्मा (Total Fuel)</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-lg font-black font-mono">{monthlyFuelSummary.reduce((sum, i) => sum + i.liters, 0).toFixed(1)}</span>
+                      <span className="text-[10px] font-bold font-nepali opacity-90">लिटर</span>
+                    </div>
+                    <p className="text-[10px] font-bold font-mono opacity-90">रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Print Header */}
             <div className="hidden print:block text-center space-y-2.5 p-6 border-b-2 border-slate-900">
               <h1 className="text-2xl font-black font-nepali text-slate-950">{generalSettings?.orgName || 'स्थानीय तह स्वास्थ्य संस्था'}</h1>
@@ -1398,6 +1531,36 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Print Friendly Monthly Summary */}
+            {monthlyFuelSummary.length > 0 && (
+              <div className="hidden print:block mx-2 my-4 p-4 border-2 border-slate-900">
+                <h4 className="text-xs font-bold text-slate-950 font-nepali mb-2">महिना अनुसार इन्धन खपत विवरण (Monthly Fuel Summary)</h4>
+                <table className="w-full text-xs text-left border-collapse border border-slate-900">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-900">
+                      <th className="p-1.5 border-r border-slate-900 text-center font-nepali">महिना (Month)</th>
+                      <th className="p-1.5 border-r border-slate-900 text-center font-nepali">जम्मा इन्धन (Total Liters)</th>
+                      <th className="p-1.5 text-right font-nepali">जम्मा खर्च रकम (Total Cost)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyFuelSummary.map(item => (
+                      <tr key={item.id} className="border-b border-slate-900">
+                        <td className="p-1.5 border-r border-slate-900 text-center font-bold font-nepali">{item.name}</td>
+                        <td className="p-1.5 border-r border-slate-900 text-center font-mono font-bold text-amber-900">{item.liters.toFixed(1)} लिटर</td>
+                        <td className="p-1.5 text-right font-mono font-bold">रु. {item.cost.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-100 font-extrabold font-mono">
+                      <td className="p-1.5 border-r border-slate-900 text-center font-nepali font-black">कुल योग (Total):</td>
+                      <td className="p-1.5 border-r border-slate-900 text-center font-mono font-black">{monthlyFuelSummary.reduce((sum, i) => sum + i.liters, 0).toFixed(1)} L</td>
+                      <td className="p-1.5 text-right font-mono font-black">रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="overflow-x-auto p-2 print:p-0">
               <table className="min-w-[1000px] w-full text-left border-collapse border-2 border-slate-900 text-xs md:text-sm">
