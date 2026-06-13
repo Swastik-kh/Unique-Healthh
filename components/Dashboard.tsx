@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { evaluateTableData } from '../lib/tableUtils';
 import { 
   LogOut, Menu, Calendar, Stethoscope, Package, FileText, Settings, LayoutDashboard, 
   ChevronDown, ChevronRight, Syringe, Activity, Info, Building2,
@@ -269,6 +270,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const [initialDakhilaReportId, setInitialDakhilaReportId] = useState<string | null>(null);
   const [isDartaFormOpen, setIsDartaFormOpen] = useState(false);
   const [isChalaniFormOpen, setIsChalaniFormOpen] = useState(false);
+  const [editingChalani, setEditingChalani] = useState<Chalani | null>(null);
   const [dartaSearchQuery, setDartaSearchQuery] = useState('');
   const [chalaniSearchQuery, setChalaniSearchQuery] = useState('');
   
@@ -938,6 +940,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         };
 
         const handlePrintLetter = (chalani: Chalani) => {
+            const evaluatedTable = chalani.tableData ? evaluateTableData(chalani.tableData.rows) : null;
+            
             const printWindow = window.open('', '_blank');
             if (!printWindow) return;
 
@@ -951,19 +955,40 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         @page { size: A4; margin: 20mm; }
                         body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
                         .header { display: flex; align-items: start; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-                        .logo { width: 80px; height: 80px; object-fit: contain; }
+                        .logo { width: 110px; height: 110px; object-fit: contain; }
                         .org-details { flex: 1; text-align: center; }
-                        .org-name { font-size: 24px; font-weight: 800; color: #b91c1c; margin: 0; }
-                        .org-sub { font-size: 14px; font-weight: 600; margin: 0; }
+                        .org-name { font-size: 28px; font-weight: 800; color: #b91c1c; margin: 0; }
+                        .org-sub { font-size: 16px; font-weight: 600; margin: 0; }
                         .org-address { font-size: 13px; margin-top: 5px; }
                         
                         .meta-row { display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 600; }
                         .recipient-box { margin-bottom: 40px; }
                         .subject-line { text-align: center; font-size: 18px; font-weight: 800; text-decoration: underline; margin-bottom: 40px; }
-                        .content { min-height: 400px; text-align: justify; white-space: pre-wrap; margin-bottom: 60px; font-size: 16px; }
-                        .footer { margin-top: 50px; display: flex; justify-content: flex-end; }
+                        .content { text-align: justify; white-space: pre-wrap; margin-bottom: 40px; font-size: 16px; padding-bottom: 80px; text-indent: 50px; }
+                        .letter-table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; page-break-inside: auto; }
+                        .letter-table tr { page-break-inside: avoid; page-break-after: auto; }
+                        .letter-table th, .letter-table td { border: 1px solid #333; padding: 10px; text-align: left; }
+                        .letter-table th { background-color: #f9fafb; font-weight: bold; text-align: center; }
+                        .tapashil-label { font-size: 17px; font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
+                        .footer { margin-top: 20px; display: flex; justify-content: flex-end; page-break-inside: avoid; }
                         .signature-box { text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px; }
-                        .footer-info { margin-top: 80px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #eee; padding-top: 10px; }
+                        .footer-info { 
+                            position: fixed;
+                            bottom: 0;
+                            left: 0;
+                            right: 0;
+                            height: 60px;
+                            text-align: center;
+                            font-size: 11px;
+                            color: #666;
+                            border-top: 1px solid #eee;
+                            padding-top: 10px;
+                            background: white;
+                            width: 100%;
+                        }
+                        @media print {
+                            body { margin-bottom: 70px; }
+                        }
                     </style>
                 </head>
                 <body>
@@ -986,7 +1011,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
 
                     <div class="recipient-box">
                         <p>श्री ${chalani.recipient},</p>
-                        <p>${generalSettings.address || ''} | ${generalSettings.phone || ''}</p>
+                        <p>${chalani.recipientAddress || ''}</p>
                     </div>
 
                     <div class="subject-line">
@@ -997,9 +1022,26 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
 ${chalani.letterContent || 'विषयसम्बन्धमा जानकारी गराइन्छ।'}
                     </div>
 
+                    ${chalani.tableData ? `
+                        <div class="tapashil-label">तपशिल:</div>
+                        <table class="letter-table">
+                            <thead>
+                                <tr>
+                                    ${chalani.tableData.headers.map(h => `<th>${h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${evaluatedTable!.map(row => `
+                                    <tr>
+                                        ${row.map(cell => `<td>${cell}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : ''}
+
                     <div class="footer">
                         <div class="signature-box">
-                            <p>.......................................</p>
                             <p><strong>(${chalani.sender})</strong></p>
                             <p>${currentUser?.designation || 'अधिकृत'}</p>
                         </div>
@@ -1043,7 +1085,10 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                         />
                     </div>
                     {currentUser?.hasSaveAccess !== false && (
-                      <button onClick={() => setIsChalaniFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
+                      <button onClick={() => {
+                        setEditingChalani(null);
+                        setIsChalaniFormOpen(true);
+                      }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
                           <Send size={18} /> नयाँ चलानी
                       </button>
                     )}
@@ -1071,6 +1116,16 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                         <td className="p-3" data-label="बिषय">{c.subject}</td>
                         <td className="p-3" data-label="पठाउने">{c.sender}</td>
                         <td className="p-3 text-right space-x-1" data-label="कार्य">
+                            <button 
+                              onClick={() => {
+                                setEditingChalani(c);
+                                setIsChalaniFormOpen(true);
+                              }}
+                              className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <FileText size={16} />
+                            </button>
                             <button 
                               onClick={() => handlePrintLetter(c)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -1107,24 +1162,32 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
             {isChalaniFormOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto animate-in fade-in">
                     <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative my-8 animate-in zoom-in-95 slide-in-from-bottom-4">
-                        <h3 className="text-2xl font-bold text-slate-800 mb-6">नयाँ चिठीपत्र चलानी</h3>
+                        <h3 className="text-2xl font-bold text-slate-800 mb-6">{editingChalani ? 'चलानी संशोधन' : 'नयाँ चिठीपत्र चलानी'}</h3>
                         <ChalaniForm 
                             currentUser={currentUser!}
                             nextDispatchNumber={nextDispatchNumber}
+                            initialData={editingChalani || undefined}
                             onSave={(chalaniData) => {
-                                const newChalani: Chalani = {
-                                    id: Date.now().toString(),
-                                    dispatchNumber: nextDispatchNumber,
-                                    fiscalYear: currentFiscalYear,
+                                const finalChalani: Chalani = {
+                                    id: editingChalani ? editingChalani.id : Date.now().toString(),
+                                    dispatchNumber: editingChalani ? editingChalani.dispatchNumber : nextDispatchNumber,
+                                    fiscalYear: editingChalani ? editingChalani.fiscalYear : currentFiscalYear,
                                     ...chalaniData,
                                 };
-                                onSaveChalani(newChalani);
+                                onSaveChalani(finalChalani);
                                 setIsChalaniFormOpen(false);
-                                alert('चलानी सफलतापूर्वक सुरक्षित गरियो!');
+                                setEditingChalani(null);
+                                alert(editingChalani ? 'चलानी सफलतापूर्वक संशोधन गरियो!' : 'चलानी सफलतापूर्वक सुरक्षित गरियो!');
                             }}
-                            onCancel={() => setIsChalaniFormOpen(false)}
+                            onCancel={() => {
+                                setIsChalaniFormOpen(false);
+                                setEditingChalani(null);
+                            }}
                         />
-                        <button onClick={() => setIsChalaniFormOpen(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
+                        <button onClick={() => {
+                            setIsChalaniFormOpen(false);
+                            setEditingChalani(null);
+                        }} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
                             <X size={20}/>
                         </button>
                     </div>

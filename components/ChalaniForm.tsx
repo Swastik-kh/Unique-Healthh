@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
-import { Chalani, User } from '../types/coreTypes';
-import { Save, X } from 'lucide-react';
+import { Chalani, User, ChalaniTable } from '../types/coreTypes';
+import { Save, X, Table as TableIcon, Plus, Trash2, Info } from 'lucide-react';
+import { getEvaluatedCell } from '../lib/tableUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -11,10 +12,24 @@ interface ChalaniFormProps {
   onCancel: () => void;
   nextDispatchNumber: string;
   currentUser: User;
+  initialData?: Chalani;
 }
 
-export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, nextDispatchNumber, currentUser }) => {
+export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, nextDispatchNumber, currentUser, initialData }) => {
   const getInitialFormData = () => {
+    if (initialData) {
+      return {
+        date: initialData.date,
+        recipient: initialData.recipient,
+        recipientAddress: initialData.recipientAddress || '',
+        subject: initialData.subject,
+        sender: initialData.sender,
+        letterContent: initialData.letterContent,
+        remarks: initialData.remarks,
+        tableData: initialData.tableData,
+      };
+    }
+
     let today = '';
     try {
       today = new NepaliDate().format('YYYY-MM-DD');
@@ -22,14 +37,142 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
     return {
       date: today,
       recipient: '',
+      recipientAddress: '',
       subject: '',
       sender: currentUser.fullName,
       letterContent: '',
       remarks: '',
+      tableData: undefined as ChalaniTable | undefined,
     };
   };
 
   const [formData, setFormData] = useState(getInitialFormData());
+  const [showTableBuilder, setShowTableBuilder] = useState(!!initialData?.tableData);
+
+  const [editingCell, setEditingCell] = useState<{ r: number, c: number } | null>(null);
+
+  const indexToColumnName = (index: number) => {
+    let name = '';
+    while (index >= 0) {
+      name = String.fromCharCode((index % 26) + 65) + name;
+      index = Math.floor(index / 26) - 1;
+    }
+    return name;
+  };
+
+  const insertCellReference = (r: number, c: number) => {
+    if (editingCell && formData.tableData) {
+      const { r: editR, c: editC } = editingCell;
+      // Don't refer to self
+      if (editR === r && editC === c) return;
+
+      const currentVal = formData.tableData.rows[editR][editC];
+      if (currentVal.startsWith('=')) {
+        const ref = `${indexToColumnName(c)}${r + 1}`;
+        const newVal = currentVal + ref;
+        updateTableCell(editR, editC, newVal);
+      }
+    }
+  };
+
+  const handleCellClick = (r: number, c: number, e: React.MouseEvent) => {
+    if (editingCell && (editingCell.r !== r || editingCell.c !== c)) {
+      const currentVal = formData.tableData?.rows[editingCell.r][editingCell.c];
+      if (currentVal?.startsWith('=')) {
+        e.preventDefault();
+        e.stopPropagation();
+        insertCellReference(r, c);
+        return;
+      }
+    }
+    setEditingCell({ r, c });
+  };
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        date: initialData.date,
+        recipient: initialData.recipient,
+        recipientAddress: initialData.recipientAddress || '',
+        subject: initialData.subject,
+        sender: initialData.sender,
+        letterContent: initialData.letterContent,
+        remarks: initialData.remarks,
+        tableData: initialData.tableData,
+      });
+      setShowTableBuilder(!!initialData.tableData);
+    }
+  }, [initialData]);
+
+  const handleAddTable = () => {
+    const defaultTable: ChalaniTable = {
+      headers: ['सि.नं.', 'विवरण'],
+      rows: [['1', '']]
+    };
+    setFormData({ ...formData, tableData: defaultTable });
+    setShowTableBuilder(true);
+  };
+
+  const updateTableHeader = (index: number, value: string) => {
+    if (!formData.tableData) return;
+    const newHeaders = [...formData.tableData.headers];
+    newHeaders[index] = value;
+    setFormData({
+      ...formData,
+      tableData: { ...formData.tableData, headers: newHeaders }
+    });
+  };
+
+  const updateTableCell = (rowIndex: number, colIndex: number, value: string) => {
+    if (!formData.tableData) return;
+    const newRows = [...formData.tableData.rows];
+    newRows[rowIndex] = [...newRows[rowIndex]];
+    newRows[rowIndex][colIndex] = value;
+    setFormData({
+      ...formData,
+      tableData: { ...formData.tableData, rows: newRows }
+    });
+  };
+
+  const addRow = () => {
+    if (!formData.tableData) return;
+    const newRow = new Array(formData.tableData.headers.length).fill('');
+    setFormData({
+      ...formData,
+      tableData: { ...formData.tableData, rows: [...formData.tableData.rows, newRow] }
+    });
+  };
+
+  const removeRow = (index: number) => {
+    if (!formData.tableData || formData.tableData.rows.length <= 1) return;
+    const newRows = formData.tableData.rows.filter((_, i) => i !== index);
+    setFormData({
+      ...formData,
+      tableData: { ...formData.tableData, rows: newRows }
+    });
+  };
+
+  const addColumn = () => {
+    if (!formData.tableData) return;
+    setFormData({
+      ...formData,
+      tableData: {
+        headers: [...formData.tableData.headers, 'नयाँ महल'],
+        rows: formData.tableData.rows.map(row => [...row, ''])
+      }
+    });
+  };
+
+  const removeColumn = (index: number) => {
+    if (!formData.tableData || formData.tableData.headers.length <= 1) return;
+    setFormData({
+      ...formData,
+      tableData: {
+        headers: formData.tableData.headers.filter((_, i) => i !== index),
+        rows: formData.tableData.rows.map(row => row.filter((_, i) => i !== index))
+      }
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,20 +184,25 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
     <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-6">
       <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
         <label className="block text-sm font-bold text-slate-500 mb-1">चलानी नम्बर</label>
-        <p className="font-black text-2xl text-primary-600">{nextDispatchNumber}</p>
+        <p className="font-black text-2xl text-primary-600">{initialData?.dispatchNumber || nextDispatchNumber}</p>
       </div>
       <NepaliDatePicker
         label="मिति"
         value={formData.date}
         onChange={val => setFormData({ ...formData, date: val })}
         required
-        disabled
       />
       <Input
         label="पाउने व्यक्ति/कार्यालय"
         value={formData.recipient}
         onChange={e => setFormData({ ...formData, recipient: e.target.value })}
         required
+      />
+      <Input
+        label="ठेगाना"
+        value={formData.recipientAddress}
+        onChange={e => setFormData({ ...formData, recipientAddress: e.target.value })}
+        placeholder="पठाइएको व्यक्तिको ठेगाना"
       />
       <Input
         label="बिषय"
@@ -74,18 +222,167 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
         <textarea
           value={formData.letterContent || ''}
           onChange={e => setFormData({ ...formData, letterContent: e.target.value })}
-          className="w-full p-4 rounded-xl border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-nepali min-h-[200px]"
-          rows={8}
+          className="w-full p-4 rounded-xl border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-nepali min-h-[150px]"
+          rows={6}
           placeholder="पत्रको मुख्य व्यहोरा यहाँ लेख्नुहोस्..."
         />
       </div>
+
+      <div className="md:col-span-2 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <label className="block text-sm font-bold text-slate-700">तपशिल (तालिका)</label>
+            {!showTableBuilder ? (
+                <button 
+                    type="button"
+                    onClick={handleAddTable}
+                    className="text-xs flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors font-semibold"
+                >
+                    <TableIcon size={14} /> तालिका थप्नुहोस्
+                </button>
+            ) : (
+                <button 
+                    type="button"
+                    onClick={() => {
+                        setShowTableBuilder(false);
+                        setFormData({ ...formData, tableData: undefined });
+                    }}
+                    className="text-xs flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-semibold"
+                >
+                    <Trash2 size={14} /> तालिका हटाउनुहोस्
+                </button>
+            )}
+        </div>
+
+        {showTableBuilder && formData.tableData && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 overflow-x-auto">
+                <table className="w-full text-sm border-collapse bg-white">
+                    <thead>
+                        <tr className="bg-slate-100">
+                            <th className="border border-slate-300 p-1 w-8 text-[10px] text-slate-400">#</th>
+                            {formData.tableData.headers.map((_, i) => (
+                                <th key={i} className="border border-slate-300 p-1 text-[10px] text-slate-400 font-mono">
+                                    {indexToColumnName(i)}
+                                </th>
+                            ))}
+                            <th className="border border-slate-300 bg-slate-100 w-10"></th>
+                        </tr>
+                        <tr>
+                            <th className="border border-slate-300 bg-slate-50"></th>
+                            {formData.tableData.headers.map((header, i) => (
+                                <th key={i} className="border border-slate-300 p-1 group">
+                                    <div className="flex items-center gap-1">
+                                        <input 
+                                            type="text"
+                                            value={header}
+                                            onChange={(e) => updateTableHeader(i, e.target.value)}
+                                            className="w-full font-bold text-center border-none focus:ring-0 p-1 bg-transparent"
+                                            placeholder="Header"
+                                        />
+                                        <button 
+                                            type="button"
+                                            onClick={() => removeColumn(i)}
+                                            className="text-red-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                </th>
+                            ))}
+                            <th className="border border-slate-300 p-1 bg-slate-50 w-10">
+                                <button 
+                                    type="button"
+                                    onClick={addColumn}
+                                    className="p-1 text-primary-600 hover:bg-primary-50 rounded"
+                                    title="Add Column"
+                                >
+                                    <Plus size={16} />
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {formData.tableData.rows.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                                <td className="border border-slate-300 bg-slate-100 text-[10px] text-center text-slate-400 font-mono font-bold">
+                                    {rowIndex + 1}
+                                </td>
+                                {row.map((cell, cellIndex) => {
+                                    const isEditing = editingCell?.r === rowIndex && editingCell?.c === cellIndex;
+                                    const isFormula = cell && cell.toString().startsWith('=');
+                                    const evaluatedValue = isFormula ? getEvaluatedCell(formData.tableData!.rows, cellIndex, rowIndex) : cell;
+
+                                    return (
+                                        <td 
+                                            key={cellIndex} 
+                                            className={`border border-slate-300 p-0 relative group ${!isEditing && isFormula ? 'cursor-pointer' : ''}`}
+                                            onMouseDown={(e) => {
+                                                // Using onMouseDown to prevent focus loss before we can check if we should insert ref
+                                                if (editingCell && (editingCell.r !== rowIndex || editingCell.c !== cellIndex)) {
+                                                    const sourceVal = formData.tableData?.rows[editingCell.r][editingCell.c];
+                                                    if (sourceVal?.toString().startsWith('=')) {
+                                                        e.preventDefault();
+                                                        insertCellReference(rowIndex, cellIndex);
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <input 
+                                                type="text"
+                                                value={isEditing ? cell : (isFormula ? evaluatedValue : cell)}
+                                                onChange={(e) => updateTableCell(rowIndex, cellIndex, e.target.value)}
+                                                onFocus={() => setEditingCell({ r: rowIndex, c: cellIndex })}
+                                                onBlur={(e) => {
+                                                    // Only clear editing cell if we didn't just click another cell for reference
+                                                    setEditingCell(null);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault(); // Stop form submission
+                                                        (e.target as HTMLInputElement).blur(); // Commit and show result
+                                                    }
+                                                }}
+                                                className={`w-full border-none focus:ring-1 focus:ring-primary-500 p-2 ${isFormula && !isEditing ? 'text-primary-700 font-semibold bg-primary-50/30' : ''}`}
+                                            />
+                                            {isFormula && !isEditing && (
+                                                <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                    <Info size={10} className="text-primary-400" />
+                                                </div>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                                <td className="border border-slate-300 p-1 text-center bg-slate-50">
+                                    <button 
+                                        type="button"
+                                        onClick={() => removeRow(rowIndex)}
+                                        className="text-red-400 hover:text-red-600 p-1"
+                                        title="Remove Row"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <button 
+                    type="button"
+                    onClick={addRow}
+                    className="mt-2 w-full flex items-center justify-center gap-1 py-1 px-3 bg-white border border-dashed border-slate-300 text-slate-500 hover:text-primary-600 hover:border-primary-500 rounded-lg transition-all text-xs font-semibold"
+                >
+                    <Plus size={14} /> थप हरफ
+                </button>
+            </div>
+        )}
+      </div>
+
       <div className="md:col-span-2">
         <label className="block text-sm font-bold text-slate-700 mb-1">कैफियत</label>
         <textarea
           value={formData.remarks}
           onChange={e => setFormData({ ...formData, remarks: e.target.value })}
           className="w-full p-3 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all"
-          rows={4}
+          rows={3}
           placeholder="केहि भएमा उल्लेख गर्नुहोस्..."
         />
       </div>

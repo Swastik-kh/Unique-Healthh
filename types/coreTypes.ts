@@ -181,15 +181,22 @@ export interface Darta {
   fiscalYear: string;
 }
 
+export interface ChalaniTable {
+  headers: string[];
+  rows: string[][];
+}
+
 export interface Chalani {
   id: string;
   dispatchNumber: string;
   date: string;
   recipient: string;
+  recipientAddress?: string;
   subject: string;
   sender: string;
   remarks?: string;
   letterContent?: string;
+  tableData?: ChalaniTable;
   fiscalYear: string;
 }
 
