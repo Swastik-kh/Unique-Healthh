@@ -24,6 +24,7 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
       recipient: '',
       subject: '',
       sender: currentUser.fullName,
+      letterContent: '',
       remarks: '',
     };
   };
@@ -68,6 +69,16 @@ export const ChalaniForm: React.FC<ChalaniFormProps> = ({ onSave, onCancel, next
         required
         disabled
       />
+      <div className="md:col-span-2">
+        <label className="block text-sm font-bold text-slate-700 mb-1">पत्रको व्यहोरा (Letter Content)</label>
+        <textarea
+          value={formData.letterContent || ''}
+          onChange={e => setFormData({ ...formData, letterContent: e.target.value })}
+          className="w-full p-4 rounded-xl border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-nepali min-h-[200px]"
+          rows={8}
+          placeholder="पत्रको मुख्य व्यहोरा यहाँ लेख्नुहोस्..."
+        />
+      </div>
       <div className="md:col-span-2">
         <label className="block text-sm font-bold text-slate-700 mb-1">कैफियत</label>
         <textarea

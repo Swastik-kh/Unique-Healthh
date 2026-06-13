@@ -187,6 +187,7 @@ export interface Chalani {
   subject: string;
   sender: string;
   remarks?: string;
+  letterContent?: string;
   fiscalYear: string;
 }
 

@@ -909,7 +909,6 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       case 'dhuliyauna_faram': return <DhuliyaunaFaram currentFiscalYear={currentFiscalYear} currentUser={currentUser} generalSettings={generalSettings} inventoryItems={inventoryItems} dhuliyaunaEntries={dhuliyaunaEntries} onSaveDhuliyaunaEntry={onSaveDhuliyaunaEntry} stores={stores} />;
       case 'bharman_adesh': return <BharmanAdesh currentFiscalYear={currentFiscalYear} currentUser={currentUser} bharmanAdeshEntries={bharmanAdeshEntries} onSaveEntry={onSaveBharmanAdesh} onDeleteEntry={onDeleteBharmanAdesh} users={users} generalSettings={generalSettings} leaveBalances={leaveBalances} />;
       case 'chalani': {
-        const fiscalYearSuffix = currentFiscalYear.slice(2, 4) + currentFiscalYear.slice(7, 9);
         const entriesForYear = chalaniEntries.filter(c => c.fiscalYear === currentFiscalYear);
         
         const sortedChalaniEntries = [...entriesForYear].sort((a, b) => {
@@ -919,7 +918,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         });
 
         const nextSerialNumber = sortedChalaniEntries.length > 0 ? parseInt(sortedChalaniEntries[0].dispatchNumber.split('-')[0]) + 1 : 1;
-        const nextDispatchNumber = `${nextSerialNumber}-${fiscalYearSuffix}`;
+        const fiscalYearFormatted = currentFiscalYear.slice(1).replace('/', '-');
+        const nextDispatchNumber = `${nextSerialNumber}-${fiscalYearFormatted}`;
 
         const filteredChalaniEntries = sortedChalaniEntries.filter(c => 
             c.dispatchNumber.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
@@ -927,6 +927,103 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
             c.sender.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
             c.recipient.toLowerCase().includes(chalaniSearchQuery.toLowerCase())
         );
+
+        const toNepaliDigits = (num: string | number) => {
+            if (num === undefined || num === null) return '';
+            const numbers = {
+                '0': '०', '1': '१', '2': '२', '3': '३', '4': '४',
+                '5': '५', '6': '६', '7': '७', '8': '८', '9': '९'
+            };
+            return num.toString().split('').map(x => numbers[x as keyof typeof numbers] || x).join('');
+        };
+
+        const handlePrintLetter = (chalani: Chalani) => {
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return;
+
+            const letterHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Chalani Letter - ${chalani.dispatchNumber}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4; margin: 20mm; }
+                        body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
+                        .header { display: flex; align-items: start; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+                        .logo { width: 80px; height: 80px; margin-right: 20px; }
+                        .org-details { flex: 1; text-align: center; }
+                        .org-name { font-size: 24px; font-weight: 800; color: #b91c1c; margin: 0; }
+                        .org-sub { font-size: 14px; font-weight: 600; margin: 0; }
+                        .org-address { font-size: 13px; margin-top: 5px; }
+                        
+                        .meta-row { display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 600; }
+                        .recipient-box { margin-bottom: 40px; }
+                        .subject-line { text-align: center; font-size: 18px; font-weight: 800; text-decoration: underline; margin-bottom: 40px; }
+                        .content { min-height: 400px; text-align: justify; white-space: pre-wrap; margin-bottom: 60px; font-size: 16px; }
+                        .footer { margin-top: 50px; display: flex; justify-content: flex-end; }
+                        .signature-box { text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px; }
+                        .footer-info { margin-top: 80px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #eee; padding-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <img class="logo" src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
+                        <div class="org-details">
+                            <h1 class="org-name">${generalSettings.orgNameNepali}</h1>
+                            <p class="org-sub">${generalSettings.subTitleNepali || ''}</p>
+                            <p class="org-sub">${generalSettings.subTitleNepali2 || ''}</p>
+                            <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
+                        </div>
+                    </div>
+
+                    <div class="meta-row">
+                        <span>चलानी नम्बर: ${toNepaliDigits(chalani.dispatchNumber)}</span>
+                        <span>मिति: ${toNepaliDigits(chalani.date)}</span>
+                    </div>
+
+                    <div class="recipient-box">
+                        <p>श्री ${chalani.recipient},</p>
+                        <p>${generalSettings.address || ''} | ${generalSettings.phone || ''}</p>
+                    </div>
+
+                    <div class="subject-line">
+                        विषय: ${chalani.subject}
+                    </div>
+
+                    <div class="content">
+${chalani.letterContent || 'विषयसम्बन्धमा जानकारी गराइन्छ।'}
+                    </div>
+
+                    <div class="footer">
+                        <div class="signature-box">
+                            <p>.......................................</p>
+                            <p><strong>(${chalani.sender})</strong></p>
+                            <p>${currentUser?.designation || 'अधिकृत'}</p>
+                        </div>
+                    </div>
+
+                    <div class="footer-info">
+                        ${generalSettings.phone ? `फोन: ${generalSettings.phone}` : ''} | 
+                        ${generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''} | 
+                        ${generalSettings.website ? `वेबसाइट: ${generalSettings.website}` : ''}
+                    </div>
+
+                    <script>
+                        window.onload = () => {
+                            setTimeout(() => {
+                                window.print();
+                                // window.close();
+                            }, 500);
+                        };
+                    </script>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(letterHtml);
+            printWindow.document.close();
+        };
 
         return (
           <div className="space-y-6">
@@ -951,16 +1048,16 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                 </div>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left responsive-table">
-                  <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-sm text-left responsive-table sticky-header">
+                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="p-3">चलानी नं.</th>
                       <th className="p-3">मिति</th>
                       <th className="p-3">पाउने</th>
                       <th className="p-3">बिषय</th>
                       <th className="p-3">पठाउने</th>
-                      {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && <th className="p-3 text-right">कार्य</th>}
+                      <th className="p-3 text-right">कार्य</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -971,21 +1068,28 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         <td className="p-3" data-label="पाउने">{c.recipient}</td>
                         <td className="p-3" data-label="बिषय">{c.subject}</td>
                         <td className="p-3" data-label="पठाउने">{c.sender}</td>
-                        {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
-                          <td className="p-3 text-right" data-label="कार्य">
+                        <td className="p-3 text-right space-x-1" data-label="कार्य">
                             <button 
-                              onClick={() => {
-                                if (window.confirm('के तपाईं यो चलानी हटाउन चाहनुहुन्छ?')) {
-                                  onDeleteChalani(c.id);
-                                }
-                              }}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
+                              onClick={() => handlePrintLetter(c)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Print Letter"
                             >
-                              <Trash2 size={16} />
+                              <Printer size={16} />
                             </button>
-                          </td>
-                        )}
+                            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm('के तपाईं यो चलानी हटाउन चाहनुहुन्छ?')) {
+                                    onDeleteChalani(c.id);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                        </td>
                       </tr>
                     ))}
                     {filteredChalaniEntries.length === 0 && (
@@ -999,8 +1103,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
             </div>
 
             {isChalaniFormOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-in fade-in">
-                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative animate-in zoom-in-95 slide-in-from-bottom-4">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto animate-in fade-in">
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative my-8 animate-in zoom-in-95 slide-in-from-bottom-4">
                         <h3 className="text-2xl font-bold text-slate-800 mb-6">नयाँ चिठीपत्र चलानी</h3>
                         <ChalaniForm 
                             currentUser={currentUser!}
@@ -1028,7 +1132,6 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         );
       }
       case 'darta': {
-        const fiscalYearSuffix = currentFiscalYear.slice(2, 4) + currentFiscalYear.slice(7, 9);
         const entriesForYear = dartaEntries.filter(d => d.fiscalYear === currentFiscalYear);
         
         const sortedDartaEntries = [...entriesForYear].sort((a, b) => {
@@ -1038,7 +1141,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         });
 
         const nextSerialNumber = sortedDartaEntries.length > 0 ? parseInt(sortedDartaEntries[0].registrationNumber.split('-')[0]) + 1 : 1;
-        const nextRegistrationNumber = `${nextSerialNumber}-${fiscalYearSuffix}`;
+        const fiscalYearFormatted = currentFiscalYear.slice(1).replace('/', '-');
+        const nextRegistrationNumber = `${nextSerialNumber}-${fiscalYearFormatted}`;
 
         const filteredDartaEntries = sortedDartaEntries.filter(d => 
             d.registrationNumber.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
@@ -1070,9 +1174,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                 </div>
             </div>
             <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left responsive-table">
-                  <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="w-full text-sm text-left responsive-table sticky-header">
+                  <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                     <tr>
                       <th className="p-3">दर्ता नं.</th>
                       <th className="p-3">मिति</th>
@@ -1118,8 +1222,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
             </div>
 
             {isDartaFormOpen && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-in fade-in">
-                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative animate-in zoom-in-95 slide-in-from-bottom-4">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto animate-in fade-in">
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-3xl relative my-8 animate-in zoom-in-95 slide-in-from-bottom-4">
                         <h3 className="text-2xl font-bold text-slate-800 mb-6">नयाँ चिठीपत्र दर्ता</h3>
                         <DartaForm 
                             currentUser={currentUser!}
