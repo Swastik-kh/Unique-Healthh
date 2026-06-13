@@ -77,6 +77,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [paymentSelectedProgram, setPaymentSelectedProgram] = useState('');
+  const [paymentSelectedTransaction, setPaymentSelectedTransaction] = useState('');
+  const [paymentApplyTds, setPaymentApplyTds] = useState(false);
+  const [paymentApplySasukar, setPaymentApplySasukar] = useState(false);
   const [isManualParty, setIsManualParty] = useState(false);
   
   // Date Filters for Reports
@@ -134,6 +137,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       }
     }
   };
+
+  useEffect(() => {
+    if (paymentSelectedTransaction) {
+      const txn = transactions.find(t => t.id === paymentSelectedTransaction);
+      if (txn) {
+        setPaymentApplyTds(!!(txn.tdsAmount && txn.tdsAmount > 0));
+        setPaymentApplySasukar(!!(txn.sasukarAmount && txn.sasukarAmount > 0));
+      }
+    } else {
+      setPaymentApplyTds(false);
+      setPaymentApplySasukar(false);
+    }
+  }, [paymentSelectedTransaction, transactions]);
 
   // Derived State
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -218,6 +234,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       budget: programs.filter(p => p.fiscalYear === fy).reduce((sum, p) => sum + p.totalBudget, 0)
     }));
   }, [programs]);
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingItem(null);
+    setIsManualParty(false);
+    setPaymentSelectedProgram('');
+    setPaymentSelectedTransaction('');
+    setPaymentApplyTds(false);
+    setPaymentApplySasukar(false);
+  };
 
   // Handle Saves
   const handleProgramSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -340,8 +366,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       totalContractAmount: Number(formData.get('contractAmount')),
       totalPaidAmount: editingItem?.totalPaidAmount || 0
     });
-    setShowForm(false);
-    setEditingItem(null);
+    handleCloseForm();
   };
 
   const handlePaymentSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -353,10 +378,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const programId = formData.get('programId') as string;
     const transactionId = formData.get('transactionId') as string;
 
-    const applyTds = formData.get('applyTds') === 'on';
+    const applyTds = paymentApplyTds;
     const amountWithoutVAT = amount; // Simplified for payments
     const tdsAmount = applyTds ? amount * 0.015 : 0;
-    const applySasukar = formData.get('applySasukar') === 'on';
+    const applySasukar = paymentApplySasukar;
     const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
 
     onSavePayment({
@@ -373,8 +398,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       remarks: formData.get('remarks') as string
     });
 
-    setShowForm(false);
-    setIsManualParty(false);
+    handleCloseForm();
   };
 
   const handlePrintParties = () => {
@@ -1367,7 +1391,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                  else if (item._type === 'Allowance') setFormType('allowance');
                                  else if (activeTab === 'vendors') setFormType('party');
                                  else if (activeTab === 'transactions') setFormType('transaction');
-                                 else if (activeTab === 'payments') setFormType('payment');
+                                 else if (activeTab === 'payments') {
+                                   setFormType('payment');
+                                   setPaymentSelectedProgram(item.programId);
+                                   setPaymentSelectedTransaction(item.transactionId || '');
+                                   setPaymentApplyTds(!!(item.tdsAmount && item.tdsAmount > 0));
+                                   setPaymentApplySasukar(!!(item.sasukarAmount && item.sasukarAmount > 0));
+                                 }
                                  
                                  setTxnFormDate(item.dateBs);
                                  setIsOtherProgramSelected(item.programId === 'other');
@@ -1446,6 +1476,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   } else if (activeTab === 'payments') {
                     setFormType('payment');
                     setPaymentSelectedProgram('');
+                    setPaymentSelectedTransaction('');
+                    setPaymentApplyTds(false);
+                    setPaymentApplySasukar(false);
+                    setEditingItem(null);
                   }
                   setShowForm(true);
                 }}
@@ -1708,7 +1742,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           label="खर्च विवरण (Expenditure Detail / Bibaran)" 
                           name="transactionId" 
                           required 
-                          defaultValue={editingItem?.transactionId}
+                          value={paymentSelectedTransaction || editingItem?.transactionId || ''}
+                          onChange={(e) => setPaymentSelectedTransaction(e.target.value)}
                           options={transactions
                             .filter(t => t.programId === (paymentSelectedProgram || editingItem?.programId) && t.type === 'Expense')
                             .map(t => ({ label: `${t.remarks} (रू ${t.amount})`, value: t.id }))
@@ -1720,11 +1755,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       
                       <div className="flex gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" name="applyTds" className="rounded border-slate-300 text-primary-600" />
+                          <input 
+                            type="checkbox" 
+                            name="applyTds" 
+                            checked={paymentApplyTds} 
+                            onChange={(e) => setPaymentApplyTds(e.target.checked)}
+                            className="rounded border-slate-300 text-primary-600" 
+                          />
                           <span className="text-sm font-bold text-slate-700">TDS काट्ने? (1.5%)</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" name="applySasukar" className="rounded border-slate-300 text-primary-600" />
+                          <input 
+                            type="checkbox" 
+                            name="applySasukar" 
+                            checked={paymentApplySasukar}
+                            onChange={(e) => setPaymentApplySasukar(e.target.checked)}
+                            className="rounded border-slate-300 text-primary-600" 
+                          />
                           <span className="text-sm font-bold text-slate-700">सा.सु. कर काट्ने? (1%)</span>
                         </label>
                       </div>
