@@ -106,6 +106,7 @@ const App: React.FC = () => {
   const [partyPayments, setPartyPayments] = useState<any[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [allowances, setAllowances] = useState<AllowanceRecord[]>([]);
+  const [goswaraVouchers, setGoswaraVouchers] = useState<GoswaraVoucher[]>([]);
 
   const handleSavePaymentRequest = async (r: Omit<PaymentRequest, 'id'>) => {
     if (!currentUser) return;
@@ -315,6 +316,7 @@ const App: React.FC = () => {
     setupOrgListener('partyPayments', setPartyPayments);
     setupOrgListener('paymentRequests', setPaymentRequests);
     setupOrgListener('allowances', setAllowances);
+    setupOrgListener('goswaraVouchers', setGoswaraVouchers);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -1576,6 +1578,7 @@ const App: React.FC = () => {
     onDeleteFinancialTransaction={handleDeleteFinancialTransaction}
     onSavePartyPayment={handleSavePartyPayment}
     onDeletePartyPayment={handleDeletePartyPayment}
+    goswaraVouchers={goswaraVouchers}
     onSavePaymentRequest={handleSavePaymentRequest}
     onSaveAllowance={handleSaveAllowance}
     onUpdatePaymentRequest={handleUpdatePaymentRequest}

@@ -4,7 +4,7 @@ import {
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
   Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download,
-  ClipboardList, Building2, Eye
+  ClipboardList, Building2, Eye, Book, FileText, CheckSquare
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { 
@@ -25,6 +25,7 @@ interface LekhaPrashasanProps {
   parties: ListedParty[];
   transactions: FinancialTransaction[];
   payments: PartyPaymentRecord[];
+  vouchers: GoswaraVoucher[];
   paymentRequests: PaymentRequest[];
   allowances: AllowanceRecord[];
   onSaveProgram: (program: any) => void;
@@ -51,6 +52,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   parties = [],
   transactions = [],
   payments = [],
+  vouchers = [],
   paymentRequests = [],
   allowances = [],
   onSaveProgram,
@@ -71,10 +73,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports' | 'journal_voucher'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports' | 'journal_voucher' | 'bank_cash_book' | 'kharcha_fatbari' | 'bank_reconciliation'>('dashboard');
+  const [selectedMonth, setSelectedMonth] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
+
+  const nepaliMonths = [
+    'बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कात्तिक', 'मंसिर', 'पुस', 'माघ', 'फागुन', 'चैत'
+  ];
   const [showForm, setShowForm] = useState(false);
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
+  const [paymentSubTab, setPaymentSubTab] = useState<'history' | 'pending'>('history');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [paymentSelectedProgram, setPaymentSelectedProgram] = useState('');
   const [paymentSelectedTransaction, setPaymentSelectedTransaction] = useState('');
@@ -109,20 +117,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   }
 
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
-  const [goswaraVouchers, setGoswaraVouchers] = useState<GoswaraVoucher[]>([]);
+  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
-  useEffect(() => {
-      const orgName = generalSettings.orgNameEnglish;
-      if (!orgName) return;
-      const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
-      const vouchersRef = ref(db, `orgData/${safeOrgName}/goswaraVouchers`);
-      const unsub = onValue(vouchersRef, (snap) => {
-          const data = snap.val();
-          const vouchers = data ? Object.keys(data).map(key => ({ ...data[key], id: key })) : [];
-          setGoswaraVouchers(vouchers);
-      });
-      return () => unsub();
-  }, [generalSettings.orgNameEnglish]);
+  const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
+  const [bankStatementBalance, setBankStatementBalance] = useState<number>(0);
 
   const handleDeleteVoucher = async (id: string) => {
     if (window.confirm('के तपाईं निश्चित रूपमा यो गोश्वारा भौचर हटाउन चाहनुहुन्छ?')) {
@@ -384,7 +382,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const applySasukar = paymentApplySasukar;
     const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
 
-    onSavePayment({
+    const paymentData: any = {
       partyId: isManualParty ? 'manual' : partyId,
       manualPartyName: isManualParty ? manualPartyName : undefined,
       programId,
@@ -396,7 +394,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       fiscalYear: currentFiscalYear,
       paymentMethod: formData.get('method') as string,
       remarks: formData.get('remarks') as string
-    });
+    };
+
+    if (editingItem?.id) {
+       paymentData.id = editingItem.id;
+    }
+
+    onSavePayment(paymentData);
 
     handleCloseForm();
   };
@@ -411,7 +415,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       <head>
         <title>${title}</title>
         <style>
-           @page { size: A4 portrait; margin: 10mm; } 
+           @page { size: A4 ${printOrientation}; margin: 10mm; } 
            body { font-family: 'Mukta', sans-serif; } 
            table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
            th, td { border: 1px solid black; padding: 10px; text-align: left; font-size: 12px; } 
@@ -520,6 +524,488 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     return result.trim();
   };
 
+  const pendingPayments = useMemo(() => {
+    if (activeTab !== 'payments' || paymentSubTab !== 'pending') return [];
+    
+    return transactions.filter(t => t.type === 'Expense').map(txn => {
+      const totalPaidForTxn = payments
+        .filter(p => p.transactionId === txn.id)
+        .reduce((sum, p) => sum + p.amount, 0);
+      
+      const balance = (txn.amountWithVAT || txn.amount || 0) - totalPaidForTxn;
+      
+      return {
+        ...txn,
+        totalPaid: totalPaidForTxn,
+        balance: balance
+      };
+    }).filter(p => p.balance > 0);
+  }, [activeTab, paymentSubTab, transactions, payments]);
+
+  const handlePrintPendingPayments = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const netTotal = pendingPayments.reduce((sum, p) => sum + p.balance, 0);
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>भुक्तानी हुन बाँकी विवरण</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+            @page { size: ${printOrientation}; margin: 10mm; }
+            body { font-family: 'Noto Sans Devanagari', sans-serif; padding: 40px; color: #334155; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            h1 { margin: 0; color: #1e293b; font-size: 24px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            .text-right { text-align: right; }
+            .footer { margin-top: 30px; font-weight: bold; text-align: right; font-size: 16px; }
+            .print-date { font-size: 12px; color: #64748b; margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>भुक्तानी हुन बाँकी विवरण (Pending Payments Report)</h1>
+            <div class="print-date">प्रिन्ट मिति: ${today} (${currentFiscalYear})</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>मिति</th>
+                <th>पार्टीको नाम</th>
+                <th>कार्यक्रम / विवरण</th>
+                <th class="text-right">कुल रकम</th>
+                <th class="text-right">भुक्तानी भएको</th>
+                <th class="text-right">बाँकी रकम</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pendingPayments.map(p => `
+                <tr>
+                  <td>${p.dateBs}</td>
+                  <td>${p.partyName || '-'}</td>
+                  <td>${p.remarks}</td>
+                  <td class="text-right">रू ${(p.amountWithVAT || p.amount || 0).toLocaleString()}</td>
+                  <td class="text-right">रू ${p.totalPaid.toLocaleString()}</td>
+                  <td class="text-right"><b>रू ${p.balance.toLocaleString()}</b></td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5" class="text-right"><b>कुल बाँकी रकम:</b></td>
+                <td class="text-right"><b>रू ${netTotal.toLocaleString()}</b></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div style="margin-top: 100px; display: flex; justify-content: space-between;">
+             <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">तयार गर्ने</div>
+             <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">सदर गर्ने</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const handlePrintPaymentHistory = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const items = payments.filter(p => 
+      p.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.manualPartyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parties.find(pa => pa.id === p.partyId)?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const totalPaid = items.reduce((sum, p) => sum + p.amount, 0);
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>भुक्तानी इतिहास</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+            @page { size: ${printOrientation}; margin: 10mm; }
+            body { font-family: 'Noto Sans Devanagari', sans-serif; padding: 40px; color: #334155; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            h1 { margin: 0; color: #1e293b; font-size: 24px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            .text-right { text-align: right; }
+            .footer { margin-top: 30px; font-weight: bold; text-align: right; font-size: 16px; }
+            .print-date { font-size: 12px; color: #64748b; margin-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>भुक्तानी इतिहास विवरण (Payment History Report)</h1>
+            <div class="print-date">प्रिन्ट मिति: ${today} (${currentFiscalYear})</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>मिति</th>
+                <th>पार्टी / फर्म</th>
+                <th>कार्यक्रम</th>
+                <th>विवरण</th>
+                <th class="text-right">रकम</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(p => {
+                const txn = transactions.find(t => t.id === p.transactionId);
+                const prog = programs.find(pr => pr.id === p.programId);
+                const partyName = p.partyId === 'manual' ? p.manualPartyName : (parties.find(pa => pa.id === p.partyId)?.name || 'Unknown');
+                return `
+                  <tr>
+                    <td>${p.dateBs}</td>
+                    <td>${partyName}</td>
+                    <td>${prog?.name || '-'}</td>
+                    <td>${txn?.remarks || p.remarks || '-'}</td>
+                    <td class="text-right">रू ${p.amount.toLocaleString()}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" class="text-right"><b>जम्मा भुक्तानी रकम:</b></td>
+                <td class="text-right"><b>रू ${totalPaid.toLocaleString()}</b></td>
+              </tr>
+            </tfoot>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const handlePrintBankCashBook = (items: any[]) => {
+    const printWin = window.open('', '', 'width=1200,height=800');
+    if (!printWin) return;
+
+    const title = "बैंक नगदी किताब (Bank Cash Book)";
+
+    const content = `
+    <html>
+      <head>
+        <title>${title}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4 landscape; margin: 5mm; }
+          body { font-family: 'Mukta', sans-serif; font-size: 10px; padding: 10px; }
+          .header { text-align: center; margin-bottom: 10px; }
+          .form-num { position: absolute; right: 10px; top: 10px; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid black; padding: 4px; text-align: center; }
+          .text-left { text-align: left; }
+          .text-right { text-align: right; font-family: monospace; }
+          .font-bold { font-weight: bold; }
+          .subheader { display: flex; justify-content: space-between; margin-top: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="form-num text-[8px]">साविकको फारम न. ९</div>
+          <div class="header">
+            <div>संघ/प्रदेश/स्थानीय तह</div>
+            <div class="font-bold text-lg">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
+            <div>${generalSettings.address || 'ठेगाना'}</div>
+            <h2 class="font-bold mt-2">${title}</h2>
+            <div class="mt-1">${selectedMonth !== 'All' ? `महिना: ${selectedMonth}` : 'आर्थिक वर्ष भरिको विवरण'}</div>
+          </div>
+        
+        <div class="subheader">
+          <div>बजेट उप-शीर्षक न: ................</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2">मिति</th>
+              <th rowspan="2">भौचर नं.</th>
+              <th rowspan="2" style="width: 250px;">विवरण</th>
+              <th colspan="2">नगद मौज्दात</th>
+              <th colspan="3">बैंक मौज्दात</th>
+              <th rowspan="2">बाँकी</th>
+              <th colspan="2">बजेट खर्च</th>
+              <th colspan="2">विविध</th>
+              <th rowspan="2">कैफियत</th>
+            </tr>
+            <tr>
+              <th>डेबिट</th>
+              <th>क्रेडिट</th>
+              <th>डेबिट</th>
+              <th>क्रेडिट</th>
+              <th>चेक नं.</th>
+              <th>संकेत</th>
+              <th>रकम</th>
+              <th>डेबिट</th>
+              <th>क्रेडिट</th>
+            </tr>
+            <tr style="background: #f0f0f0; font-size: 8px;">
+              <td>१</td><td>२</td><td>३</td><td>४</td><td>५</td><td>६</td><td>७</td><td>८</td><td>९</td><td>१०</td><td>११</td><td>१६</td><td>१७</td><td>१८</td>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(item => `
+              <tr>
+                <td>${item.dateBs}</td>
+                <td>${item.id.slice(-6)}</td>
+                <td class="text-left">${item.remarks}</td>
+                <td class="text-right">${item.debitCash > 0 ? item.debitCash.toLocaleString() : ''}</td>
+                <td class="text-right">${item.creditCash > 0 ? item.creditCash.toLocaleString() : ''}</td>
+                <td class="text-right">${item.debitBank > 0 ? item.debitBank.toLocaleString() : ''}</td>
+                <td class="text-right">${item.creditBank > 0 ? item.creditBank.toLocaleString() : ''}</td>
+                <td>${item.checkNo || ''}</td>
+                <td class="text-right font-bold">${item.runningBalance.toLocaleString()}</td>
+                <td>${programs.find(p => p.id === item.programId)?.id || ''}</td>
+                <td class="text-right">${item.budgetExp > 0 ? item.budgetExp.toLocaleString() : ''}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            `).join('')}
+            <tr class="font-bold">
+               <td colspan="3" class="text-left">यो महिनाको जम्मा</td>
+               <td class="text-right">${items.reduce((sum, i) => sum + (i.debitCash || 0), 0).toLocaleString()}</td>
+               <td class="text-right">${items.reduce((sum, i) => sum + (i.creditCash || 0), 0).toLocaleString()}</td>
+               <td class="text-right">${items.reduce((sum, i) => sum + (i.debitBank || 0), 0).toLocaleString()}</td>
+               <td class="text-right">${items.reduce((sum, i) => sum + (i.creditBank || 0), 0).toLocaleString()}</td>
+               <td></td>
+               <td></td>
+               <td></td>
+               <td class="text-right">${items.reduce((sum, i) => sum + (i.budgetExp || 0), 0).toLocaleString()}</td>
+               <td></td>
+               <td></td>
+               <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+    </html>`;
+
+    printWin.document.write(content);
+    printWin.document.close();
+    setTimeout(() => printWin.print(), 500);
+  };
+
+  const handlePrintKharchaFatbari = (data: any[], month: string) => {
+    const printWin = window.open('', '', 'width=1200,height=800');
+    if (!printWin) return;
+
+    const content = `
+    <html>
+      <head>
+        <title>खर्चको फाँटबारी - ${month}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4 landscape; margin: 5mm; }
+          body { font-family: 'Mukta', sans-serif; font-size: 10px; padding: 10px; }
+          .header { text-align: center; margin-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid black; padding: 4px; text-align: center; }
+          .text-left { text-align: left; }
+          .text-right { text-align: right; font-family: monospace; }
+          .font-bold { font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>संघ/प्रदेश/स्थानीय तह</div>
+          <div class="font-bold text-lg">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
+          <div>${generalSettings.address || 'ठेगाना'}</div>
+          <h2 class="font-bold mt-2">खर्चको फाँटबारी</h2>
+          <div class="mt-1">${month === 'All' ? 'आर्थिक वर्ष भरिको विवरण' : `महिना: ${month}`}</div>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>सि.नं.</th>
+              <th style="width: 80px;">खर्च संकेत नं</th>
+              <th style="width: 250px;">खर्च संकेतको नाम</th>
+              <th>अन्तिम बजेट</th>
+              <th>यस महिना सम्मको निकासा</th>
+              <th>गत महिना सम्मको खर्च</th>
+              <th>यस महिनाको खर्च</th>
+              <th>यस महिना सम्मको खर्च</th>
+              <th>पेश्की</th>
+              <th>पेश्की बाहेक खर्च</th>
+              <th>बाँकी बजेट</th>
+            </tr>
+            <tr style="background: #f0f0f0; font-size: 8px;">
+              <td>१</td><td>२</td><td>३</td><td>४</td><td>५</td><td>६</td><td>७</td><td>८=(६+७)</td><td>९</td><td>१०=(८-९)</td><td>११=(४-८)</td>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map((item, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>${item.id}</td>
+                <td class="text-left">${item.name}</td>
+                <td class="text-right">${item.budget.toLocaleString()}</td>
+                <td class="text-right">${item.release.toLocaleString()}</td>
+                <td class="text-right">${item.prevExp.toLocaleString()}</td>
+                <td class="text-right">${item.thisMonthExp.toLocaleString()}</td>
+                <td class="text-right font-bold">${item.totalExp.toLocaleString()}</td>
+                <td class="text-right">${item.peski.toLocaleString()}</td>
+                <td class="text-right">${item.netExp.toLocaleString()}</td>
+                <td class="text-right">${item.balance.toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>`;
+
+    printWin.document.write(content);
+    printWin.document.close();
+    setTimeout(() => printWin.print(), 500);
+  };
+
+  const renderKharchaFatbari = () => {
+    const monthIndex = selectedMonth === 'All' ? -1 : nepaliMonths.indexOf(selectedMonth);
+    
+    const fatbariData = programs.map(program => {
+      const allProgramPayments = payments.filter(p => p.programId === program.id);
+      
+      let prevMonthExp = 0;
+      let thisMonthExp = 0;
+      let totalExp = 0;
+
+      allProgramPayments.forEach(p => {
+        const pMonthStr = p.dateBs.split('/')[1];
+        const pMonthNum = parseInt(pMonthStr);
+        const pMonthIdx = pMonthNum - 1;
+
+        if (selectedMonth === 'All') {
+          thisMonthExp += p.amount;
+        } else {
+          if (pMonthIdx < monthIndex) {
+            prevMonthExp += p.amount;
+          } else if (pMonthIdx === monthIndex) {
+            thisMonthExp += p.amount;
+          }
+        }
+      });
+
+      totalExp = prevMonthExp + thisMonthExp;
+      
+      // Release is usually equal to budget in many simple setups, but let's assume we can fetch it from transactions if needed.
+      // For now, let's treat budget as final budget and release as budget.
+      const budget = program.budget || 0;
+      const release = budget; // Simplified
+      const peski = 0; // Simplified
+      const netExp = totalExp - peski;
+      const balance = budget - totalExp;
+
+      return {
+        ...program,
+        budget,
+        release,
+        prevExp: prevMonthExp,
+        thisMonthExp,
+        totalExp,
+        peski,
+        netExp,
+        balance
+      };
+    }).filter(item => item.totalExp > 0 || item.budget > 0);
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <h3 className="text-lg font-black text-slate-800 font-nepali flex items-center gap-2">
+                <FileText className="text-primary-600" size={20} /> खर्चको फाँटबारी (Expenditure Statement)
+              </h3>
+              <p className="text-xs text-slate-500 font-nepali">बजेट उप-शीर्षक अनुसारको खर्च विवरण</p>
+            </div>
+            <div className="h-10 w-[1px] bg-slate-100 hidden md:block"></div>
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-slate-400" />
+              <select 
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold font-nepali outline-none"
+              >
+                <option value="All">सबै महिना (All Months)</option>
+                {nepaliMonths.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button 
+            onClick={() => handlePrintKharchaFatbari(fatbariData, selectedMonth)}
+            className="bg-sky-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-sky-700 transition-all text-sm"
+          >
+            <Printer size={18} /> प्रिन्ट गर्नुहोस् (Print)
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px] border-collapse min-w-[1000px]">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="divide-x divide-slate-200">
+                  <th className="px-2 py-3 text-center font-bold text-slate-500 uppercase font-nepali">सि.नं.</th>
+                  <th className="px-2 py-3 text-center font-bold text-slate-500 uppercase font-nepali">खर्च संकेत नं</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase font-nepali w-[250px]">खर्च संकेतको नाम</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-600 uppercase font-nepali">अन्तिम बजेट</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-600 uppercase font-nepali bg-blue-50/30">निकासा</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-400 uppercase font-nepali">गत महिना सम्म</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-500 uppercase font-nepali bg-yellow-50/30">यस महिना</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-800 uppercase font-nepali bg-slate-100">कुल खर्च</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-500 uppercase font-nepali">पेश्की</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-600 uppercase font-nepali">खुद खर्च</th>
+                  <th className="px-2 py-3 text-right font-bold text-slate-800 uppercase font-nepali">बाँकी बजेट</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {fatbariData.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors divide-x divide-slate-50">
+                    <td className="px-2 py-3 text-center text-slate-400">{idx + 1}</td>
+                    <td className="px-2 py-3 text-center font-mono font-bold text-slate-600">{item.id}</td>
+                    <td className="px-4 py-3 font-nepali font-bold text-slate-700">{item.name}</td>
+                    <td className="px-2 py-3 text-right font-mono font-bold">{item.budget.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-mono text-blue-600 bg-blue-50/10">{item.release.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-mono text-slate-400">{item.prevExp.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-mono text-yellow-600 bg-yellow-50/10 font-bold">{item.thisMonthExp.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-black font-mono bg-slate-50 text-slate-800">{item.totalExp.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-mono text-slate-400">{item.peski.toLocaleString()}</td>
+                    <td className="px-2 py-3 text-right font-mono text-slate-600">{item.netExp.toLocaleString()}</td>
+                    <td className={`px-2 py-3 text-right font-black font-mono ${item.balance < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{item.balance.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-100 font-black text-[11px] font-mono">
+                <tr className="divide-x divide-slate-200">
+                  <td colSpan={3} className="px-4 py-3 text-right font-nepali">जम्मा (Total Amount)</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.budget, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.release, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.prevExp, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.thisMonthExp, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.totalExp, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">0</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.netExp, 0).toLocaleString()}</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.balance, 0).toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handlePrintVoucher = (voucher: GoswaraVoucher) => {
     const printWin = window.open('', '', 'width=1000,height=800');
     if (!printWin) return;
@@ -532,7 +1018,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <title>गोश्वारा भौचर - ${voucher.id}</title>
           <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
-             @page { size: A4 landscape; margin: 10mm; } 
+             @page { size: A4 ${printOrientation}; margin: 10mm; } 
              body { font-family: 'Mukta', sans-serif; margin: 0; padding: 10px; font-size: 14px; } 
              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
              .header-center { text-align: center; flex: 1; }
@@ -584,7 +1070,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                  साबिकको फारम नं: १०
                </div>
                <div class="qr-code" style="margin-top: 10px;">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${voucher.id}" style="width: 100%; height: 100%;">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`Voucher ID: ${voucher.id}\nDate: ${voucher.dateBs}\nAmount: ${voucher.totalAmount}\nOrg: ${generalSettings.orgNameNepali}`)}" style="width: 100%; height: 100%;">
                </div>
             </div>
           </div>
@@ -875,7 +1361,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         <head>
           <title>${title}</title>
           <style>
-             @page { size: A4 portrait; margin: 10mm; } 
+             @page { size: A4 ${printOrientation}; margin: 10mm; } 
              body { font-family: 'Mukta', sans-serif; } 
              table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
              th, td { border: 1px solid black; padding: 10px; text-align: left; } 
@@ -1084,6 +1570,513 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   };
 
 
+  const renderBankCashBook = () => {
+    const incomeItems = transactions.filter(t => t.type === 'Income');
+    const paymentItems = payments;
+
+    const mergedItems = [
+      ...incomeItems.map(t => ({
+        id: t.id,
+        dateBs: t.dateBs,
+        remarks: t.remarks,
+        debitBank: t.incomeSource === 'Nagarpalika' ? 0 : (t.amount || 0),
+        debitCash: t.incomeSource === 'Nagarpalika' ? (t.amount || 0) : 0,
+        creditBank: 0,
+        creditCash: 0,
+        budgetExp: 0,
+        checkNo: t.referenceNo || '',
+        programId: t.programId
+      })),
+      ...paymentItems.map(p => {
+        const txn = transactions.find(t => t.id === p.transactionId);
+        return {
+          id: p.id,
+          dateBs: p.dateBs,
+          remarks: p.remarks || txn?.remarks || '',
+          debitBank: 0,
+          debitCash: 0,
+          creditBank: p.paymentMethod === 'Bank' ? p.amount : 0,
+          creditCash: p.paymentMethod === 'Cash' ? p.amount : 0,
+          budgetExp: p.amount,
+          checkNo: '',
+          programId: p.programId
+        };
+      })
+    ].sort((a, b) => a.dateBs.localeCompare(b.dateBs));
+
+    const monthFilteredItems = mergedItems.filter(item => {
+      if (selectedMonth === 'All') return true;
+      const monthPart = item.dateBs.split('/')[1]; // assuming YYYY/MM/DD
+      const monthNum = parseInt(monthPart);
+      // In BS, 01 is Baishakh, 02 is Jestha, etc.
+      return nepaliMonths[monthNum - 1] === selectedMonth;
+    });
+
+    const searchFilteredItems = monthFilteredItems.filter(item => 
+      item.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    let runningBalance = 0;
+    const itemsWithBalance = searchFilteredItems.map(item => {
+      const debit = (item.debitBank || 0) + (item.debitCash || 0);
+      const credit = (item.creditBank || 0) + (item.creditCash || 0);
+      runningBalance += (debit - credit);
+      return { ...item, runningBalance };
+    });
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm gap-4">
+           <div className="flex items-center gap-4">
+             <div>
+                <h3 className="text-lg font-black text-slate-800 font-nepali flex items-center gap-2">
+                  <Book className="text-primary-600" size={20} /> बैंक नगदी किताब (Bank Cash Book)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali">आय-व्यय तथा भुक्तानीको एकिकृत विवरण</p>
+             </div>
+             <div className="h-10 w-[1px] bg-slate-100 hidden md:block"></div>
+             <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-slate-400" />
+                <select 
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold font-nepali focus:ring-2 focus:ring-primary-500 transition-all outline-none"
+                >
+                  <option value="All">सबै महिना (All Months)</option>
+                  {nepaliMonths.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+             </div>
+           </div>
+           
+           <button 
+             onClick={() => {
+               // We pass a title with the month to the print helper if needed
+               handlePrintBankCashBook(itemsWithBalance);
+             }}
+             className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all text-sm shadow-lg shadow-primary-100"
+           >
+             <Printer size={18} /> प्रिन्ट गर्नुहोस् (Print)
+           </button>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px] border-collapse min-w-[1200px]">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="divide-x divide-slate-200">
+                  <th rowSpan={2} className="px-2 py-4 text-center font-bold text-slate-500 uppercase font-nepali">मिति</th>
+                  <th rowSpan={2} className="px-2 py-4 text-center font-bold text-slate-500 uppercase font-nepali">भौचर नं.</th>
+                  <th rowSpan={2} className="px-4 py-4 text-left font-bold text-slate-500 uppercase font-nepali min-w-[200px]">विवरण</th>
+                  <th colSpan={2} className="px-2 py-2 text-center font-bold text-slate-600 uppercase font-nepali border-b bg-emerald-50/50">नगद मौज्दात</th>
+                  <th colSpan={3} className="px-2 py-2 text-center font-bold text-slate-600 uppercase font-nepali border-b bg-sky-50/50">बैंक मौज्दात</th>
+                  <th rowSpan={2} className="px-2 py-4 text-center font-bold text-slate-800 uppercase font-nepali bg-slate-100">बाँकी</th>
+                  <th colSpan={2} className="px-2 py-2 text-center font-bold text-rose-600 uppercase font-nepali border-b bg-rose-50/30">बजेट खर्च</th>
+                  <th colSpan={2} className="px-2 py-2 text-center font-bold text-slate-500 uppercase font-nepali border-b">विविध</th>
+                  <th rowSpan={2} className="px-2 py-4 text-center font-bold text-slate-500 uppercase font-nepali">कैफियत</th>
+                </tr>
+                <tr className="divide-x divide-slate-200">
+                  <th className="px-1 py-2 text-center font-bold text-emerald-700 bg-emerald-50/30">डेबिट</th>
+                  <th className="px-1 py-2 text-center font-bold text-emerald-700 bg-emerald-50/30">क्रेडिट</th>
+                  <th className="px-1 py-2 text-center font-bold text-sky-700 bg-sky-50/30">डेबिट</th>
+                  <th className="px-1 py-2 text-center font-bold text-sky-700 bg-sky-50/30">क्रेडिट</th>
+                  <th className="px-1 py-2 text-center font-bold text-sky-700 bg-sky-50/30 text-[8px]">चेक नं.</th>
+                  
+                  <th className="px-1 py-2 text-center font-bold text-rose-700 bg-rose-50/20 text-[8px]">संकेत</th>
+                  <th className="px-1 py-2 text-center font-bold text-rose-700 bg-rose-50/20">रकम</th>
+                  
+                  <th className="px-1 py-2 text-center font-bold text-slate-500">डेबिट</th>
+                  <th className="px-1 py-2 text-center font-bold text-slate-500">क्रेडिट</th>
+                </tr>
+                <tr className="divide-x divide-slate-100 bg-slate-100/50 text-[8px] text-center italic text-slate-400">
+                  <td className="py-1">१</td><td>२</td><td>३</td><td>४</td><td>५</td><td>६</td><td>७</td><td>८</td><td>९</td><td>१०</td><td>११</td><td>१६</td><td>१७</td><td>१८</td>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {itemsWithBalance.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors divide-x divide-slate-50">
+                    <td className="px-2 py-3 text-center font-mono font-bold text-slate-600">{item.dateBs}</td>
+                    <td className="px-2 py-3 text-center font-mono text-[9px] text-slate-400">{item.id.slice(-6).toUpperCase()}</td>
+                    <td className="px-4 py-3 font-nepali font-medium text-slate-700">{item.remarks}</td>
+                    <td className="px-2 py-3 text-right font-mono text-emerald-600">{item.debitCash > 0 ? item.debitCash.toLocaleString() : '-'}</td>
+                    <td className="px-2 py-3 text-right font-mono text-emerald-600">{item.creditCash > 0 ? item.creditCash.toLocaleString() : '-'}</td>
+                    <td className="px-2 py-3 text-right font-mono text-sky-600">{item.debitBank > 0 ? item.debitBank.toLocaleString() : '-'}</td>
+                    <td className="px-2 py-3 text-right font-mono text-sky-600">{item.creditBank > 0 ? item.creditBank.toLocaleString() : '-'}</td>
+                    <td className="px-1 py-3 text-center font-mono text-[9px] text-slate-400">{item.checkNo || '-'}</td>
+                    <td className="px-2 py-3 text-right font-black font-mono bg-slate-50 text-slate-800">{item.runningBalance.toLocaleString()}</td>
+                    <td className="px-1 py-3 text-center font-mono text-[9px] text-rose-400">{programs.find(p => p.id === item.programId)?.id.slice(0,4) || '-'}</td>
+                    <td className="px-2 py-3 text-right font-bold font-mono text-rose-600">{item.budgetExp > 0 ? item.budgetExp.toLocaleString() : '-'}</td>
+                    <td className="px-2 py-3 text-right font-mono text-slate-300">-</td>
+                    <td className="px-2 py-3 text-right font-mono text-slate-300">-</td>
+                    <td className="px-2 py-3 text-center text-slate-300 text-[10px]">-</td>
+                  </tr>
+                ))}
+                {itemsWithBalance.length === 0 && (
+                  <tr>
+                    <td colSpan={14} className="px-6 py-12 text-center text-slate-400 font-nepali">कुनै विवरण फेला परेन।</td>
+                  </tr>
+                )}
+              </tbody>
+              {itemsWithBalance.length > 0 && (
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200 font-black font-mono">
+                   <tr className="divide-x divide-slate-200">
+                      <td colSpan={3} className="px-4 py-4 text-left font-nepali">यो महिनाको जम्मा (Total)</td>
+                      <td className="px-2 py-4 text-right text-emerald-700">{itemsWithBalance.reduce((sum, i) => sum + (i.debitCash || 0), 0).toLocaleString()}</td>
+                      <td className="px-2 py-4 text-right text-emerald-700">{itemsWithBalance.reduce((sum, i) => sum + (i.creditCash || 0), 0).toLocaleString()}</td>
+                      <td className="px-2 py-4 text-right text-sky-700">{itemsWithBalance.reduce((sum, i) => sum + (i.debitBank || 0), 0).toLocaleString()}</td>
+                      <td className="px-2 py-4 text-right text-sky-700">{itemsWithBalance.reduce((sum, i) => sum + (i.creditBank || 0), 0).toLocaleString()}</td>
+                      <td></td>
+                      <td className="px-2 py-4 text-right bg-slate-100">{runningBalance.toLocaleString()}</td>
+                      <td></td>
+                      <td className="px-2 py-4 text-right text-rose-700">{itemsWithBalance.reduce((sum, i) => sum + (i.budgetExp || 0), 0).toLocaleString()}</td>
+                      <td></td>
+                      <td></td>
+                      <td></td>
+                   </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const toggleUncleared = (id: string) => {
+    setUnclearedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handlePrintBankReconciliation = (bookBalance: number, addItems: any[], lessItems: any[], bankBalance: number) => {
+    const printWin = window.open('', '', 'width=1000,height=800');
+    if (!printWin) return;
+
+    const totalAdd = addItems.reduce((sum, i) => sum + i.amount, 0);
+    const totalLess = lessItems.reduce((sum, i) => sum + i.amount, 0);
+    const adjusted = bookBalance + totalAdd - totalLess;
+    const diff = adjusted - bankBalance;
+
+    const content = `
+    <html>
+      <head>
+        <title>बैंक हिसाब मिलान विवरण</title>
+        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4 portrait; margin: 15mm; }
+          body { font-family: 'Mukta', sans-serif; font-size: 11px; padding: 10px; color: #333; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .org-name { font-size: 18px; font-weight: 800; }
+          .form-meta { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 9px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+          th, td { border: 1px solid black; padding: 6px; text-align: left; }
+          th { background: #f9fafb; text-align: center; font-size: 10px; }
+          .text-right { text-align: right; font-family: monospace; }
+          .font-bold { font-weight: bold; }
+          .section-label { font-weight: 800; padding: 10px 0 5px 0; border-bottom: 1px solid #eee; margin-top: 15px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+          .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
+          .sign-box { text-align: center; width: 200px; border-top: 1px solid black; padding-top: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="form-meta">
+           <div>नेपाल सरकारको छाप</div>
+           <div style="text-align: right;">म.ले.प. फारम न: २१२<br>साविकको फारम न: १५</div>
+        </div>
+        <div class="header">
+          <div>संघ/प्रदेश/स्थानीय तह</div>
+          <div class="org-name">${generalSettings.orgName || 'कार्यालयको नाम'}</div>
+          <div>${generalSettings.address || 'ठेगाना'}</div>
+          <h2 style="margin-top: 10px;">बैंक हिसाब मिलान विवरण</h2>
+          <div>मिति: ${new NepaliDate().format('YYYY/MM/DD')} (महिना: ${selectedMonth})</div>
+        </div>
+
+        <div class="summary-row font-bold" style="background: #f3f4f6;">
+           <span>क. श्रेस्ता अनुसारको मौज्दात रू:</span>
+           <span class="text-right">${bookBalance.toLocaleString()}</span>
+        </div>
+
+        <div class="section-label">ख. जोड्ने (श्रेस्तामा भुक्तानी जनाइएको तर बैंकबाट भुक्तानी हुन बाँकी)</div>
+        <table>
+           <thead>
+              <tr>
+                 <th style="width: 40px;">क्र.सं.</th>
+                 <th style="width: 80px;">मिति</th>
+                 <th>चेक नं./भौचर नं.</th>
+                 <th>विवरण</th>
+                 <th style="width: 120px;">रकम</th>
+              </tr>
+           </thead>
+           <tbody>
+              ${addItems.map((item, idx) => `
+                <tr>
+                   <td style="text-align: center;">${idx + 1}</td>
+                   <td>${item.dateBs}</td>
+                   <td>${item.id.slice(-6).toUpperCase()}</td>
+                   <td>${item.remarks}</td>
+                   <td class="text-right">${item.amount.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+              ${addItems.length === 0 ? '<tr><td colspan="5" style="text-align: center; color: #999;">-</td></tr>' : ''}
+              <tr class="font-bold">
+                 <td colspan="4" style="text-align: right;">जम्मा</td>
+                 <td class="text-right">${totalAdd.toLocaleString()}</td>
+              </tr>
+           </tbody>
+        </table>
+
+        <div class="section-label">ग. घटाउने (श्रेस्तामा आम्दानी जनाई बैंक जम्मा गर्न पठाइएको तर जम्मा हुन बाँकी)</div>
+        <table>
+           <thead>
+              <tr>
+                 <th style="width: 40px;">क्र.सं.</th>
+                 <th style="width: 80px;">मिति</th>
+                 <th>चेक नं./भौचर नं.</th>
+                 <th>विवरण</th>
+                 <th style="width: 120px;">रकम</th>
+              </tr>
+           </thead>
+           <tbody>
+              ${lessItems.map((item, idx) => `
+                <tr>
+                   <td style="text-align: center;">${idx + 1}</td>
+                   <td>${item.dateBs}</td>
+                   <td>${item.id.slice(-6).toUpperCase()}</td>
+                   <td>${item.remarks}</td>
+                   <td class="text-right">${item.amount.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+              ${lessItems.length === 0 ? '<tr><td colspan="5" style="text-align: center; color: #999;">-</td></tr>' : ''}
+              <tr class="font-bold">
+                 <td colspan="4" style="text-align: right;">जम्मा</td>
+                 <td class="text-right">${totalLess.toLocaleString()}</td>
+              </tr>
+           </tbody>
+        </table>
+
+        <div class="summary-row font-bold" style="margin-top: 20px; border-top: 2px solid black;">
+           <span>घ. कायम हुने बैंकको मौज्दात (क+ख-ग) रू:</span>
+           <span class="text-right">${adjusted.toLocaleString()}</span>
+        </div>
+
+        <div class="summary-row">
+           <span>ङ. बैंक स्टेटमेन्ट अनुसारको मौज्दात रकम रू:</span>
+           <span class="text-right">${bankBalance.toLocaleString()}</span>
+        </div>
+
+        <div class="summary-row font-bold">
+           <span>च. फरक रकम रू (घ-ङ):</span>
+           <span class="text-right">${diff.toLocaleString()}</span>
+        </div>
+
+        <div style="margin-top: 20px; font-style: italic;">
+           (फरक रकमको पुष्ट्याई): ..........................................................................................................
+        </div>
+
+        <div class="signatures">
+           <div class="sign-box">
+              पेस गर्नेको हस्ताक्षर<br><br>
+              नाम: ....................<br>
+              दर्जा: ....................<br>
+              मिति: ....................
+           </div>
+           <div class="sign-box">
+              स्वीकृत गर्नेको हस्ताक्षर<br><br>
+              नाम: ....................<br>
+              दर्जा: ....................<br>
+              मिति: ....................
+           </div>
+        </div>
+      </body>
+    </html>`;
+
+    printWin.document.write(content);
+    printWin.document.close();
+    setTimeout(() => printWin.print(), 500);
+  };
+
+  const renderBankReconciliation = () => {
+    const incomeItems = transactions.filter(t => t.type === 'Income');
+    const paymentItems = payments;
+    
+    // Process all historical items to get a true book balance at any point in time
+    const allItemsParsed = [
+      ...incomeItems.map(t => ({ ...t, reconciledType: 'Income', parsedDate: new Date(t.dateBs.replace(/\//g, '-')) })),
+      ...paymentItems.map(p => ({ ...p, reconciledType: 'Payment', parsedDate: new Date(p.dateBs.replace(/\//g, '-')) }))
+    ].sort((a, b) => a.dateBs.localeCompare(b.dateBs));
+
+    // Determine target month index
+    const monthIndex = selectedMonth === 'All' ? 11 : nepaliMonths.indexOf(selectedMonth);
+
+    // Calculate Book Balance up to the end of selected month
+    let currentBookBalance = 0;
+    allItemsParsed.forEach(item => {
+      const parts = item.dateBs.split('/');
+      if (parts.length < 2) return;
+      const mNum = parseInt(parts[1]);
+      const mIdx = mNum - 1;
+
+      if (selectedMonth === 'All' || mIdx <= monthIndex) {
+        if ((item as any).reconciledType === 'Income') {
+          currentBookBalance += (item as any).amount || 0;
+        } else {
+          currentBookBalance -= (item as any).amount || 0;
+        }
+      }
+    });
+
+    // Items specifically from the selected month for selection
+    const monthItems = allItemsParsed.filter(item => {
+      if (selectedMonth === 'All') return true;
+      const mNum = parseInt(item.dateBs.split('/')[1]);
+      return nepaliMonths[mNum - 1] === selectedMonth;
+    });
+
+    const addItems = allItemsParsed.filter(item => (item as any).reconciledType === 'Payment' && unclearedIds.includes(item.id));
+    const lessItems = allItemsParsed.filter(item => (item as any).reconciledType === 'Income' && unclearedIds.includes(item.id));
+
+    const totalAdd = addItems.reduce((sum, i) => sum + (i as any).amount, 0);
+    const totalLess = lessItems.reduce((sum, i) => sum + (i as any).amount, 0);
+    const adjustedBalance = currentBookBalance + totalAdd - totalLess;
+    const difference = adjustedBalance - bankStatementBalance;
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+           <div>
+              <h2 className="text-xl font-black text-slate-800 font-nepali flex items-center gap-2">
+                <CheckSquare className="text-indigo-600" size={24} /> बैंक हिसाब मिलान विवरण (Reconciliation)
+              </h2>
+              <p className="text-sm text-slate-500 font-nepali">श्रेस्ता र बैंक स्टेटमेन्ट बीचको हिसाब मिलान विवरण</p>
+           </div>
+           <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                <Calendar size={16} className="text-slate-400 ml-2" />
+                <select 
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent border-none text-xs font-bold font-nepali outline-none min-w-[120px]"
+                >
+                  <option value="All">सबै महिना</option>
+                  {nepaliMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <button 
+                onClick={() => handlePrintBankReconciliation(currentBookBalance, addItems, lessItems, bankStatementBalance)}
+                className="bg-primary-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all shadow-lg shadow-primary-100"
+              >
+                <Printer size={18} /> प्रिन्ट विवरण
+              </button>
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+           <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2 mb-4">गणना सारांश (Summary)</h3>
+                 
+                 <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="font-nepali text-slate-600 text-sm">(क) श्रेस्ता अनुसारको मौज्दात:</span>
+                    <span className="font-black font-mono text-slate-800">रू {currentBookBalance.toLocaleString()}</span>
+                 </div>
+
+                 <div className="flex justify-between items-center p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                    <span className="font-nepali text-emerald-700 font-bold text-sm">(ख) जोड्ने (Add Items):</span>
+                    <span className="font-black font-mono text-emerald-700">रू {totalAdd.toLocaleString()}</span>
+                 </div>
+
+                 <div className="flex justify-between items-center p-4 bg-rose-50/50 rounded-xl border border-rose-100">
+                    <span className="font-nepali text-rose-700 font-bold text-sm">(ग) घटाउने (Less Items):</span>
+                    <span className="font-black font-mono text-rose-700">रू {totalLess.toLocaleString()}</span>
+                 </div>
+
+                 <div className="flex justify-between items-center p-4 bg-primary-50 rounded-xl border-2 border-primary-100">
+                    <span className="font-nepali text-primary-800 font-black">(घ) कायम हुने बैंक मौज्दात:</span>
+                    <span className="font-black font-mono text-primary-800 text-lg">रू {adjustedBalance.toLocaleString()}</span>
+                 </div>
+
+                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex justify-between items-center">
+                       <span className="font-nepali text-slate-700 font-bold text-sm">(ङ) बैंक मौज्दात (Statement):</span>
+                       <div className="relative">
+                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">रू</span>
+                         <input 
+                           type="number"
+                           value={bankStatementBalance}
+                           onChange={(e) => setBankStatementBalance(Number(e.target.value))}
+                           className="w-32 bg-white border border-slate-300 rounded-lg px-2 py-1.5 pl-6 font-mono text-right font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
+                         />
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className={`flex justify-between items-center p-4 rounded-xl border-2 transition-all ${difference === 0 ? 'bg-emerald-50 border-emerald-300' : 'bg-rose-50 border-rose-300'}`}>
+                    <span className="font-nepali font-bold">(च) फरक रकम (घ-ङ):</span>
+                    <span className={`font-black font-mono text-lg ${difference === 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      रू {difference.toLocaleString()}
+                    </span>
+                 </div>
+              </div>
+           </div>
+
+           <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                 <div>
+                    <h3 className="font-black text-slate-700 font-nepali text-sm uppercase tracking-wider">कारोवार छनौट (Select Uncleared Items)</h3>
+                    <p className="text-[10px] text-slate-400 font-nepali">बैंक स्टेटमेन्टमा नदेखिएका आइटमहरू यहाँ छनौट गर्नुहोस्</p>
+                 </div>
+                 <div className="px-3 py-1 bg-white rounded-lg border border-slate-200 text-[10px] font-bold text-slate-500">
+                    Selected: {unclearedIds.length}
+                 </div>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                 <table className="w-full text-xs text-left border-collapse">
+                    <thead className="sticky top-0 bg-white shadow-sm z-10">
+                       <tr className="bg-slate-50 text-slate-400 font-bold text-[10px] uppercase tracking-wider divide-x divide-slate-100">
+                          <th className="p-3 text-center w-12">Select</th>
+                          <th className="p-3">मिति</th>
+                          <th className="p-3">विवरण (Remarks)</th>
+                          <th className="p-3 text-right">रकम</th>
+                          <th className="p-3 text-center">प्रकार</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                       {monthItems.map(item => (
+                          <tr 
+                            key={item.id} 
+                            onClick={() => toggleUncleared(item.id)}
+                            className={`cursor-pointer transition-all duration-200 divide-x divide-slate-50 ${unclearedIds.includes(item.id) ? 'bg-indigo-50/50 hover:bg-indigo-50' : 'hover:bg-slate-50'}`}
+                          >
+                             <td className="p-3 text-center">
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${unclearedIds.includes(item.id) ? 'bg-indigo-600 border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-300 bg-white'}`}>
+                                   {unclearedIds.includes(item.id) && <X size={12} className="text-white rotate-45" />}
+                                </div>
+                             </td>
+                             <td className="p-3 font-mono text-slate-500 text-[10px]">{item.dateBs}</td>
+                             <td className="p-3 font-nepali font-medium text-slate-700">{item.remarks}</td>
+                             <td className="p-3 text-right font-black font-mono text-slate-800">रू {item.amount?.toLocaleString()}</td>
+                             <td className="p-3 text-center">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${(item as any).reconciledType === 'Payment' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                  {(item as any).reconciledType === 'Payment' ? 'OUT' : 'IN'}
+                                </span>
+                             </td>
+                          </tr>
+                       ))}
+                       {monthItems.length === 0 && (
+                          <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-nepali italic">यस महिनाको कुनै कारोवार फेला परेन।</td></tr>
+                       )}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderJournalVouchers = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1099,7 +2092,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
              </tr>
            </thead>
            <tbody>
-             {goswaraVouchers.map(v => (
+             {vouchers.map(v => (
                <tr key={v.id} className="border-b">
                   <td className="px-6 py-4">{v.dateBs}</td>
                   <td className="px-6 py-4 font-mono text-xs">{v.id}</td>
@@ -1132,6 +2125,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     if (activeTab === 'dashboard') return renderDashboard();
     if (activeTab === 'reports') return renderReports();
     if (activeTab === 'journal_voucher') return renderJournalVouchers();
+    if (activeTab === 'bank_cash_book') return renderBankCashBook();
+    if (activeTab === 'bank_reconciliation') return renderBankReconciliation();
+    if (activeTab === 'kharcha_fatbari') return renderKharchaFatbari();
 
     return (
       <div className="space-y-6">
@@ -1191,6 +2187,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">प्रकार</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
                   </>}
+                  {activeTab === 'payments' && paymentSubTab === 'pending' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण (Particulars)</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">फर्म / पार्टी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">बाँकी रकम</th>
+                  </>}
+                  {activeTab === 'payments' && paymentSubTab === 'history' && <>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">पार्टी</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali text-right">रकम</th>
+                  </>}
                   {activeTab === 'payment_requests' && <>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">कार्यक्रम</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase font-nepali">विवरण (Payment Result)</th>
@@ -1208,7 +2214,36 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {activeTab === 'programs' ? (() => {
+                {activeTab === 'payments' && paymentSubTab === 'pending' ? pendingPayments.map((item: any) => (
+                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                      <td className="px-6 py-3 whitespace-nowrap">
+                          <span className="text-[10px] text-slate-300 block font-mono">{item.id.slice(0, 10)}</span>
+                          <span className="text-xs font-bold text-slate-600 font-mono tracking-tight">{item.dateBs}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.remarks}</td>
+                      <td className="px-6 py-4 text-xs font-nepali">
+                         {item.partyName || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-right font-black font-mono text-sm text-rose-600">रू {item.balance.toLocaleString()}</td>
+                      <td className="px-4 py-4 text-right">
+                         <div className="flex items-center justify-end gap-2">
+                           <button 
+                             onClick={() => {
+                               setFormType('payment');
+                               setPaymentSelectedProgram(item.programId);
+                               setPaymentSelectedTransaction(item.id);
+                               setEditingItem(null);
+                               setTxnFormDate(today);
+                               setShowForm(true);
+                             }}
+                             className="bg-primary-600 text-white px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-primary-700 transition-all shadow-sm"
+                           >
+                             भुक्तानी (Pay)
+                           </button>
+                         </div>
+                      </td>
+                   </tr>
+                )) : activeTab === 'programs' ? (() => {
                   const groupedPrograms: Record<string, any[]> = {};
                   const sources = ['Nagarpalika', 'Wada', 'Internal', 'Other', 'Unknown'];
                   
@@ -1286,7 +2321,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                              </td>
                              <td className="px-6 py-3 text-sm font-black text-slate-900 border-l border-slate-50 text-right">
                                 <div className="text-[9px] text-slate-400">माग: रू {(item.amountRequested || 0).toLocaleString()}</div>
-                                <div>रू {(item.amountPaid || 0).toLocaleString()}</div>
+                                <div className="text-emerald-700">रू {(item.amountPaid || 0).toLocaleString()}</div>
                              </td>
                              <td className="px-6 py-3 text-center">
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold whitespace-nowrap ${
@@ -1337,7 +2372,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                               <td className="px-6 py-4 font-mono text-sm">{item.panNumber}</td>
                               <td className="px-6 py-4 font-mono text-sm text-right">रू {item.totalContractAmount.toLocaleString()}</td>
                               <td className="px-6 py-4 font-mono text-sm text-emerald-600 text-right">रू {(item.totalPaidAmount || 0).toLocaleString()}</td>
-                              <td className="px-6 py-4 font-black font-mono text-sm text-right text-rose-600 hidden lg:table-cell">रू {(item.totalContractAmount - (item.totalPaidAmount || 0)).toLocaleString()}</td>
                             </>
                           );
                         })()}
@@ -1368,11 +2402,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           </td>
                         </>}
 
-                        {activeTab === 'payments' && (() => {
+                        {activeTab === 'payments' && paymentSubTab === 'history' && (() => {
                            const txn = transactions.find(t => t.id === item.transactionId);
                            return (
                              <>
-                               <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{parties.find(p => p.id === item.partyId)?.name}</td>
+                               <td className="px-6 py-4 text-sm font-bold text-slate-600 font-nepali">{item.partyId === 'manual' ? item.manualPartyName : (parties.find(p => p.id === item.partyId)?.name || 'Unknown')}</td>
                                <td className="px-6 py-4 text-xs font-nepali">
                                  <div className="font-bold text-slate-700">{programs.find(p => p.id === item.programId)?.name}</div>
                                  {txn && <div className="text-slate-400 mt-1 italic">({txn.remarks})</div>}
@@ -1407,11 +2441,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                              >
                                 <Edit size={16} />
                              </button>
-                             {activeTab === 'payments' && (() => {
-                                 const voucher = goswaraVouchers.find(v => v.transactionId === item.transactionId);
+                             {(activeTab === 'payments' || activeTab === 'transactions') && (() => {
+                                 const searchId = activeTab === 'payments' ? (item.transactionId || item.id) : item.id;
+                                 const voucher = vouchers.find(v => 
+                                   v.transactionId === searchId || v.id === searchId || v.id === `JV-${searchId}`
+                                 );
                                  return voucher ? (
                                    <button 
                                      onClick={() => handlePrintVoucher(voucher)}
+                                     title="Goswara Voucher Print"
                                      className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
                                    >
                                       <Printer size={16} />
@@ -1426,6 +2464,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    else if (activeTab === 'vendors') onDeleteParty(item.id);
                                    else if (activeTab === 'transactions') onDeleteTransaction(item.id);
                                    else if (activeTab === 'payments') onDeletePayment(item.id, item.amount, item.partyId, item.programId);
+                                   else if (activeTab === 'programs') onDeleteProgram(item.id);
                                  }
                                }}
                                className="p-1 text-rose-600 hover:bg-rose-50 rounded transition-colors"
@@ -1457,11 +2496,28 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <p className="text-slate-500 font-medium ml-11">Manage budgets, revenue, and expenditures.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
-              <Filter className="text-slate-400" size={18} />
-              <div className="text-right">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Fiscal Year</p>
-                <p className="text-sm font-black text-slate-800 leading-tight">{currentFiscalYear}</p>
+            <div className="bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg">
+                <button 
+                  onClick={() => setPrintOrientation('portrait')}
+                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${printOrientation === 'portrait' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Portrait
+                </button>
+                <button 
+                  onClick={() => setPrintOrientation('landscape')}
+                  className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all ${printOrientation === 'landscape' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Landscape
+                </button>
+              </div>
+              <div className="h-4 w-[1px] bg-slate-200"></div>
+              <div className="flex items-center gap-3">
+                <Filter className="text-slate-400" size={16} />
+                <div className="text-right">
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">Fiscal Year</p>
+                  <p className="text-xs font-black text-slate-800 leading-tight">{currentFiscalYear}</p>
+                </div>
               </div>
             </div>
             {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'payment_requests' && activeTab !== 'allowances' && (
@@ -1531,6 +2587,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
               { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
               { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
+              { id: 'bank_cash_book', label: 'CashBook (बैंक नगदी किताब)', icon: <Book size={18} /> },
+              { id: 'bank_reconciliation', label: 'Reconciliation (हिसाब मिलान)', icon: <CheckSquare size={18} /> },
+              { id: 'kharcha_fatbari', label: 'Fatbari (खर्चको फाँटबारी)', icon: <FileText size={18} /> },
               { id: 'journal_voucher', label: 'Journal (गोश्वारा भौचर)', icon: <ClipboardList size={18} /> },
               { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
             ].map(tab => (
@@ -1562,6 +2621,41 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             </div>
           )}
         </div>
+
+        {activeTab === 'payments' && (
+          <div className="flex items-center justify-between bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm mb-6 -mt-4">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setPaymentSubTab('history')}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${paymentSubTab === 'history' ? 'bg-primary-50 text-primary-600' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                भुक्तानी इतिहास (History)
+              </button>
+              <button 
+                onClick={() => setPaymentSubTab('pending')}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${paymentSubTab === 'pending' ? 'bg-rose-50 text-rose-600' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                भुक्तानी हुन बाँकी (Pending)
+              </button>
+            </div>
+            {paymentSubTab === 'pending' && (
+               <button 
+                onClick={handlePrintPendingPayments}
+                className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-xs"
+              >
+                 <Printer size={14} /> प्रिन्ट विवरण (Print Pending)
+               </button>
+            )}
+            {paymentSubTab === 'history' && (
+               <button 
+                onClick={handlePrintPaymentHistory}
+                className="bg-slate-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all text-xs"
+              >
+                 <Printer size={14} /> प्रिन्ट इतिहास (Print History)
+               </button>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         {renderTable()}

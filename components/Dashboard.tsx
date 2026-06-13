@@ -15,7 +15,7 @@ import { ref, onValue } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
 import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
-import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord } from '../types/financeTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
 import { Conference } from './Conference';
@@ -157,6 +157,7 @@ interface ExtendedDashboardProps extends DashboardProps {
   listedParties: ListedParty[];
   financialTransactions: FinancialTransaction[];
   partyPayments: PartyPaymentRecord[];
+  goswaraVouchers: GoswaraVoucher[];
   paymentRequests: PaymentRequest[];
   allowances: AllowanceRecord[];
   onSaveFinancialProgram: (p: any) => void;
@@ -228,6 +229,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onUpdateReadNotifications,
   activeOrgName, onSetActiveOrgName, allUsers = [],
   financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
+  goswaraVouchers = [],
   paymentRequests = [], allowances = [],
   onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
   onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
@@ -1150,6 +1152,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           parties={listedParties || []}
           transactions={financialTransactions || []}
           payments={partyPayments || []}
+          vouchers={goswaraVouchers || []}
           paymentRequests={paymentRequests || []}
           allowances={allowances || []}
           onSaveProgram={onSaveFinancialProgram}
