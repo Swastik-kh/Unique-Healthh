@@ -1046,13 +1046,24 @@ const App: React.FC = () => {
           const payeeName = payment.partyId === 'manual' ? payment.manualPartyName : (listedParties.find(p => p.id === payment.partyId)?.name || 'Payee');
           
           voucherEntries.push({ accountName: `${payment.remarks || 'Payment'} (${payeeName})`, debit: payment.amount });
-          voucherEntries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount - (payment.tdsAmount || 0) - (payment.sasukarAmount || 0) });
           
+          const netPayment = payment.amount - (payment.tdsAmount || 0) - (payment.sasukarAmount || 0);
+          voucherEntries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: netPayment });
+          
+          let deductionDetails = "";
           if (payment.tdsAmount > 0) {
               voucherEntries.push({ accountName: 'TDS Payable', credit: payment.tdsAmount });
+              deductionDetails += ` TDS: रू ${payment.tdsAmount.toLocaleString()}`;
           }
           if (payment.sasukarAmount > 0) {
               voucherEntries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: payment.sasukarAmount });
+              deductionDetails += `${deductionDetails ? ',' : ''} सा.सु कर: रू ${payment.sasukarAmount.toLocaleString()}`;
+          }
+
+          // Build a detailed narration (Narration/व्यहोरा)
+          let detailedRemarks = `${payment.remarks || 'भुक्तानी'}`;
+          if (deductionDetails) {
+            detailedRemarks += ` (जम्मा: रू ${payment.amount.toLocaleString()}, कट्टा: ${deductionDetails}, खुद भुक्तानी: रू ${netPayment.toLocaleString()})`;
           }
 
           const voucher: GoswaraVoucher = {
@@ -1062,7 +1073,7 @@ const App: React.FC = () => {
               entries: voucherEntries,
               totalAmount: payment.amount,
               fiscalYear: payment.fiscalYear,
-              remarks: payment.remarks
+              remarks: detailedRemarks
           };
           await set(getOrgRef(`goswaraVouchers/${voucher.id}`), { ...voucher });
 
