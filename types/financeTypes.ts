@@ -43,9 +43,12 @@ export interface FinancialTransaction {
 export interface PartyPaymentRecord {
   id: string;
   partyId: string;
+  manualPartyName?: string;
   programId: string;
   transactionId?: string;
   amount: number;
+  tdsAmount?: number;
+  sasukarAmount?: number;
   dateBs: string;
   fiscalYear: string;
   paymentMethod: string;

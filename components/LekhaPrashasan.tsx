@@ -77,6 +77,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [formType, setFormType] = useState<'program' | 'party' | 'transaction' | 'payment' | 'nagarpalika_payment' | 'allowance'>('program');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [paymentSelectedProgram, setPaymentSelectedProgram] = useState('');
+  const [isManualParty, setIsManualParty] = useState(false);
   
   // Date Filters for Reports
   const today = new NepaliDate().format('YYYY-MM-DD');
@@ -348,37 +349,32 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const formData = new FormData(e.currentTarget);
     const amount = Number(formData.get('amount'));
     const partyId = formData.get('partyId') as string;
+    const manualPartyName = formData.get('manualPartyName') as string;
     const programId = formData.get('programId') as string;
     const transactionId = formData.get('transactionId') as string;
 
+    const applyTds = formData.get('applyTds') === 'on';
+    const amountWithoutVAT = amount; // Simplified for payments
+    const tdsAmount = applyTds ? amount * 0.015 : 0;
+    const applySasukar = formData.get('applySasukar') === 'on';
+    const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+
     onSavePayment({
-      partyId,
+      partyId: isManualParty ? 'manual' : partyId,
+      manualPartyName: isManualParty ? manualPartyName : undefined,
       programId,
       transactionId,
       amount,
+      tdsAmount,
+      sasukarAmount,
       dateBs: txnFormDate,
       fiscalYear: currentFiscalYear,
       paymentMethod: formData.get('method') as string,
       remarks: formData.get('remarks') as string
     });
 
-    // Also record as an expense transaction
-    // const party = parties.find(p => p.id === partyId);
-    // const program = programs.find(p => p.id === programId);
-    // onSaveTransaction({
-    //   dateBs: txnFormDate,
-    //   dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
-    //   category: 'Program Payment',
-    //   type: 'Expense',
-    //   amount,
-    //   remarks: `Payment to ${party?.name} for ${program?.name}`,
-    //   partyId,
-    //   programId,
-    //   fiscalYear: currentFiscalYear,
-    //   referenceNo: generateReferenceNo()
-    // });
-
     setShowForm(false);
+    setIsManualParty(false);
   };
 
   const handlePrintParties = () => {
@@ -1672,13 +1668,33 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           onChange={(val) => setTxnFormDate(val)}
                         />
                       </div>
-                      <Select 
-                        label="पार्टी (Party)" 
-                        name="partyId" 
-                        required 
-                        defaultValue={editingItem?.partyId}
-                        options={[...parties].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))} 
-                      />
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">पार्टी (Party)</label>
+                          <label className="flex items-center gap-2 text-xs font-bold text-primary-600 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={isManualParty} 
+                              onChange={(e) => setIsManualParty(e.target.checked)}
+                              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span>Manual Entry?</span>
+                          </label>
+                        </div>
+                        {isManualParty ? (
+                          <Input label="पार्टी/व्यक्तिको नाम (Party/Name)" name="manualPartyName" required placeholder="व्यक्तिको नाम लेख्नुहोस्" />
+                        ) : (
+                          <Select 
+                            label="" 
+                            name="partyId" 
+                            required 
+                            defaultValue={editingItem?.partyId}
+                            options={[...parties].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: `${p.name} (Baki: रू ${p.totalContractAmount - (p.totalPaidAmount || 0)})`, value: p.id }))} 
+                          />
+                        )}
+                      </div>
+
                       <Select 
                         label="कार्यक्रम (Program)" 
                         name="programId" 
@@ -1701,6 +1717,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         />
                       )}
                       <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
+                      
+                      <div className="flex gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" name="applyTds" className="rounded border-slate-300 text-primary-600" />
+                          <span className="text-sm font-bold text-slate-700">TDS काट्ने? (1.5%)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" name="applySasukar" className="rounded border-slate-300 text-primary-600" />
+                          <span className="text-sm font-bold text-slate-700">सा.सु. कर काट्ने? (1%)</span>
+                        </label>
+                      </div>
+
                       <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} />
                     </>
                   )}

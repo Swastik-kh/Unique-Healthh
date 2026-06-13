@@ -1026,10 +1026,12 @@ const App: React.FC = () => {
           await set(getOrgRef(`partyPayments/${id}`), { ...payment, id });
           
           // Update party's total paid amount
-          const party = listedParties.find(p => p.id === payment.partyId);
-          if (party) {
-              const newTotalPaid = (party.totalPaidAmount || 0) + payment.amount;
-              await update(getOrgRef(`listedParties/${payment.partyId}`), { totalPaidAmount: newTotalPaid });
+          if (payment.partyId !== 'manual') {
+              const party = listedParties.find(p => p.id === payment.partyId);
+              if (party) {
+                  const newTotalPaid = (party.totalPaidAmount || 0) + payment.amount;
+                  await update(getOrgRef(`listedParties/${payment.partyId}`), { totalPaidAmount: newTotalPaid });
+              }
           }
 
           // Update program's spent amount
@@ -1040,10 +1042,19 @@ const App: React.FC = () => {
           }
 
           // Automatically create Goswara Voucher for payment
-          const voucherEntries: JournalEntry[] = [
-              { accountName: `${payment.remarks}`, debit: payment.amount },
-              { accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount },
-          ];
+          const voucherEntries: JournalEntry[] = [];
+          const payeeName = payment.partyId === 'manual' ? payment.manualPartyName : (listedParties.find(p => p.id === payment.partyId)?.name || 'Payee');
+          
+          voucherEntries.push({ accountName: `${payment.remarks || 'Payment'} (${payeeName})`, debit: payment.amount });
+          voucherEntries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: payment.amount - (payment.tdsAmount || 0) - (payment.sasukarAmount || 0) });
+          
+          if (payment.tdsAmount > 0) {
+              voucherEntries.push({ accountName: 'TDS Payable', credit: payment.tdsAmount });
+          }
+          if (payment.sasukarAmount > 0) {
+              voucherEntries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: payment.sasukarAmount });
+          }
+
           const voucher: GoswaraVoucher = {
               id: `GV-PAY-${id}`,
               dateBs: payment.dateBs,
