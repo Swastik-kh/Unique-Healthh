@@ -1769,11 +1769,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     filteredLogBookRecords.map((record, index) => (
                       <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-3 border-r-2 border-slate-900 text-center font-bold font-nepali">{toNepaliDigits(index + 1)}</td>
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali">{record.dateBs}</td>
+                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali">{toNepaliDigits(record.dateBs)}</td>
                         <td className="p-3 border-r-2 border-slate-900 font-semibold font-nepali">{record.ambulanceNo}</td>
                         <td className="p-3 border-r-2 border-slate-900">
                           <p className="font-bold text-slate-950 text-sm">{record.patientName}</p>
-                          {record.phone && <p className="text-[10px] text-slate-500 print:hidden">संपर्क: {record.phone}</p>}
+                          {record.phone && <p className="text-[10px] text-slate-500 print:hidden">संपर्क: {toNepaliDigits(record.phone)}</p>}
                         </td>
                         <td className="p-3 border-r-2 border-slate-900">
                           <span className="font-medium text-amber-800">{record.startLocation}</span> ➔ <span className="font-medium text-teal-800">{record.destination}</span>
@@ -1818,13 +1818,13 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
                 <p className="font-bold text-slate-900">{assignedAmbulanceUser?.fullName || 'तयार गर्ने'}</p>
                 <p className="text-xs text-slate-500">{assignedAmbulanceUser?.designation || ''}</p>
-                <p className="text-xs text-slate-500">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
+                <p className="text-xs text-slate-500">मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</p>
               </div>
               <div className="space-y-1">
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
                 <p className="font-bold text-slate-900">{currentUser?.fullName || 'स्वीकृत गर्ने अधिकारी'}</p>
                 <p className="text-xs text-slate-500">{currentUser?.designation || 'प्रशासकीय प्रमुख'}</p>
-                <p className="text-xs text-slate-500">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
+                <p className="text-xs text-slate-500">मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</p>
               </div>
             </div>
           </div>
