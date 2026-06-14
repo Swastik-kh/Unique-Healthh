@@ -1684,8 +1684,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
               {/* Print Meta Values */}
               <div className="text-xs text-slate-700 font-bold flex flex-wrap items-center justify-center gap-6 mt-4 pt-2 border-t border-dashed border-slate-300">
-                <span>आर्थिक वर्ष: {currentFiscalYear}</span>
-                <span>छापिएको मिति: {new NepaliDate().format('YYYY-MM-DD')}</span>
+                <span>आर्थिक वर्ष: {toNepaliDigits(currentFiscalYear)}</span>
+                <span>छापिएको मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</span>
                 {logBookMonthFilter && (
                   <span className="border border-slate-300 px-2 py-0.5 rounded">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
                 )}
