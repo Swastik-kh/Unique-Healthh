@@ -1884,6 +1884,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         onSaveKarmachariTalimRecord={onSaveKarmachariTalimRecord!}
         onDeleteKarmachariTalimRecord={onDeleteKarmachariTalimRecord!}
         users={allUsers}
+        currentUser={currentUser!}
       />;
       case 'bida_abedan': return <BidaAbedan 
         currentUser={currentUser} 

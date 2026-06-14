@@ -11,12 +11,13 @@ interface TalimByabasthapanProps {
   onSaveKarmachariTalimRecord: (record: KarmachariTalimRecord) => void;
   onDeleteKarmachariTalimRecord: (id: string) => void;
   users: User[];
+  currentUser: User;
 }
 
 export const TalimByabasthapan: React.FC<TalimByabasthapanProps> = ({ 
     talimEntries, onSaveTalim, onDeleteTalim, 
     karmachariTalimRecords, onSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord,
-    users 
+    users, currentUser 
 }) => {
   const [name, setName] = useState('');
   const [duration, setDuration] = useState('');
@@ -29,6 +30,8 @@ export const TalimByabasthapan: React.FC<TalimByabasthapanProps> = ({
   
   const [karmachariFilter, setKarmachariFilter] = useState('');
   const [talimFilter, setTalimFilter] = useState('');
+
+  const orgUsers = currentUser.role === 'SUPER_ADMIN' ? users : users.filter(u => u.organizationName === currentUser.organizationName);
 
   const handleAdd = () => {
     if (name && duration) {
@@ -65,10 +68,10 @@ export const TalimByabasthapan: React.FC<TalimByabasthapanProps> = ({
   const getUserName = (id: string) => users.find(u => u.id === id)?.fullName || 'Unknown';
   const getTalimName = (id: string) => talimEntries.find(t => t.id === id)?.name || 'Unknown';
 
-  const filteredUsers = users.filter(u => u.fullName.toLowerCase().includes(karmachariFilter.toLowerCase()));
+  const filteredUsers = orgUsers.filter(u => u.fullName.toLowerCase().includes(karmachariFilter.toLowerCase()));
   const filteredTalims = talimEntries.filter(t => t.name.toLowerCase().includes(talimFilter.toLowerCase()));
 
-  const employeeTrainingStatus = users
+  const employeeTrainingStatus = orgUsers
       .filter(u => u.fullName.toLowerCase().includes(karmachariFilter.toLowerCase()))
       .map(u => {
           const record = karmachariTalimRecords.find(r => r.userId === u.id && r.talimId === selectedFilterTalimId);
