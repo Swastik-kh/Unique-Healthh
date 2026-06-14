@@ -617,7 +617,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }).sort((a,b) => {
       return (a.dateBs || '').localeCompare(b.dateBs || '');
     });
-  }, [ambulanceExpenseRecords, selectedFiscalYear, selectedMonth, searchQuery]);
+  }, [ambulanceExpenseRecords, selectedFiscalYear, selectedMonth, searchQuery, selectedAmbulanceExpenseCategory]);
 
   // Totals calculations
   const totalAmountSum = useMemo(() => {
@@ -1252,7 +1252,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     कुल खर्च रकम
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
-                    कैफियत
+                    कैफियत / विवरण
                   </th>
                 </tr>
               </thead>
