@@ -580,3 +580,39 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   placeholder?: string;
   helperText?: string;
 }
+
+export interface SentLetter {
+  id: string;
+  chalaniId: string;
+  dispatchNumber: string;
+  date: string;
+  sender: string;
+  recipient: string;
+  recipientAddress?: string;
+  subject: string;
+  remarks?: string;
+  letterContent?: string;
+  tableData?: ChalaniTable;
+  fiscalYear: string;
+  recipientOrgName: string;
+  sentAt: string;
+  senderSettings?: OrganizationSettings;
+}
+
+export interface ReceivedLetter {
+  id: string;
+  chalaniId: string;
+  dispatchNumber: string;
+  date: string;
+  sender: string;
+  recipient: string;
+  recipientAddress?: string;
+  subject: string;
+  letterContent?: string;
+  tableData?: ChalaniTable;
+  fiscalYear: string;
+  senderOrgName: string;
+  receivedAt: string;
+  isRead?: boolean;
+  senderSettings?: OrganizationSettings;
+}

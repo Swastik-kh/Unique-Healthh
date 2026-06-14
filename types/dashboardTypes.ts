@@ -1,5 +1,5 @@
 
-import { User, OrganizationSettings, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SubscriptionRequest, ServiceSeekerRecord } from './coreTypes';
+import { User, OrganizationSettings, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SubscriptionRequest, ServiceSeekerRecord, SentLetter, ReceivedLetter } from './coreTypes';
 import { 
   MagFormEntry, PurchaseOrderEntry, IssueReportEntry, FirmEntry, QuotationEntry, 
   InventoryItem, Store, StockEntryRequest, DakhilaPratibedanEntry, ReturnEntry, 
@@ -146,6 +146,11 @@ export interface DashboardProps {
   chalaniEntries: Chalani[];
   onSaveChalani: (chalani: Chalani) => void;
   onDeleteChalani: (id: string) => void;
+  
+  sentLetters: SentLetter[];
+  receivedLetters: ReceivedLetter[];
+  onSendLetter: (senderOrg: string, recipientOrg: string, chalani: Chalani) => Promise<boolean>;
+  onDeleteReceivedLetter: (id: string) => void;
 
   bharmanAdeshEntries: BharmanAdeshEntry[];
   onSaveBharmanAdesh: (entry: BharmanAdeshEntry) => void;

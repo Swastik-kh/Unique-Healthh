@@ -9,7 +9,7 @@ import {
   User, OrganizationSettings, MagFormEntry, RabiesPatient, PurchaseOrderEntry, 
   IssueReportEntry, FirmEntry, QuotationEntry, InventoryItem, Store, StockEntryRequest, 
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
-  DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry,
+  DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest,
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
@@ -77,6 +77,8 @@ const App: React.FC = () => {
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
   const [dartaEntries, setDartaEntries] = useState<Darta[]>([]);
   const [chalaniEntries, setChalaniEntries] = useState<Chalani[]>([]);
+  const [sentLetters, setSentLetters] = useState<SentLetter[]>([]);
+  const [receivedLetters, setReceivedLetters] = useState<ReceivedLetter[]>([]);
   const [bharmanAdeshEntries, setBharmanAdeshEntries] = useState<BharmanAdeshEntry[]>([]);
   const [garbhawotiRecords, setGarbhawotiRecords] = useState<GarbhawotiRecord[]>([]);
   const [prasutiRecords, setPrasutiRecords] = useState<PrasutiRecord[]>([]);
@@ -288,6 +290,8 @@ const App: React.FC = () => {
     setupOrgListener('leaveBalances', setLeaveBalances);
     setupOrgListener('dartaEntries', setDartaEntries);
     setupOrgListener('chalaniEntries', setChalaniEntries);
+    setupOrgListener('sentLetters', setSentLetters);
+    setupOrgListener('receivedLetters', setReceivedLetters);
     setupOrgListener('bharmanAdeshEntries', setBharmanAdeshEntries);
     setupOrgListener('garbhawotiRecords', setGarbhawotiRecords);
     setupOrgListener('prasutiRecords', setPrasutiRecords);
@@ -415,6 +419,64 @@ const App: React.FC = () => {
       await set(getOrgRef(`chalaniEntries/${chalani.id}`), sanitized);
     } catch (error) { 
       alert("चलानी सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleSendLetter = async (senderOrg: string, recipientOrg: string, chalani: Chalani): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const sanitizedChalani = JSON.parse(JSON.stringify(chalani));
+      const recordId = `${chalani.id}_to_${sanitizeOrgName(recipientOrg)}`;
+      
+      // Check for duplicate
+      const senderSafeName = sanitizeOrgName(senderOrg);
+      const snapshot = await get(ref(db, `orgData/${senderSafeName}/sentLetters/${recordId}`));
+      if (snapshot.exists()) {
+        alert("यो पत्र यो संस्थामा पहिले नै पठाइसकिएको छ!");
+        return false;
+      }
+
+      const sentItem = {
+        ...sanitizedChalani,
+        id: recordId,
+        chalaniId: chalani.id,
+        recipientOrgName: recipientOrg,
+        sentAt: new Date().toISOString(),
+        senderSettings: generalSettings
+      };
+      
+      const receivedItem = {
+        ...sanitizedChalani,
+        id: recordId,
+        chalaniId: chalani.id,
+        senderOrgName: senderOrg,
+        receivedAt: new Date().toISOString(),
+        isRead: false,
+        senderSettings: generalSettings
+      };
+      
+      // Save in sender's local sentLetters list
+      await set(ref(db, `orgData/${senderSafeName}/sentLetters/${recordId}`), sentItem);
+      
+      // Save in receiver's local receivedLetters list
+      const receiverSafeName = sanitizeOrgName(recipientOrg);
+      await set(ref(db, `orgData/${receiverSafeName}/receivedLetters/${recordId}`), receivedItem);
+      
+      alert(`पत्र सफलतापूर्वक "${recipientOrg}" मा पठाइयो!`);
+      return true;
+    } catch (error) {
+      console.error("Error sending letter:", error);
+      alert("पत्र पठाउन सकिएन।");
+      return false;
+    }
+  };
+
+  const handleDeleteReceivedLetter = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`receivedLetters/${id}`));
+    } catch (error) {
+      alert("प्राप्त पत्र हटाउन सकिएन।");
     }
   };
 
@@ -1501,6 +1563,10 @@ const App: React.FC = () => {
     chalaniEntries={chalaniEntries}
     onSaveChalani={handleSaveChalani}
     onDeleteChalani={handleDeleteChalani}
+    sentLetters={sentLetters}
+    receivedLetters={receivedLetters}
+    onSendLetter={handleSendLetter}
+    onDeleteReceivedLetter={handleDeleteReceivedLetter}
     bharmanAdeshEntries={bharmanAdeshEntries}
     onSaveBharmanAdesh={handleSaveBharmanAdesh}
     onDeleteBharmanAdesh={handleDeleteBharmanAdesh}

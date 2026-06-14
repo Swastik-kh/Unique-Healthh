@@ -8,14 +8,14 @@ import {
   BookOpen, Book, Archive, RotateCcw, Wrench, Scroll, BarChart3,
   Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
   Eye, ShieldAlert, ChevronLeft, Send, MapPin, Search, HeartHandshake,
-  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck
+  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical
 } from 'lucide-react';
 import { APP_NAME, FISCAL_YEARS } from '../constants';
 import { db } from '../firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, get } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
-import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord } from '../types';
+import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
@@ -206,6 +206,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   leaveBalances = [], onSaveLeaveBalance,
   dartaEntries = [], onSaveDarta, onDeleteDarta,
   chalaniEntries = [], onSaveChalani, onDeleteChalani,
+  sentLetters = [], receivedLetters = [], onSendLetter, onDeleteReceivedLetter,
   bharmanAdeshEntries = [], onSaveBharmanAdesh, onDeleteBharmanAdesh,
   garbhawotiRecords = [], onSaveGarbhawotiRecord, onDeleteGarbhawotiRecord,
   prasutiRecords = [], onSavePrasutiRecord, onDeletePrasutiRecord,
@@ -273,6 +274,12 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const [editingChalani, setEditingChalani] = useState<Chalani | null>(null);
   const [dartaSearchQuery, setDartaSearchQuery] = useState('');
   const [chalaniSearchQuery, setChalaniSearchQuery] = useState('');
+  const [dartaActiveSubTab, setDartaActiveSubTab] = useState<'registered' | 'received'>('registered');
+  const [chalaniActiveSubTab, setChalaniActiveSubTab] = useState<'dispatched' | 'sent'>('dispatched');
+  const [selectedChalaniForSend, setSelectedChalaniForSend] = useState<Chalani | null>(null);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [recipientOrgForSend, setRecipientOrgForSend] = useState('');
+  const [isSendingInProgress, setIsSendingInProgress] = useState(false);
   
   const [previewDakhila, setPreviewDakhila] = useState<DakhilaPratibedanEntry | null>(null);
   
@@ -288,6 +295,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
     if (!currentUser) return false;
     return ['ADMIN', 'SUPER_ADMIN', 'STOREKEEPER', 'ACCOUNT'].includes(currentUser.role);
   }, [currentUser]);
+
+  const systemOrganizations = useMemo(() => {
+    return Array.from(new Set(allUsers.map(u => u.organizationName).filter(Boolean)));
+  }, [allUsers]);
+
+  const selectableOrganizations = useMemo(() => {
+    if (!currentUser) return [];
+    return systemOrganizations.filter(o => o !== currentUser.organizationName);
+  }, [systemOrganizations, currentUser]);
 
   useEffect(() => {
     if (mainContentRef.current) mainContentRef.current.scrollTo(0, 0);
@@ -1082,10 +1098,21 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
             printWindow.document.close();
         };
 
+        const sentForYear = (sentLetters || []).filter(s => s.fiscalYear === currentFiscalYear);
+        const sortedSent = [...sentForYear].sort((a,b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+        const filteredSent = sortedSent.filter(s => 
+            s.dispatchNumber.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            s.subject.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            s.recipientOrgName.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            s.sender.toLowerCase().includes(chalaniSearchQuery.toLowerCase())
+        );
+
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800">चलानी सूची (आ.व. {currentFiscalYear})</h2>
+            <div className="flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">चलानी व्यवस्थापन (आ.व. {currentFiscalYear})</h2>
+                </div>
                 <div className="flex items-center gap-4">
                     <div className="relative w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -1097,80 +1124,241 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         />
                     </div>
-                    {currentUser?.hasSaveAccess !== false && (
+                    {chalaniActiveSubTab === 'dispatched' && currentUser?.hasSaveAccess !== false && (
                       <button onClick={() => {
                         setEditingChalani(null);
                         setIsChalaniFormOpen(true);
-                      }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
+                      }} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700 whitespace-nowrap">
                           <Send size={18} /> नयाँ चलानी
                       </button>
                     )}
                 </div>
             </div>
-            <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                <table className="w-full text-sm text-left responsive-table sticky-header">
-                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="p-3">चलानी नं.</th>
-                      <th className="p-3">मिति</th>
-                      <th className="p-3">पाउने</th>
-                      <th className="p-3">बिषय</th>
-                      <th className="p-3">पठाउने</th>
-                      <th className="p-3 text-right">कार्य</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredChalaniEntries.map(c => (
-                      <tr key={c.id}>
-                        <td className="p-3 font-bold" data-label="चलानी नं.">{c.dispatchNumber}</td>
-                        <td className="p-3" data-label="मिति">{c.date}</td>
-                        <td className="p-3" data-label="पाउने">{c.recipient}</td>
-                        <td className="p-3" data-label="बिषय">{c.subject}</td>
-                        <td className="p-3" data-label="पठाउने">{c.sender}</td>
-                        <td className="p-3 text-right space-x-1" data-label="कार्य">
-                            <button 
-                              onClick={() => {
-                                setEditingChalani(c);
-                                setIsChalaniFormOpen(true);
-                              }}
-                              className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <FileText size={16} />
-                            </button>
-                            <button 
-                              onClick={() => handlePrintLetter(c)}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Print Letter"
-                            >
-                              <Printer size={16} />
-                            </button>
-                            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+
+            {/* Sub Tabs Selector */}
+            <div className="flex border-b border-slate-200 gap-4">
+              <button
+                onClick={() => setChalaniActiveSubTab('dispatched')}
+                className={`pb-2 px-1 font-semibold text-sm border-b-2 transition-colors ${
+                  chalaniActiveSubTab === 'dispatched'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                चलानी दर्तासूची (Dispatched Letters)
+              </button>
+              <button
+                onClick={() => setChalaniActiveSubTab('sent')}
+                className={`pb-2 px-1 font-semibold text-sm border-b-2 transition-colors ${
+                  chalaniActiveSubTab === 'sent'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                पठाइएका पत्रहरूको रेकर्ड (Sent Letters)
+              </button>
+            </div>
+
+            {chalaniActiveSubTab === 'dispatched' ? (
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-sm text-left responsive-table sticky-header">
+                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="p-3">चलानी नं.</th>
+                        <th className="p-3">मिति</th>
+                        <th className="p-3">पाउने</th>
+                        <th className="p-3">बिषय</th>
+                        <th className="p-3">पठाउने</th>
+                        <th className="p-3 text-right">कार्य</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredChalaniEntries.map(c => (
+                        <tr key={c.id}>
+                          <td className="p-3 font-bold" data-label="चलानी नं.">{c.dispatchNumber}</td>
+                          <td className="p-3" data-label="मिति">{c.date}</td>
+                          <td className="p-3" data-label="पाउने">{c.recipient}</td>
+                          <td className="p-3" data-label="बिषय">{c.subject}</td>
+                          <td className="p-3" data-label="पठाउने">{c.sender}</td>
+                          <td className="p-3 text-right space-x-1 whitespace-nowrap" data-label="कार्य">
                               <button 
                                 onClick={() => {
-                                  if (window.confirm('के तपाईं यो चलानी हटाउन चाहनुहुन्छ?')) {
-                                    onDeleteChalani(c.id);
-                                  }
+                                  setEditingChalani(c);
+                                  setIsChalaniFormOpen(true);
                                 }}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete"
+                                className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                title="Edit"
                               >
-                                <Trash2 size={16} />
+                                <FileText size={16} />
                               </button>
-                            )}
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredChalaniEntries.length === 0 && (
-                        <tr>
-                            <td colSpan={5} className="p-8 text-center text-slate-500 italic">कुनै चलानी भेटिएन।</td>
+                              <button 
+                                onClick={() => handlePrintLetter(c)}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Print Letter"
+                              >
+                                <Printer size={16} />
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSelectedChalaniForSend(c);
+                                  setRecipientOrgForSend('');
+                                  setIsSendModalOpen(true);
+                                }}
+                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="स्थानान्तरण गर्नुहोस् (Transfer Letter)"
+                              >
+                                <MoreVertical size={16} />
+                              </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm('के तपाईं यो चलानी हटाउन चाहनुहुन्छ?')) {
+                                      onDeleteChalani(c.id);
+                                    }
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                          </td>
                         </tr>
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                      {filteredChalaniEntries.length === 0 && (
+                          <tr>
+                              <td colSpan={6} className="p-8 text-center text-slate-500 italic">कुनै चलानी भेटिएन।</td>
+                          </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-sm text-left responsive-table sticky-header">
+                      <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="p-3">चलानी नं.</th>
+                        <th className="p-3">पठाएको मिति</th>
+                        <th className="p-3">पाउने संस्था</th>
+                        <th className="p-3">बिषय</th>
+                        <th className="p-3">पठाउने</th>
+                        <th className="p-3 text-right">कार्य</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredSent.map(s => (
+                        <tr key={s.id}>
+                          <td className="p-3 font-bold" data-label="चलानी नं.">{s.dispatchNumber}</td>
+                          <td className="p-3" data-label="पठाएको मिति">
+                            {new Date(s.sentAt).toLocaleDateString() || s.date}
+                          </td>
+                          <td className="p-3" data-label="पाउने संस्था">
+                            <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-semibold">
+                              {s.recipientOrgName}
+                            </span>
+                          </td>
+                          <td className="p-3" data-label="बिषय">{s.subject}</td>
+                          <td className="p-3" data-label="पठाउने">{s.sender}</td>
+                          <td className="p-3 text-right space-x-1 animate-in fade-in" data-label="कार्य">
+                              <button 
+                                onClick={() => handlePrintLetter(s)}
+                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                title="Print Letter"
+                              >
+                                <Printer size={16} />
+                              </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredSent.length === 0 && (
+                          <tr>
+                              <td colSpan={6} className="p-8 text-center text-slate-500 italic">कुनै पनि पठाइएको पत्र भेटिएन।</td>
+                          </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Modal for Transferring/Sending Letter */}
+            {isSendModalOpen && selectedChalaniForSend && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md relative animate-in zoom-in-95">
+                        <button 
+                          onClick={() => setIsSendModalOpen(false)}
+                          className="absolute right-4 top-4 text-slate-400 hover:text-slate-650"
+                        >
+                          <X size={20} />
+                        </button>
+                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                          <Send size={20} className="text-emerald-600" /> पत्र स्थानान्तरण / चलानी पठाउनुहोस्
+                        </h3>
+                        
+                        <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs text-slate-600 space-y-1">
+                          <p><strong>चलानी नं.:</strong> {selectedChalaniForSend.dispatchNumber}</p>
+                          <p><strong>विषय:</strong> {selectedChalaniForSend.subject}</p>
+                          <p><strong>पाउने:</strong> {selectedChalaniForSend.recipient}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-slate-700 mb-2">पठाउने संस्था छनोट गर्नुहोस् (Select Recipient Org):</label>
+                            <select 
+                              value={recipientOrgForSend}
+                              onChange={(e) => setRecipientOrgForSend(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                            >
+                              <option value="">-- संस्था छनोट गर्नुहोस् --</option>
+                              {selectableOrganizations.map(org => (
+                                <option key={org} value={org}>{org}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-3">
+                          <button 
+                            onClick={() => setIsSendModalOpen(false)}
+                            className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 text-sm font-medium"
+                          >
+                            रद्द गर्नुहोस्
+                          </button>
+                          <button 
+                            disabled={!recipientOrgForSend || isSendingInProgress}
+                            onClick={async () => {
+                              setIsSendingInProgress(true);
+                              try {
+                                const success = await onSendLetter(
+                                  currentUser!.organizationName,
+                                  recipientOrgForSend,
+                                  selectedChalaniForSend
+                                );
+                                if (success) {
+                                  setIsSendModalOpen(false);
+                                }
+                              } catch (e) {
+                                console.error(e);
+                              } finally {
+                                setIsSendingInProgress(false);
+                              }
+                            }}
+                            className={`px-4 py-2 text-white rounded-lg text-sm font-semibold shadow-sm ${
+                              !recipientOrgForSend || isSendingInProgress 
+                                ? 'bg-slate-300 cursor-not-allowed' 
+                                : 'bg-emerald-600 hover:bg-emerald-700'
+                            }`}
+                          >
+                            {isSendingInProgress ? 'पठाउँदै...' : 'पठाउनुहोस्'}
+                          </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isChalaniFormOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto animate-in fade-in">
@@ -1229,10 +1417,197 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
             d.recipient.toLowerCase().includes(dartaSearchQuery.toLowerCase())
         );
 
+        const toNepaliDigits = (num: string | number) => {
+            if (num === undefined || num === null) return '';
+            const numbers = {
+                '0': '०', '1': '१', '2': '२', '3': '३', '4': '४',
+                '5': '५', '6': '६', '7': '७', '8': '८', '9': '९'
+            };
+            return num.toString().split('').map(x => numbers[x as keyof typeof numbers] || x).join('');
+        };
+
+        const receivedForYear = (receivedLetters || []).filter(r => r.fiscalYear === currentFiscalYear);
+        const sortedReceived = [...receivedForYear].sort((a,b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+        const filteredReceived = sortedReceived.filter(r => 
+            r.dispatchNumber.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            r.subject.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            r.senderOrgName.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            r.sender.toLowerCase().includes(dartaSearchQuery.toLowerCase())
+        );
+
+        const handlePrintReceivedLetter = async (receivedLetter: ReceivedLetter) => {
+            let senderSettings = receivedLetter.senderSettings;
+            if (!senderSettings) {
+                try {
+                    const senderSafeName = (receivedLetter.senderOrgName || '').trim().replace(/[.#$[\]]/g, "_");
+                    const snap = await get(ref(db, `orgData/${senderSafeName}/settings`));
+                    if (snap.exists()) {
+                        senderSettings = snap.val();
+                    }
+                } catch (error) {
+                    console.error("Error loading sender organization settings:", error);
+                }
+            }
+
+            const evaluatedTable = receivedLetter.tableData ? evaluateTableData(receivedLetter.tableData.rows, true) : null;
+            
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return;
+
+            const orgName = senderSettings?.orgNameNepali || receivedLetter.senderOrgName;
+            const subTitle1 = senderSettings?.subTitleNepali || '';
+            const subTitle2 = senderSettings?.subTitleNepali2 || '';
+            const subTitle3 = senderSettings?.subTitleNepali3 || '';
+            const subTitle4 = senderSettings?.subTitleNepali4 || '';
+            const logo = senderSettings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
+            const provinceLogo = senderSettings?.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
+            
+            const phoneVal = senderSettings?.phone || '';
+            const emailVal = senderSettings?.email || '';
+            const websiteVal = senderSettings?.website || '';
+
+            const letterHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Received Letter - ${receivedLetter.dispatchNumber}</title>
+                    <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+                    <style>
+                        @page { size: A4; margin: 15mm 15mm 20mm 15mm; }
+                        body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 10px; }
+                        .header-main { display: flex; align-items: start; margin-bottom: 20px; }
+                        .header-section { margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+                        .logo { width: 130px; height: 130px; object-fit: contain; }
+                        .org-details { flex: 1; text-align: center; }
+                        .org-name { font-size: 28px; font-weight: 800; color: #b91c1c; margin: 0; }
+                        .org-sub { font-size: 16px; font-weight: 600; margin: 0; }
+                        .org-address { font-size: 13px; margin-top: 5px; }
+                        
+                        .meta-row { display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: 600; }
+                        .recipient-box { margin-bottom: 40px; }
+                        .subject-line { text-align: center; font-size: 18px; font-weight: 800; text-decoration: underline; margin-bottom: 40px; }
+                        .content { text-align: justify; white-space: pre-wrap; margin-bottom: 20px; font-size: 16px; padding-bottom: 10px; text-indent: 50px; }
+                        .letter-table { width: 100%; border-collapse: collapse; margin-top: 5px; margin-bottom: 30px; page-break-inside: auto; }
+                        .letter-table tr { page-break-inside: avoid; page-break-after: auto; }
+                        .letter-table th, .letter-table td { border: 1px solid #333; padding: 10px; text-align: left; }
+                        .letter-table th { font-weight: bold; text-align: center; }
+                        .tapashil-label { font-size: 17px; font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
+                        .footer { display: flex; justify-content: flex-end; page-break-inside: avoid; }
+                        .signature-box { text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px; }
+                        .footer-info { 
+                            position: fixed;
+                            bottom: -15px;
+                            left: 0;
+                            right: 0;
+                            height: 40px;
+                            text-align: center;
+                            font-size: 12.5px;
+                            font-weight: bold;
+                            color: #475569;
+                            border-top: 1.5px solid #cbd5e1;
+                            padding-top: 8px;
+                            background: white;
+                            width: 100%;
+                        }
+                        @media print {
+                            body { margin-bottom: 60px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-section">
+                        <div class="header-main">
+                            <img class="logo" src="${logo}" />
+                            <div class="org-details">
+                                <h1 class="org-name">${orgName}</h1>
+                                ${subTitle1 ? `<p class="org-sub">${subTitle1}</p>` : ''}
+                                ${subTitle2 ? `<p class="org-sub">${subTitle2}</p>` : ''}
+                                ${subTitle3 ? `<p class="org-sub">${subTitle3}</p>` : ''}
+                                ${subTitle4 ? `<p class="org-sub">${subTitle4}</p>` : ''}
+                            </div>
+                            <img class="logo" src="${provinceLogo}" />
+                        </div>
+                        <div class="meta-row" style="margin-bottom: 0;">
+                            <span>चलानी नम्बर: ${toNepaliDigits(receivedLetter.dispatchNumber)}</span>
+                            <span>मिति: ${toNepaliDigits(receivedLetter.date)}</span>
+                        </div>
+                    </div>
+
+                    <div class="recipient-box">
+                        <p>श्री ${receivedLetter.recipient},</p>
+                        ${receivedLetter.recipientAddress ? `<p>${receivedLetter.recipientAddress}</p>` : ''}
+                    </div>
+
+                    <div class="subject-line">
+                        विषय: ${receivedLetter.subject}
+                    </div>
+
+                    <div class="content">
+${receivedLetter.letterContent || 'विषयसम्बन्धमा जानकारी गराइन्छ।'}
+                    </div>
+
+                    ${receivedLetter.tableData && evaluatedTable ? `
+                        <div class="tapashil-label">तपशिल:</div>
+                        <table class="letter-table">
+                            <thead>
+                                <tr>
+                                    ${receivedLetter.tableData.headers.map((h: string, i: number) => `
+                                        <th style="width: ${receivedLetter.tableData?.columnWidths?.[i] || 'auto'}px">
+                                            ${toNepaliDigits(h)}
+                                        </th>
+                                    `).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${evaluatedTable.map((row: string[], rIdx: number) => `
+                                    <tr style="height: ${receivedLetter.tableData?.rowHeights?.[rIdx] || 'auto'}px">
+                                        ${row.map((cell: string, cIdx: number) => `
+                                            <td style="width: ${receivedLetter.tableData?.columnWidths?.[cIdx] || 'auto'}px">
+                                                ${cell}
+                                            </td>
+                                        `).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : ''}
+
+                    <div class="footer" style="margin-top: ${receivedLetter.tableData ? '75px' : '35px'};">
+                        <div class="signature-box">
+                            <p><strong>(${receivedLetter.sender})</strong></p>
+                            <p>प्रेषक संस्था अधिकृत</p>
+                        </div>
+                    </div>
+
+                    <div class="footer-info">
+                        ${[
+                            phoneVal ? `फोन नम्बर: ${phoneVal}` : '',
+                            emailVal ? `ईमेल: ${emailVal}` : '',
+                            websiteVal ? `वेबसाइट: ${websiteVal}` : ''
+                        ].filter(Boolean).join(' &nbsp;|&nbsp; ')}
+                    </div>
+
+                    <script>
+                        window.onload = () => {
+                            setTimeout(() => {
+                                window.print();
+                            }, 500);
+                        };
+                    </script>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(letterHtml);
+            printWindow.document.close();
+        };
+
         return (
           <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-800">दर्ता सूची (आ.व. {currentFiscalYear})</h2>
+            <div className="flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">दर्ता व्यवस्थापन (आ.व. {currentFiscalYear})</h2>
+                </div>
                 <div className="flex items-center gap-4">
                     <div className="relative w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -1244,60 +1619,151 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         />
                     </div>
-                    {currentUser?.hasSaveAccess !== false && (
-                      <button onClick={() => setIsDartaFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700">
+                    {dartaActiveSubTab === 'registered' && currentUser?.hasSaveAccess !== false && (
+                      <button onClick={() => setIsDartaFormOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700 whitespace-nowrap">
                           <FilePlus size={18} /> नयाँ दर्ता
                       </button>
                     )}
                 </div>
             </div>
-            <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                <table className="w-full text-sm text-left responsive-table sticky-header">
-                  <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="p-3">दर्ता नं.</th>
-                      <th className="p-3">मिति</th>
-                      <th className="p-3">पठाउने</th>
-                      <th className="p-3">बिषय</th>
-                      <th className="p-3">बुझ्ने</th>
-                      {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && <th className="p-3 text-right">कार्य</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredDartaEntries.map(d => (
-                      <tr key={d.id}>
-                        <td className="p-3 font-bold" data-label="दर्ता नं.">{d.registrationNumber}</td>
-                        <td className="p-3" data-label="मिति">{d.date}</td>
-                        <td className="p-3" data-label="पठाउने">{d.sender}</td>
-                        <td className="p-3" data-label="बिषय">{d.subject}</td>
-                        <td className="p-3" data-label="बुझ्ने">{d.recipient}</td>
-                        {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
-                          <td className="p-3 text-right" data-label="कार्य">
-                            <button 
-                              onClick={() => {
-                                if (window.confirm('के तपाईं यो दर्ता हटाउन चाहनुहुन्छ?')) {
-                                  onDeleteDarta(d.id);
-                                }
-                              }}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {filteredDartaEntries.length === 0 && (
-                        <tr>
-                            <td colSpan={5} className="p-8 text-center text-slate-500 italic">कुनै दर्ता भेटिएन।</td>
-                        </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+
+            {/* Sub Tabs Selector */}
+            <div className="flex border-b border-slate-200 gap-4">
+              <button
+                onClick={() => setDartaActiveSubTab('registered')}
+                className={`pb-2 px-1 font-semibold text-sm border-b-2 transition-colors ${
+                  dartaActiveSubTab === 'registered'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                दर्ता भएका पत्रहरू (Registered Letters)
+              </button>
+              <button
+                onClick={() => setDartaActiveSubTab('received')}
+                className={`pb-2 px-1 font-semibold text-sm border-b-2 transition-colors relative ${
+                  dartaActiveSubTab === 'received'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                सङ्घ संस्थाबाट प्राप्त पत्र सूची (Received Letters)
+                {(filteredReceived || []).length > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-primary-600 text-white rounded-full">
+                    {filteredReceived.length}
+                  </span>
+                )}
+              </button>
             </div>
+
+            {dartaActiveSubTab === 'registered' ? (
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-sm text-left responsive-table sticky-header">
+                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="p-3">दर्ता नं.</th>
+                        <th className="p-3">मिति</th>
+                        <th className="p-3">पठाउने</th>
+                        <th className="p-3">बिषय</th>
+                        <th className="p-3">बुझ्ने</th>
+                        {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && <th className="p-3 text-right">कार्य</th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredDartaEntries.map(d => (
+                        <tr key={d.id}>
+                          <td className="p-3 font-bold" data-label="दर्ता नं.">{d.registrationNumber}</td>
+                          <td className="p-3" data-label="मिति">{d.date}</td>
+                          <td className="p-3" data-label="पठाउने">{d.sender}</td>
+                          <td className="p-3" data-label="बिषय">{d.subject}</td>
+                          <td className="p-3" data-label="बुझ्ने">{d.recipient}</td>
+                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                            <td className="p-3 text-right" data-label="कार्य">
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm('के तपाईं यो दर्ता हटाउन चाहनुहुन्छ?')) {
+                                    onDeleteDarta(d.id);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                      {filteredDartaEntries.length === 0 && (
+                          <tr>
+                              <td colSpan={6} className="p-8 text-center text-slate-500 italic">कुनै दर्ता भेटिएन।</td>
+                          </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-sm text-left responsive-table sticky-header">
+                    <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="p-3">मूल चलानी नं.</th>
+                        <th className="p-3">पठाउने संस्था</th>
+                        <th className="p-3">प्राप्त मिति</th>
+                        <th className="p-3">पठाउने प्रेषक</th>
+                        <th className="p-3">बिषय</th>
+                        <th className="p-3 text-right">कार्य</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredReceived.map(r => (
+                        <tr key={r.id}>
+                          <td className="p-3 font-bold text-primary-600" data-label="मूल चलानी नं.">{r.dispatchNumber}</td>
+                          <td className="p-3" data-label="पठाउने संस्था">
+                            <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-semibold">
+                              {r.senderOrgName}
+                            </span>
+                          </td>
+                          <td className="p-3" data-label="प्राप्त मिति">{new Date(r.receivedAt).toLocaleDateString() || r.date}</td>
+                          <td className="p-3" data-label="पठाउने प्रेषक">{r.sender}</td>
+                          <td className="p-3" data-label="बिषय">{r.subject}</td>
+                          <td className="p-3 text-right space-x-1" data-label="कार्य">
+                            <button 
+                              onClick={() => handlePrintReceivedLetter(r)}
+                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="प्रिन्ट गर्नुहोस् (Print Received Document)"
+                            >
+                              <Printer size={16} />
+                            </button>
+                            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                              <button 
+                                onClick={() => {
+                                  if (window.confirm('के तपाईं यो प्राप्त पत्र सूचीबाट हटाउन चाहनुहुन्छ?')) {
+                                    onDeleteReceivedLetter(r.id);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete Received Letter"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredReceived.length === 0 && (
+                          <tr>
+                              <td colSpan={6} className="p-8 text-center text-slate-500 italic">कुनै नयाँ प्राप्त पत्रहरू भटिएन।</td>
+                          </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {isDartaFormOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-start justify-center p-4 overflow-y-auto animate-in fade-in">
@@ -1316,7 +1782,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                                 onSaveDarta(newDarta);
                                 setIsDartaFormOpen(false);
                                 alert('दर्ता सफलतापूर्वक सुरक्षित गरियो!');
-                            }}
+                             }}
                             onCancel={() => setIsDartaFormOpen(false)}
                         />
                         <button onClick={() => setIsDartaFormOpen(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
