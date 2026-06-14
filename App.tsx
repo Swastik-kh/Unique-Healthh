@@ -224,9 +224,9 @@ const App: React.FC = () => {
 
     const safeOrgName = sanitizeOrgName(activeOrgName);
     
-    // If 'All' is selected, we need to fetch data from all managed organizations
+    const allUniqueOrgs = Array.from(new Set(allUsers.map(u => u.organizationName).filter(Boolean)));
     const isAllOrgs = activeOrgName === 'All';
-    const targetOrgs = isAllOrgs ? managedOrgs : [activeOrgName];
+    const targetOrgs = (currentUser.role === 'HEALTH_SECTION') ? allUniqueOrgs : (isAllOrgs ? managedOrgs : [activeOrgName]);
 
     const unsubscribes: Unsubscribe[] = [];
 
@@ -313,7 +313,15 @@ const App: React.FC = () => {
     setupOrgListener('ambulanceRecords', setAmbulanceRecords);
     setupOrgListener('ambulanceExpenseRecords', setAmbulanceExpenseRecords);
     setupOrgListener('ipdRecords', setIpdRecords);
-    setupOrgListener('talimEntries', setTalimEntries);
+    // Global Talim Listener
+    const globalTalimRef = ref(db, 'globalData/talimEntries');
+    const unsubGlobalTalim = onValue(globalTalimRef, (snap) => {
+        const data = snap.val();
+        const talims = data ? Object.keys(data).map(key => ({ ...data[key], id: key })) : [];
+        setTalimEntries(talims);
+    });
+    unsubscribes.push(unsubGlobalTalim);
+
     setupOrgListener('karmachariTalimRecords', setKarmachariTalimRecords);
     setupOrgListener('itemList', setItemList);
 
@@ -526,7 +534,7 @@ const App: React.FC = () => {
   const handleSaveTalim = async (talim: Talim) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`talimEntries/${talim.id}`), talim);
+      await set(ref(db, `globalData/talimEntries/${talim.id}`), talim);
     } catch (error) {
       alert("तालिम विवरण सुरक्षित गर्न सकिएन।");
     }
@@ -535,7 +543,7 @@ const App: React.FC = () => {
   const handleDeleteTalim = async (id: string) => {
     if (!currentUser) return;
     try {
-      await remove(getOrgRef(`talimEntries/${id}`));
+      await remove(ref(db, `globalData/talimEntries/${id}`));
     } catch (error) {
       alert("तालिम विवरण हटाउन सकिएन।");
     }
