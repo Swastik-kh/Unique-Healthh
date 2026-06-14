@@ -1816,12 +1816,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <div className="space-y-1">
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
                 <p className="font-bold text-slate-900">{assignedAmbulanceUser?.fullName || 'तयार गर्ने'}</p>
+                <p className="text-xs text-slate-500">{assignedAmbulanceUser?.designation || ''}</p>
                 <p className="text-xs text-slate-500">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
               </div>
               <div className="space-y-1">
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
                 <p className="font-bold text-slate-900">{adminUser?.fullName || 'स्वीकृत गर्ने अधिकारी'}</p>
-                <p className="text-xs text-slate-500">मिति: ........................</p>
+                <p className="text-xs text-slate-500">{adminUser?.designation || 'प्रशासकीय प्रमुख'}</p>
+                <p className="text-xs text-slate-500">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
               </div>
             </div>
           </div>
