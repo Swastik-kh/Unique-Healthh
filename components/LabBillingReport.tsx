@@ -59,9 +59,6 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }
   }, []);
 
-  const preparerName = currentUser?.fullName || currentUser?.username || '-';
-  const preparerDesignation = currentUser?.designation || '-';
-
   const adminUser = useMemo(() => {
     if (!users || users.length === 0) return null;
     // Find admin for current organization first
@@ -93,6 +90,30 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedService, setSelectedService] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
+
+  const preparerName = useMemo(() => {
+      let userId: string | undefined;
+      if (reportSource === 'Sewa') {
+        userId = generalSettings.sewaBillingUserId;
+      } else if (reportSource === 'Ambulance') {
+        userId = generalSettings.ambulanceSewaUserId;
+      }
+      
+      const assignedUser = users.find(u => u.id === userId);
+      return assignedUser ? assignedUser.fullName : (currentUser?.fullName || currentUser?.username || '-');
+  }, [reportSource, generalSettings, users, currentUser]);
+
+  const preparerDesignation = useMemo(() => {
+      let userId: string | undefined;
+      if (reportSource === 'Sewa') {
+        userId = generalSettings.sewaBillingUserId;
+      } else if (reportSource === 'Ambulance') {
+        userId = generalSettings.ambulanceSewaUserId;
+      }
+      
+      const assignedUser = users.find(u => u.id === userId);
+      return assignedUser ? assignedUser.designation : (currentUser?.designation || '-');
+  }, [reportSource, generalSettings, users, currentUser]);
 
   // Map service name and sub-tests to their high-level category
   const serviceCategoryMap = useMemo(() => {

@@ -110,6 +110,8 @@ export interface OrganizationSettings {
   subscriptionExpiryDate?: string;
   medicineMappings?: Record<string, string[]>;
   customStandardMedicineNames?: string[];
+  sewaBillingUserId?: string;
+  ambulanceSewaUserId?: string;
 }
 
 export interface SubscriptionRequest {

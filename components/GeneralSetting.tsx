@@ -9,9 +9,10 @@ interface GeneralSettingProps {
     currentUser: UserType;
     settings: OrganizationSettings;
     onUpdateSettings: (settings: OrganizationSettings) => void;
+    users: UserType[];
 }
 
-export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, settings, onUpdateSettings }) => {
+export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, settings, onUpdateSettings, users }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
@@ -314,6 +315,20 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 <div className="grid md:grid-cols-2 gap-6">
                     <Select label="सक्रिय आर्थिक वर्ष" options={FISCAL_YEARS} value={localSettings.activeFiscalYear} onChange={(e) => handleChange('activeFiscalYear', e.target.value)} icon={<Calendar size={16} />} />
                     <Input label="डिफल्ट VAT दर (%)" type="number" value={localSettings.defaultVatRate} onChange={(e) => handleChange('defaultVatRate', e.target.value)} icon={<Percent size={16} />} />
+                </div>
+                <div className="grid md:grid-cols-2 gap-6 mt-6">
+                    <Select 
+                      label="सेवा बिलिङ प्रतिवेदन तयार गर्ने" 
+                      options={users.map(u => ({ id: u.id, label: u.fullName, value: u.id }))} 
+                      value={localSettings.sewaBillingUserId || ''} 
+                      onChange={(e) => handleChange('sewaBillingUserId', e.target.value)} 
+                    />
+                    <Select 
+                      label="एम्बुलेन्स सेवा प्रतिवेदन तयार गर्ने" 
+                      options={users.map(u => ({ id: u.id, label: u.fullName, value: u.id }))} 
+                      value={localSettings.ambulanceSewaUserId || ''} 
+                      onChange={(e) => handleChange('ambulanceSewaUserId', e.target.value)} 
+                    />
                 </div>
             </div>
         </div>
