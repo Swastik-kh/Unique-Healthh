@@ -1376,6 +1376,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                                     id: editingChalani ? editingChalani.id : Date.now().toString(),
                                     dispatchNumber: editingChalani ? editingChalani.dispatchNumber : nextDispatchNumber,
                                     fiscalYear: editingChalani ? editingChalani.fiscalYear : currentFiscalYear,
+                                    senderDesignation: editingChalani?.senderDesignation || currentUser?.designation || 'अधिकृत',
                                     ...chalaniData,
                                 };
                                 onSaveChalani(finalChalani);
@@ -1581,7 +1582,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                     <div class="footer" style="margin-top: ${receivedLetter.tableData ? '75px' : '35px'};">
                         <div class="signature-box">
                             <p><strong>(${receivedLetter.sender})</strong></p>
-                            <p>प्रेषक संस्था अधिकृत</p>
+                            <p>${receivedLetter.senderDesignation || 'प्रेषक संस्था अधिकृत'}</p>
                         </div>
                     </div>
 

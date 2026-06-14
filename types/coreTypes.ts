@@ -196,6 +196,7 @@ export interface Chalani {
   recipientAddress?: string;
   subject: string;
   sender: string;
+  senderDesignation?: string;
   remarks?: string;
   letterContent?: string;
   tableData?: ChalaniTable;
@@ -587,6 +588,7 @@ export interface SentLetter {
   dispatchNumber: string;
   date: string;
   sender: string;
+  senderDesignation?: string;
   recipient: string;
   recipientAddress?: string;
   subject: string;
@@ -605,6 +607,7 @@ export interface ReceivedLetter {
   dispatchNumber: string;
   date: string;
   sender: string;
+  senderDesignation?: string;
   recipient: string;
   recipientAddress?: string;
   subject: string;

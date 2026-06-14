@@ -442,7 +442,8 @@ const App: React.FC = () => {
         chalaniId: chalani.id,
         recipientOrgName: recipientOrg,
         sentAt: new Date().toISOString(),
-        senderSettings: generalSettings
+        senderSettings: generalSettings,
+        senderDesignation: chalani.senderDesignation || currentUser?.designation || 'अधिकृत'
       };
       
       const receivedItem = {
@@ -452,7 +453,8 @@ const App: React.FC = () => {
         senderOrgName: senderOrg,
         receivedAt: new Date().toISOString(),
         isRead: false,
-        senderSettings: generalSettings
+        senderSettings: generalSettings,
+        senderDesignation: chalani.senderDesignation || currentUser?.designation || 'अधिकृत'
       };
       
       // Save in sender's local sentLetters list
