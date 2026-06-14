@@ -1,8 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord } from '../types';
-import { MarmatEntry } from '../types/inventoryTypes';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Printer } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -22,31 +20,7 @@ interface AmbulanceSewaProps {
   currentFiscalYear: string;
   generalSettings?: OrganizationSettings;
   users: User[];
-  marmatEntries: MarmatEntry[];
 }
-
-
-const MarmatReport = React.forwardRef<HTMLDivElement, { entries: MarmatEntry[], title: string }>(({ entries, title }, ref) => (
-    <div ref={ref} className="hidden print:block p-8">
-        <h2 className="text-xl font-bold text-center mb-4">{title}</h2>
-        <table className="w-full border-collapse border border-slate-900 text-xs">
-            <thead>
-                <tr className="bg-slate-100">
-                    <th className="p-2 border border-slate-900">मिति</th>
-                    <th className="p-2 border border-slate-900">मर्मत विवरण</th>
-                    <th className="p-2 border border-slate-900">रकम</th>
-                </tr>
-            </thead>
-            <tbody>
-                {entries.map(e => <tr key={e.id}>
-                    <td className="p-2 border border-slate-900">{e.date}</td>
-                    <td className="p-2 border border-slate-900">{e.items.map(i => i.details).join(', ')}</td>
-                    <td className="p-2 border border-slate-900">N/A</td>
-                </tr>)}
-            </tbody>
-        </table>
-    </div>
-));
 
 export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   records = [],
@@ -59,8 +33,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   onDeleteExpense,
   currentFiscalYear,
   generalSettings,
-  users,
-  marmatEntries = []
+  users
 }) => {
   // Helper to find the latest endOdometer for a given ambulance vehicle number
   const getLastOdometerForAmbulance = (vehicleNo: string): number | undefined => {
@@ -97,42 +70,6 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [logBookMonthFilter, setLogBookMonthFilter] = useState('');
   const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
   const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
-  const [reportType, setReportType] = useState<'logbook' | 'marmat_monthly' | 'marmat_yearly'>('logbook');
-  const [marmatMonthFilter, setMarmatMonthFilter] = useState('');
-  const [marmatYearFilter, setMarmatYearFilter] = useState(new NepaliDate().format('YYYY'));
-  
-  const marmatPrintRef = useRef<HTMLDivElement>(null);
-  const handlePrintMarmat = useReactToPrint({
-      contentRef: marmatPrintRef,
-      documentTitle: 'Ambulance_Report'
-  });
-  const [marmatReportTitle, setMarmatReportTitle] = useState('');
-  const [marmatReportData, setMarmatReportData] = useState<MarmatEntry[]>([]);
-  
-  const handlePrint = () => {
-      if (reportType === 'logbook') {
-          // Trigger normal logbook print
-          window.print();
-      } else {
-          // Filtering logic - simplistic for now
-          const filtered = marmatEntries.filter(e => {
-              const matchesVehicleType = e.items.some(i => i.name.toLowerCase().includes('amb') || i.details.toLowerCase().includes('amb'));
-              if (!matchesVehicleType) return false;
-              
-              const parts = e.date.split(/[-/]/);
-              const entryYear = parts[0];
-              const entryMonth = parts[1];
-              
-              const matchesYear = !marmatYearFilter || entryYear === marmatYearFilter;
-              const matchesMonth = reportType === 'marmat_yearly' || !marmatMonthFilter || entryMonth === marmatMonthFilter;
-              
-              return matchesYear && matchesMonth;
-          });
-          setMarmatReportData(filtered);
-          setMarmatReportTitle(reportType === 'marmat_monthly' ? 'मासिक मर्मत रिपोर्ट' : 'वार्षिक मर्मत रिपोर्ट');
-          setTimeout(handlePrintMarmat, 100);
-      }
-  };
   
   // Expense related states
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -586,41 +523,6 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     <FileText size={15} />
                     <span>लगबुक (Log Book)</span>
                   </button>
-                )}
-                {activeTab === 'logbook' && (
-                    <div className="flex gap-2 items-center">
-                        <select
-                          className="text-xs border rounded-xl p-2 font-bold"
-                          value={reportType}
-                          onChange={(e) => setReportType(e.target.value as any)}
-                        >
-                          <option value="logbook">लगबुक</option>
-                          <option value="marmat_monthly">मासिक मर्मत</option>
-                          <option value="marmat_yearly">वार्षिक मर्मत</option>
-                        </select>
-                        {(reportType === 'marmat_monthly' || reportType === 'marmat_yearly') && (
-                            <>
-                                <select
-                                    className="text-xs border rounded-xl p-2 font-bold"
-                                    value={marmatMonthFilter}
-                                    onChange={(e) => setMarmatMonthFilter(e.target.value)}
-                                >
-                                    <option value="">सबै महिना</option>
-                                    {NEPALI_MONTHS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </select>
-                                <input
-                                    type="text"
-                                    className="text-xs border rounded-xl p-2 font-bold w-20"
-                                    placeholder="वर्ष"
-                                    value={marmatYearFilter}
-                                    onChange={(e) => setMarmatYearFilter(e.target.value)}
-                                />
-                            </>
-                        )}
-                        <button onClick={handlePrint} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
-                            <Printer size={15} /> प्रिन्ट गर्नुहोस्
-                        </button>
-                    </div>
                 )}
                 {hasTabAccess('tracking') && (
                   <button
@@ -1930,7 +1832,6 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
           </>
         )}
       </div>
-      <MarmatReport ref={marmatPrintRef} entries={marmatReportData} title={marmatReportTitle} />
     </div>
   );
 };

@@ -87,6 +87,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedAmbulanceExpenseCategory, setSelectedAmbulanceExpenseCategory] = useState<string>('All');
   const [selectedService, setSelectedService] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
@@ -603,6 +604,15 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         }
       }
 
+      // 4. Expense Category Filter
+      if (selectedAmbulanceExpenseCategory !== 'All') {
+        const recordCategory = (record.expenseCategory || 'other').toLowerCase().trim();
+        const selectedCategory = selectedAmbulanceExpenseCategory.toLowerCase().trim();
+        if (recordCategory !== selectedCategory) {
+          return false;
+        }
+      }
+
       return true;
     }).sort((a,b) => {
       return (a.dateBs || '').localeCompare(b.dateBs || '');
@@ -842,20 +852,42 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         </div>
 
         {reportSource === 'Ambulance' && (
-          <div>
-            <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-600 text-white px-2 py-0.5 rounded-sm">कारोबार प्रकार (Trans. Type)</label>
-            <div className="relative">
-              <select
-                value={ambulanceReportType}
-                onChange={(e) => setAmbulanceReportType(e.target.value as 'income' | 'expense')}
-                className="w-full text-xs p-2.5 bg-white border-2 border-emerald-500 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-emerald-800"
-              >
-                <option value="income">आम्दानी विवरण (Income)</option>
-                <option value="expense">खर्च विवरण (Expenses)</option>
-              </select>
-              <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+          <>
+            <div>
+              <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-600 text-white px-2 py-0.5 rounded-sm">कारोबार प्रकार (Trans. Type)</label>
+              <div className="relative">
+                <select
+                  value={ambulanceReportType}
+                  onChange={(e) => setAmbulanceReportType(e.target.value as 'income' | 'expense')}
+                  className="w-full text-xs p-2.5 bg-white border-2 border-emerald-500 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-emerald-800"
+                >
+                  <option value="income">आम्दानी विवरण (Income)</option>
+                  <option value="expense">खर्च विवरण (Expenses)</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
             </div>
-          </div>
+
+            {ambulanceReportType === 'expense' && (
+               <div>
+                 <label className="block text-xs font-bold text-slate-600 mb-1.5">खर्च वर्ग (Expense Category)</label>
+                 <div className="relative">
+                   <select
+                     value={selectedAmbulanceExpenseCategory}
+                     onChange={(e) => setSelectedAmbulanceExpenseCategory(e.target.value)}
+                     className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                   >
+                     <option value="All">सबै खर्च (All)</option>
+                     <option value="fuel">इन्धन</option>
+                     <option value="maintenance">मर्मत संभार</option>
+                     <option value="driver_allowance">चालक भत्ता</option>
+                     <option value="other">अन्य</option>
+                   </select>
+                   <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+                 </div>
+               </div>
+            )}
+          </>
         )}
 
         <div>
