@@ -151,6 +151,7 @@ export interface DashboardProps {
   receivedLetters: ReceivedLetter[];
   onSendLetter: (senderOrg: string, recipientOrg: string, chalani: Chalani) => Promise<boolean>;
   onDeleteReceivedLetter: (id: string) => void;
+  onMarkReceivedLetterAsRead: (id: string) => void;
 
   bharmanAdeshEntries: BharmanAdeshEntry[];
   onSaveBharmanAdesh: (entry: BharmanAdeshEntry) => void;

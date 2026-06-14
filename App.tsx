@@ -480,6 +480,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMarkReceivedLetterAsRead = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await update(getOrgRef(`receivedLetters/${id}`), { isRead: true });
+    } catch (error) {
+      console.error("Error marking letter as read:", error);
+    }
+  };
+
   const handleSaveBharmanAdesh = async (entry: BharmanAdeshEntry) => {
     if (!currentUser) return;
     try {
@@ -1567,6 +1576,7 @@ const App: React.FC = () => {
     receivedLetters={receivedLetters}
     onSendLetter={handleSendLetter}
     onDeleteReceivedLetter={handleDeleteReceivedLetter}
+    onMarkReceivedLetterAsRead={handleMarkReceivedLetterAsRead}
     bharmanAdeshEntries={bharmanAdeshEntries}
     onSaveBharmanAdesh={handleSaveBharmanAdesh}
     onDeleteBharmanAdesh={handleDeleteBharmanAdesh}

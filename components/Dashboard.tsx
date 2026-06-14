@@ -206,7 +206,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   leaveBalances = [], onSaveLeaveBalance,
   dartaEntries = [], onSaveDarta, onDeleteDarta,
   chalaniEntries = [], onSaveChalani, onDeleteChalani,
-  sentLetters = [], receivedLetters = [], onSendLetter, onDeleteReceivedLetter,
+  sentLetters = [], receivedLetters = [], onSendLetter, onDeleteReceivedLetter, onMarkReceivedLetterAsRead,
   bharmanAdeshEntries = [], onSaveBharmanAdesh, onDeleteBharmanAdesh,
   garbhawotiRecords = [], onSaveGarbhawotiRecord, onDeleteGarbhawotiRecord,
   prasutiRecords = [], onSavePrasutiRecord, onDeletePrasutiRecord,
@@ -402,8 +402,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
     // 5. Unread Dakhila Reports
     res.dakhila_pratibedan = unreadCount;
 
+    // 6. Unread Received Letters in active fiscal year
+    res.darta = (receivedLetters || []).filter(r => r.fiscalYear === currentFiscalYear && r.isRead !== true).length;
+
     return res;
-  }, [currentUser, magForms, purchaseOrders, stockEntryRequests, issueReports, unreadCount]);
+  }, [currentUser, magForms, purchaseOrders, stockEntryRequests, issueReports, unreadCount, receivedLetters, currentFiscalYear]);
 
   const handleMarkDakhilaRead = useCallback((id: string) => {
       const notifId = `dakhila-${id}`;
@@ -544,7 +547,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           label: 'प्रशासन', 
           icon: <Users size={16} />,
           subItems: [
-            { id: 'darta', label: 'दर्ता', icon: <FileText size={16} /> },
+            { id: 'darta', label: 'दर्ता', icon: <FileText size={16} />, badgeCount: counts.darta },
             { id: 'chalani', label: 'चलानी', icon: <Send size={16} /> },
             { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता', icon: <MapPin size={16} /> },
             { id: 'lekha_prashasan', label: 'लेखा प्रशासन', icon: <Calculator size={16} /> },
@@ -1436,6 +1439,9 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
         );
 
         const handlePrintReceivedLetter = async (receivedLetter: ReceivedLetter) => {
+            if (receivedLetter.isRead !== true && onMarkReceivedLetterAsRead) {
+                onMarkReceivedLetterAsRead(receivedLetter.id);
+            }
             let senderSettings = receivedLetter.senderSettings;
             if (!senderSettings) {
                 try {
@@ -1648,11 +1654,14 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                 }`}
               >
                 सङ्घ संस्थाबाट प्राप्त पत्र सूची (Received Letters)
-                {(filteredReceived || []).length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-primary-600 text-white rounded-full">
-                    {filteredReceived.length}
-                  </span>
-                )}
+                {(()=>{
+                  const unreadReceivedCount = (filteredReceived || []).filter(r => r.isRead !== true).length;
+                  return unreadReceivedCount > 0 ? (
+                    <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-primary-600 text-white rounded-full">
+                      {unreadReceivedCount}
+                    </span>
+                  ) : null;
+                })()}
               </button>
             </div>
 
@@ -1721,7 +1730,16 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                     <tbody className="divide-y divide-slate-100">
                       {filteredReceived.map(r => (
                         <tr key={r.id}>
-                          <td className="p-3 font-bold text-primary-600" data-label="मूल चलानी नं.">{r.dispatchNumber}</td>
+                          <td className="p-3 font-bold text-primary-600" data-label="मूल चलानी नं.">
+                            <div className="flex items-center gap-2">
+                              <span>{r.dispatchNumber}</span>
+                              {r.isRead !== true && (
+                                <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-extrabold rounded shadow-sm animate-pulse whitespace-nowrap">
+                                  नयाँ
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-3" data-label="पठाउने संस्था">
                             <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-xs font-semibold">
                               {r.senderOrgName}
