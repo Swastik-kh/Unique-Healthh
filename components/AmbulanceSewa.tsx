@@ -98,6 +98,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
   const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
   const [reportType, setReportType] = useState<'logbook' | 'marmat_monthly' | 'marmat_yearly'>('logbook');
+  const [marmatMonthFilter, setMarmatMonthFilter] = useState('');
+  const [marmatYearFilter, setMarmatYearFilter] = useState(new NepaliDate().format('YYYY'));
   
   const marmatPrintRef = useRef<HTMLDivElement>(null);
   const handlePrintMarmat = useReactToPrint({
@@ -113,7 +115,19 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
           window.print();
       } else {
           // Filtering logic - simplistic for now
-          const filtered = marmatEntries.filter(e => e.items.some(i => i.name.toLowerCase().includes('amb') || i.details.toLowerCase().includes('amb')));
+          const filtered = marmatEntries.filter(e => {
+              const matchesVehicleType = e.items.some(i => i.name.toLowerCase().includes('amb') || i.details.toLowerCase().includes('amb'));
+              if (!matchesVehicleType) return false;
+              
+              const parts = e.date.split(/[-/]/);
+              const entryYear = parts[0];
+              const entryMonth = parts[1];
+              
+              const matchesYear = !marmatYearFilter || entryYear === marmatYearFilter;
+              const matchesMonth = reportType === 'marmat_yearly' || !marmatMonthFilter || entryMonth === marmatMonthFilter;
+              
+              return matchesYear && matchesMonth;
+          });
           setMarmatReportData(filtered);
           setMarmatReportTitle(reportType === 'marmat_monthly' ? 'मासिक मर्मत रिपोर्ट' : 'वार्षिक मर्मत रिपोर्ट');
           setTimeout(handlePrintMarmat, 100);
@@ -574,7 +588,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   </button>
                 )}
                 {activeTab === 'logbook' && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <select
                           className="text-xs border rounded-xl p-2 font-bold"
                           value={reportType}
@@ -584,6 +598,25 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           <option value="marmat_monthly">मासिक मर्मत</option>
                           <option value="marmat_yearly">वार्षिक मर्मत</option>
                         </select>
+                        {(reportType === 'marmat_monthly' || reportType === 'marmat_yearly') && (
+                            <>
+                                <select
+                                    className="text-xs border rounded-xl p-2 font-bold"
+                                    value={marmatMonthFilter}
+                                    onChange={(e) => setMarmatMonthFilter(e.target.value)}
+                                >
+                                    <option value="">सबै महिना</option>
+                                    {NEPALI_MONTHS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </select>
+                                <input
+                                    type="text"
+                                    className="text-xs border rounded-xl p-2 font-bold w-20"
+                                    placeholder="वर्ष"
+                                    value={marmatYearFilter}
+                                    onChange={(e) => setMarmatYearFilter(e.target.value)}
+                                />
+                            </>
+                        )}
                         <button onClick={handlePrint} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
                             <Printer size={15} /> प्रिन्ट गर्नुहोस्
                         </button>
