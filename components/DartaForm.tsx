@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
-import { Darta, User } from '../types/coreTypes';
+import { Darta, User, ReceivedLetter } from '../types/coreTypes';
 import { Save, X } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -11,17 +11,19 @@ interface DartaFormProps {
   onCancel: () => void;
   nextRegistrationNumber: string;
   currentUser: User;
+  prefilledData?: ReceivedLetter;
 }
 
-export const DartaForm: React.FC<DartaFormProps> = ({ onSave, onCancel, nextRegistrationNumber, currentUser }) => {
+export const DartaForm: React.FC<DartaFormProps> = ({ onSave, onCancel, nextRegistrationNumber, currentUser, prefilledData }) => {
   const getInitialFormData = () => {
     let today = new NepaliDate().format('YYYY-MM-DD');
     return {
-      date: today,
-      sender: '',
-      subject: '',
+      date: prefilledData ? new Date(prefilledData.receivedAt).toLocaleDateString('en-CA') : today,
+      sender: prefilledData ? prefilledData.senderOrgName : '',
+      subject: prefilledData ? prefilledData.subject : '',
       recipient: currentUser.fullName,
-      remarks: '',
+      remarks: prefilledData ? `प्राप्त पत्र आईडी: ${prefilledData.id}` : '',
+      receivedLetterId: prefilledData?.id,
     };
   };
 
@@ -29,7 +31,7 @@ export const DartaForm: React.FC<DartaFormProps> = ({ onSave, onCancel, nextRegi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData as Omit<Darta, 'id' | 'registrationNumber' | 'fiscalYear'>);
     setFormData(getInitialFormData()); // Reset for next entry
   };
 

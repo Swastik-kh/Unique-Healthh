@@ -179,6 +179,7 @@ export interface Darta {
   recipient: string;
   remarks?: string;
   fiscalYear: string;
+  receivedLetterId?: string;
 }
 
 export interface ChalaniTable {

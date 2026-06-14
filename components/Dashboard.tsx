@@ -271,6 +271,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const [showExpiryPrintOptionsModal, setShowExpiryPrintOptionsModal] = useState(false); 
   const [initialDakhilaReportId, setInitialDakhilaReportId] = useState<string | null>(null);
   const [isDartaFormOpen, setIsDartaFormOpen] = useState(false);
+  const [selectedReceivedLetterForDarta, setSelectedReceivedLetterForDarta] = useState<ReceivedLetter | null>(null);
   const [isChalaniFormOpen, setIsChalaniFormOpen] = useState(false);
   const [editingChalani, setEditingChalani] = useState<Chalani | null>(null);
   const [dartaSearchQuery, setDartaSearchQuery] = useState('');
@@ -1753,7 +1754,23 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                           <td className="p-3" data-label="प्राप्त मिति">{new Date(r.receivedAt).toLocaleDateString() || r.date}</td>
                           <td className="p-3" data-label="पठाउने प्रेषक">{r.sender}</td>
                           <td className="p-3" data-label="बिषय">{r.subject}</td>
-                          <td className="p-3 text-right space-x-1" data-label="कार्य">
+                         <td className="p-3 text-right space-x-1" data-label="कार्य">
+                            <button 
+                              onClick={() => {
+                                const isRegistered = dartaEntries.some(d => d.receivedLetterId === r.id);
+                                if (!isRegistered) {
+                                  setSelectedReceivedLetterForDarta(r);
+                                  setIsDartaFormOpen(true);
+                                } else {
+                                  alert('यो पत्र पहिले नै दर्ता भइसकेको छ।');
+                                }
+                              }}
+                              disabled={dartaEntries.some(d => d.receivedLetterId === r.id)}
+                              className={`p-2 rounded-lg transition-colors ${dartaEntries.some(d => d.receivedLetterId === r.id) ? 'text-slate-300 cursor-not-allowed' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                              title={dartaEntries.some(d => d.receivedLetterId === r.id) ? "पहिले नै दर्ता भइसकेको छ" : "चिठीपत्र दर्ता गर्नुहोस्"}
+                            >
+                              <FilePlus size={16} />
+                            </button>
                             <button 
                               onClick={() => handlePrintReceivedLetter(r)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -1794,6 +1811,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                         <h3 className="text-2xl font-bold text-slate-800 mb-6">नयाँ चिठीपत्र दर्ता</h3>
                         <DartaForm 
                             currentUser={currentUser!}
+                            prefilledData={selectedReceivedLetterForDarta || undefined}
                             nextRegistrationNumber={nextRegistrationNumber}
                             onSave={(dartaData) => {
                                 const newDarta: Darta = {
@@ -1804,9 +1822,13 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                 };
                                 onSaveDarta(newDarta);
                                 setIsDartaFormOpen(false);
+                                setSelectedReceivedLetterForDarta(null);
                                 alert('दर्ता सफलतापूर्वक सुरक्षित गरियो!');
                              }}
-                            onCancel={() => setIsDartaFormOpen(false)}
+                            onCancel={() => {
+                                setIsDartaFormOpen(false);
+                                setSelectedReceivedLetterForDarta(null);
+                            }}
                         />
                         <button onClick={() => setIsDartaFormOpen(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full">
                             <X size={20}/>
