@@ -2089,6 +2089,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                       onDeleteExpense={onDeleteAmbulanceExpense}
                                       currentFiscalYear={currentFiscalYear}
                                       generalSettings={generalSettings}
+                                      users={users}
                                     />;
       case 'log_book': return <LogBook currentUser={currentUser} currentFiscalYear={currentFiscalYear} inventoryItems={inventoryItems} logBookEntries={logBookEntries} onAddLogEntry={onSaveLogBookEntry} />;
       case 'report_tb_dst': return <TBDSTReport patients={tbPatients} currentFiscalYear={currentFiscalYear} />;

@@ -18,6 +18,7 @@ interface AmbulanceSewaProps {
   onDeleteExpense?: (id: string) => void;
   currentFiscalYear: string;
   generalSettings?: OrganizationSettings;
+  users: User[];
 }
 
 export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
@@ -30,7 +31,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   onSaveExpense,
   onDeleteExpense,
   currentFiscalYear,
-  generalSettings
+  generalSettings,
+  users
 }) => {
   // Helper to find the latest endOdometer for a given ambulance vehicle number
   const getLastOdometerForAmbulance = (vehicleNo: string): number | undefined => {
@@ -392,6 +394,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [totalDrivenDistance, totalFuelLiters]);
 
   const canDelete = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteAmbulance === true;
+
+  const assignedAmbulanceUser = useMemo(() => {
+    if (!generalSettings || !users) return null;
+    return users.find(u => u.id === generalSettings.ambulanceSewaUserId);
+  }, [generalSettings, users]);
+
+  const adminUser = useMemo(() => {
+    if (!users) return null;
+    return users.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN');
+  }, [users]);
 
   const configuredRoutes = useMemo(() => {
     if (!generalSettings?.ambulanceRoutes) return [];
@@ -1803,12 +1815,12 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div className="hidden print:grid grid-cols-2 gap-10 mt-20 pt-10 text-center text-sm font-nepali">
               <div className="space-y-1">
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
-                <p className="font-bold text-slate-900">तयार गर्ने (चालकको दस्तखत)</p>
-                <p className="text-xs text-slate-500">मिति: ........................</p>
+                <p className="font-bold text-slate-900">{assignedAmbulanceUser?.fullName || 'तयार गर्ने'}</p>
+                <p className="text-xs text-slate-500">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
               </div>
               <div className="space-y-1">
                 <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
-                <p className="font-bold text-slate-900">स्वीकृत गर्ने अधिकारी</p>
+                <p className="font-bold text-slate-900">{adminUser?.fullName || 'स्वीकृत गर्ने अधिकारी'}</p>
                 <p className="text-xs text-slate-500">मिति: ........................</p>
               </div>
             </div>
