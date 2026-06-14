@@ -37,6 +37,7 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
   const [userDesignation, setUserDesignation] = useState('');
   const [userPhone, setUserPhone] = useState('');
   const [userRole, setUserRole] = useState<UserRole>('STAFF');
+  const [userTargetOrg, setUserTargetOrg] = useState('');
   const [userError, setUserError] = useState<string | null>(null);
 
   // Group users by organization
@@ -51,6 +52,11 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
     });
     return map;
   }, [users]);
+
+  // All unique organizations
+  const allOrganizations = useMemo(() => {
+    return Array.from(organizationsMap.keys());
+  }, [organizationsMap]);
 
   // List of unique organizations info
   const organizationsList = useMemo(() => {
@@ -73,6 +79,7 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
     setUserDesignation(user.designation || '');
     setUserPhone(user.phoneNumber || '');
     setUserRole(user.role || 'STAFF');
+    setUserTargetOrg(user.organizationName || '');
     setUserError(null);
   };
 
@@ -96,7 +103,8 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
       password: userPassword.trim(),
       designation: userDesignation.trim(),
       phoneNumber: userPhone.trim(),
-      role: userRole
+      role: userRole,
+      organizationName: userTargetOrg
     };
 
     try {
@@ -492,6 +500,14 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
                         { id: 'ACCOUNT', value: 'ACCOUNT', label: 'लेखा शाखा (ACCOUNT)' },
                         { id: 'APPROVAL', value: 'APPROVAL', label: 'स्वीकृत गर्ने (APPROVAL)' }
                       ]}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">संस्था ट्रान्सफर (Transfer Organization) *</label>
+                    <Select
+                      value={userTargetOrg}
+                      onChange={(e) => setUserTargetOrg(e.target.value)}
+                      options={allOrganizations.map(org => ({ id: org, value: org, label: org }))}
                     />
                   </div>
                 </div>

@@ -35,6 +35,7 @@ export interface User {
   password: string;
   role: UserRole;
   organizationName: string;
+  organizationId?: string; // Add this field
   fullName: string;
   designation: string;
   phoneNumber: string;
