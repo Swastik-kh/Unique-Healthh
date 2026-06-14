@@ -1742,20 +1742,20 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             )}
 
             <div className="overflow-x-auto p-2 print:p-0">
-              <table className="min-w-[1000px] w-full text-left border-collapse border-2 border-slate-900 text-xs md:text-sm">
+              <table className="w-full text-left border-collapse border-2 border-slate-900 text-[10px] print:text-[10px]">
                 <thead>
                   <tr className="bg-slate-50 print:bg-slate-100/50 text-slate-850 font-bold border-b border-2 border-slate-900">
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center w-12">सि.नं.</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center w-28">मिति (Date)</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali">गाडी / एम्बुलेन्स नं.</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali">बिरामी/सेवाग्राही</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali">रुट विवरण (मार्ग)</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">शुरु कि.मी.</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">अन्तिम कि.मी.</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-center">चलेको दूरी (KM)</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali">चालक (Driver)</th>
-                    <th className="p-3 border-r-2 border-slate-900 font-nepali text-right text-red-700 font-bold">रकम (Charged)</th>
-                    <th className="p-3 font-nepali">कैफियत</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-center w-10">सि.नं.</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-center w-20">मिति</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali">गाडी नं.</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali">बिरामी</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali">रुट विवरण</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-center">शुरु कि.मी.</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-center">अन्तिम कि.मी.</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-center">दूरी (KM)</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali">चालक</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-right text-red-700 font-bold">रकम</th>
+                    <th className="p-1 font-nepali">कैफियत</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-300">
@@ -1768,45 +1768,45 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   ) : (
                     filteredLogBookRecords.map((record, index) => (
                       <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-bold font-nepali">{toNepaliDigits(index + 1)}</td>
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali">{toNepaliDigits(record.dateBs)}</td>
-                        <td className="p-3 border-r-2 border-slate-900 font-semibold font-nepali">{record.ambulanceNo}</td>
-                        <td className="p-3 border-r-2 border-slate-900">
-                          <p className="font-bold text-slate-950 text-sm">{record.patientName}</p>
-                          {record.phone && <p className="text-[10px] text-slate-500 print:hidden">संपर्क: {toNepaliDigits(record.phone)}</p>}
+                        <td className="p-1 border-r-2 border-slate-900 text-center font-bold font-nepali">{toNepaliDigits(index + 1)}</td>
+                        <td className="p-1 border-r-2 border-slate-900 text-center font-nepali">{toNepaliDigits(record.dateBs)}</td>
+                        <td className="p-1 border-r-2 border-slate-900 font-semibold font-nepali">{record.ambulanceNo}</td>
+                        <td className="p-1 border-r-2 border-slate-900">
+                          <p className="font-bold text-slate-950 text-[10px]">{record.patientName}</p>
+                          {record.phone && <p className="text-[9px] text-slate-500 print:hidden">संपर्क: {toNepaliDigits(record.phone)}</p>}
                         </td>
-                        <td className="p-3 border-r-2 border-slate-900">
+                        <td className="p-1 border-r-2 border-slate-900">
                           <span className="font-medium text-amber-800">{record.startLocation}</span> ➔ <span className="font-medium text-teal-800">{record.destination}</span>
                         </td>
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali font-bold text-slate-600">
+                        <td className="p-1 border-r-2 border-slate-900 text-center font-nepali font-bold text-slate-600">
                           {record.startOdometer !== undefined ? toNepaliDigits(record.startOdometer.toFixed(1)) : '-'}
                         </td>
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali font-bold text-slate-600">
+                        <td className="p-1 border-r-2 border-slate-900 text-center font-nepali font-bold text-slate-600">
                           {record.endOdometer !== undefined ? toNepaliDigits(record.endOdometer.toFixed(1)) : '-'}
                         </td>
-                        <td className="p-3 border-r-2 border-slate-900 text-center font-nepali font-extrabold text-teal-700">
+                        <td className="p-1 border-r-2 border-slate-900 text-center font-nepali font-extrabold text-teal-700">
                           {record.distanceKm ? `${toNepaliDigits(record.distanceKm.toFixed(1))} KM` : '-'}
                         </td>
-                        <td className="p-3 border-r-2 border-slate-900 font-semibold text-slate-800 font-nepali">{record.driverName}</td>
-                        <td className="p-3 border-r-2 border-slate-900 text-right font-nepali font-bold">
+                        <td className="p-1 border-r-2 border-slate-900 font-semibold text-slate-800 font-nepali">{record.driverName}</td>
+                        <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-bold">
                           रु. {toNepaliDigits((record.amountCharged || 0).toFixed(2))}
                         </td>
-                        <td className="p-3 text-slate-600 italic select-all text-xs">{record.remarks || '-'}</td>
+                        <td className="p-1 text-slate-600 italic select-all text-[9px]">{record.remarks || '-'}</td>
                       </tr>
                     ))
                   )}
 
                   {/* Summary row */}
                   <tr className="bg-slate-100 font-black text-slate-950 border-t-2 border-slate-900">
-                    <td colSpan={7} className="p-3 border-r-2 border-slate-900 text-right font-nepali">कुल जम्मा योग (Grand Total):</td>
-                    <td className="p-3 border-r-2 border-slate-900 text-center font-nepali text-teal-850 font-black">
+                    <td colSpan={7} className="p-1 border-r-2 border-slate-900 text-right font-nepali">कुल जम्मा योग (Grand Total):</td>
+                    <td className="p-1 border-r-2 border-slate-900 text-center font-nepali text-teal-850 font-black">
                       {toNepaliDigits(filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1))} KM
                     </td>
-                    <td className="p-3 border-r-2 border-slate-900"></td>
-                    <td className="p-3 border-r-2 border-slate-900 text-right font-nepali font-black">
+                    <td className="p-1 border-r-2 border-slate-900"></td>
+                    <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-black">
                       रु. {toNepaliDigits(filteredLogBookRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toFixed(2))}
                     </td>
-                    <td className="p-3"></td>
+                    <td className="p-1"></td>
                   </tr>
                 </tbody>
               </table>
