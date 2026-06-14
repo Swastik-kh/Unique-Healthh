@@ -391,10 +391,20 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     if (reportSource === 'Sewa') {
       return `आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`;
     } else {
-      const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      if (ambulanceReportType === 'expense' && selectedAmbulanceExpenseCategory !== 'All') {
+        const catLabels: {[key: string]: string} = {
+          fuel: 'इन्धन',
+          maintenance: 'मर्मत संभार',
+          driver_allowance: 'चालक भत्ता',
+          other: 'अन्य'
+        };
+        suffix = `${catLabels[selectedAmbulanceExpenseCategory] || ''} खर्च विवरण`;
+      }
       return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`;
     }
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
+
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
@@ -408,10 +418,20 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     if (reportSource === 'Sewa') {
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`);
     } else {
-      const suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
+      if (ambulanceReportType === 'expense' && selectedAmbulanceExpenseCategory !== 'All') {
+        const catLabels: {[key: string]: string} = {
+          fuel: 'इन्धन',
+          maintenance: 'मर्मत संभार',
+          driver_allowance: 'चालक भत्ता',
+          other: 'अन्य'
+        };
+        suffix = `${catLabels[selectedAmbulanceExpenseCategory] || ''} खर्च विवरण`;
+      }
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`);
     }
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix]);
+
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
