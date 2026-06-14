@@ -53,6 +53,7 @@ export interface DashboardProps {
   onAddUser: (user: User) => Promise<void>;
   onUpdateUser: (user: User) => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
+  onDeleteOrganization: (orgName: string) => Promise<void>;
   onChangePassword: (userId: string, newPassword: string) => void;
   isDbLocked: boolean;
   

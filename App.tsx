@@ -1000,6 +1000,39 @@ const App: React.FC = () => {
       }
   };
 
+  const handleDeleteOrganization = async (orgName: string) => {
+      if (!currentUser) return;
+      if (orgName === currentUser.organizationName) {
+          alert("सुरक्षा कारणले, तपाईं आबद्ध हुनुभएको मुख्य संस्था हटाउन मिल्दैन।");
+          return;
+      }
+
+      try {
+          // Find all users of this organization
+          const orgUsers = allUsers.filter(u => u.organizationName === orgName);
+          
+          // Check if any of these users is indeed a SUPER_ADMIN or username is admin
+          const hasSuperAdmin = orgUsers.some(u => u.role === 'SUPER_ADMIN' || u.username === 'admin');
+          if (hasSuperAdmin) {
+              alert("यो संस्था भित्र सुपर एड्मिन (Super Admin) प्रयोगकर्ता रहेकोले यो संस्था हटाउन मिल्दैन। पहिले सुपर एड्मिनको विवरण परिवर्तन गर्नुहोस् वा अर्कै संस्थामा सार्नुहोस्।");
+              return;
+          }
+
+          // Delete all users under this organization in parallel
+          const deleteUserPromises = orgUsers.map(u => remove(ref(db, `users/${u.id}`)));
+          await Promise.all(deleteUserPromises);
+
+          // Delete organization data from orgData
+          const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
+          await remove(ref(db, `orgData/${safeOrgName}`));
+
+          alert(`संस्था "${orgName}" र यसका सबै डाटा तथा प्रयोगकर्ताहरू सफलतापूर्वक हटाइयो।`);
+      } catch (err: any) {
+          alert(`त्रुटि: संस्था हटाउन सकिएन। (${err.message})`);
+          throw err;
+      }
+  };
+
   const handleDeleteMagForm = async (formId: string) => {
       if (!currentUser) return;
       try {
@@ -1519,6 +1552,7 @@ const App: React.FC = () => {
           }} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
           users={allUsers} onAddUser={handleSaveUser}
           onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
+          onDeleteOrganization={handleDeleteOrganization}
           onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: pass })}
           isDbLocked={isDbLocked}
           generalSettings={generalSettings} onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}

@@ -19,6 +19,7 @@ import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry,
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
+import { OrganizationManagement } from './OrganizationManagement';
 import { Conference } from './Conference';
 import { ChangePassword } from './ChangePassword';
 import { TBPatientRegistration } from './TBPatientRegistration';
@@ -190,7 +191,7 @@ interface AppNotification {
 const READ_NOTIFS_KEY_PREFIX = 'smart_inv_read_notifs_v4_';
 
 export const Dashboard: React.FC<ExtendedDashboardProps> = ({ 
-  onLogout, currentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onChangePassword, isDbLocked,
+  onLogout, currentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onDeleteOrganization, onChangePassword, isDbLocked,
   generalSettings, onUpdateGeneralSettings, magForms = [], onSaveMagForm, onDeleteMagForm,
   purchaseOrders = [], onUpdatePurchaseOrder, onDeletePurchaseOrder, issueReports = [], onUpdateIssueReport, 
   rabiesPatients = [], onAddRabiesPatient, onUpdatePatient, onDeletePatient,
@@ -507,6 +508,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
 
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
+    if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
@@ -645,6 +647,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       icon: <Settings size={20} />,
       subItems: [
         { id: 'general_setting', label: 'सामान्य सेटिङ', icon: <Sliders size={16} /> },
+        { id: 'organization_management', label: 'संस्था व्यवस्थापन', icon: <Building2 size={16} /> },
         { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)', icon: <Activity size={16} /> },
         { id: 'store_setup', label: 'स्टोर सेटअप', icon: <Store size={16} /> },
         { id: 'user_management', label: 'प्रयोगकर्ता व्यवस्थापन', icon: <Users size={16} /> },
@@ -874,6 +877,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       case 'report_khop': return <ImmunizationReport currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} maternalRecords={garbhawatiPatients} generalSettings={generalSettings} />;
       case 'report_microplanning': return <Microplanning currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} />;
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
+      case 'organization_management': return <OrganizationManagement currentUser={currentUser} users={users} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} onDeleteOrganization={onDeleteOrganization} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
       case 'change_password': return <ChangePassword currentUser={currentUser} users={users} onChangePassword={onChangePassword} onUpdateUser={onUpdateUser} />;
       case 'store_setup': return <StoreSetup currentUser={currentUser} currentFiscalYear={currentFiscalYear} stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} inventoryItems={inventoryItems} onUpdateInventoryItem={onUpdateInventoryItem} />;
