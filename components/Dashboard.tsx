@@ -952,8 +952,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                     <title>Chalani Letter - ${chalani.dispatchNumber}</title>
                     <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
                     <style>
-                        @page { size: A4; margin: 20mm; }
-                        body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 20px; }
+                        @page { size: A4; margin: 15mm 15mm 20mm 15mm; }
+                        body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 10px; }
                         .header-main { display: flex; align-items: start; margin-bottom: 20px; }
                         .header-section { margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
                         .logo { width: 110px; height: 110px; object-fit: contain; }
@@ -971,24 +971,25 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         .letter-table th, .letter-table td { border: 1px solid #333; padding: 10px; text-align: left; }
                         .letter-table th { font-weight: bold; text-align: center; }
                         .tapashil-label { font-size: 17px; font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
-                        .footer { margin-top: 20px; display: flex; justify-content: flex-end; page-break-inside: avoid; }
+                        .footer { display: flex; justify-content: flex-end; page-break-inside: avoid; }
                         .signature-box { text-align: center; width: 250px; border-top: 1px solid #333; padding-top: 10px; }
                         .footer-info { 
                             position: fixed;
-                            bottom: 0;
+                            bottom: -15px;
                             left: 0;
                             right: 0;
-                            height: 60px;
+                            height: 40px;
                             text-align: center;
-                            font-size: 11px;
-                            color: #666;
-                            border-top: 1px solid #eee;
-                            padding-top: 10px;
+                            font-size: 12.5px;
+                            font-weight: bold;
+                            color: #475569;
+                            border-top: 1.5px solid #cbd5e1;
+                            padding-top: 8px;
                             background: white;
                             width: 100%;
                         }
                         @media print {
-                            body { margin-bottom: 70px; }
+                            body { margin-bottom: 60px; }
                         }
                     </style>
                 </head>
@@ -1050,7 +1051,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                         </table>
                     ` : ''}
 
-                    <div class="footer">
+                    <div class="footer" style="margin-top: ${chalani.tableData ? '75px' : '35px'};">
                         <div class="signature-box">
                             <p><strong>(${chalani.sender})</strong></p>
                             <p>${currentUser?.designation || 'अधिकृत'}</p>
@@ -1058,9 +1059,11 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                     </div>
 
                     <div class="footer-info">
-                        ${generalSettings.phone ? `फोन: ${generalSettings.phone}` : ''} | 
-                        ${generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''} | 
-                        ${generalSettings.website ? `वेबसाइट: ${generalSettings.website}` : ''}
+                        ${[
+                            generalSettings.phone ? `फोन नम्बर: ${generalSettings.phone}` : '',
+                            generalSettings.email ? `ईमेल: ${generalSettings.email}` : '',
+                            generalSettings.website ? `वेबसाइट: ${generalSettings.website}` : ''
+                        ].filter(Boolean).join(' &nbsp;|&nbsp; ')}
                     </div>
 
                     <script>
