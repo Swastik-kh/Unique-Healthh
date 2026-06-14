@@ -956,7 +956,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         body { font-family: 'Mukta', sans-serif; line-height: 1.6; color: #333; padding: 10px; }
                         .header-main { display: flex; align-items: start; margin-bottom: 20px; }
                         .header-section { margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-                        .logo { width: 110px; height: 110px; object-fit: contain; }
+                        .logo { width: 130px; height: 130px; object-fit: contain; }
                         .org-details { flex: 1; text-align: center; }
                         .org-name { font-size: 28px; font-weight: 800; color: #b91c1c; margin: 0; }
                         .org-sub { font-size: 16px; font-weight: 600; margin: 0; }
