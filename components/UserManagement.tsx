@@ -71,6 +71,7 @@ const PERMISSION_STRUCTURE = [
                     { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता (Travel Order)' },
                     { id: 'lekha_prashasan', label: 'लेखा प्रशासन (Lekha Prashasan)' },
                     { id: 'bida_abedan', label: 'बिदा आवेदन (Leave Application)' },
+                    { id: 'talim_byabasthapan', label: 'तालिम व्यवस्थापन (Training Mgmt)' },
                 ]
             },
             { 

@@ -621,3 +621,18 @@ export interface ReceivedLetter {
   isRead?: boolean;
   senderSettings?: OrganizationSettings;
 }
+
+export interface Talim {
+  id: string;
+  name: string;
+  durationDays: number;
+}
+
+export interface KarmachariTalimRecord {
+  id: string;
+  userId: string;
+  talimId: string;
+  fromDate: string;
+  toDate: string;
+  location: string;
+}

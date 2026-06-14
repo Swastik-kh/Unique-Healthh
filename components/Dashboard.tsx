@@ -17,6 +17,7 @@ import { DashboardProps } from '../types/dashboardTypes';
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
 import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
+import { TalimByabasthapan } from './TalimByabasthapan';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { UserManagement } from './UserManagement';
 import { OrganizationManagement } from './OrganizationManagement';
@@ -238,7 +239,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
   onSavePaymentRequest, onSaveAllowance,
   onUpdatePaymentRequest, onUpdateAllowance,
-  onDeletePaymentRequest, onDeleteAllowance
+  onDeletePaymentRequest, onDeleteAllowance,
+  talimEntries = [], onSaveTalim, onDeleteTalim,
+  karmachariTalimRecords = [], onSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -510,6 +513,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
+    if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role)) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
@@ -641,6 +645,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       label: 'कन्फरेन्स (Conference)',
       icon: <MessageSquare size={20} />,
       badgeCount: unreadConferenceCount > 0 ? unreadConferenceCount : undefined
+    },
+    {
+      id: 'talim_byabasthapan',
+      label: 'तालिम व्यवस्थापन',
+      icon: <BookOpen size={20} />
     },
     {
       id: 'settings',
@@ -1867,6 +1876,15 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           isAdmin={currentUser?.role === 'ADMIN'}
         />
       );
+      case 'talim_byabasthapan': return <TalimByabasthapan 
+        talimEntries={talimEntries} 
+        onSaveTalim={onSaveTalim!} 
+        onDeleteTalim={onDeleteTalim!}
+        karmachariTalimRecords={karmachariTalimRecords}
+        onSaveKarmachariTalimRecord={onSaveKarmachariTalimRecord!}
+        onDeleteKarmachariTalimRecord={onDeleteKarmachariTalimRecord!}
+        users={allUsers}
+      />;
       case 'bida_abedan': return <BidaAbedan 
         currentUser={currentUser} 
         users={users} 

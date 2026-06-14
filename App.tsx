@@ -10,7 +10,7 @@ import {
   IssueReportEntry, FirmEntry, QuotationEntry, InventoryItem, Store, StockEntryRequest, 
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
-  GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest,
+  GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
@@ -75,6 +75,8 @@ const App: React.FC = () => {
   const [logBookEntries, setLogBookEntries] = useState<LogBookEntry[]>([]);
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [talimEntries, setTalimEntries] = useState<Talim[]>([]);
+  const [karmachariTalimRecords, setKarmachariTalimRecords] = useState<KarmachariTalimRecord[]>([]);
   const [dartaEntries, setDartaEntries] = useState<Darta[]>([]);
   const [chalaniEntries, setChalaniEntries] = useState<Chalani[]>([]);
   const [sentLetters, setSentLetters] = useState<SentLetter[]>([]);
@@ -311,6 +313,8 @@ const App: React.FC = () => {
     setupOrgListener('ambulanceRecords', setAmbulanceRecords);
     setupOrgListener('ambulanceExpenseRecords', setAmbulanceExpenseRecords);
     setupOrgListener('ipdRecords', setIpdRecords);
+    setupOrgListener('talimEntries', setTalimEntries);
+    setupOrgListener('karmachariTalimRecords', setKarmachariTalimRecords);
     setupOrgListener('itemList', setItemList);
 
     // Financial Listeners
@@ -516,6 +520,42 @@ const App: React.FC = () => {
       await remove(getOrgRef(`chalaniEntries/${id}`));
     } catch (error) {
       alert("चलानी हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveTalim = async (talim: Talim) => {
+    if (!currentUser) return;
+    try {
+      await set(getOrgRef(`talimEntries/${talim.id}`), talim);
+    } catch (error) {
+      alert("तालिम विवरण सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteTalim = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`talimEntries/${id}`));
+    } catch (error) {
+      alert("तालिम विवरण हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveKarmachariTalimRecord = async (record: KarmachariTalimRecord) => {
+    if (!currentUser) return;
+    try {
+      await set(getOrgRef(`karmachariTalimRecords/${record.id}`), record);
+    } catch (error) {
+      alert("तालिम रेकर्ड सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteKarmachariTalimRecord = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`karmachariTalimRecords/${id}`));
+    } catch (error) {
+      alert("तालिम रेकर्ड हटाउन सकिएन।");
     }
   };
 
@@ -1643,6 +1683,12 @@ const App: React.FC = () => {
     serviceItems={serviceItems}
     onSaveServiceItem={handleSaveServiceItem}
     onDeleteServiceItem={handleDeleteServiceItem}
+    talimEntries={talimEntries}
+    onSaveTalim={handleSaveTalim}
+    onDeleteTalim={handleDeleteTalim}
+    karmachariTalimRecords={karmachariTalimRecords}
+    onSaveKarmachariTalimRecord={handleSaveKarmachariTalimRecord}
+    onDeleteKarmachariTalimRecord={handleDeleteKarmachariTalimRecord}
     labReports={labReports}
     onSaveLabReport={handleSaveLabReport}
     onDeleteLabReport={handleDeleteLabReport}
