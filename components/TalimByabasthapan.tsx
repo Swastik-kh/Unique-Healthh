@@ -31,7 +31,7 @@ export const TalimByabasthapan: React.FC<TalimByabasthapanProps> = ({
   const [karmachariFilter, setKarmachariFilter] = useState('');
   const [talimFilter, setTalimFilter] = useState('');
 
-  const orgUsers = currentUser.role === 'SUPER_ADMIN' ? users : users.filter(u => u.organizationName === currentUser.organizationName);
+  const orgUsers = (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'HEALTH_SECTION') ? users : users.filter(u => u.organizationName === currentUser.organizationName);
 
   const handleAdd = () => {
     if (name && duration) {

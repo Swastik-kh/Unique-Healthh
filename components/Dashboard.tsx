@@ -513,7 +513,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
-    if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role)) return false;
+    if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN', 'HEALTH_SECTION'].includes(currentUser.role)) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
