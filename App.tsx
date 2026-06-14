@@ -401,7 +401,8 @@ const App: React.FC = () => {
   const handleSaveDarta = async (darta: Darta) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`dartaEntries/${darta.id}`), darta);
+      const sanitized = JSON.parse(JSON.stringify(darta));
+      await set(getOrgRef(`dartaEntries/${darta.id}`), sanitized);
     } catch (error) { 
       alert("दर्ता सुरक्षित गर्न सकिएन।");
     }
@@ -410,7 +411,8 @@ const App: React.FC = () => {
   const handleSaveChalani = async (chalani: Chalani) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`chalaniEntries/${chalani.id}`), chalani);
+      const sanitized = JSON.parse(JSON.stringify(chalani));
+      await set(getOrgRef(`chalaniEntries/${chalani.id}`), sanitized);
     } catch (error) { 
       alert("चलानी सुरक्षित गर्न सकिएन।");
     }
@@ -419,7 +421,8 @@ const App: React.FC = () => {
   const handleSaveBharmanAdesh = async (entry: BharmanAdeshEntry) => {
     if (!currentUser) return;
     try {
-      await set(getOrgRef(`bharmanAdeshEntries/${entry.id}`), entry);
+      const sanitized = JSON.parse(JSON.stringify(entry));
+      await set(getOrgRef(`bharmanAdeshEntries/${entry.id}`), sanitized);
     } catch (error) { 
       alert("भ्रमण आदेश सुरक्षित गर्न सकिएन।");
     }
