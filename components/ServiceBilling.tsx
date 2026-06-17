@@ -1936,7 +1936,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                                     Edit
                                 </button>
                                 <button 
-                                    onClick={() => onDeleteRecord && onDeleteRecord(bill.id)}
+                                    onClick={() => {
+                                      if (window.confirm(`के तपाईं निश्चित रूपमा बिल नम्बर ${bill.invoiceNumber} लाई हटाउन चाहनुहुन्छ?`)) {
+                                        onDeleteRecord && onDeleteRecord(bill.id);
+                                      }
+                                    }}
                                     className="text-xs text-red-600 hover:underline"
                                 >
                                     Delete
