@@ -85,6 +85,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [showFhirLogModal, setShowFhirLogModal] = useState(false);
   const [currentBill, setCurrentBill] = useState<BillingRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [allBillsSearch, setAllBillsSearch] = useState('');
 
   // Direct Billing State
   const [isDirectBilling, setIsDirectBilling] = useState(false);
@@ -1878,6 +1879,67 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           </div>
         </div>
       )}
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
+        <h3 className="font-bold text-slate-800 text-sm mb-4 border-b pb-2 flex items-center gap-2">
+          <History size={16} className="text-primary-600" />
+          सम्पूर्ण बिलहरू (All Bills)
+        </h3>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-3 text-slate-400" size={16} />
+          <input
+            type="text"
+            value={allBillsSearch}
+            onChange={(e) => setAllBillsSearch(e.target.value)}
+            placeholder="बिल नम्बर वा बिरामीको नाम खोज्नुहोस्..."
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm"
+          />
+        </div>
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {billingRecords
+              ?.filter(b => 
+                (b.invoiceNumber || '').toLowerCase().includes(allBillsSearch.toLowerCase()) || 
+                (b.patientName || '').toLowerCase().includes(allBillsSearch.toLowerCase())
+              )
+              .sort((a, b) => b.id.localeCompare(a.id))
+              .slice(0, 50)
+              .map(bill => (
+                <div key={bill.id} className="flex justify-between items-center p-2.5 hover:bg-slate-50 border-b border-slate-100 text-sm">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-semibold text-slate-800 truncate">{bill.patientName || 'प्रत्यक्ष/नाम छैन'}</p>
+                    <p className="text-xs text-slate-500 font-mono truncate">{bill.invoiceNumber} | {bill.billDate}</p>
+                  </div>
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                    <p className="font-bold text-slate-700 font-mono">Rs. {bill.grandTotal}</p>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
+                            className="text-xs text-blue-600 hover:underline"
+                        >
+                            Reprint
+                        </button>
+                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                            <>
+                                <button 
+                                    onClick={() => handleEditDirectBill(bill)}
+                                    className="text-xs text-yellow-600 hover:underline"
+                                >
+                                    Edit
+                                </button>
+                                <button 
+                                    onClick={() => onDeleteRecord && onDeleteRecord(bill.id)}
+                                    className="text-xs text-red-600 hover:underline"
+                                >
+                                    Delete
+                                </button>
+                            </>
+                        )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+        </div>
+      </div>
     </div>
   );
 };

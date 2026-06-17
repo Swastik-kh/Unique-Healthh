@@ -14,17 +14,17 @@ const normalizeCategory = (cat: string): string => {
   if (!cat) return '';
   const c = cat.trim().toLowerCase();
   
-  // Normalized mappings
-  if (['lab', 'laboratory', 'prayogsala', 'ल्याब', 'प्रयोगशाला', 'lab investigation', 'lab service', 'lab-investigation', 'lab-service'].includes(c)) return 'Lab';
-  if (['x-ray', 'xray', 'एक्स-रे', 'एक्सरे', 'x-ray service'].includes(c)) return 'X-Ray';
-  if (['usg', 'video x-ray', 'भिडियो एक्स-रे', 'भिडियो एक्सरे', 'usg service', 'ultrasound'].includes(c)) return 'USG';
-  if (['ecg', 'ईसीजी', 'मुटुको जाँच', 'ecg service', 'electrocardiogram'].includes(c)) return 'ECG';
-  if (['opd', 'ओपिडी', 'opd service', 'ticket', 'टिकट', 'दस्तुर', 'दर्ता'].includes(c)) return 'OPD';
-  if (['emergency', 'इमर्जेन्सी', 'emergency service', 'आकस्मिक'].includes(c)) return 'Emergency';
-  if (['pharmacy', 'dispensary', 'फार्मेसी', 'डिस्पेन्सरी', 'pharmacy / dispensary'].includes(c)) return 'Pharmacy';
-  if (['physiotherapy', 'फिजियोथेरापी'].includes(c)) return 'Physiotherapy';
-  if (['tb', 'क्षयरोग', 'tuberculosis', 'tb service', 'dots', 'afb'].includes(c)) return 'TB';
-  if (['leprosy', 'कुष्ठरोग', 'leprosy service'].includes(c)) return 'Leprosy';
+  // Normalized mappings using includes for better robustness
+  if (['lab', 'laboratory', 'prayogsala', 'ल्याब', 'प्रयोगशाला'].some(k => c.includes(k))) return 'Lab';
+  if (['x-ray', 'xray', 'एक्स-रे', 'एक्सरे'].some(k => c.includes(k))) return 'X-Ray';
+  if (['usg', 'video x-ray', 'भिडियो', 'ultrasound'].some(k => c.includes(k))) return 'USG';
+  if (['ecg', 'ईसीजी', 'मुटुको जाँच', 'electrocardiogram'].some(k => c.includes(k))) return 'ECG';
+  if (['opd', 'ओपिडी', 'ticket', 'टिकट', 'दस्तुर', 'दर्ता'].some(k => c.includes(k))) return 'OPD';
+  if (['emergency', 'इमर्जेन्सी', 'आकस्मिक'].some(k => c.includes(k))) return 'Emergency';
+  if (['pharmacy', 'dispensary', 'फार्मेसी', 'डिस्पेन्सरी'].some(k => c.includes(k))) return 'Pharmacy';
+  if (['physiotherapy', 'फिजियोथेरापी'].some(k => c.includes(k))) return 'Physiotherapy';
+  if (['tb', 'क्षयरोग', 'tuberculosis', 'dots', 'afb'].some(k => c.includes(k))) return 'TB';
+  if (['leprosy', 'कुष्ठरोग'].some(k => c.includes(k))) return 'Leprosy';
   
   return cat.trim();
 };
@@ -294,16 +294,20 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Robust, normalized helper to get category of any service or sub-test with keywords fallback
   const getServiceCategory = useCallback((serviceNameLower: string, categoryOnItem?: string): string => {
-    if (categoryOnItem) {
-      return normalizeCategory(categoryOnItem);
-    }
     const itemLower = serviceNameLower.trim().toLowerCase();
+    
+    // 1. Try mapping by service name first
     let itemCategory = serviceCategoryMap.get(itemLower);
     if (!itemCategory) {
       const parentName = testSubRelations.parentOfService.get(itemLower);
       if (parentName) {
         itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
       }
+    }
+    
+    // 2. If no category found from map/parent, try falling back to category field on the item itself
+    if (!itemCategory && categoryOnItem) {
+      itemCategory = normalizeCategory(categoryOnItem);
     }
     
     if (!itemCategory) {
