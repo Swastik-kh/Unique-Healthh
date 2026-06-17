@@ -665,6 +665,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           fiscalYear: existingBill?.fiscalYear || currentFiscalYear,
           billDate: directMiti || new NepaliDate().format('YYYY-MM-DD'),
           invoiceNumber: directBillNo,
+          manualInvoiceNumber: directBillNo,
           serviceSeekerId: directPatientSn || `DIR-${Date.now().toString().slice(-6)}`,
           patientName: directPatientName,
           items: [...billingItems], // Ensure it's a clone

@@ -467,6 +467,7 @@ export interface BillingRecord {
   fiscalYear: string;
   billDate: string;
   invoiceNumber: string;
+  manualInvoiceNumber?: string; // Add optional manual invoice number
   serviceSeekerId: string;
   patientName: string;
   items: BillingItem[];
