@@ -1191,16 +1191,16 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     list="services-list"
                     onChange={(e) => {
                       const name = e.target.value;
-                      let price = newItem.price;
+                      let price = '';
                       
-                      const service = serviceItems.find(s => s.serviceName.toLowerCase() === name.toLowerCase());
+                      const service = serviceItems.find(s => s.serviceName === name);
                       if (service) {
                         price = service.rate.toString();
                       } else {
                         // Check sub-tests
                         for (const s of serviceItems) {
                           if (s.subTests) {
-                            const st = s.subTests.find(st => st.testName.toLowerCase() === name.toLowerCase());
+                            const st = s.subTests.find(st => st.testName === name);
                             if (st) {
                               price = (st.price || 0).toString();
                               break;
@@ -1212,14 +1212,22 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       setNewItem({...newItem, serviceName: name, price});
                     }}
                     className="w-full p-2 border border-slate-300 rounded text-sm bg-white font-medium focus:ring-2 focus:ring-emerald-500 outline-none"
-                    placeholder="उदा: CBC, Urine RE, X-Ray"
+                    placeholder="सेवा खोज्नुहोस्..."
                   />
                   <datalist id="services-list">
+                    <option value="">सेवा चयन गर्नुहोस्...</option>
                     {serviceItems.map((item) => (
                       <option key={item.id} value={item.serviceName}>
                         {item.serviceName} (Rs. {item.rate})
                       </option>
                     ))}
+                    {serviceItems.map((s) => 
+                      s.subTests?.map((st, idx) => (
+                        <option key={`${s.id}-${idx}`} value={st.testName}>
+                          {st.testName} (Rs. {st.price})
+                        </option>
+                      ))
+                    )}
                   </datalist>
                 </div>
                 <div className="col-span-1 md:col-span-2">
