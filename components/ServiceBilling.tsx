@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X } from 'lucide-react';
+import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X, Edit } from 'lucide-react';
 import { ServiceSeekerRecord, OPDRecord, BillingRecord, BillingItem, ServiceItem, CBIMNCIRecord, EmergencyRecord } from '../types/coreTypes';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -88,6 +88,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
   // Direct Billing State
   const [isDirectBilling, setIsDirectBilling] = useState(false);
+  const [editingDirectBillId, setEditingDirectBillId] = useState<string | null>(null);
   const [directPatientName, setDirectPatientName] = useState('');
   const [directPatientSn, setDirectPatientSn] = useState('');
   const [directBillNo, setDirectBillNo] = useState('');
@@ -98,7 +99,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [prevIsDirect, setPrevIsDirect] = useState(false);
 
   React.useEffect(() => {
-    if (isDirectBilling && (directMiti !== prevMiti || isDirectBilling !== prevIsDirect)) {
+    if (isDirectBilling && !editingDirectBillId && (directMiti !== prevMiti || isDirectBilling !== prevIsDirect)) {
       setPrevMiti(directMiti || '');
       setPrevIsDirect(isDirectBilling);
 
@@ -145,9 +146,26 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     } else if (!isDirectBilling && prevIsDirect) {
       setPrevIsDirect(false);
     }
-  }, [isDirectBilling, directMiti, billingRecords, prevMiti, prevIsDirect, currentFiscalYear]);
+  }, [isDirectBilling, directMiti, billingRecords, prevMiti, prevIsDirect, currentFiscalYear, editingDirectBillId]);
+
+  const handleEditDirectBill = (bill: BillingRecord) => {
+    setEditingDirectBillId(bill.id);
+    setIsDirectBilling(true);
+    setCurrentPatient(null);
+    setDirectPatientName(bill.patientName || '');
+    setDirectPatientSn(bill.serviceSeekerId || '');
+    setDirectBillNo(bill.invoiceNumber || '');
+    setDirectMiti(bill.billDate || new NepaliDate().format('YYYY-MM-DD'));
+    setDirectRemarks(bill.remarks || '');
+    setBillingItems(bill.items || []);
+    setDiscount(bill.discount ? String(bill.discount) : '');
+    setPaymentMode((bill.paymentMode as any) || 'Cash');
+    setPrevMiti(bill.billDate || '');
+    setPrevIsDirect(true);
+  };
 
   const handleStartDirectBilling = () => {
+    setEditingDirectBillId(null);
     setIsDirectBilling(true);
     setCurrentPatient(null);
     setBillingItems([]);
@@ -612,10 +630,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
       setIsSaving(true);
       try {
-        const recordId = `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        const existingBill = editingDirectBillId ? billingRecords.find(b => b.id === editingDirectBillId) : null;
+        const recordId = editingDirectBillId || `BILL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
         const newBill: BillingRecord = {
           id: recordId,
-          fiscalYear: currentFiscalYear,
+          fiscalYear: existingBill?.fiscalYear || currentFiscalYear,
           billDate: directMiti || new NepaliDate().format('YYYY-MM-DD'),
           invoiceNumber: directBillNo,
           serviceSeekerId: directPatientSn || `DIR-${Date.now().toString().slice(-6)}`,
@@ -625,7 +644,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           discount: discountAmount,
           grandTotal: grandTotal,
           paymentMode: paymentMode,
-          createdBy: currentUser?.username || 'Unknown',
+          createdBy: existingBill?.createdBy || currentUser?.username || 'Unknown',
           remarks: directRemarks || undefined,
           isDirectBilling: true,
         };
@@ -646,10 +665,13 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         
         // Reset direct billing fields
         setDirectPatientName('');
+        setDirectPatientSn('');
+        setDirectBillNo('');
         setDirectRemarks('');
         setPrevMiti('');
         setPrevIsDirect(false);
         setDirectMiti(new NepaliDate().format('YYYY-MM-DD'));
+        setEditingDirectBillId(null);
         setIsDirectBilling(false);
 
         alert('प्रत्यक्ष बिल सुरक्षित गरियो। अब प्रिन्ट हुँदैछ...');
@@ -775,6 +797,13 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 onClick={() => {
                   setIsDirectBilling(false);
                   setBillingItems([]);
+                  setEditingDirectBillId(null);
+                  setDirectPatientName('');
+                  setDirectPatientSn('');
+                  setDirectBillNo('');
+                  setDirectRemarks('');
+                  setDiscount('');
+                  setPaymentMode('Cash');
                 }}
                 className="bg-slate-600 border border-transparent text-white px-6 py-3 rounded-lg hover:bg-slate-700 font-medium shadow-sm font-nepali flex items-center gap-1"
               >
@@ -793,7 +822,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               <>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-200 ring-4 ring-emerald-500/10">
                   <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-2 font-nepali">
-                    <Plus size={18} className="text-emerald-600" /> प्रत्यक्ष बिलिङ विवरण (Direct Billing Form)
+                    {editingDirectBillId ? (
+                      <>
+                        <Edit size={18} className="text-amber-600" /> प्रत्यक्ष बिल संशोधन (Edit Direct Bill)
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={18} className="text-emerald-600" /> प्रत्यक्ष बिलिङ विवरण (Direct Billing Form)
+                      </>
+                    )}
                   </h3>
                   <div className="space-y-4">
                     <div>
@@ -876,6 +913,14 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               >
                                 Reprint
                               </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                                <button 
+                                  onClick={() => handleEditDirectBill(bill)}
+                                  className="text-xs text-amber-600 hover:underline flex items-center gap-0.5"
+                                >
+                                  <Edit size={10} /> Edit
+                                </button>
+                              )}
                               {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteBilling === true) && (
                                 <button 
                                   onClick={() => {
@@ -1626,6 +1671,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                             >
                               Reprint
                             </button>
+                            {isDirect && (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                              <button
+                                onClick={() => handleEditDirectBill(bill)}
+                                className="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
+                              >
+                                <Edit size={12} />
+                                Edit
+                              </button>
+                            )}
                             {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.canDeleteBilling === true) ? (
                               <button
                                 onClick={() => {
