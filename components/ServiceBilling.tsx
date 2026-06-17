@@ -681,6 +681,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           remarks: directRemarks || undefined,
           isDirectBilling: true,
         };
+        console.log("Saving bill with invoiceNumber:", newBill.invoiceNumber);
 
         // Explicitly wait for persistence
         await onSaveRecord(newBill);
