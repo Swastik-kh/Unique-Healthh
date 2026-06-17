@@ -459,6 +459,7 @@ export interface BillingItem {
   total: number;
   itemCode?: string;
   remarks?: string; // Added optional remarks field for tests
+  category?: string; // Original category of the service from settings
 }
 
 export interface BillingRecord {

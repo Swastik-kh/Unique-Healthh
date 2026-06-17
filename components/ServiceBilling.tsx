@@ -283,7 +283,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           quantity: 1,
           total: (subTest.price || 0) * 1,
           itemCode: getHibCodeForService(subItemName),
-          remarks: newItem.remarks || undefined
+          remarks: newItem.remarks || undefined,
+          category: service.category
         };
         itemsToAdd.push(item);
       });
@@ -322,6 +323,19 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       }
     }
 
+    let itemCategory: string | undefined = service?.category;
+    if (!itemCategory) {
+      for (const s of serviceItems) {
+        if (s.subTests) {
+          const st = s.subTests.find(st => st.testName.toLowerCase() === newItem.serviceName.toLowerCase());
+          if (st) {
+            itemCategory = s.category;
+            break;
+          }
+        }
+      }
+    }
+
     const item: BillingItem = {
       id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
       serviceName: newItem.serviceName,
@@ -329,7 +343,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       quantity: quantity,
       total: price * quantity,
       itemCode: getHibCodeForService(newItem.serviceName),
-      remarks: newItem.remarks || undefined
+      remarks: newItem.remarks || undefined,
+      category: itemCategory
     };
 
     setBillingItems([...billingItems, item]);
@@ -370,7 +385,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             price: subTest.price || 0,
             quantity: 1,
             total: (subTest.price || 0) * 1,
-            itemCode: getHibCodeForService(subItemName)
+            itemCode: getHibCodeForService(subItemName),
+            category: service.category
           };
           itemsToAdd.push(item);
         });
@@ -397,13 +413,24 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
         const price = foundSubTest ? (foundSubTest.price || 0) : (service ? service.rate : 0);
         
+        let itemCategory: string | undefined = service?.category;
+        if (!itemCategory && foundSubTest) {
+          for (const s of serviceItems) {
+            if (s.subTests?.some(st => st.testName === name || st.testName.toLowerCase() === name.toLowerCase())) {
+              itemCategory = s.category;
+              break;
+            }
+          }
+        }
+
         const item: BillingItem = {
           id: Date.now().toString() + '-' + index + '-' + Math.random().toString(36).substr(2, 5), // Ensure unique ID
           serviceName: name,
           price: price,
           quantity: 1,
           total: price * 1,
-          itemCode: getHibCodeForService(name)
+          itemCode: getHibCodeForService(name),
+          category: itemCategory
         };
         itemsToAdd.push(item);
       }

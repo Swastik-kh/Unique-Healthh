@@ -1,10 +1,33 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle } from 'lucide-react';
 import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { LogoDisplay } from './LogoDisplay';
+
+const COMMON_LAB_KWS = new Set([
+  'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain'
+]);
+
+const normalizeCategory = (cat: string): string => {
+  if (!cat) return '';
+  const c = cat.trim().toLowerCase();
+  
+  // Normalized mappings
+  if (['lab', 'laboratory', 'prayogsala', 'ल्याब', 'प्रयोगशाला', 'lab investigation', 'lab service', 'lab-investigation', 'lab-service'].includes(c)) return 'Lab';
+  if (['x-ray', 'xray', 'एक्स-रे', 'एक्सरे', 'x-ray service'].includes(c)) return 'X-Ray';
+  if (['usg', 'video x-ray', 'भिडियो एक्स-रे', 'भिडियो एक्सरे', 'usg service', 'ultrasound'].includes(c)) return 'USG';
+  if (['ecg', 'ईसीजी', 'मुटुको जाँच', 'ecg service', 'electrocardiogram'].includes(c)) return 'ECG';
+  if (['opd', 'ओपिडी', 'opd service', 'ticket', 'टिकट', 'दस्तुर', 'दर्ता'].includes(c)) return 'OPD';
+  if (['emergency', 'इमर्जेन्सी', 'emergency service', 'आकस्मिक'].includes(c)) return 'Emergency';
+  if (['pharmacy', 'dispensary', 'फार्मेसी', 'डिस्पेन्सरी', 'pharmacy / dispensary'].includes(c)) return 'Pharmacy';
+  if (['physiotherapy', 'फिजियोथेरापी'].includes(c)) return 'Physiotherapy';
+  if (['tb', 'क्षयरोग', 'tuberculosis', 'tb service', 'dots', 'afb'].includes(c)) return 'TB';
+  if (['leprosy', 'कुष्ठरोग', 'leprosy service'].includes(c)) return 'Leprosy';
+  
+  return cat.trim();
+};
 
 interface LabBillingReportProps {
   billingRecords: BillingRecord[];
@@ -120,7 +143,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const serviceCategoryMap = useMemo(() => {
     const map = new Map<string, string>();
     serviceItems.forEach(item => {
-      const cat = item.category;
+      const cat = normalizeCategory(item.category);
       map.set(item.serviceName.trim().toLowerCase(), cat);
       if (item.subTests && item.subTests.length > 0) {
         item.subTests.forEach(sub => {
@@ -132,7 +155,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     // Explicit mappings for registration/muldarta fees
     const virtualCategories = ['OPD', 'Emergency', 'IPD', 'Vaccination', 'Lab', 'X-Ray', 'USG', 'ECG', 'Pharmacy', 'Physiotherapy', 'TB', 'Leprosy', 'Other'];
     virtualCategories.forEach(cat => {
-      map.set(`${cat.toLowerCase()} दर्ता शुल्क`, cat);
+      map.set(`${cat.toLowerCase()} दर्ता शुल्क`, normalizeCategory(cat));
     });
     map.set('opd ticket', 'OPD');
     map.set('opd registration fee', 'OPD');
@@ -269,6 +292,63 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     };
   }, [serviceItems, allBillingRecordsCombined]);
 
+  // Robust, normalized helper to get category of any service or sub-test with keywords fallback
+  const getServiceCategory = useCallback((serviceNameLower: string, categoryOnItem?: string): string => {
+    if (categoryOnItem) {
+      return normalizeCategory(categoryOnItem);
+    }
+    const itemLower = serviceNameLower.trim().toLowerCase();
+    let itemCategory = serviceCategoryMap.get(itemLower);
+    if (!itemCategory) {
+      const parentName = testSubRelations.parentOfService.get(itemLower);
+      if (parentName) {
+        itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
+      }
+    }
+    
+    if (!itemCategory) {
+      if (
+        COMMON_LAB_KWS.has(itemLower) || 
+        itemLower.includes('exam') || 
+        itemLower.includes('test') || 
+        itemLower.includes('जाँच') || 
+        itemLower.includes('रगत') || 
+        itemLower.includes('पिसाब') || 
+        itemLower.includes('दिशा') ||
+        itemLower.includes('urine') ||
+        itemLower.includes('blood') ||
+        itemLower.includes('stool') ||
+        itemLower.includes('sputum') ||
+        itemLower.includes('culture') ||
+        itemLower.includes('widal') ||
+        itemLower.includes('typhoid') ||
+        itemLower.includes('malaria') ||
+        itemLower.includes('hbsag') ||
+        itemLower.includes('hiv') ||
+        itemLower.includes('pregnancy') ||
+        itemLower.includes('upt')
+      ) {
+        itemCategory = 'Lab';
+      } else if (itemLower.includes('xray') || itemLower.includes('x-ray') || itemLower.includes('एक्स-रे') || itemLower.includes('एक्सरे')) {
+        itemCategory = 'X-Ray';
+      } else if (itemLower.includes('usg') || itemLower.includes('ultrasound') || itemLower.includes('भिडियो एक्सरे') || itemLower.includes('भिडियो एक्स-रे')) {
+        itemCategory = 'USG';
+      } else if (itemLower.includes('ecg') || itemLower.includes('ईसीजी') || itemLower.includes('electrocardiogram')) {
+        itemCategory = 'ECG';
+      } else if (itemLower.includes('opd') || itemLower.includes('ओपिडी') || itemLower.includes('ticket') || itemLower.includes('टिकट') || itemLower.includes('दस्तुर') || itemLower.includes('दर्ता')) {
+        itemCategory = 'OPD';
+      } else if (itemLower.includes('emergency') || itemLower.includes('इमर्जेन्सी') || itemLower.includes('आकस्मिक')) {
+        itemCategory = 'Emergency';
+      } else if (itemLower.includes('tb') || itemLower.includes('dots') || itemLower.includes('क्षयरोग') || itemLower.includes('afb')) {
+        itemCategory = 'TB';
+      } else if (itemLower.includes('leprosy') || itemLower.includes('कुष्ठरोग')) {
+        itemCategory = 'Leprosy';
+      }
+    }
+    
+    return itemCategory || 'Other';
+  }, [serviceCategoryMap, testSubRelations]);
+
   // Helper to get the gross amount for selected service or category in a record (before flat discount)
   const getRecordGrossAmountForSelectedService = (record: BillingRecord): number => {
     if (selectedCategory === 'All' && selectedService === 'All') {
@@ -282,13 +362,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
       // 1. Category Filter check
       if (selectedCategory !== 'All') {
-        let itemCategory = serviceCategoryMap.get(itemLower);
-        if (!itemCategory) {
-          const parentName = testSubRelations.parentOfService.get(itemLower);
-          if (parentName) {
-            itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
-          }
-        }
+        const itemCategory = getServiceCategory(itemLower, item.category);
         if (itemCategory !== selectedCategory) {
           // Skip if category does not match
           return;
@@ -505,13 +579,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       if (selectedCategory !== 'All') {
         const hasCategory = record.items?.some((item) => {
           const itemLower = (item.serviceName || '').toLowerCase().trim();
-          let itemCategory = serviceCategoryMap.get(itemLower);
-          if (!itemCategory) {
-            const parentName = testSubRelations.parentOfService.get(itemLower);
-            if (parentName) {
-              itemCategory = serviceCategoryMap.get(parentName.toLowerCase().trim());
-            }
-          }
+          const itemCategory = getServiceCategory(itemLower, item.category);
           return itemCategory === selectedCategory;
         });
 
@@ -552,7 +620,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap]);
+  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap, getServiceCategory]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
@@ -671,7 +739,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const patient = r.patientName || '-';
         const billNo = r.invoiceNumber || '-';
         const date = r.billDate || '-';
-        const services = selectedService !== 'All' ? selectedService : (r.items?.map(i => i.serviceName).join(', ') || '-');
+        const filteredItemsForExportList = selectedCategory === 'All'
+          ? r.items
+          : r.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
+        const services = selectedService !== 'All' ? selectedService : (filteredItemsForExportList?.map(i => i.serviceName).join(', ') || '-');
         const amt = getRecordAmountForSelectedService(r).toString();
         const baseR = r.remarks || '';
         const dVal = getRecordDiscountForSelectedService(r);
@@ -1004,7 +1075,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   {testSubRelations.mainServices.length > 0 && (
                     <optgroup label="मुख्य टेस्ट प्याकेज/समूह (Main Test Packages)">
                       {testSubRelations.mainServices
-                        .filter(srv => selectedCategory === 'All' || serviceCategoryMap.get(srv.toLowerCase().trim()) === selectedCategory)
+                        .filter(srv => selectedCategory === 'All' || getServiceCategory(srv.toLowerCase().trim()) === selectedCategory)
                         .map((srv) => (
                           <option key={`main-${srv}`} value={srv}>
                             {srv}
@@ -1017,14 +1088,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       {testSubRelations.individualAndSubServices
                         .filter(srv => {
                           if (selectedCategory === 'All') return true;
-                          let cat = serviceCategoryMap.get(srv.toLowerCase().trim());
-                          if (!cat) {
-                            const parentName = testSubRelations.parentOfService.get(srv.toLowerCase().trim());
-                            if (parentName) {
-                              cat = serviceCategoryMap.get(parentName.toLowerCase().trim());
-                            }
-                          }
-                          return cat === selectedCategory;
+                          return getServiceCategory(srv.toLowerCase().trim()) === selectedCategory;
                         })
                         .map((srv) => (
                           <option key={`indiv-${srv}`} value={srv}>
@@ -1191,7 +1255,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
                     const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
                     const displayDate = formatRawDateToNepaliUi(record.billDate);
-                    const servicesList = selectedService !== 'All' ? selectedService : (record.items?.map((item) => item.serviceName).join(', ') || '-');
+                    const filteredItemsForList = selectedCategory === 'All'
+                      ? record.items
+                      : record.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
+                    const servicesList = selectedService !== 'All' 
+                      ? selectedService 
+                      : (filteredItemsForList?.map((item) => item.serviceName).join(', ') || '-');
                     const priceTotal = getRecordAmountForSelectedService(record);
                     const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
                     const baseRemarks = record.remarks || '';
