@@ -1145,8 +1145,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     <td style="font-size: 11px;">${toNepaliNumber(e.activityName || '')}</td>
                     <td>
                        ${(e.accountName.includes('Expense Account') || e.accountName === 'खर्च') && voucher.remarks 
-                         ? voucher.remarks 
-                         : e.accountName}
+                         ? (e.debit ? 'डे. ब.ख. ' : (e.credit ? 'क्रे. ' : '')) + voucher.remarks 
+                         : (e.debit ? 'डे. ब.ख. ' : (e.credit ? 'क्रे. ' : '')) + e.accountName}
                     </td>
                     <td></td>
                     <td style="padding: 0;">
