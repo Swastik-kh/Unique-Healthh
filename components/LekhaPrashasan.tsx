@@ -17,6 +17,7 @@ import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
+import { toNepaliNumber } from './nepaliUtils';
 import { db } from '../firebase';
 import { ref, onValue, remove } from 'firebase/database';
 
@@ -496,6 +497,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         word += ones[Math.floor(n / 100)] + ' सय ';
         n %= 100;
       }
+      if (n === 99) return word + 'उन्नान्सय';
+      if (n === 39) return word + 'उन्नंचालिस';
       if (n >= 20) {
         word += tens[Math.floor(n / 10)] + ' ';
         n %= 10;
@@ -1084,12 +1087,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                <h1>${generalSettings.subTitleNepali || ''}</h1>
                <p>${generalSettings.subTitleNepali2 || ''}</p>
                <p>${generalSettings.subTitleNepali3 || ''}</p>
-               <p>कार्यालय कोड नं.: <span class="dots">${generalSettings.officeCode || '......................'}</span></p>
+               <p>कार्यालय कोड नं.: <span class="dots">${toNepaliNumber(generalSettings.officeCode || '......................')}</span></p>
             </div>
             <div class="header-side" style="display: flex; flex-direction: column; align-items: flex-end;">
                <div class="form-number">
-                 म.ले.प.फारम नं: २०३<br>
-                 साबिकको फारम नं: १०
+                 म.ले.प.फारम नं: ${toNepaliNumber('२०३')}<br>
+                 साबिकको फारम नं: ${toNepaliNumber('१०')}
                </div>
                <div class="qr-code" style="margin-top: 10px;">
                   <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`Voucher ID: ${voucher.id}\nDate: ${voucher.dateBs}\nAmount: ${voucher.totalAmount}\nOrg: ${generalSettings.orgNameNepali}`)}" style="width: 100%; height: 100%;">
@@ -1108,7 +1111,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                </span>
             </div>
             <div class="meta-item">
-               मिति : <span class="dots" style="min-width: 150px;">${voucher.dateBs}</span>
+               मिति : <span class="dots" style="min-width: 150px;">${toNepaliNumber(voucher.dateBs)}</span>
             </div>
           </div>
 
@@ -1117,7 +1120,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                बजेट उप शीर्षक नं : <span class="dots" style="min-width: 150px;"></span>
             </div>
             <div class="meta-item">
-               मुल गो.भौ.न. : <span class="dots" style="min-width: 150px;">${voucher.id}</span>
+               मुल गो.भौ.न. : <span class="dots" style="min-width: 150px;">${toNepaliNumber(voucher.id)}</span>
             </div>
           </div>
           
@@ -1151,9 +1154,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <tbody>
               ${voucher.entries.map((e, idx) => `
                 <tr>
-                    <td class="text-center">${idx + 1}</td>
+                    <td class="text-center">${toNepaliNumber(idx + 1)}</td>
                     <td></td>
-                    <td style="font-size: 11px;">${e.activityName || ''}</td>
+                    <td style="font-size: 11px;">${toNepaliNumber(e.activityName || '')}</td>
                     <td>
                        ${(e.accountName.includes('Expense Account') || e.accountName === 'खर्च') && voucher.remarks 
                          ? voucher.remarks 
@@ -1168,8 +1171,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           <div style="flex: 1.5;"></div>
                        </div>
                     </td>
-                    <td class="text-right">${e.debit ? e.debit.toLocaleString() : ''}</td>
-                    <td class="text-right">${e.credit ? e.credit.toLocaleString() : ''}</td>
+                    <td class="text-right">${toNepaliNumber(e.debit ? e.debit.toLocaleString() : '')}</td>
+                    <td class="text-right">${toNepaliNumber(e.credit ? e.credit.toLocaleString() : '')}</td>
                 </tr>
               `).join('')}
               ${voucher.remarks ? `
@@ -1183,7 +1186,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </tr>
               ` : ''}
               <!-- Fill remaining rows for height if needed -->
-              ${voucher.entries.length < 5 ? Array(5 - voucher.entries.length).fill('').map(() => `
+              ${voucher.entries.length < 3 ? Array(3 - voucher.entries.length).fill('').map(() => `
                 <tr style="height: 30px;">
                     <td></td><td></td><td></td><td></td><td></td><td>
                       <div style="display: flex; height: 100%;">
@@ -1195,6 +1198,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     </td><td></td><td></td>
                 </tr>
               `).join('') : ''}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold;">
+                    <td colspan="6" class="text-right">जम्मा (Total)</td>
+                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount.toLocaleString())}</td>
+                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount.toLocaleString())}</td>
+                </tr>
+            </tfoot>
+          </table>
+          
+          <div style="margin-top: 15px; font-weight: bold;">अक्षरेपि : रू ${numberToWords(voucher.totalAmount)} मात्र ।</div>
             </tbody>
             <tfoot>
                 <tr style="font-weight: bold;">
@@ -2137,15 +2151,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
            <tbody>
              {vouchers.map(v => (
                <tr key={v.id} className="border-b">
-                  <td className="px-6 py-4">{v.dateBs}</td>
-                  <td className="px-6 py-4 font-mono text-xs">{v.id}</td>
+                  <td className="px-6 py-4 font-nepali">{toNepaliNumber(v.dateBs)}</td>
+                  <td className="px-6 py-4 font-mono text-xs font-nepali">{toNepaliNumber(v.id)}</td>
                   <td className="px-6 py-4 text-xs">
                     <span className={`px-2 py-1 rounded-full ${v.id.includes('PAY') || v.entries.some(e => e.debit && !e.accountName.includes('Bank/Cash')) ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                       {v.id.includes('PAY') || v.entries.some(e => e.debit && !e.accountName.includes('Bank/Cash')) ? 'खर्च' : 'प्राप्ती'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-nepali">{v.remarks || '-'}</td>
-                  <td className="px-6 py-4 text-right font-bold text-slate-700 font-nepali">रू {v.totalAmount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-nepali">{toNepaliNumber(v.remarks || '-')}</td>
+                  <td className="px-6 py-4 text-right font-bold text-slate-700 font-nepali">रू {toNepaliNumber(v.totalAmount.toLocaleString())}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                        <button onClick={() => handlePrintVoucher(v)} className="text-indigo-600 hover:text-indigo-900" title="प्रिन्ट">
