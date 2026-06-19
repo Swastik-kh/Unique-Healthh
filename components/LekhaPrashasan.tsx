@@ -485,31 +485,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   };
 
   const numberToWords = (num: number) => {
-    const ones = ['', 'एक', 'दुई', 'तीन', 'चार', 'पाँच', 'छ', 'सात', 'आठ', 'नौ'];
-    const teens = ['दश', 'एघार', 'बाह्र', 'तेह्र', 'चौध', 'पन्ध्र', 'सोह्र', 'सत्र', 'अठार', 'उन्नाइस'];
-    const tens = ['', '', 'बीस', 'तीस', 'चालीस', 'पचास', 'साठी', 'सत्तर', 'असी', 'नब्बे'];
+    const nepaliNumbers = ["", "एक", "दुई", "तीन", "चार", "पाँच", "छ", "सात", "आठ", "नौ", "दश", "एघार", "बाह्र", "तेह्र", "चौध", "पन्ध्र", "सोह्र", "सत्र", "अठार", "उन्नाइस", "बीस", "एक्काईस", "बाइस", "तेइस", "चौबीस", "पच्चीस", "छब्बिस", "सत्ताइस", "अठ्ठाइस", "उनन्तिस", "तीस", "एक्तीस", "बत्तीस", "तेतीस", "चौंतीस", "पैंतीस", "छत्तीस", "सैंतीस", "अड्तीस", "उनन्चालीस", "चालीस", "एकचालीस", "बयालीस", "त्रिचालीस", "चौवालीस", "पैंतालीस", "छयालीस", "सतालीस", "अठचालीस", "उनन्पचास", "पचास", "एकाउन्न", "बाउन्न", "त्रिपन्न", "चौरन्न", "पचपन्न", "छपन्न", "सन्ताउन्न", "अन्ठाउन्न", "उनन्साठी", "साठी", "एकसट्ठी", "बैसट्ठी", "त्रिसट्ठी", "चौसट्ठी", "पैंसट्ठी", "छैसट्ठी", "सतसट्ठी", "अठसट्ठी", "उनन्सत्तरी", "सत्तरी", "एकहत्तर", "बहत्तर", "त्रिसहत्तर", "चौहत्तर", "पचहत्तर", "छयहत्तर", "सतहत्तर", "अठहत्तर", "उनान्सी", "असी", "एकासी", "बयासी", "त्रियासी", "चौरासी", "पचासी", "छयासी", "सतासी", "अठासी", "उनान्नब्बे", "नब्बे", "एकानब्बे", "ब्यानब्बे", "त्रियानब्बे", "चौरानब्बे", "पन्चानब्बे", "छयानब्बे", "सन्तानब्बे", "अन्ठानब्बे", "उनान्सय"];
     
     if (num === 0) return 'शून्य';
     
     function convert(n: number) {
       let word = '';
       if (n >= 100) {
-        word += ones[Math.floor(n / 100)] + ' सय ';
+        word += nepaliNumbers[Math.floor(n / 100)] + ' सय ';
         n %= 100;
       }
-      if (n === 99) return word + 'उन्नान्सय';
-      if (n === 39) return word + 'उन्नंचालिस';
-      if (n >= 20) {
-        word += tens[Math.floor(n / 10)] + ' ';
-        n %= 10;
-      }
-      if (n >= 10) {
-        word += teens[n - 10] + ' ';
-        n = 0;
-      }
-      if (n > 0) {
-        word += ones[n] + ' ';
-      }
+      if (n > 0) word += nepaliNumbers[n] + ' ';
       return word;
     }
     
@@ -1095,7 +1081,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                  साबिकको फारम नं: ${toNepaliNumber('१०')}
                </div>
                <div class="qr-code" style="margin-top: 10px;">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`Voucher ID: ${voucher.id}\nDate: ${voucher.dateBs}\nAmount: ${voucher.totalAmount}\nOrg: ${generalSettings.orgNameNepali}`)}" style="width: 100%; height: 100%;">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`Voucher ID: ${voucher.id}\nDate: ${voucher.dateBs}\nAmount: ${toNepaliNumber(voucher.totalAmount)}\nOrg: ${generalSettings.orgNameNepali}\nEntries: ${voucher.entries.map(e => `\n- Activity: ${e.activityName || 'N/A'}, Account: ${e.accountName}, Amount: ${toNepaliNumber(e.debit || e.credit || '0')}`).join('')}`)}" style="width: 100%; height: 100%;">
                </div>
             </div>
           </div>
@@ -1202,19 +1188,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <tfoot>
                 <tr style="font-weight: bold;">
                     <td colspan="6" class="text-right">जम्मा (Total)</td>
-                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount.toLocaleString())}</td>
-                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount.toLocaleString())}</td>
-                </tr>
-            </tfoot>
-          </table>
-          
-          <div style="margin-top: 15px; font-weight: bold;">अक्षरेपि : रू ${numberToWords(voucher.totalAmount)} मात्र ।</div>
-            </tbody>
-            <tfoot>
-                <tr style="font-weight: bold;">
-                    <td colspan="6" class="text-right">जम्मा (Total)</td>
-                    <td class="text-right">रू ${voucher.totalAmount.toLocaleString()}</td>
-                    <td class="text-right">रू ${voucher.totalAmount.toLocaleString()}</td>
+                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount)}</td>
+                    <td class="text-right">रू ${toNepaliNumber(voucher.totalAmount)}</td>
                 </tr>
             </tfoot>
           </table>
