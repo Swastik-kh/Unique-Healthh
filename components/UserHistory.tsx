@@ -43,7 +43,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
   }, [logs, timeframe]);
 
   const userStats = useMemo(() => {
-    const stats: Record<string, { count: number, totalDuration: number, lastLogin?: number }> = {};
+    const stats: Record<string, { count: number, pastDuration: number, lastLogin?: number }> = {};
     
     // Calculate time boundary
     const timeBoundary = new Date();
@@ -57,7 +57,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
     const sortedLogs = [...logs].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     sortedLogs.forEach(log => {
-      if (!stats[log.userId]) stats[log.userId] = { count: 0, totalDuration: 0 };
+      if (!stats[log.userId]) stats[log.userId] = { count: 0, pastDuration: 0 };
       
       const logTime = new Date(log.timestamp).getTime();
 
@@ -68,19 +68,18 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
           stats[log.userId].lastLogin = logTime;
       } else if (log.eventType.toLowerCase() === 'logout') {
           if (log.durationMinutes && logTime >= boundaryTime) {
-             stats[log.userId].totalDuration += log.durationMinutes;
+             stats[log.userId].pastDuration += log.durationMinutes;
           }
           stats[log.userId].lastLogin = undefined;
       }
     });
 
-    // Add active session
+    // Check for activity timeout
+    const INACTIVE_THRESHOLD_MS = 20 * 1000; // 20 seconds
     Object.keys(stats).forEach(userId => {
         const lastLogin = stats[userId].lastLogin;
-        if (lastLogin && lastLogin < now) {
-            // Duration from login to now, but capped by timeframe (starts at max(login, boundary))
-            const startTime = Math.max(lastLogin, boundaryTime);
-            stats[userId].totalDuration += Math.max(0, (now - startTime) / (1000 * 60));
+        if (lastLogin && (now - lastLogin) >= INACTIVE_THRESHOLD_MS) {
+            stats[userId].lastLogin = undefined;
         }
     });
 
@@ -107,18 +106,29 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
         <thead>
           <tr>
             <th>User</th>
-            <th>Login Count</th>
+            <th>Status</th>
+            <th>Active Duration</th>
             <th>Total Time Spent</th>
           </tr>
         </thead>
         <tbody>
-          {users.map(user => (
-            <tr key={user.id}>
-              <td className={userStats[user.id]?.lastLogin ? "text-green-600 font-semibold" : ""}>{user.fullName}</td>
-              <td>{userStats[user.id]?.count || 0}</td>
-              <td>{formatDuration(userStats[user.id]?.totalDuration || 0)}</td>
-            </tr>
-          ))}
+          {users.map(user => {
+            const stats = userStats[user.id];
+            const activeDuration = stats?.lastLogin ? (now - stats.lastLogin) / (1000 * 60) : 0;
+            const pastDuration = stats?.pastDuration || 0;
+            const totalDuration = pastDuration + activeDuration;
+            
+            return (
+              <tr key={user.id}>
+                <td className={stats?.lastLogin ? "text-green-600 font-semibold" : ""}>{user.fullName}</td>
+                <td className={stats?.lastLogin ? "text-green-600 font-bold" : "text-gray-500"}>
+                  {stats?.lastLogin ? "Active" : "Offline"}
+                </td>
+                <td>{stats?.lastLogin ? formatDuration(activeDuration) : "00:00:00"}</td>
+                <td>{formatDuration(totalDuration)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
