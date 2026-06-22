@@ -37,12 +37,33 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
   }, [logs, timeframe]);
 
   const userStats = useMemo(() => {
-    const stats: Record<string, { count: number, totalDuration: number }> = {};
-    filteredLogs.forEach(log => {
+    const stats: Record<string, { count: number, totalDuration: number, lastLogin?: number }> = {};
+    const now = new Date().getTime();
+    
+    // Sort logs by time
+    const sortedLogs = [...filteredLogs].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    sortedLogs.forEach(log => {
       if (!stats[log.userId]) stats[log.userId] = { count: 0, totalDuration: 0 };
-      if (log.eventType === 'login') stats[log.userId].count++;
-      if (log.durationMinutes) stats[log.userId].totalDuration += log.durationMinutes;
+      
+      if (log.eventType === 'login') {
+          stats[log.userId].count++;
+          stats[log.userId].lastLogin = new Date(log.timestamp).getTime();
+      } else if (log.eventType === 'logout') {
+          if (log.durationMinutes) {
+             stats[log.userId].totalDuration += log.durationMinutes;
+             stats[log.userId].lastLogin = undefined; 
+          }
+      }
     });
+
+    // Add active session
+    Object.keys(stats).forEach(userId => {
+        if (stats[userId].lastLogin) {
+            stats[userId].totalDuration += (now - stats[userId].lastLogin!) / (1000 * 60);
+        }
+    });
+
     return stats;
   }, [filteredLogs]);
 

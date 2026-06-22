@@ -18,6 +18,7 @@ import { db } from '../firebase';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off } from "firebase/database";
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { logUserActivity } from '../lib/logger';
 
 const INITIAL_SETTINGS: OrganizationSettings = {
     orgNameNepali: 'Smart Inventory System',
@@ -201,9 +202,32 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   const handleLoginSuccess = (user: User, fiscalYear: string) => {
+    localStorage.setItem('loginTime', Date.now().toString());
     setCurrentUser(user);
     setCurrentFiscalYear(fiscalYear);
   };
+
+  const handleLogout = () => {
+      const loginTime = parseInt(localStorage.getItem('loginTime') || '0');
+      if (loginTime > 0 && currentUser) {
+          const durationMinutes = (Date.now() - loginTime) / (1000 * 60);
+          logUserActivity(currentUser.id, currentUser.username, 'logout', currentFiscalYear, durationMinutes).catch(console.error);
+      }
+      localStorage.removeItem('loginTime');
+      setCurrentUser(null);
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+        const loginTime = parseInt(localStorage.getItem('loginTime') || '0');
+        if (loginTime > 0 && currentUser) {
+            const durationMinutes = (Date.now() - loginTime) / (1000 * 60);
+            logUserActivity(currentUser.id, currentUser.username, 'logout', currentFiscalYear, durationMinutes).catch(console.error);
+        }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentUser, currentFiscalYear]);
 
   const getOrgRef = (subPath: string) => {
       const safeOrgName = currentUser?.organizationName.trim().replace(/[.#$[\]]/g, "_") || "unknown";
@@ -544,7 +568,7 @@ const App: React.FC = () => {
     <>
       {currentUser ? (
         <Dashboard 
-          onLogout={() => setCurrentUser(null)} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
+          onLogout={handleLogout} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
           users={allUsers} onAddUser={handleSaveUser}
           onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
           onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: pass })}
