@@ -114,7 +114,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
         <tbody>
           {users.map(user => (
             <tr key={user.id}>
-              <td>{user.fullName}</td>
+              <td className={userStats[user.id]?.lastLogin ? "text-green-600 font-semibold" : ""}>{user.fullName}</td>
               <td>{userStats[user.id]?.count || 0}</td>
               <td>{formatDuration(userStats[user.id]?.totalDuration || 0)}</td>
             </tr>
