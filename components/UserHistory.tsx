@@ -66,7 +66,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
              stats[log.userId].count++;
           }
           stats[log.userId].lastLogin = logTime;
-      } else if (log.eventType === 'logout') {
+      } else if (log.eventType.toLowerCase() === 'logout') {
           if (log.durationMinutes && logTime >= boundaryTime) {
              stats[log.userId].totalDuration += log.durationMinutes;
           }
@@ -77,7 +77,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
     // Add active session
     Object.keys(stats).forEach(userId => {
         const lastLogin = stats[userId].lastLogin;
-        if (lastLogin) {
+        if (lastLogin && lastLogin < now) {
             // Duration from login to now, but capped by timeframe (starts at max(login, boundary))
             const startTime = Math.max(lastLogin, boundaryTime);
             stats[userId].totalDuration += Math.max(0, (now - startTime) / (1000 * 60));
