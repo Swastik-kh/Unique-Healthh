@@ -1355,8 +1355,25 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       return true;
     });
 
+    const previousRecords = allRecords.filter(t => {
+      // 1. Transactions from strictly previous fiscal years
+      if (t.fiscalYear < reportFilter.fiscalYear) return true;
+      
+      // 2. Transactions within the current fiscal year, but before the selected date/month
+      if (t.fiscalYear === reportFilter.fiscalYear) {
+          if (reportFilter.type === 'Daily') return t.dateBs < reportFilter.date;
+          if (reportFilter.type === 'Monthly') return t.dateBs.substring(0, 7) < reportFilter.month;
+      }
+      return false; // For Annual report, opening balance is 0 or handled differently
+    });
+
+    const openingBalance = previousRecords.reduce((s, t) => 
+      s + (t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : -((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0))), 
+    0);
+
     const reportIncome = reportData.filter(t => t.type === 'Income').reduce((s, t) => s + (t.amountWithVAT || t.amount || 0), 0);
     const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)), 0);
+    const closingBalance = openingBalance + reportIncome - reportExpense;
 
     const handlePrint = () => {
       const printWin = window.open('', '', 'width=900,height=600');
@@ -1471,6 +1488,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             </select>
           </div>
           {reportFilter.type === 'Daily' && <div className="space-y-2"><label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Date</label><NepaliDatePicker value={reportFilter.date} onChange={val => setReportFilter({...reportFilter, date: val})} /></div>}
+          {reportFilter.type === 'Monthly' && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Month</label>
+              <select 
+                className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-2 text-sm font-bold" 
+                value={reportFilter.month.split('-')[1] || '01'} 
+                onChange={e => {
+                    const year = reportFilter.month.split('-')[0] || new Date().getFullYear().toString();
+                    setReportFilter({...reportFilter, month: `${year}-${e.target.value.padStart(2, '0')}`})
+                }}
+              >
+                {['बैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कार्तिक', 'मंसिर', 'पुष', 'माघ', 'फागुन', 'चैत'].map((m, i) => (
+                  <option key={i+1} value={(i+1).toString().padStart(2, '0')}>{m}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-2 ml-auto">
             <button onClick={handleDownloadExcel} className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700"><Download size={18} /> Excel</button>
             <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900"><Printer size={18} /> Print</button>
@@ -1535,7 +1569,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 ३ वर्षको बजेट ढाँचा (3 Year Budget Pattern)
               </h3>
               <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="99%" height="100%" minHeight={300}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
                   <BarChart data={budgetPatternData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 

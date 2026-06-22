@@ -23,6 +23,7 @@ import { UserManagement } from './UserManagement';
 import { OrganizationManagement } from './OrganizationManagement';
 import { Conference } from './Conference';
 import { ChangePassword } from './ChangePassword';
+import { UserHistory } from './UserHistory';
 import { TBPatientRegistration } from './TBPatientRegistration';
 import { RabiesRegistration } from './RabiesRegistration';
 import { RabiesReport } from './RabiesReport';
@@ -661,6 +662,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)', icon: <Activity size={16} /> },
         { id: 'store_setup', label: 'स्टोर सेटअप', icon: <Store size={16} /> },
         { id: 'user_management', label: 'प्रयोगकर्ता व्यवस्थापन', icon: <Users size={16} /> },
+        { id: 'user_history', label: 'इतिहास', icon: <Activity size={16} /> },
         { id: 'change_password', label: 'पासवर्ड परिवर्तन', icon: <KeyRound size={16} /> },
         { id: 'database_management', label: 'डाटाबेस व्यवस्थापन', icon: <Database size={16} /> },
       ]
@@ -889,6 +891,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
       case 'organization_management': return <OrganizationManagement currentUser={currentUser} users={users} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} onDeleteOrganization={onDeleteOrganization} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
+      case 'user_history': return <UserHistory users={users} />;
       case 'change_password': return <ChangePassword currentUser={currentUser} users={users} onChangePassword={onChangePassword} onUpdateUser={onUpdateUser} />;
       case 'store_setup': return <StoreSetup currentUser={currentUser} currentFiscalYear={currentFiscalYear} stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} inventoryItems={inventoryItems} onUpdateInventoryItem={onUpdateInventoryItem} />;
       case 'tb_leprosy': return <TBPatientRegistration 
@@ -1760,7 +1763,15 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                               {r.senderOrgName}
                             </span>
                           </td>
-                          <td className="p-3" data-label="प्राप्त मिति">{new Date(r.receivedAt).toLocaleDateString() || r.date}</td>
+                          <td className="p-3" data-label="प्राप्त मिति">
+                            {(() => {
+                              try {
+                                return new NepaliDate(new Date(r.receivedAt)).format('YYYY-MM-DD');
+                              } catch (e) {
+                                return r.date || '';
+                              }
+                            })()}
+                          </td>
                           <td className="p-3" data-label="पठाउने प्रेषक">{r.sender}</td>
                           <td className="p-3" data-label="बिषय">{r.subject}</td>
                          <td className="p-3 text-right space-x-1" data-label="कार्य">
@@ -1854,7 +1865,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           parties={listedParties || []}
           transactions={financialTransactions || []}
           payments={partyPayments || []}
-          vouchers={goswaraVouchers || []}
+          vouchers={goswaraVouchers ? goswaraVouchers.filter(v => v.fiscalYear === currentFiscalYear) : []}
           paymentRequests={paymentRequests || []}
           allowances={allowances || []}
           onSaveProgram={onSaveFinancialProgram}

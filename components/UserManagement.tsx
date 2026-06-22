@@ -164,6 +164,7 @@ const PERMISSION_STRUCTURE = [
             { id: 'store_setup', label: 'स्टोर सेटअप (Store Setup)' },
             { id: 'database_management', label: 'डाटाबेस व्यवस्थापन (Database)' },
             { id: 'user_management', label: 'प्रयोगकर्ता सेटअप (User Setup)' },
+            { id: 'user_history', label: 'इतिहास (History)' },
             { id: 'change_password', label: 'पासवर्ड परिवर्तन (Change Password)' },
         ]
     }

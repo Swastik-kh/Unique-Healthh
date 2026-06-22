@@ -640,3 +640,13 @@ export interface KarmachariTalimRecord {
   toDate: string;
   location: string;
 }
+
+export interface UserActivityLog {
+  id: string;
+  userId: string;
+  username: string;
+  eventType: 'login' | 'logout' | 'activity';
+  timestamp: string; // ISO date string
+  durationMinutes?: number;
+  fiscalYear: string;
+}

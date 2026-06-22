@@ -17,8 +17,16 @@ interface DartaFormProps {
 export const DartaForm: React.FC<DartaFormProps> = ({ onSave, onCancel, nextRegistrationNumber, currentUser, prefilledData }) => {
   const getInitialFormData = () => {
     let today = new NepaliDate().format('YYYY-MM-DD');
+    let prepopulatedDate = today;
+    if (prefilledData && prefilledData.receivedAt) {
+      try {
+        prepopulatedDate = new NepaliDate(new Date(prefilledData.receivedAt)).format('YYYY-MM-DD');
+      } catch (e) {
+        prepopulatedDate = today;
+      }
+    }
     return {
-      date: prefilledData ? new Date(prefilledData.receivedAt).toLocaleDateString('en-CA') : today,
+      date: prepopulatedDate,
       sender: prefilledData ? prefilledData.senderOrgName : '',
       subject: prefilledData ? prefilledData.subject : '',
       recipient: currentUser.fullName,

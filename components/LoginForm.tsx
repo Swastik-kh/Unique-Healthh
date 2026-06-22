@@ -1,11 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import NepaliDate from 'nepali-date-converter';
 import { Calendar, User, Lock, LogIn, Eye, EyeOff, Loader2, AlertCircle, Info, Code, ShieldAlert } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { LoginFormData } from '../types/coreTypes';
-import { LoginFormProps } from '../types/dashboardTypes';
+import { logUserActivity } from '../lib/logger';
 
 export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, initialFiscalYear }) => {
   const [formData, setFormData] = useState<LoginFormData>({
@@ -62,6 +63,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       });
 
       if (foundUser) {
+          logUserActivity(foundUser.id, foundUser.username, 'login', formData.fiscalYear).catch(console.error);
           onLoginSuccess(foundUser, formData.fiscalYear);
       } else {
           setErrors(prev => ({ 
