@@ -112,6 +112,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedAmbulanceExpenseCategory, setSelectedAmbulanceExpenseCategory] = useState<string>('All');
   const [selectedService, setSelectedService] = useState<string>('All');
+  const [selectedReferredBy, setSelectedReferredBy] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
@@ -619,12 +620,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         if (!hasService) return false;
       }
 
+      // 5.5. Referred By User filter match
+      if (selectedReferredBy !== 'All') {
+        const refMatch = record.referredBy === selectedReferredBy;
+        if (!refMatch) return false;
+      }
+
       return true;
     }).sort((a,b) => {
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, testSubRelations, serviceCategoryMap, getServiceCategory]);
+  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, selectedReferredBy, testSubRelations, serviceCategoryMap, getServiceCategory]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
@@ -736,7 +743,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         return;
       }
 
-      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "रकम (Amount)", "कैफियत (Remarks)"];
+      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "सिफारिस गर्ने (Referred By)", "रकम (Amount)", "कैफियत (Remarks)"];
       
       const rows = filteredRecords.map((r, idx) => {
         const serial = (idx + 1).toString();
@@ -747,13 +754,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ? r.items
           : r.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
         const services = selectedService !== 'All' ? selectedService : (filteredItemsForExportList?.map(i => i.serviceName).join(', ') || '-');
+        const referrerVal = r.referredBy;
+        const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
+        const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');
         const amt = getRecordAmountForSelectedService(r).toString();
         const baseR = r.remarks || '';
         const dVal = getRecordDiscountForSelectedService(r);
         const dNote = dVal > 0 ? `रु. ${dVal.toFixed(2)} छुट` : '';
         const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
         
-        return [serial, patient, billNo, date, services, amt, remarks];
+        return [serial, patient, billNo, date, services, referrerName, amt, remarks];
       });
 
       const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -930,7 +940,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       </div>
 
       {/* Filter panel - Hide on print */}
-      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4 items-end print:hidden">
+      <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-4 items-end print:hidden">
         <div>
           <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-700 text-white px-2 py-0.5 rounded-sm">रिपोर्ट प्रकार (Report Type)</label>
           <div className="relative">
@@ -1105,6 +1115,27 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
               </div>
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">सिफारिस गर्ने (Referred By)</label>
+              <div className="relative">
+                <select
+                  value={selectedReferredBy}
+                  onChange={(e) => setSelectedReferredBy(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer text-slate-700"
+                >
+                  <option value="All">सबै सिफारिसकर्ता (All Referrers)</option>
+                  {users
+                    .filter((u) => u.organizationName === currentUser?.organizationName)
+                    .map((u) => (
+                      <option key={u.id} value={u.username}>
+                        {u.fullName} ({u.designation || u.role})
+                      </option>
+                    ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
           </>
         ) : null}
 
@@ -1122,7 +1153,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-7 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
+        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-8 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
           <label className="block text-xs font-bold text-slate-600">रिपोर्टको मुख्य शीर्षक शब्द परिवर्तन वा संशोधन (Report Form Custom Headline Wordings)</label>
           <input
             type="text"
@@ -1243,6 +1274,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
                     सेवाहरूको विवरण
                   </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-36">
+                    सिफारिस गर्ने
+                  </th>
                   <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-28">
                     रकम
                   </th>
@@ -1265,6 +1299,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const servicesList = selectedService !== 'All' 
                       ? selectedService 
                       : (filteredItemsForList?.map((item) => item.serviceName).join(', ') || '-');
+                    const referrerVal = record.referredBy;
+                    const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
+                    const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');
                     const priceTotal = getRecordAmountForSelectedService(record);
                     const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
                     const baseRemarks = record.remarks || '';
@@ -1291,6 +1328,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border border-slate-950 p-2 font-medium">
                           {servicesList}
                         </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {referrerName}
+                        </td>
                         <td className="border border-slate-950 p-2 text-right font-bold font-mono">
                           {formattedPrice}
                         </td>
@@ -1302,14 +1342,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
                       चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।
                     </td>
                   </tr>
                 )}
                 {/* Grand Total Row */}
                 <tr className="bg-slate-50 font-bold">
-                  <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा रकम (Grand Total):
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">

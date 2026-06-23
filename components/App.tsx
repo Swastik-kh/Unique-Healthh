@@ -15,7 +15,7 @@ import {
 } from '../types';
 import { PaymentRequest, AllowanceRecord } from '../types/financeTypes';
 import { db } from '../firebase';
-import { ref, onValue, set, remove, update, get, Unsubscribe, off } from "firebase/database";
+import { ref, onValue, set, remove, update, get, Unsubscribe, off, onDisconnect } from "firebase/database";
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { logUserActivity } from '../lib/logger';
@@ -212,10 +212,38 @@ const App: React.FC = () => {
       if (loginTime > 0 && currentUser) {
           const durationMinutes = (Date.now() - loginTime) / (1000 * 60);
           logUserActivity(currentUser.id, currentUser.username, 'logout', currentFiscalYear, durationMinutes).catch(console.error);
+          
+          // Instantly mark offline in Realtime database
+          const presenceRef = ref(db, `presence/${currentUser.id}`);
+          set(presenceRef, {
+             state: 'offline',
+             lastActive: Date.now(),
+             username: currentUser.username,
+             fullName: currentUser.fullName
+          }).catch(console.error);
       }
       localStorage.removeItem('loginTime');
       setCurrentUser(null);
   };
+
+  useEffect(() => {
+    if (currentUser) {
+      const presenceRef = ref(db, `presence/${currentUser.id}`);
+      set(presenceRef, {
+        state: 'online',
+        lastActive: Date.now(),
+        username: currentUser.username,
+        fullName: currentUser.fullName
+      }).then(() => {
+        onDisconnect(presenceRef).set({
+          state: 'offline',
+          lastActive: Date.now(),
+          username: currentUser.username,
+          fullName: currentUser.fullName
+        });
+      }).catch(console.error);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
