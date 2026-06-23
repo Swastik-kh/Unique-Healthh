@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { BharmanAdeshEntry, User, OrganizationSettings, LeaveBalance } from '../types/coreTypes';
 import { Plus, Printer, Save, X, Eye, Trash2 } from 'lucide-react';
 import { LogoDisplay } from './LogoDisplay';
@@ -41,6 +41,12 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<BharmanAdeshEntry | null>(null);
 
+  const officeUsers = useMemo(() => {
+    if (!users) return [];
+    if (!currentUser || currentUser.role === 'SUPER_ADMIN') return users;
+    return users.filter(u => u.organizationName === currentUser.organizationName);
+  }, [users, currentUser]);
+
   const getInitialFormData = (): Omit<BharmanAdeshEntry, 'id' | 'fiscalYear'> => {
     let today = '';
     try {
@@ -62,7 +68,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
       date: today,
       sankhya: currentFiscalYear,
       chalaniNo: nextChalaniNo,
-      ksNo: '',
+      ksNo: currentUser?.id || '',
       employeeName: currentUser?.fullName || '',
       designation: currentUser?.designation || '',
       office: 'आधारभूत नगर अस्पताल बेल्टार',
@@ -240,13 +246,10 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                   value={formData.employeeName}
                   onChange={e => {
                     const selectedName = e.target.value;
-                    const selectedUser = users.find(u => u.fullName === selectedName);
+                    const selectedUser = officeUsers.find(u => u.fullName === selectedName);
                     
-                    // Find leave balance record for the selected user
-                    const userBalance = selectedUser ? leaveBalances.find(b => b.userId === selectedUser.id) : undefined;
-                    
-                    // Auto-fill ksNo only if serviceType is 'Permanent' in leave balance record
-                    const autoKsNo = (userBalance && userBalance.serviceType === 'Permanent') ? userBalance.userId : '';
+                    // Auto-fill ksNo with selected user's ID
+                    const autoKsNo = selectedUser ? selectedUser.id : '';
 
                     setFormData({ 
                       ...formData, 
@@ -259,7 +262,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                   required
                 >
                   <option value="">छान्नुहोस्</option>
-                  {users.map(u => (
+                  {officeUsers.map(u => (
                     <option key={u.id} value={u.fullName}>{u.fullName}</option>
                   ))}
                 </select>
