@@ -14,6 +14,7 @@ import {
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
+import { hashPassword } from './lib/crypto';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push } from "firebase/database";
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -1032,7 +1033,14 @@ const App: React.FC = () => {
 
   const handleSaveUser = async (u: User) => {
       try {
-          await set(ref(db, `users/${u.id}`), u);
+          const rawPassword = (u.password || '').trim();
+          // Detect if it is already a 64-character hexadecimal SHA-256 string
+          const isHashed = /^[0-9a-fA-F]{64}$/.test(rawPassword);
+          const securedUser = {
+              ...u,
+              password: isHashed ? rawPassword : hashPassword(rawPassword)
+          };
+          await set(ref(db, `users/${u.id}`), securedUser);
       } catch (err: any) {
           alert(`त्रुटि: प्रयोगकर्ता सुरक्षित गर्न सकिएन। (${err.message})`);
           throw err;
@@ -1601,7 +1609,7 @@ const App: React.FC = () => {
           users={allUsers} onAddUser={handleSaveUser}
           onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
           onDeleteOrganization={handleDeleteOrganization}
-          onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: pass })}
+          onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: hashPassword(pass) })}
           isDbLocked={isDbLocked}
           generalSettings={generalSettings} onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}
           magForms={magForms} onSaveMagForm={handleSaveMagForm} onDeleteMagForm={handleDeleteMagForm}

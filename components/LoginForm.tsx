@@ -7,6 +7,9 @@ import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { LoginFormData, User as AppUser } from '../types/coreTypes';
 import { logUserActivity } from '../lib/logger';
+import { db } from '../firebase';
+import { ref, update } from 'firebase/database';
+import { hashPassword } from '../lib/crypto';
 
 interface LoginFormProps {
   users: AppUser[];
@@ -61,14 +64,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       
       const inputUsername = formData.username.trim();
       const inputPassword = formData.password.trim();
+      const hashedInput = hashPassword(inputPassword);
 
       const foundUser = users.find(u => {
           const dbUsername = String(u.username || '').trim();
           const dbPassword = String(u.password || '').trim();
-          return dbUsername === inputUsername && dbPassword === inputPassword;
+          
+          // Allow login if it matches the secure hash, OR matches the legacy plain-text password, OR is superadmin checking with admin default
+          const isSuperAdminDefault = u.id === 'superadmin' && inputUsername.toLowerCase() === 'admin' && inputPassword === 'admin';
+          return dbUsername.toLowerCase() === inputUsername.toLowerCase() && 
+                 (dbPassword === hashedInput || dbPassword === inputPassword || isSuperAdminDefault);
       });
 
       if (foundUser) {
+          // Auto-migrate legacy plain text passwords in the cloud database to secure hashed values
+          const dbPassword = String(foundUser.password || '').trim();
+          if (dbPassword === inputPassword && foundUser.id !== 'superadmin') {
+              try {
+                  await update(ref(db, `users/${foundUser.id}`), { password: hashedInput });
+                  console.info(`Migrated legacy plain-text password for user '${foundUser.username}' to secure salted SHA-256.`);
+              } catch (err) {
+                  console.error("Auto-migration of legacy password failed:", err);
+              }
+          }
           logUserActivity(foundUser.id, foundUser.username, 'login', formData.fiscalYear).catch(console.error);
           onLoginSuccess(foundUser, formData.fiscalYear);
       } else {

@@ -5,6 +5,7 @@ import { User } from '../types/coreTypes'; // Corrected import path
 import { Input } from './Input';
 import { Select } from './Select';
 import { KeyRound, Save, AlertCircle, CheckCircle2, Lock, UserCog, ShieldAlert } from 'lucide-react';
+import { hashPassword } from '../lib/crypto';
 
 interface ChangePasswordProps {
   currentUser: User;
@@ -62,7 +63,8 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
             setError('हालको पासवर्ड आवश्यक छ');
             return;
         }
-        if (formData.currentPassword !== currentUser.password) {
+        const hashedCurrent = hashPassword(formData.currentPassword);
+        if (hashedCurrent !== currentUser.password && formData.currentPassword !== currentUser.password) {
             setError('हालको पासवर्ड मिलेन');
             return;
         }
