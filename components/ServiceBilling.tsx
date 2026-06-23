@@ -797,6 +797,21 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     documentTitle: `Invoice-${currentBill?.invoiceNumber || 'New'}`,
   });
 
+  const isServiceSelected = useMemo(() => {
+    if (!newItem.serviceName?.trim()) return false;
+    const name = newItem.serviceName.trim().toLowerCase();
+    const hasMainService = serviceItems.some(s => s.serviceName.toLowerCase() === name);
+    if (hasMainService) return true;
+    for (const s of serviceItems) {
+      if (s.subTests) {
+        if (s.subTests.some(st => st.testName.toLowerCase() === name)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [newItem.serviceName, serviceItems]);
+
   const patientBills = useMemo(() => {
     if (!currentPatient) return [];
     return billingRecords.filter(b => b.serviceSeekerId === currentPatient.id).sort((a, b) => b.id.localeCompare(a.id));
@@ -1297,7 +1312,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 <div className="col-span-1 md:col-span-2">
                   <button 
                     onClick={handleAddItem}
-                    className="w-full bg-primary-600 text-white p-2 rounded hover:bg-primary-700 text-sm flex items-center justify-center gap-1 font-nepali min-h-[38px] border border-transparent font-medium"
+                    disabled={isDirectBilling ? !isServiceSelected : !newItem.serviceName?.trim()}
+                    className="w-full bg-primary-600 text-white p-2 rounded hover:bg-primary-700 text-sm flex items-center justify-center gap-1 font-nepali min-h-[38px] border border-transparent font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:hover:bg-slate-400"
                   >
                     <Plus size={16} /> थप्नुहोस् (Add)
                   </button>
