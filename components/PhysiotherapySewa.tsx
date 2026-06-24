@@ -40,7 +40,7 @@ export const PhysiotherapySewa: React.FC<PhysiotherapySewaProps> = ({
       const isPhysio = patient.serviceType === 'Physiotherapy';
       if (!isToday || !isPhysio) return false;
       const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, records, todayNepaliDate]);
 

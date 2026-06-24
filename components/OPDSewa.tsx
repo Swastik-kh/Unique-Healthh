@@ -152,7 +152,7 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
       const isOPD = patient.serviceType === 'OPD';
       if (!isToday || !isOPD) return false;
       const hasOPDToday = opdRecords.some(r => r.uniquePatientId === patient.uniquePatientId && r.visitDate === todayNepaliDate);
-      return !hasOPDToday;
+      return !hasOPDToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, opdRecords, todayNepaliDate]);
 

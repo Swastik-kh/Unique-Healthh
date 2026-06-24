@@ -34,7 +34,7 @@ export const PariwarSewa: React.FC<PariwarSewaProps> = ({
       const isFamilyPlanning = patient.serviceType === 'Family Planning';
       if (!isToday || !isFamilyPlanning) return false;
       const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekers, records, todayNepaliDate]);
 

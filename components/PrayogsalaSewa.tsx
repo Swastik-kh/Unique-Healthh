@@ -52,7 +52,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       const isLab = patient.serviceType === 'Lab';
       if (!isToday || !isLab) return false;
       const hasRecordToday = labReports.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, labReports, todayNepaliDate]);
 

@@ -18,6 +18,7 @@ interface PrasutiSewaProps {
 }
 
 const initialFormData: Omit<PrasutiRecord, 'id' | 'fiscalYear'> = {
+  serviceSeekerId: '',
   garbhawotiId: '',
   name: '',
   deliveryDate: '',
@@ -77,8 +78,8 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
       const isToday = patient.date === todayNepaliDate;
       const isPrasuti = patient.serviceType === 'Prasuti';
       if (!isToday || !isPrasuti) return false;
-      const hasRecordToday = prasutiRecords.some(r => r.name === patient.name);
-      return !hasRecordToday;
+      const hasRecordToday = prasutiRecords.some(r => (r.serviceSeekerId === patient.id) || (r.name === patient.name));
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, prasutiRecords, todayNepaliDate]);
 
@@ -104,6 +105,7 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
       
       setFormData({
         ...initialFormData,
+        serviceSeekerId: patient.id,
         garbhawotiId: garbhawoti?.id || 'other',
         name: patient.name,
       });
@@ -241,6 +243,7 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
                   const garbhawoti = garbhawotiRecords.find(g => g.name === patient.name);
                   setFormData({
                     ...initialFormData,
+                    serviceSeekerId: patient.id,
                     garbhawotiId: garbhawoti?.id || 'other',
                     name: patient.name,
                   });

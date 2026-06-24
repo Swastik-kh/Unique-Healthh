@@ -40,7 +40,7 @@ export const ECGSewa: React.FC<ECGSewaProps> = ({
       const isECG = patient.serviceType === 'ECG';
       if (!isToday || !isECG) return false;
       const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, records, todayNepaliDate]);
 

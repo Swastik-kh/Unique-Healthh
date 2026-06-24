@@ -17,6 +17,7 @@ interface GarbhawotiSewaProps {
 }
 
 const initialFormData: Omit<GarbhawotiRecord, 'id' | 'fiscalYear'> = {
+  serviceSeekerId: '',
   name: '',
   husbandName: '',
   address: '',
@@ -53,8 +54,8 @@ export const GarbhawotiSewa: React.FC<GarbhawotiSewaProps> = ({ records = [], se
       const isToday = patient.date === todayNepaliDate;
       const isSafeMotherhood = patient.serviceType === 'Safe Motherhood';
       if (!isToday || !isSafeMotherhood) return false;
-      const hasRecordToday = records.some(r => r.name === patient.name);
-      return !hasRecordToday;
+      const hasRecordToday = records.some(r => (r.serviceSeekerId === patient.id) || (r.name === patient.name));
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, records, todayNepaliDate]);
 
@@ -77,6 +78,7 @@ export const GarbhawotiSewa: React.FC<GarbhawotiSewaProps> = ({ records = [], se
       setIsEditing(null);
       setFormData({
         ...initialFormData,
+        serviceSeekerId: patient.id,
         name: patient.name,
         address: patient.address,
       });
@@ -163,6 +165,7 @@ export const GarbhawotiSewa: React.FC<GarbhawotiSewaProps> = ({ records = [], se
                   setIsEditing(null);
                   setFormData({
                     ...initialFormData,
+                    serviceSeekerId: patient.id,
                     name: patient.name,
                     address: patient.address,
                     age: parseInt(patient.age) || 0,

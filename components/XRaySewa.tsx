@@ -42,7 +42,7 @@ export const XRaySewa: React.FC<XRaySewaProps> = ({
       const isXRay = patient.serviceType === 'X-Ray';
       if (!isToday || !isXRay) return false;
       const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, records, todayNepaliDate]);
 

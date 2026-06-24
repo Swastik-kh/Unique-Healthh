@@ -581,6 +581,9 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       await set(getOrgRef(`garbhawotiRecords/${record.id}`), record);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("गर्भवती रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -599,6 +602,9 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       await set(getOrgRef(`prasutiRecords/${record.id}`), record);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("प्रसूति रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -636,6 +642,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`opdRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("OPD रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -655,6 +664,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`dispensaryRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("डिस्पेन्सरी रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -674,6 +686,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`emergencyRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("Emergency रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -693,6 +708,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`cbimnciRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("CBIMNCI रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -750,6 +768,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`labReports/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("ल्याब रिपोर्ट सुरक्षित गर्न सकिएन।");
     }
@@ -769,6 +790,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`pariwarSewaRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("परिवार नियोजन रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -788,6 +812,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`xrayRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("एक्स-रे रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -807,6 +834,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`ecgRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("ई.सी.जी. रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -826,6 +856,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`usgRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("यु.एस.जी. रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -845,6 +878,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`physiotherapyRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("फिजियोथेरापी रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -864,6 +900,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`ambulanceRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("एम्बुलेन्स रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -902,6 +941,9 @@ const App: React.FC = () => {
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`ipdRecords/${record.id}`), sanitized);
+      if (record.serviceSeekerId) {
+        await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
+      }
     } catch (error) {
       alert("IPD रेकर्ड सुरक्षित गर्न सकिएन।");
     }

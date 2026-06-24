@@ -87,7 +87,7 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
       const isEmergency = patient.serviceType === 'Emergency';
       if (!isToday || !isEmergency) return false;
       const hasEmergencyToday = emergencyRecords.some(r => r.uniquePatientId === patient.uniquePatientId && r.visitDate === todayNepaliDate);
-      return !hasEmergencyToday;
+      return !hasEmergencyToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, emergencyRecords, todayNepaliDate]);
 

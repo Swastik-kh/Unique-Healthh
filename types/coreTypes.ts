@@ -231,6 +231,7 @@ export interface BharmanAdeshEntry {
 export interface GarbhawotiRecord {
   id: string;
   fiscalYear: string;
+  serviceSeekerId?: string;
   name: string;
   husbandName: string;
   address: string;
@@ -270,6 +271,7 @@ export interface PartographEntry {
 export interface PrasutiRecord {
   id: string;
   fiscalYear: string;
+  serviceSeekerId?: string;
   garbhawotiId: string; // Link to GarbhawotiRecord
   name: string;
   deliveryDate: string;

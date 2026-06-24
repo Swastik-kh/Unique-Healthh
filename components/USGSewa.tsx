@@ -42,7 +42,7 @@ export const USGSewa: React.FC<USGSewaProps> = ({
       const isUSG = patient.serviceType === 'USG';
       if (!isToday || !isUSG) return false;
       const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
-      return !hasRecordToday;
+      return !hasRecordToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, records, todayNepaliDate]);
 

@@ -169,7 +169,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
       const isCBIMNCI = patient.serviceType === 'CBIMNCI';
       if (!isToday || !isCBIMNCI) return false;
       const hasCBIMNCIToday = cbimnciRecords.some(r => r.uniquePatientId === patient.uniquePatientId && r.visitDate === todayNepaliDate);
-      return !hasCBIMNCIToday;
+      return !hasCBIMNCIToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, cbimnciRecords, todayNepaliDate]);
 

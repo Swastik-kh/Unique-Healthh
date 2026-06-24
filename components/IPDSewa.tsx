@@ -82,7 +82,7 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
       const isIPD = patient.serviceType === 'IPD';
       if (!isToday || !isIPD) return false;
       const hasIPDToday = ipdRecords.some(r => r.serviceSeekerId === patient.id && r.status === 'Admitted');
-      return !hasIPDToday;
+      return !hasIPDToday && patient.status !== 'Completed';
     });
   }, [serviceSeekerRecords, ipdRecords, todayNepaliDate]);
 
