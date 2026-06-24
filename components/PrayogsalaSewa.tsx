@@ -43,6 +43,18 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   const [viewMode, setViewMode] = useState<'search' | 'dashboard'>('dashboard');
   const [activeSubMenu, setActiveSubMenu] = useState<'collection' | 'entry'>('collection');
 
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return serviceSeekerRecords.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isLab = patient.serviceType === 'Lab';
+      if (!isToday || !isLab) return false;
+      const hasRecordToday = labReports.some(r => r.serviceSeekerId === patient.id);
+      return !hasRecordToday;
+    });
+  }, [serviceSeekerRecords, labReports, todayNepaliDate]);
+
   const labPatientsList = useMemo(() => {
     const labServices = serviceItems.filter(s => s.category === 'Lab');
     const labServiceNames = new Set(labServices.map(s => s.serviceName.trim().toLowerCase()));
@@ -559,6 +571,30 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
             </button>
           </div>
         </div>
+
+        {patientsOnQueue.length > 0 && (
+          <div className="mb-6 bg-primary-50 p-4 rounded-xl border border-primary-100 animate-in fade-in">
+            <h3 className="text-xs font-bold text-primary-800 uppercase mb-3 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+              पर्खिरहेका प्रयोगशाला बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {patientsOnQueue.map(patient => (
+                <button
+                  key={patient.id}
+                  onClick={() => {
+                    setCurrentPatient(patient);
+                    loadPendingTests(patient.id);
+                    setViewMode('search');
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-semibold border border-primary-200 transition-all cursor-pointer animate-in zoom-in-95"
+                >
+                  <span>{patient.name} ({patient.uniquePatientId})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {viewMode === 'search' ? (
           <form onSubmit={handleSearch} className="flex gap-4">

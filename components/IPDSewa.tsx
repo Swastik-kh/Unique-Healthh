@@ -59,6 +59,18 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return serviceSeekerRecords.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isIPD = patient.serviceType === 'IPD';
+      if (!isToday || !isIPD) return false;
+      const hasIPDToday = ipdRecords.some(r => r.serviceSeekerId === patient.id && r.status === 'Admitted');
+      return !hasIPDToday;
+    });
+  }, [serviceSeekerRecords, ipdRecords, todayNepaliDate]);
+
   const canDeletePatient = (serviceSeekerId: string) => {
     const hasOPD = opdRecords.some(r => r.serviceSeekerId === serviceSeekerId);
     const hasEmergency = emergencyRecords.some(r => r.serviceSeekerId === serviceSeekerId);
@@ -284,6 +296,27 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                     </p>
                   </button>
                 ))}
+              </div>
+            )}
+
+            {patientsOnQueue.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+                  पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+                </h4>
+                <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
+                  {patientsOnQueue.map(patient => (
+                    <button
+                      key={patient.id}
+                      onClick={() => selectPatient(patient)}
+                      className="w-full text-left p-2.5 bg-primary-50 hover:bg-primary-100 border border-primary-100 hover:border-primary-200 rounded-xl text-xs font-semibold text-primary-800 transition-all flex items-center justify-between"
+                    >
+                      <span className="truncate">{patient.name}</span>
+                      <span className="text-[10px] bg-primary-200/50 text-primary-700 px-1.5 py-0.5 rounded font-mono">{patient.uniquePatientId}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

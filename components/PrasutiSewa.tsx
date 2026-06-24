@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Baby, Plus, X, Pencil, Trash2, Activity, Clock, Heart, Thermometer, Droplets } from 'lucide-react';
 import { PrasutiRecord, GarbhawotiRecord, Option, ServiceSeekerRecord, PartographEntry } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
+// @ts-ignore
+import NepaliDate from 'nepali-date-converter';
 
 interface PrasutiSewaProps {
   garbhawotiRecords: GarbhawotiRecord[];
@@ -66,6 +68,18 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
   const [showPartographForm, setShowPartographForm] = useState(false);
   const [partographEntry, setPartographEntry] = useState<PartographEntry>(initialPartographEntry);
   const [editingPartographIndex, setEditingPartographIndex] = useState<number | null>(null);
+
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return serviceSeekerRecords.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isPrasuti = patient.serviceType === 'Prasuti';
+      if (!isToday || !isPrasuti) return false;
+      const hasRecordToday = prasutiRecords.some(r => r.name === patient.name);
+      return !hasRecordToday;
+    });
+  }, [serviceSeekerRecords, prasutiRecords, todayNepaliDate]);
 
   const handleAddNew = () => {
     setShowSearch(true);
@@ -204,6 +218,35 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
           <Plus size={18} /> नयाँ रेकर्ड थप्नुहोस्
         </button>
       </div>
+
+      {patientsOnQueue.length > 0 && (
+        <div className="bg-teal-50 p-4 rounded-xl border border-teal-100 animate-in fade-in">
+          <h3 className="text-xs font-bold text-teal-800 uppercase mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+            पर्खिरहेका प्रसूति बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {patientsOnQueue.map(patient => (
+              <button
+                key={patient.id}
+                onClick={() => {
+                  setIsEditing(null);
+                  const garbhawoti = garbhawotiRecords.find(g => g.name === patient.name);
+                  setFormData({
+                    ...initialFormData,
+                    garbhawotiId: garbhawoti?.id || 'other',
+                    name: patient.name,
+                  });
+                  setShowForm(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-semibold border border-teal-200 transition-all cursor-pointer animate-in zoom-in-95"
+              >
+                <span>{patient.name} ({patient.uniquePatientId})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
         <table className="w-full text-sm text-left">

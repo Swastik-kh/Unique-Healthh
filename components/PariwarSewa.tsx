@@ -25,6 +25,18 @@ export const PariwarSewa: React.FC<PariwarSewaProps> = ({
   const [patientSearchInput, setPatientSearchInput] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
 
+  const todayNepaliDate = React.useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = React.useMemo(() => {
+    return serviceSeekers.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isFamilyPlanning = patient.serviceType === 'Family Planning';
+      if (!isToday || !isFamilyPlanning) return false;
+      const hasRecordToday = records.some(r => r.serviceSeekerId === patient.id);
+      return !hasRecordToday;
+    });
+  }, [serviceSeekers, records, todayNepaliDate]);
+
   const [formData, setFormData] = useState<Partial<PariwarSewaRecord>>({
     dateBs: new NepaliDate().format('YYYY-MM-DD'),
     patientId: '',
@@ -151,6 +163,30 @@ export const PariwarSewa: React.FC<PariwarSewaProps> = ({
           <span>नयाँ रेकर्ड थप्नुहोस्</span>
         </button>
       </div>
+
+      {patientsOnQueue.length > 0 && (
+        <div className="bg-primary-50 p-4 rounded-xl border border-primary-100 animate-in fade-in">
+          <h3 className="text-xs font-bold text-primary-800 uppercase mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+            पर्खिरहेका परिवार नियोजन बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {patientsOnQueue.map(patient => (
+              <button
+                key={patient.id}
+                onClick={() => {
+                  setEditingRecord(null);
+                  handlePatientSelect(patient.id);
+                  setIsFormOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-semibold border border-primary-200 transition-all cursor-pointer animate-in zoom-in-95"
+              >
+                <span>{patient.name} ({patient.uniquePatientId})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isFormOpen && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">

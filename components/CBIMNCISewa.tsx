@@ -145,6 +145,19 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
   const [existingSearchResults, setExistingSearchResults] = useState<CBIMNCIRecord[]>([]);
   const [showExistingResults, setShowExistingResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return serviceSeekerRecords.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isCBIMNCI = patient.serviceType === 'CBIMNCI';
+      if (!isToday || !isCBIMNCI) return false;
+      const hasCBIMNCIToday = cbimnciRecords.some(r => r.uniquePatientId === patient.uniquePatientId && r.visitDate === todayNepaliDate);
+      return !hasCBIMNCIToday;
+    });
+  }, [serviceSeekerRecords, cbimnciRecords, todayNepaliDate]);
+
   const [hasDangerSigns, setHasDangerSigns] = useState<boolean | null>(null);
   const [hasCoughOrBreathingDifficulty, setHasCoughOrBreathingDifficulty] = useState<boolean | null>(null);
   const [hasDiarrhea, setHasDiarrhea] = useState<boolean | null>(null);
@@ -2960,67 +2973,90 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
               </button>
             </div>
           ) : canSearch ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1">नयाँ बिरामी खोज्नुहोस् (New Patient Search)</label>
-                <form onSubmit={handleSearch} className="flex gap-2 relative">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                      type="text"
-                      value={searchId}
-                      onChange={(e) => setSearchId(e.target.value)}
-                      placeholder="ID, नाम वा दर्ता नं."
-                      className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    />
-                  </div>
-                  <button type="submit" className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm">
-                    खोज्नुहोस्
-                  </button>
-
-                  {showSearchResults && (
-                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95">
-                      <div className="p-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-700">Results ({searchResults.length})</span>
-                        <button onClick={() => setShowSearchResults(false)} className="text-slate-400 hover:text-slate-600"><Trash2 size={14} /></button>
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        {searchResults.map(patient => (
-                          <div 
-                            key={patient.id} 
-                            onClick={() => {
-                              selectPatient(patient);
-                              setShowSearchResults(false);
-                            }}
-                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors"
-                          >
-                            <p className="font-bold text-slate-800 text-sm">{patient.name}</p>
-                            <p className="text-[10px] text-slate-500">{patient.uniquePatientId} | {patient.age}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </form>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase ml-1">रेकर्ड भएका बिरामी खोज्नुहोस् (Existing Record Search)</label>
-                <form onSubmit={handleExistingSearch} className="flex gap-2 relative">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">नयाँ बिरामी खोज्नुहोस् (New Patient Search)</label>
+                  <form onSubmit={handleSearch} className="flex gap-2 relative">
                     <div className="flex-1 relative">
-                      <History className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input
                         type="text"
-                        value={existingSearchId}
-                        onChange={(e) => setExistingSearchId(e.target.value)}
-                        placeholder="रेकर्ड भएको नाम वा ID"
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        value={searchId}
+                        onChange={(e) => setSearchId(e.target.value)}
+                        placeholder="ID, नाम वा दर्ता नं."
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                       />
                     </div>
-                    <button type="submit" className="bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 font-medium shadow-sm text-sm">
+                    <button type="submit" className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 font-medium shadow-sm text-sm">
                       खोज्नुहोस्
                     </button>
-                </form>
+
+                    {showSearchResults && (
+                      <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="p-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                          <span className="text-xs font-bold text-slate-700">Results ({searchResults.length})</span>
+                          <button onClick={() => setShowSearchResults(false)} className="text-slate-400 hover:text-slate-600"><Trash2 size={14} /></button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {searchResults.map(patient => (
+                            <div 
+                              key={patient.id} 
+                              onClick={() => {
+                                selectPatient(patient);
+                                setShowSearchResults(false);
+                              }}
+                              className="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors"
+                            >
+                              <p className="font-bold text-slate-800 text-sm">{patient.name}</p>
+                              <p className="text-[10px] text-slate-500">{patient.uniquePatientId} | {patient.age}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </form>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">रेकर्ड भएका बिरामी खोज्नुहोस् (Existing Record Search)</label>
+                  <form onSubmit={handleExistingSearch} className="flex gap-2 relative">
+                      <div className="flex-1 relative">
+                        <History className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                          type="text"
+                          value={existingSearchId}
+                          onChange={(e) => setExistingSearchId(e.target.value)}
+                          placeholder="रेकर्ड भएको नाम वा ID"
+                          className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        />
+                      </div>
+                      <button type="submit" className="bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 font-medium shadow-sm text-sm">
+                        खोज्नुहोस्
+                      </button>
+                  </form>
+                </div>
               </div>
+
+              {patientsOnQueue.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-slate-100 animate-in fade-in">
+                  <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+                    पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {patientsOnQueue.map(patient => (
+                      <button
+                        key={patient.id}
+                        onClick={() => selectPatient(patient)}
+                        className="flex items-center gap-2 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg text-xs font-semibold border border-primary-200 transition-all cursor-pointer animate-in zoom-in-95"
+                      >
+                        <User size={14} />
+                        <span>{patient.name} ({patient.uniquePatientId})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="p-12 text-center text-slate-400">

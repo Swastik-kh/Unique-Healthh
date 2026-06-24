@@ -64,6 +64,18 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return serviceSeekerRecords.filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isEmergency = patient.serviceType === 'Emergency';
+      if (!isToday || !isEmergency) return false;
+      const hasEmergencyToday = emergencyRecords.some(r => r.uniquePatientId === patient.uniquePatientId && r.visitDate === todayNepaliDate);
+      return !hasEmergencyToday;
+    });
+  }, [serviceSeekerRecords, emergencyRecords, todayNepaliDate]);
+
   const medicineSuggestions = useMemo(() => {
     const fromInventory = inventoryItems.map(i => i.itemName);
     const fromEmergency = emergencyRecords.flatMap(r => [
@@ -300,6 +312,27 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
             </div>
           )}
         </form>
+
+        {patientsOnQueue.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-slate-100">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {patientsOnQueue.map(patient => (
+                <button
+                  key={patient.id}
+                  onClick={() => selectPatient(patient)}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-xs font-semibold border border-red-200 transition-all cursor-pointer"
+                >
+                  <User size={14} />
+                  <span>{patient.name} ({patient.uniquePatientId})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {currentPatient && (

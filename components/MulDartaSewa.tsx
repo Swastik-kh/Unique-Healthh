@@ -735,6 +735,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                     <option value="OPD">OPD</option>
                     <option value="CBIMNCI">CBIMNCI</option>
                     <option value="Emergency">Emergency</option>
+                    <option value="IPD">IPD (भर्ना)</option>
                     <option value="Vaccination">Vaccination (खोप)</option>
                     <option value="Safe Motherhood">Safe Motherhood (सुरक्षित मातृत्व)</option>
                     <option value="TB">क्षयरोग सेवा (TB)</option>
