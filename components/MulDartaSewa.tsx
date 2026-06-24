@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClipboardList, Plus, X, Pencil, Trash2, Search, Printer } from 'lucide-react';
 import { ServiceSeekerRecord, User, OrganizationSettings, ServiceItem, OPDRecord, EmergencyRecord, CBIMNCIRecord, IPDRecord } from '../types/coreTypes';
 import { Input } from './Input';
@@ -65,6 +65,14 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [ageUnit, setAgeUnit] = useState<'Days' | 'Months' | 'Years'>('Years');
   const [stickerPatient, setStickerPatient] = useState<ServiceSeekerRecord | null>(null);
+  
+  const isUnder5 = (ageUnit === 'Years' && formData.ageYears < 5) || ageUnit === 'Months' || ageUnit === 'Days';
+
+  useEffect(() => {
+    if (isUnder5 && formData.serviceType !== 'CBIMNCI') {
+      setFormData(prev => ({ ...prev, serviceType: 'CBIMNCI' }));
+    }
+  }, [isUnder5, formData.serviceType]);
 
   const handlePrintSticker = (record: ServiceSeekerRecord) => {
     // Create a hidden iframe for printing
@@ -724,13 +732,16 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                   </select>
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-sm font-medium text-slate-600 mb-1 block">सेवाको प्रकार *</label>
+                  <label className="text-sm font-medium text-slate-600 mb-1 block">
+                    सेवाको प्रकार * {isUnder5 && <span className="text-[10px] text-primary-600 font-bold bg-primary-50 px-1.5 py-0.5 rounded ml-1">AGE LOCKED</span>}
+                  </label>
                   <select 
                     name="serviceType" 
                     value={formData.serviceType} 
                     onChange={handleChange} 
                     required 
-                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    disabled={isUnder5}
+                    className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm ${isUnder5 ? 'bg-slate-50 cursor-not-allowed border-primary-200' : ''}`}
                   >
                     <option value="OPD">OPD</option>
                     <option value="CBIMNCI">CBIMNCI</option>
