@@ -42,6 +42,18 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   const [activeTab, setActiveTab] = useState<'sample' | 'result'>('sample');
   const [viewMode, setViewMode] = useState<'search' | 'dashboard'>('dashboard');
   const [activeSubMenu, setActiveSubMenu] = useState<'collection' | 'entry'>('collection');
+
+  const filteredLabReports = useMemo(() => {
+    const sorted = [...labReports].sort((a, b) => b.id.localeCompare(a.id));
+    if (!searchId.trim()) return sorted;
+    const query = searchId.toLowerCase().trim();
+    return sorted.filter(r => 
+      r.patientName.toLowerCase().includes(query) ||
+      r.serviceSeekerId.toLowerCase().includes(query) ||
+      (r.invoiceNumber && r.invoiceNumber.toLowerCase().includes(query)) ||
+      (r.barcodeId && r.barcodeId.toLowerCase().includes(query))
+    );
+  }, [labReports, searchId]);
   
   const printRef = useRef<HTMLDivElement>(null);
   const barcodePrintRef = useRef<HTMLDivElement>(null);
@@ -509,9 +521,17 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
           {/* Left Column: Patient Info & History */}
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
-                <User size={18} /> बिरामीको विवरण
-              </h3>
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                  <User size={18} /> बिरामीको विवरण
+                </h3>
+                <button 
+                  onClick={() => setCurrentPatient(null)}
+                  className="text-xs text-primary-600 hover:text-primary-800 font-bold flex items-center gap-1 bg-primary-50 px-2.5 py-1 rounded-md transition-colors"
+                >
+                  ← सूचीमा फर्कनुहोस्
+                </button>
+              </div>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-slate-500">नाम:</span> <span className="font-medium">{currentPatient.name}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">ID:</span> <span className="font-mono bg-slate-100 px-2 rounded">{currentPatient.uniquePatientId} {currentPatient.mulDartaNo && `| ${currentPatient.mulDartaNo}`}</span></div>
@@ -541,16 +561,18 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                         >
                           Print
                         </button>
-                        <button 
-                          onClick={() => {
-                             if(confirm('Are you sure you want to delete this report?')) {
-                               onDeleteRecord(report.id);
-                             }
-                          }}
-                          className="text-xs text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
+                        {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                          <button 
+                            onClick={() => {
+                               if(confirm('के तपाईं यो ल्याब रिपोर्ट हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this report?)')) {
+                                 onDeleteRecord(report.id);
+                               }
+                            }}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -679,6 +701,129 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'search' && !currentPatient && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 animate-in fade-in">
+          <div className="flex justify-between items-center border-b pb-3">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 font-nepali">सबै प्रयोगशाला बिरामी तथा रिपोर्टहरूको सूची (All Lab Patients & Reports)</h3>
+              <p className="text-xs text-slate-500">कुल {filteredLabReports.length} वटा रेकर्डहरू फेला परे</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                  <th className="p-3 text-xs">मिति (Date)</th>
+                  <th className="p-3 text-xs">बिरामीको नाम (Patient Name)</th>
+                  <th className="p-3 text-xs">ID (PID)</th>
+                  <th className="p-3 text-xs">उमेर/लिङ्ग (Age/Sex)</th>
+                  <th className="p-3 text-xs">इनभ्वाइस/बारकोड (Invoice/Barcode)</th>
+                  <th className="p-3 text-xs">जाँचहरू (Tests)</th>
+                  <th className="p-3 text-xs">अवस्था (Status)</th>
+                  <th className="p-3 text-xs text-right">कार्यहरू (Actions)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLabReports.length > 0 ? (
+                  filteredLabReports.map(report => {
+                    const patient = serviceSeekerRecords.find(p => p.id === report.serviceSeekerId);
+                    return (
+                      <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <td className="p-3 font-medium text-slate-700">{report.reportDate}</td>
+                        <td className="p-3 font-bold text-slate-800">{report.patientName}</td>
+                        <td className="p-3 font-mono text-xs text-slate-500">{report.serviceSeekerId}</td>
+                        <td className="p-3 text-slate-600">{report.age} / {report.gender}</td>
+                        <td className="p-3 text-xs font-mono text-slate-500">
+                          <div>Inv: {report.invoiceNumber || 'N/A'}</div>
+                          {report.barcodeId && <div className="text-[10px] text-primary-600">BC: {report.barcodeId}</div>}
+                        </td>
+                        <td className="p-3 max-w-xs">
+                          <div className="flex flex-wrap gap-1">
+                            {report.tests?.map((t, idx) => (
+                              <span key={idx} className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded border border-slate-200">
+                                {t.testName}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            report.status === 'Completed' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {report.status === 'Completed' ? 'Completed' : 'Sample Collected'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              if (patient) {
+                                setCurrentPatient(patient);
+                                loadPendingTests(patient.id);
+                              } else {
+                                const tempPatient: ServiceSeekerRecord = {
+                                  id: report.serviceSeekerId,
+                                  uniquePatientId: report.serviceSeekerId,
+                                  registrationNumber: '',
+                                  date: report.reportDate,
+                                  name: report.patientName,
+                                  age: report.age,
+                                  gender: (report.gender === 'Female' || report.gender === 'Other') ? report.gender : 'Male',
+                                  casteCode: '',
+                                  address: '',
+                                  phone: '',
+                                  serviceType: 'Lab',
+                                  visitType: 'New',
+                                  fiscalYear: report.fiscalYear
+                                };
+                                setCurrentPatient(tempPatient);
+                                loadPendingTests(report.serviceSeekerId);
+                              }
+                            }}
+                            className="text-xs bg-primary-50 text-primary-600 hover:bg-primary-100 px-2.5 py-1 rounded transition-colors font-bold"
+                          >
+                            चयन (Select)
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCurrentReport(report);
+                              setTimeout(handlePrint, 100);
+                            }}
+                            className="text-xs bg-slate-50 text-slate-600 hover:bg-slate-100 px-2.5 py-1 rounded transition-colors border border-slate-200 font-bold"
+                          >
+                            प्रिन्ट (Print)
+                          </button>
+                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm('के तपाईं यो प्रयोगशाला रेकर्ड हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this lab report?)')) {
+                                  onDeleteRecord(report.id);
+                                }
+                              }}
+                              className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1 rounded transition-colors font-bold"
+                            >
+                              हटाउनु (Delete)
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-slate-400 italic">
+                      कुनै प्रयोगशाला रिपोर्ट भेटिएन।
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

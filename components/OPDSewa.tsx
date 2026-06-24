@@ -137,6 +137,13 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
       .sort((a, b) => b.id.localeCompare(a.id));
   }, [opdRecords, todayNepaliDate, currentFiscalYear]);
 
+  const patientOPDHistory = useMemo(() => {
+    if (!currentPatient) return [];
+    return opdRecords
+      .filter(r => r.uniquePatientId === currentPatient.uniquePatientId)
+      .sort((a, b) => b.id.localeCompare(a.id));
+  }, [opdRecords, currentPatient]);
+
   const handleSelectAndPrint = (record: OPDRecord) => {
     const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
     if (patient) {
@@ -404,7 +411,77 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
               </div>
             </div>
             
-            {/* Previous Visits could go here */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
+                <History size={18} className="text-amber-600" />
+                अघिल्ला ओपिडी भ्रमणहरू (OPD History)
+              </h3>
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                {patientOPDHistory.length > 0 ? (
+                  patientOPDHistory.map(record => (
+                    <div 
+                      key={record.id} 
+                      className={`p-3 rounded-lg border text-xs flex justify-between items-start transition-all ${
+                        editingRecordId === record.id 
+                          ? 'border-primary-500 bg-primary-50' 
+                          : 'border-slate-100 hover:border-primary-200 hover:bg-slate-50'
+                      }`}
+                      onClick={() => {
+                        setOpdData(record);
+                        setPrescriptionItems(record.prescriptions || []);
+                        setEditingRecordId(record.id);
+                      }}
+                    >
+                      <div className="cursor-pointer flex-1 min-w-0 mr-2">
+                        <p className="font-bold text-slate-700 mb-1">{record.visitDate}</p>
+                        <p className="text-slate-500 truncate">Diagnosis: {record.diagnosis || 'N/A'}</p>
+                        <p className="text-[10px] text-slate-400 truncate">Complaints: {record.chiefComplaints || 'N/A'}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectAndPrint(record);
+                          }}
+                          className="p-1 text-slate-500 hover:text-primary-600 hover:bg-white rounded transition-colors"
+                          title="Print"
+                        >
+                          <Printer size={13} />
+                        </button>
+                        {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('के तपाईं यो ओपिडी रेकर्ड हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this OPD record?)')) {
+                                onDeleteRecord(record.id);
+                                if (editingRecordId === record.id) {
+                                  setEditingRecordId(null);
+                                  setOpdData({
+                                    chiefComplaints: '',
+                                    diagnosis: '',
+                                    investigation: '',
+                                    prescriptions: [],
+                                    advice: '',
+                                    nextVisitDate: ''
+                                  });
+                                  setPrescriptionItems([]);
+                                }
+                              }
+                            }}
+                            className="p-1 text-slate-500 hover:text-red-600 hover:bg-white rounded transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-400 italic text-center text-xs py-4">कुनै पुराना ओपिडी रेकर्डहरू छैनन्</p>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Right Column: OPD Form */}
