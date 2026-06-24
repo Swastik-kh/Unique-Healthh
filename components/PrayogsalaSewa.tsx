@@ -43,17 +43,125 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   const [viewMode, setViewMode] = useState<'search' | 'dashboard'>('dashboard');
   const [activeSubMenu, setActiveSubMenu] = useState<'collection' | 'entry'>('collection');
 
-  const filteredLabReports = useMemo(() => {
-    const sorted = [...labReports].sort((a, b) => b.id.localeCompare(a.id));
-    if (!searchId.trim()) return sorted;
+  const labPatientsList = useMemo(() => {
+    const labServices = serviceItems.filter(s => s.category === 'Lab');
+    const labServiceNames = new Set(labServices.map(s => s.serviceName.trim().toLowerCase()));
+    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => st.testName.trim().toLowerCase()));
+
+    const patientsMap = new Map<string, {
+      patientId: string;
+      uniquePatientId: string;
+      name: string;
+      age: string;
+      gender: string;
+      latestDate: string;
+      invoiceNumber?: string;
+      barcodeId?: string;
+      pendingSamplesCount: number;
+      pendingResultsCount: number;
+      completedReportsCount: number;
+      fiscalYear: string;
+      address: string;
+      phone: string;
+    }>();
+
+    const getOrInitPatient = (id: string, name: string, uniquePID: string, age: string, gender: string, fYear: string, address = '', phone = '') => {
+      if (!patientsMap.has(id)) {
+        patientsMap.set(id, {
+          patientId: id,
+          uniquePatientId: uniquePID,
+          name: name,
+          age: age,
+          gender: gender,
+          latestDate: '',
+          pendingSamplesCount: 0,
+          pendingResultsCount: 0,
+          completedReportsCount: 0,
+          fiscalYear: fYear,
+          address: address,
+          phone: phone,
+        });
+      }
+      return patientsMap.get(id)!;
+    };
+
+    billingRecords.forEach(bill => {
+      const patient = serviceSeekerRecords.find(p => p.id === bill.serviceSeekerId);
+      if (!patient) return;
+
+      const hasLabItems = bill.items.some(item => {
+        const itemName = item.serviceName.trim().toLowerCase();
+        return labServiceNames.has(itemName) || labSubTestNames.has(itemName);
+      });
+
+      if (!hasLabItems) return;
+
+      const pEntry = getOrInitPatient(patient.id, patient.name, patient.uniquePatientId, patient.age, patient.gender, bill.fiscalYear, patient.address, patient.phone);
+      if (!pEntry.latestDate || bill.billDate > pEntry.latestDate) {
+        pEntry.latestDate = bill.billDate;
+      }
+      if (!pEntry.invoiceNumber) pEntry.invoiceNumber = bill.invoiceNumber;
+
+      const existingReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
+      bill.items.forEach(item => {
+        const itemName = item.serviceName.trim().toLowerCase();
+        if (labServiceNames.has(itemName) || labSubTestNames.has(itemName)) {
+          const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
+          if (!existingTest?.sampleCollected) {
+            pEntry.pendingSamplesCount += 1;
+          } else if (existingReport?.status !== 'Completed') {
+            pEntry.pendingResultsCount += 1;
+            if (!pEntry.barcodeId && existingTest.barcodeId) {
+              pEntry.barcodeId = existingTest.barcodeId;
+            }
+          }
+        }
+      });
+    });
+
+    labReports.forEach(report => {
+      const patient = serviceSeekerRecords.find(p => p.id === report.serviceSeekerId);
+      const id = report.serviceSeekerId;
+      const pEntry = getOrInitPatient(
+        id,
+        report.patientName,
+        patient?.uniquePatientId || report.serviceSeekerId,
+        report.age,
+        report.gender,
+        report.fiscalYear,
+        patient?.address || '',
+        patient?.phone || ''
+      );
+
+      if (!pEntry.latestDate || report.reportDate > pEntry.latestDate) {
+        pEntry.latestDate = report.reportDate;
+      }
+      if (report.status === 'Completed') {
+        pEntry.completedReportsCount += 1;
+      }
+      if (report.barcodeId) {
+        pEntry.barcodeId = report.barcodeId;
+      }
+      if (report.invoiceNumber && !pEntry.invoiceNumber) {
+        pEntry.invoiceNumber = report.invoiceNumber;
+      }
+    });
+
+    return Array.from(patientsMap.values()).sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+  }, [billingRecords, serviceSeekerRecords, labReports, serviceItems]);
+
+  const filteredLabPatients = useMemo(() => {
+    if (!searchId.trim()) return labPatientsList;
     const query = searchId.toLowerCase().trim();
-    return sorted.filter(r => 
-      r.patientName.toLowerCase().includes(query) ||
-      r.serviceSeekerId.toLowerCase().includes(query) ||
-      (r.invoiceNumber && r.invoiceNumber.toLowerCase().includes(query)) ||
-      (r.barcodeId && r.barcodeId.toLowerCase().includes(query))
+    return labPatientsList.filter(p => 
+      p.name.toLowerCase().includes(query) ||
+      p.uniquePatientId.toLowerCase().includes(query) ||
+      p.address.toLowerCase().includes(query) ||
+      p.phone.includes(query) ||
+      (p.invoiceNumber && p.invoiceNumber.toLowerCase().includes(query)) ||
+      (p.barcodeId && p.barcodeId.toLowerCase().includes(query))
     );
-  }, [labReports, searchId]);
+  }, [labPatientsList, searchId]);
   
   const printRef = useRef<HTMLDivElement>(null);
   const barcodePrintRef = useRef<HTMLDivElement>(null);
@@ -219,12 +327,36 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const patient = serviceSeekerRecords.find(p => p.uniquePatientId === searchId || p.mulDartaNo === searchId);
-    if (patient) {
-      setCurrentPatient(patient);
-      loadPendingTests(patient.id);
+    const query = searchId.trim().toLowerCase();
+    if (!query) return;
+
+    const matchedPatient = filteredLabPatients[0];
+    if (matchedPatient) {
+      const realPatient = serviceSeekerRecords.find(p => p.id === matchedPatient.patientId);
+      if (realPatient) {
+        setCurrentPatient(realPatient);
+        loadPendingTests(realPatient.id);
+      } else {
+        const tempPatient: ServiceSeekerRecord = {
+          id: matchedPatient.patientId,
+          uniquePatientId: matchedPatient.uniquePatientId,
+          registrationNumber: '',
+          date: matchedPatient.latestDate,
+          name: matchedPatient.name,
+          age: matchedPatient.age,
+          gender: (matchedPatient.gender === 'Female' || matchedPatient.gender === 'Other') ? matchedPatient.gender : 'Male',
+          casteCode: '',
+          address: matchedPatient.address || '',
+          phone: matchedPatient.phone || '',
+          serviceType: 'Lab',
+          visitType: 'New',
+          fiscalYear: matchedPatient.fiscalYear
+        };
+        setCurrentPatient(tempPatient);
+        loadPendingTests(matchedPatient.patientId);
+      }
     } else {
-      alert('बिरामी फेला परेन (Patient not found)');
+      alert('बिरामी फेला परेन। कृपया नाम, PID वा इनभ्वाइस नम्बर जाँच गर्नुहोस्। (Patient not found. Please check name, PID, or invoice number.)');
     }
   };
 
@@ -709,8 +841,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4 animate-in fade-in">
           <div className="flex justify-between items-center border-b pb-3">
             <div>
-              <h3 className="text-lg font-bold text-slate-800 font-nepali">सबै प्रयोगशाला बिरामी तथा रिपोर्टहरूको सूची (All Lab Patients & Reports)</h3>
-              <p className="text-xs text-slate-500">कुल {filteredLabReports.length} वटा रेकर्डहरू फेला परे</p>
+              <h3 className="text-lg font-bold text-slate-800 font-nepali">सबै प्रयोगशाला बिरामीहरूको सूची (All Lab Patients & Reports List)</h3>
+              <p className="text-xs text-slate-500">कुल {filteredLabPatients.length} जना बिरामीहरू फेला परे</p>
             </div>
           </div>
 
@@ -718,98 +850,127 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
             <table className="w-full text-sm text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
-                  <th className="p-3 text-xs">मिति (Date)</th>
+                  <th className="p-3 text-xs">मिति (Latest Date)</th>
                   <th className="p-3 text-xs">बिरामीको नाम (Patient Name)</th>
                   <th className="p-3 text-xs">ID (PID)</th>
                   <th className="p-3 text-xs">उमेर/लिङ्ग (Age/Sex)</th>
                   <th className="p-3 text-xs">इनभ्वाइस/बारकोड (Invoice/Barcode)</th>
-                  <th className="p-3 text-xs">जाँचहरू (Tests)</th>
+                  <th className="p-3 text-xs">रिपोर्ट विवरण (Stats)</th>
                   <th className="p-3 text-xs">अवस्था (Status)</th>
                   <th className="p-3 text-xs text-right">कार्यहरू (Actions)</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLabReports.length > 0 ? (
-                  filteredLabReports.map(report => {
-                    const patient = serviceSeekerRecords.find(p => p.id === report.serviceSeekerId);
+                {filteredLabPatients.length > 0 ? (
+                  filteredLabPatients.map(patient => {
+                    const realPatient = serviceSeekerRecords.find(p => p.id === patient.patientId);
+                    const latestReport = labReports
+                      .filter(r => r.serviceSeekerId === patient.patientId)
+                      .sort((a, b) => b.id.localeCompare(a.id))[0];
+
+                    let statusBadge = (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-600">
+                        Registered
+                      </span>
+                    );
+                    if (patient.pendingSamplesCount > 0) {
+                      statusBadge = (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">
+                          Sample Pending ({patient.pendingSamplesCount})
+                        </span>
+                      );
+                    } else if (patient.pendingResultsCount > 0) {
+                      statusBadge = (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-700">
+                          Result Pending ({patient.pendingResultsCount})
+                        </span>
+                      );
+                    } else if (patient.completedReportsCount > 0) {
+                      statusBadge = (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700">
+                          Completed ({patient.completedReportsCount})
+                        </span>
+                      );
+                    }
+
                     return (
-                      <tr key={report.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                        <td className="p-3 font-medium text-slate-700">{report.reportDate}</td>
-                        <td className="p-3 font-bold text-slate-800">{report.patientName}</td>
-                        <td className="p-3 font-mono text-xs text-slate-500">{report.serviceSeekerId}</td>
-                        <td className="p-3 text-slate-600">{report.age} / {report.gender}</td>
+                      <tr key={patient.patientId} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <td className="p-3 font-medium text-slate-700">{patient.latestDate || 'N/A'}</td>
+                        <td className="p-3 font-bold text-slate-800">{patient.name}</td>
+                        <td className="p-3 font-mono text-xs text-slate-500">{patient.uniquePatientId}</td>
+                        <td className="p-3 text-slate-600">{patient.age} / {patient.gender}</td>
                         <td className="p-3 text-xs font-mono text-slate-500">
-                          <div>Inv: {report.invoiceNumber || 'N/A'}</div>
-                          {report.barcodeId && <div className="text-[10px] text-primary-600">BC: {report.barcodeId}</div>}
-                        </td>
-                        <td className="p-3 max-w-xs">
-                          <div className="flex flex-wrap gap-1">
-                            {report.tests?.map((t, idx) => (
-                              <span key={idx} className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded border border-slate-200">
-                                {t.testName}
-                              </span>
-                            ))}
-                          </div>
+                          {patient.invoiceNumber && <div>Inv: {patient.invoiceNumber}</div>}
+                          {patient.barcodeId && <div className="text-[10px] text-primary-600">BC: {patient.barcodeId}</div>}
+                          {!patient.invoiceNumber && !patient.barcodeId && <span className="text-slate-400 italic">N/A</span>}
                         </td>
                         <td className="p-3">
-                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                            report.status === 'Completed' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {report.status === 'Completed' ? 'Completed' : 'Sample Collected'}
-                          </span>
+                          <div className="text-xs space-y-0.5 text-slate-600">
+                            {patient.completedReportsCount > 0 && <div>• Completed Reports: {patient.completedReportsCount}</div>}
+                            {patient.pendingSamplesCount > 0 && <div className="text-amber-600">• Samples Pending: {patient.pendingSamplesCount}</div>}
+                            {patient.pendingResultsCount > 0 && <div className="text-blue-600">• Results Pending: {patient.pendingResultsCount}</div>}
+                            {patient.completedReportsCount === 0 && patient.pendingSamplesCount === 0 && patient.pendingResultsCount === 0 && (
+                              <span className="text-slate-400 italic">No activity yet</span>
+                            )}
+                          </div>
                         </td>
+                        <td className="p-3">{statusBadge}</td>
                         <td className="p-3 text-right space-x-1 whitespace-nowrap">
                           <button
                             onClick={() => {
-                              if (patient) {
-                                setCurrentPatient(patient);
-                                loadPendingTests(patient.id);
+                              if (realPatient) {
+                                setCurrentPatient(realPatient);
+                                loadPendingTests(realPatient.id);
                               } else {
                                 const tempPatient: ServiceSeekerRecord = {
-                                  id: report.serviceSeekerId,
-                                  uniquePatientId: report.serviceSeekerId,
+                                  id: patient.patientId,
+                                  uniquePatientId: patient.uniquePatientId,
                                   registrationNumber: '',
-                                  date: report.reportDate,
-                                  name: report.patientName,
-                                  age: report.age,
-                                  gender: (report.gender === 'Female' || report.gender === 'Other') ? report.gender : 'Male',
+                                  date: patient.latestDate,
+                                  name: patient.name,
+                                  age: patient.age,
+                                  gender: (patient.gender === 'Female' || patient.gender === 'Other') ? patient.gender : 'Male',
                                   casteCode: '',
-                                  address: '',
-                                  phone: '',
+                                  address: patient.address || '',
+                                  phone: patient.phone || '',
                                   serviceType: 'Lab',
                                   visitType: 'New',
-                                  fiscalYear: report.fiscalYear
+                                  fiscalYear: patient.fiscalYear
                                 };
                                 setCurrentPatient(tempPatient);
-                                loadPendingTests(report.serviceSeekerId);
+                                loadPendingTests(patient.patientId);
                               }
                             }}
                             className="text-xs bg-primary-50 text-primary-600 hover:bg-primary-100 px-2.5 py-1 rounded transition-colors font-bold"
                           >
                             चयन (Select)
                           </button>
-                          <button
-                            onClick={() => {
-                              setCurrentReport(report);
-                              setTimeout(handlePrint, 100);
-                            }}
-                            className="text-xs bg-slate-50 text-slate-600 hover:bg-slate-100 px-2.5 py-1 rounded transition-colors border border-slate-200 font-bold"
-                          >
-                            प्रिन्ट (Print)
-                          </button>
-                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
-                            <button
-                              onClick={() => {
-                                if (window.confirm('के तपाईं यो प्रयोगशाला रेकर्ड हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this lab report?)')) {
-                                  onDeleteRecord(report.id);
-                                }
-                              }}
-                              className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1 rounded transition-colors font-bold"
-                            >
-                              हटाउनु (Delete)
-                            </button>
+                          {latestReport && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setCurrentReport(latestReport);
+                                  setTimeout(handlePrint, 100);
+                                }}
+                                className="text-xs bg-slate-50 text-slate-600 hover:bg-slate-100 px-2.5 py-1 rounded transition-colors border border-slate-200 font-bold"
+                                title="Print Latest Report"
+                              >
+                                प्रिन्ट (Print)
+                              </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('के तपाईं यो प्रयोगशाला रिपोर्ट हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this lab report?)')) {
+                                      onDeleteRecord(latestReport.id);
+                                    }
+                                  }}
+                                  className="text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1 rounded transition-colors font-bold"
+                                  title="Delete Report"
+                                >
+                                  हटाउनु (Delete)
+                                </button>
+                              )}
+                            </>
                           )}
                         </td>
                       </tr>
@@ -818,7 +979,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-slate-400 italic">
-                      कुनै प्रयोगशाला रिपोर्ट भेटिएन।
+                      कुनै प्रयोगशाला बिरामी भेटिएन।
                     </td>
                   </tr>
                 )}
