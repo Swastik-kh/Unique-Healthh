@@ -9,7 +9,7 @@ import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
 import { PrescriptionPrint } from './PrescriptionPrint';
 import { MedicineSlipPrint } from './MedicineSlipPrint';
-import { callPatientSpeech, broadcastCall } from './nepaliUtils';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface OPDSewaProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
@@ -275,7 +275,6 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
       ? patientsOnQueue[currentIndex + 1] 
       : undefined;
     callPatientSpeech(patient, nextPatient);
-    broadcastCall(patient, 'OPD');
 
     setCurrentPatient(patient);
     setSearchResults([]);

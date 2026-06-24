@@ -6,7 +6,7 @@ import { Input } from './Input';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
-import { callPatientSpeech, broadcastCall } from './nepaliUtils';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface EmergencySewaProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
@@ -135,7 +135,6 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
       ? patientsOnQueue[currentIndex + 1] 
       : undefined;
     callPatientSpeech(patient, nextPatient);
-    broadcastCall(patient, 'Emergency');
 
     setCurrentPatient(patient);
     setSearchResults([]);

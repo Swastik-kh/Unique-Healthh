@@ -3,7 +3,7 @@ import { ECGRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIReco
 import { Plus, Search, Edit2, Trash2, Activity, AlertCircle, FileText, Calendar, User, MessageSquare } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
-import { callPatientSpeech, broadcastCall } from './nepaliUtils';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface ECGSewaProps {
   records: ECGRecord[];
@@ -199,7 +199,6 @@ export const ECGSewa: React.FC<ECGSewaProps> = ({
                       ? patientsOnQueue[currentIndex + 1] 
                       : undefined;
                     callPatientSpeech(patient, nextPatient);
-                    broadcastCall(patient, 'ECG');
 
                     setEditingRecord(null);
                     handlePatientSelect(patient);

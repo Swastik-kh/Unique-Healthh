@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
-import { TokenDisplay } from './components/TokenDisplay';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
 import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock } from 'lucide-react';
@@ -12,7 +11,7 @@ import {
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
-  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry, DisplayDevice
+  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -49,18 +48,6 @@ const DEFAULT_ADMIN: User = {
 };
 
 const App: React.FC = () => {
-  const [displayId, setDisplayId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get('id');
-      if (id && id.startsWith('DISP-')) {
-        setDisplayId(id);
-      }
-    }
-  }, []);
-
   const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_ADMIN]); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeOrgName, setActiveOrgName] = useState<string>('');
@@ -114,7 +101,6 @@ const App: React.FC = () => {
   const [ambulanceRecords, setAmbulanceRecords] = useState<AmbulanceRecord[]>([]);
   const [ambulanceExpenseRecords, setAmbulanceExpenseRecords] = useState<AmbulanceExpenseRecord[]>([]);
   const [ipdRecords, setIpdRecords] = useState<IPDRecord[]>([]);
-  const [displayDevices, setDisplayDevices] = useState<DisplayDevice[]>([]);
   const [interFacilityRequests, setInterFacilityRequests] = useState<InterFacilityRequest[]>([]);
   const [itemList, setItemList] = useState<ItemEntry[]>([]);
   
@@ -328,7 +314,6 @@ const App: React.FC = () => {
     setupOrgListener('ambulanceRecords', setAmbulanceRecords);
     setupOrgListener('ambulanceExpenseRecords', setAmbulanceExpenseRecords);
     setupOrgListener('ipdRecords', setIpdRecords);
-    setupOrgListener('displayDevices', setDisplayDevices);
     // Global Talim Listener
     const globalTalimRef = ref(db, 'globalData/talimEntries');
     const unsubGlobalTalim = onValue(globalTalimRef, (snap) => {
@@ -928,24 +913,6 @@ const App: React.FC = () => {
       await remove(getOrgRef(`ipdRecords/${id}`));
     } catch (error) {
       alert("IPD रेकर्ड हटाउन सकिएन।");
-    }
-  };
-
-  const handleSaveDisplayDevice = async (device: DisplayDevice) => {
-    if (!currentUser) return;
-    try {
-      await set(getOrgRef(`displayDevices/${device.id}`), device);
-    } catch (error) {
-      alert("डिस्प्ले उपकरण सुरक्षित गर्न सकिएन।");
-    }
-  };
-
-  const handleDeleteDisplayDevice = async (id: string) => {
-    if (!currentUser) return;
-    try {
-      await remove(getOrgRef(`displayDevices/${id}`));
-    } catch (error) {
-      alert("डिस्प्ले उपकरण हटाउन सकिएन।");
     }
   };
 
@@ -1633,9 +1600,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      {displayId ? (
-        <TokenDisplay deviceId={displayId} orgName={generalSettings.orgNameNepali} />
-      ) : currentUser ? (
+      {currentUser ? (
         <Dashboard 
           onLogout={() => {
             setCurrentUser(null);
@@ -1797,9 +1762,6 @@ const App: React.FC = () => {
     onUpdateAllowance={handleUpdateAllowance}
     onDeletePaymentRequest={handleDeletePaymentRequest}
     onDeleteAllowance={handleDeleteAllowance}
-    displayDevices={displayDevices}
-    onSaveDisplayDevice={handleSaveDisplayDevice}
-    onDeleteDisplayDevice={handleDeleteDisplayDevice}
         />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">

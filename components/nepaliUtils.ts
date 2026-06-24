@@ -1,6 +1,3 @@
-import { db } from '../firebase';
-import { ref, push, serverTimestamp } from 'firebase/database';
-
 export const toNepaliNumber = (val: number | string | undefined | null): string => {
   if (val === undefined || val === null) return '';
   const str = val.toString();
@@ -17,23 +14,6 @@ export const toNepaliNumber = (val: number | string | undefined | null): string 
     }
   }
   return result;
-};
-
-export const broadcastCall = (patient: any, serviceName: string, deviceIds?: string[]) => {
-  const callData = {
-    name: patient.name,
-    token: patient.paloNo || patient.uniquePatientId || 'N/A',
-    service: serviceName,
-    timestamp: serverTimestamp()
-  };
-
-  if (deviceIds && deviceIds.length > 0) {
-    deviceIds.forEach(id => {
-      push(ref(db, `display_calls/${id}`), callData);
-    });
-  }
-  // Always broadcast to GLOBAL as fallback
-  push(ref(db, `display_calls/GLOBAL`), callData);
 };
 
 export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: string; uniquePatientId?: string }, nextPatient?: { name: string; paloNo?: string; uniquePatientId?: string }) => {

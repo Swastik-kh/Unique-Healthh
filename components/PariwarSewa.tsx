@@ -3,7 +3,7 @@ import { PariwarSewaRecord, ServiceSeekerRecord } from '../types';
 import { Plus, Search, Edit2, Trash2, Calendar, User, Activity } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
-import { callPatientSpeech, broadcastCall } from './nepaliUtils';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface PariwarSewaProps {
   records: PariwarSewaRecord[];
@@ -181,7 +181,6 @@ export const PariwarSewa: React.FC<PariwarSewaProps> = ({
                     ? patientsOnQueue[currentIndex + 1] 
                     : undefined;
                   callPatientSpeech(patient, nextPatient);
-                  broadcastCall(patient, 'FP');
 
                   setEditingRecord(null);
                   handlePatientSelect(patient.id);

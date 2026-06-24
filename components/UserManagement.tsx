@@ -162,7 +162,6 @@ const PERMISSION_STRUCTURE = [
             { id: 'general_setting', label: 'सामान्य सेटिङ (General Setting)' },
             { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)' },
             { id: 'store_setup', label: 'स्टोर सेटअप (Store Setup)' },
-            { id: 'display_settings', label: 'डिस्प्ले सेटिङ (Display Settings)' },
             { id: 'database_management', label: 'डाटाबेस व्यवस्थापन (Database)' },
             { id: 'user_management', label: 'प्रयोगकर्ता सेटअप (User Setup)' },
             { id: 'user_history', label: 'इतिहास (History)' },
