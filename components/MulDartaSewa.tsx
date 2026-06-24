@@ -424,15 +424,24 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     const recordToDelete = records.find(r => r.id === id);
     if (!recordToDelete) return;
 
-    // Check if the patient is registered or admitted in other services
-    const isRegisteredInOtherServices = 
-      opdRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId) ||
-      emergencyRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId) ||
-      cbimnciRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId) ||
-      ipdRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId);
+    // Check where the patient is registered or admitted
+    const registeredServices: string[] = [];
 
-    if (isRegisteredInOtherServices) {
-      alert('यो बिरामी अन्य सेवामा दर्ता वा भर्ना भइसकेको हुनाले हटाउन मिल्दैन।');
+    if (opdRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId)) {
+      registeredServices.push('ओपिडी सेवा (OPD Service)');
+    }
+    if (emergencyRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId)) {
+      registeredServices.push('आकस्मिक सेवा (Emergency Service)');
+    }
+    if (cbimnciRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId)) {
+      registeredServices.push('सिबिआईएमएनसिआई सेवा (CB-IMNCI Service)');
+    }
+    if (ipdRecords.some(r => r.uniquePatientId === recordToDelete.uniquePatientId)) {
+      registeredServices.push('आइपिडी / भर्ना सेवा (IPD/Admission Service)');
+    }
+
+    if (registeredServices.length > 0) {
+      alert(`यो बिरामी निम्न सेवा(हरू) मा दर्ता वा भर्ना भइसकेको हुनाले हटाउन मिल्दैन:\n- ${registeredServices.join('\n- ')}\n\n(This patient is already registered/admitted in the above service(s) and cannot be deleted.)`);
       return;
     }
 
