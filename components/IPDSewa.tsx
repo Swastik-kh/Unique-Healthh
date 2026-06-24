@@ -38,9 +38,10 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
 }) => {
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
-  const [activeTab, setActiveTab] = useState<'admission' | 'history' | 'status'>('status');
+  const [activeTab, setActiveTab] = useState<'admission' | 'history' | 'status' | 'all-patients'>('status');
   const [showSettings, setShowSettings] = useState(false);
   const [showPatientDetails, setShowPatientDetails] = useState<IPDRecord | null>(null);
+  const [allPatientsSearch, setAllPatientsSearch] = useState('');
   
   const [ipdData, setIpdData] = useState<Partial<IPDRecord>>({
     admissionDate: new NepaliDate().format('YYYY-MM-DD'),
@@ -67,7 +68,7 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
   };
 
   const handleDelete = (admission: IPDRecord) => {
-    if (currentUser?.role !== 'admin') {
+    if (currentUser?.role !== 'admin' && currentUser?.role !== 'ADMIN' && currentUser?.role !== 'SUPER_ADMIN') {
       alert('तपाईंलाई यो रेकर्ड मेटाउने अनुमति छैन।');
       return;
     }
@@ -349,19 +350,19 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
             <div className="p-6">
               {activeTab === 'all-patients' && (
                 <div className="space-y-6">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 text-slate-400" size={18} />
                         <input
                         type="text"
-                        placeholder="दर्ता नं, बिरामी ID वा नामबाट खोज्नुहोस्..."
-                        value={searchId}
-                        onChange={(e) => setSearchId(e.target.value)}
+                        placeholder="दर्ता नं, बिरामी ID, नाम, मिति वा निदान (Diagnosis) बाट खोज्नुहोस्..."
+                        value={allPatientsSearch}
+                        onChange={(e) => setAllPatientsSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500"
                         />
                     </div>
-                    {currentUser?.role === 'admin' && (
-                        <button onClick={onDeleteAllRecords} className="ml-4 flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold shadow-sm hover:bg-red-700">
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                        <button onClick={onDeleteAllRecords} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold shadow-sm hover:bg-red-700 whitespace-nowrap">
                             <Trash2 size={18} /> सबै मेटाउनुहोस्
                         </button>
                     )}
@@ -372,16 +373,23 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                         <tr>
                           <th className="p-3">ID / Name</th>
                           <th className="p-3">भर्ना मिति</th>
+                          <th className="p-3">निदान (Diagnosis)</th>
                           <th className="p-3">अवस्था</th>
-                          <th className="p-3 text-right">कार्य</th>
+                          <th className="p-3 text-right">कार्य (Actions)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {ipdRecords
-                          .filter(r => 
-                            r.uniquePatientId.toLowerCase().includes(searchId.toLowerCase()) ||
-                            r.patientName.toLowerCase().includes(searchId.toLowerCase())
-                          )
+                          .filter(r => {
+                            const query = allPatientsSearch.toLowerCase().trim();
+                            if (!query) return true;
+                            return (
+                              r.uniquePatientId.toLowerCase().includes(query) ||
+                              r.patientName.toLowerCase().includes(query) ||
+                              r.admissionDate.toLowerCase().includes(query) ||
+                              (r.provisionalDiagnosis && r.provisionalDiagnosis.toLowerCase().includes(query))
+                            );
+                          })
                           .map(record => (
                             <tr key={record.id} className="hover:bg-slate-50">
                               <td className="p-3">
@@ -391,22 +399,79 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                                   {serviceSeekerRecords.find(p => p.id === record.serviceSeekerId)?.mulDartaNo && ` | ${serviceSeekerRecords.find(p => p.id === record.serviceSeekerId)?.mulDartaNo}`}
                                 </div>
                               </td>
-                              <td className="p-3">{record.admissionDate}</td>
+                              <td className="p-3 text-slate-600">{record.admissionDate}</td>
+                              <td className="p-3 text-slate-600 italic">{record.provisionalDiagnosis || '-'}</td>
                               <td className="p-3">
                                 <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${record.status === 'Admitted' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
                                   {record.status}
                                 </span>
                               </td>
                               <td className="p-3 text-right">
-                                <button 
-                                  onClick={() => setShowPatientDetails(record)}
-                                  className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"
-                                >
-                                  <Info size={16} />
-                                </button>
+                                <div className="flex justify-end gap-1.5">
+                                  <button 
+                                    onClick={() => setShowPatientDetails(record)}
+                                    className="p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Info size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      const patient = serviceSeekerRecords.find(p => p.id === record.serviceSeekerId) || {
+                                        id: record.serviceSeekerId,
+                                        uniquePatientId: record.uniquePatientId,
+                                        registrationNumber: '',
+                                        date: record.admissionDate,
+                                        name: record.patientName,
+                                        age: record.age,
+                                        gender: record.gender,
+                                        casteCode: '',
+                                        address: '',
+                                        phone: '',
+                                        serviceType: 'IPD',
+                                        visitType: 'New',
+                                        fiscalYear: record.fiscalYear
+                                      };
+                                      setCurrentPatient(patient);
+                                      setSearchId(patient.uniquePatientId);
+                                      setIpdData(record);
+                                      setEditingRecordId(record.id);
+                                      setActiveTab('admission');
+                                    }}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit / Discharge"
+                                  >
+                                    <FileText size={16} />
+                                  </button>
+                                  {(currentUser?.role === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
+                                    <button 
+                                      onClick={() => handleDelete(record)}
+                                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Delete Record"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
+                        {ipdRecords.filter(r => {
+                          const query = allPatientsSearch.toLowerCase().trim();
+                          if (!query) return true;
+                          return (
+                            r.uniquePatientId.toLowerCase().includes(query) ||
+                            r.patientName.toLowerCase().includes(query) ||
+                            r.admissionDate.toLowerCase().includes(query) ||
+                            (r.provisionalDiagnosis && r.provisionalDiagnosis.toLowerCase().includes(query))
+                          );
+                        }).length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                              कुनै भर्ना रेकर्ड भेटिएन।
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -528,7 +593,7 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                                     >
                                       <FileText size={16} />
                                     </button>
-                                    {currentUser?.role === 'admin' && (
+                                    {(currentUser?.role === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
                                       <button 
                                         onClick={() => handleDelete(admission)}
                                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -834,7 +899,7 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                 >
                   View / Edit
                 </button>
-                {currentUser?.role === 'admin' && (
+                {(currentUser?.role === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') && (
                   <button 
                     onClick={() => handleDelete(showPatientDetails)}
                     className="flex-1 py-3 bg-red-100 text-red-600 rounded-xl font-bold hover:bg-red-200 transition-all"
