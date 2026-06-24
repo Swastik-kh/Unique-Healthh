@@ -131,6 +131,32 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
 
   const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
 
+  const [sidebarTab, setSidebarTab] = useState<'today' | 'all'>('today');
+  const [sidebarSearch, setSidebarSearch] = useState('');
+
+  const sidebarOPDRecords = useMemo(() => {
+    let records = opdRecords;
+    if (sidebarTab === 'today') {
+      records = opdRecords.filter(r => r.visitDate === todayNepaliDate && r.fiscalYear === currentFiscalYear);
+    }
+    
+    // Sort all records descending by ID / Visit Date
+    records = [...records].sort((a, b) => b.id.localeCompare(a.id));
+
+    if (!sidebarSearch.trim()) return records;
+
+    const query = sidebarSearch.toLowerCase().trim();
+    return records.filter(r => {
+      const patient = serviceSeekerRecords.find(p => p.uniquePatientId === r.uniquePatientId);
+      return (
+        r.uniquePatientId.toLowerCase().includes(query) ||
+        r.visitDate.toLowerCase().includes(query) ||
+        (r.diagnosis && r.diagnosis.toLowerCase().includes(query)) ||
+        (patient && patient.name.toLowerCase().includes(query))
+      );
+    });
+  }, [opdRecords, sidebarTab, sidebarSearch, todayNepaliDate, currentFiscalYear, serviceSeekerRecords]);
+
   const todaysOPDRecords = useMemo(() => {
     return opdRecords
       .filter(r => r.visitDate === todayNepaliDate && r.fiscalYear === currentFiscalYear)
@@ -877,15 +903,68 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
       </div>
       </div>
 
-      {/* Sidebar: Today's Patients */}
+      {/* Sidebar: OPD Patients List */}
       <div className="space-y-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-6">
-          <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
-            <History size={18} className="text-primary-600" />
-            आजका बिरामीहरू ({todaysOPDRecords.length})
-          </h3>
-          <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-2 custom-scrollbar">
-            {todaysOPDRecords.map(record => {
+          <div className="border-b pb-3 mb-3">
+            <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-3">
+              <History size={18} className="text-primary-600" />
+              ओपिडी भ्रमण सूची (OPD Patients List)
+            </h3>
+            
+            {/* Tab Selector */}
+            <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-lg text-xs font-semibold">
+              <button
+                onClick={() => {
+                  setSidebarTab('today');
+                  setSidebarSearch('');
+                }}
+                className={`py-1.5 px-3 rounded-md transition-all ${
+                  sidebarTab === 'today'
+                    ? 'bg-white text-primary-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                आजका ({opdRecords.filter(r => r.visitDate === todayNepaliDate && r.fiscalYear === currentFiscalYear).length})
+              </button>
+              <button
+                onClick={() => {
+                  setSidebarTab('all');
+                  setSidebarSearch('');
+                }}
+                className={`py-1.5 px-3 rounded-md transition-all ${
+                  sidebarTab === 'all'
+                    ? 'bg-white text-primary-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-800'
+                }`}
+              >
+                सबै ({opdRecords.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Sidebar Search Input */}
+          <div className="relative mb-3">
+            <input
+              type="text"
+              placeholder="नाम, PID, मिति वा रोग खोज्नुहोस्..."
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              className="w-full text-xs pl-8 pr-8 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+            />
+            <Search className="absolute left-2.5 top-2.5 text-slate-400" size={13} />
+            {sidebarSearch && (
+              <button
+                onClick={() => setSidebarSearch('')}
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-2 custom-scrollbar">
+            {sidebarOPDRecords.map(record => {
               const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
               const isSelected = editingRecordId === record.id;
               
@@ -905,33 +984,57 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                   }}
                 >
                   <div className="flex justify-between items-start">
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-800 text-sm truncate">{patient?.name || 'Unknown'}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">{record.uniquePatientId}</p>
+                    <div className="min-w-0 flex-1 mr-2">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <p className="font-bold text-slate-800 text-xs truncate max-w-[120px]">{patient?.name || 'Unknown'}</p>
+                        <span className="text-[10px] text-slate-400 font-mono bg-slate-100 px-1 py-0.2 rounded">{record.uniquePatientId}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                          {record.visitDate}
+                        </span>
+                        {record.diagnosis && (
+                          <span className="text-[10px] text-slate-600 truncate max-w-[100px] italic">
+                            {record.diagnosis}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSelectAndPrint(record);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-white rounded-md transition-colors shadow-sm border border-transparent hover:border-slate-200"
+                        className="p-1 text-slate-400 hover:text-primary-600 hover:bg-white rounded border border-transparent hover:border-slate-200"
                         title="Print Card"
                       >
-                        <Printer size={14} />
+                        <Printer size={13} />
                       </button>
                       {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('के तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
+                            if (window.confirm('के तपाईं यो ओपिडी रेकर्ड हटाउन निश्चित हुनुहुन्छ? (Are you sure you want to delete this OPD record?)')) {
                               onDeleteRecord(record.id);
+                              if (editingRecordId === record.id) {
+                                setEditingRecordId(null);
+                                setOpdData({
+                                  chiefComplaints: '',
+                                  diagnosis: '',
+                                  investigation: '',
+                                  prescriptions: [],
+                                  advice: '',
+                                  nextVisitDate: ''
+                                });
+                                setPrescriptionItems([]);
+                              }
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-md transition-colors shadow-sm border border-transparent hover:border-slate-200"
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded border border-transparent hover:border-slate-200"
                           title="Delete Record"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>
@@ -939,12 +1042,12 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                 </div>
               );
             })}
-            {todaysOPDRecords.length === 0 && (
+            {sidebarOPDRecords.length === 0 && (
               <div className="text-center py-12">
                 <div className="bg-slate-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
                   <User size={20} className="text-slate-300" />
                 </div>
-                <p className="text-slate-400 text-sm italic">आज कुनै बिरामी छैनन्</p>
+                <p className="text-slate-400 text-sm italic">कुनै रेकर्ड भेटिएन</p>
               </div>
             )}
           </div>
