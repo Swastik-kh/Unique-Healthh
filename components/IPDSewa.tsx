@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Save, Plus, Trash2, User, Calendar, Building2, Clock, FileText, History, X, Settings, Bed, Info, CheckCircle2, AlertCircle, Pill, PlusCircle } from 'lucide-react';
+import { Search, Save, Plus, Trash2, User, Calendar, Building2, Clock, FileText, History, X, Settings, Bed, Info, CheckCircle2, AlertCircle, Pill, PlusCircle, Volume2, VolumeX } from 'lucide-react';
 import { ServiceSeekerRecord, IPDRecord, OrganizationSettings, WardConfig, Medication } from '../types/coreTypes';
 import { Input } from './Input';
 // @ts-ignore
@@ -57,6 +57,20 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
     status: 'Admitted'
   });
   const [searchResults, setSearchResults] = useState<ServiceSeekerRecord[]>([]);
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('queue_voice_muted') === 'true';
+    }
+    return false;
+  });
+
+  const toggleMute = () => {
+    const newVal = !isMuted;
+    setIsMuted(newVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('queue_voice_muted', String(newVal));
+    }
+  };
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -308,10 +322,28 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
 
             {patientsOnQueue.length > 0 && (
               <div className="mt-6 pt-6 border-t border-slate-100">
-                <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
-                  पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
-                </h4>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse"></span>
+                    पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMute();
+                    }}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition-all ${
+                      isMuted 
+                        ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                        : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                    title={isMuted ? "Unmute voice announcement" : "Mute voice announcement"}
+                  >
+                    {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                    <span>{isMuted ? "म्युट" : "अनम्युट"}</span>
+                  </button>
+                </div>
                 <div className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
                   {patientsOnQueue.map(patient => (
                     <button

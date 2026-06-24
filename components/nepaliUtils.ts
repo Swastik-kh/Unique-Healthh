@@ -17,6 +17,9 @@ export const toNepaliNumber = (val: number | string | undefined | null): string 
 };
 
 export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: string; uniquePatientId?: string }, nextPatient?: { name: string; paloNo?: string; uniquePatientId?: string }) => {
+  if (typeof window !== 'undefined' && localStorage.getItem('queue_voice_muted') === 'true') {
+    return;
+  }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
 

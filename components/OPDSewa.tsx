@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, Save, Printer, Plus, Trash2, FileText, User, Calendar, Stethoscope, Activity, Pill, FlaskConical, History, X } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, FileText, User, Calendar, Stethoscope, Activity, Pill, FlaskConical, History, X, Volume2, VolumeX } from 'lucide-react';
 import { ServiceSeekerRecord, OPDRecord, PrescriptionItem, ServiceItem, LabReport, OrganizationSettings } from '../types/coreTypes';
 import { XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, TBPatient } from '../types';
 import { InventoryItem } from '../types/inventoryTypes';
@@ -80,6 +80,20 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
   const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
   const [currentPrescription, setCurrentPrescription] = useState<PrescriptionItem>(initialPrescriptionItem);
   const [searchResults, setSearchResults] = useState<ServiceSeekerRecord[]>([]);
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('queue_voice_muted') === 'true';
+    }
+    return false;
+  });
+
+  const toggleMute = () => {
+    const newVal = !isMuted;
+    setIsMuted(newVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('queue_voice_muted', String(newVal));
+    }
+  };
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -448,10 +462,28 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
 
         {patientsOnQueue.length > 0 && (
           <div className="mt-6 pt-6 border-t border-slate-100">
-            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
-              पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
-            </h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+                पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+              </h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  isMuted 
+                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                }`}
+                title={isMuted ? "Unmute voice announcement" : "Mute voice announcement"}
+              >
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                <span>{isMuted ? "आवाज म्युट छ" : "आवाज अनम्युट छ"}</span>
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {patientsOnQueue.map(patient => (
                 <button
@@ -955,10 +987,27 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
       <div className="space-y-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-6">
           <div className="border-b pb-3 mb-3">
-            <h3 className="font-bold text-slate-700 flex items-center gap-2 mb-3">
-              <History size={18} className="text-primary-600" />
-              ओपिडी भ्रमण सूची (OPD Patients List)
-            </h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                <History size={18} className="text-primary-600" />
+                ओपिडी भ्रमण सूची (OPD Patients List)
+              </h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
+                className={`p-1.5 rounded-lg border transition-all ${
+                  isMuted 
+                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                }`}
+                title={isMuted ? "Unmute voice announcement" : "Mute voice announcement"}
+              >
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              </button>
+            </div>
             
             {/* Tab Selector */}
             <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-lg text-[10px] font-semibold">

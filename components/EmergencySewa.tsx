@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Siren, AlertTriangle, Activity } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Siren, AlertTriangle, Activity, Volume2, VolumeX } from 'lucide-react';
 import { ServiceSeekerRecord, EmergencyRecord, PrescriptionItem, ServiceItem } from '../types/coreTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { Input } from './Input';
@@ -62,6 +62,20 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
   const [showPrescriptionForm, setShowPrescriptionForm] = useState<'emergency' | 'discharge' | null>(null);
   const [currentPrescription, setCurrentPrescription] = useState<PrescriptionItem>(initialPrescriptionItem);
   const [searchResults, setSearchResults] = useState<ServiceSeekerRecord[]>([]);
+  const [isMuted, setIsMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('queue_voice_muted') === 'true';
+    }
+    return false;
+  });
+
+  const toggleMute = () => {
+    const newVal = !isMuted;
+    setIsMuted(newVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('queue_voice_muted', String(newVal));
+    }
+  };
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -322,10 +336,28 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
 
         {patientsOnQueue.length > 0 && (
           <div className="mt-6 pt-6 border-t border-slate-100">
-            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
-            </h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                पर्खिरहेका बिरामीहरू (Patients on Queue): {patientsOnQueue.length}
+              </h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  isMuted 
+                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+                    : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                }`}
+                title={isMuted ? "Unmute voice announcement" : "Mute voice announcement"}
+              >
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                <span>{isMuted ? "आवाज म्युट छ" : "आवाज अनम्युट छ"}</span>
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {patientsOnQueue.map(patient => (
                 <button
