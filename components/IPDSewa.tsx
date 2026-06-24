@@ -4,6 +4,7 @@ import { ServiceSeekerRecord, IPDRecord, OrganizationSettings, WardConfig, Medic
 import { Input } from './Input';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface IPDSewaProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
@@ -116,6 +117,12 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
   };
 
   const selectPatient = (patient: ServiceSeekerRecord) => {
+    const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+    const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+      ? patientsOnQueue[currentIndex + 1] 
+      : undefined;
+    callPatientSpeech(patient, nextPatient);
+
     setCurrentPatient(patient);
     setShowSearchResults(false);
     setSearchId(patient.uniquePatientId);

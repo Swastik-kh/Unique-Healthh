@@ -3,6 +3,7 @@ import { PhysiotherapyRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, C
 import { Plus, Search, Edit2, Trash2, Activity, AlertCircle, FileText, Accessibility } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface PhysiotherapySewaProps {
   records: PhysiotherapyRecord[];
@@ -188,6 +189,12 @@ export const PhysiotherapySewa: React.FC<PhysiotherapySewaProps> = ({
               <button
                 key={patient.id}
                 onClick={() => {
+                  const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+                  const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+                    ? patientsOnQueue[currentIndex + 1] 
+                    : undefined;
+                  callPatientSpeech(patient, nextPatient);
+
                   setEditingRecord(null);
                   handlePatientSelect(patient);
                   setIsFormOpen(true);

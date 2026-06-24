@@ -3,6 +3,7 @@ import { XRayRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRec
 import { Plus, Search, Edit2, Trash2, Calendar, User, Activity, AlertCircle, FileText } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface XRaySewaProps {
   records: XRayRecord[];
@@ -231,6 +232,12 @@ export const XRaySewa: React.FC<XRaySewaProps> = ({
               <button
                 key={patient.id}
                 onClick={() => {
+                  const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+                  const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+                    ? patientsOnQueue[currentIndex + 1] 
+                    : undefined;
+                  callPatientSpeech(patient, nextPatient);
+
                   setEditingRecord(null);
                   handlePatientSelect(patient);
                   setIsFormOpen(true);

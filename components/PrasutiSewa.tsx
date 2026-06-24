@@ -6,6 +6,7 @@ import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface PrasutiSewaProps {
   garbhawotiRecords: GarbhawotiRecord[];
@@ -230,6 +231,12 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
               <button
                 key={patient.id}
                 onClick={() => {
+                  const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+                  const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+                    ? patientsOnQueue[currentIndex + 1] 
+                    : undefined;
+                  callPatientSpeech(patient, nextPatient);
+
                   setIsEditing(null);
                   const garbhawoti = garbhawotiRecords.find(g => g.name === patient.name);
                   setFormData({

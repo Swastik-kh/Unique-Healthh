@@ -6,6 +6,7 @@ import { Input } from './Input';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface EmergencySewaProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
@@ -115,6 +116,12 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
   };
 
   const selectPatient = (patient: ServiceSeekerRecord) => {
+    const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+    const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+      ? patientsOnQueue[currentIndex + 1] 
+      : undefined;
+    callPatientSpeech(patient, nextPatient);
+
     setCurrentPatient(patient);
     setSearchResults([]);
     setShowSearchResults(false);

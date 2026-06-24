@@ -3,6 +3,7 @@ import { USGRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIReco
 import { Plus, Search, Edit2, Trash2, Activity, AlertCircle, FileText } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import { callPatientSpeech } from './nepaliUtils';
 
 interface USGSewaProps {
   records: USGRecord[];
@@ -189,6 +190,12 @@ export const USGSewa: React.FC<USGSewaProps> = ({
               <button
                 key={patient.id}
                 onClick={() => {
+                  const currentIndex = patientsOnQueue.findIndex(p => p.id === patient.id);
+                  const nextPatient = currentIndex !== -1 && currentIndex + 1 < patientsOnQueue.length 
+                    ? patientsOnQueue[currentIndex + 1] 
+                    : undefined;
+                  callPatientSpeech(patient, nextPatient);
+
                   setEditingRecord(null);
                   handlePatientSelect(patient);
                   setIsFormOpen(true);

@@ -15,3 +15,36 @@ export const toNepaliNumber = (val: number | string | undefined | null): string 
   }
   return result;
 };
+
+export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: string; uniquePatientId?: string }, nextPatient?: { name: string; paloNo?: string; uniquePatientId?: string }) => {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+
+    // Use paloNo/token, fallback to uniquePatientId/ID
+    const clickedToken = clickedPatient.paloNo || clickedPatient.uniquePatientId || '';
+    const clickedTokenText = clickedToken ? `पालो नम्बर ${clickedToken}` : '';
+    
+    // Primary call for the clicked patient
+    let textToSpeak = `बिरामी ${clickedPatient.name}, ${clickedTokenText}, कृपया भित्र आउनुहोला।`;
+    
+    // Call the next patient in queue to be ready
+    if (nextPatient) {
+      const nextToken = nextPatient.paloNo || nextPatient.uniquePatientId || '';
+      const nextTokenText = nextToken ? `पालो नम्बर ${nextToken}` : '';
+      textToSpeak += ` अर्को पालो, बिरामी ${nextPatient.name}, ${nextTokenText}, कृपया तयारी अवस्थामा रहनुहोला।`;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = 'ne-NP';
+    utterance.rate = 0.85; // slightly slower for high clarity
+
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang.startsWith('ne') || v.lang.startsWith('hi') || v.lang.startsWith('en-IN'));
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
+};
+
