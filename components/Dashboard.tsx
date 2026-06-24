@@ -1990,6 +1990,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         serviceItems={serviceItems}
         emergencyRecords={emergencyRecords}
         users={users}
+        generalSettings={generalSettings}
       />;
       case 'emergency_sewa': return <EmergencySewa 
         serviceSeekerRecords={serviceSeekerRecords}

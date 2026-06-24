@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X, Edit } from 'lucide-react';
-import { ServiceSeekerRecord, OPDRecord, BillingRecord, BillingItem, ServiceItem, CBIMNCIRecord, EmergencyRecord, User as AppUser } from '../types/coreTypes';
+import { ServiceSeekerRecord, OPDRecord, BillingRecord, BillingItem, ServiceItem, CBIMNCIRecord, EmergencyRecord, User as AppUser, OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
+import { LogoDisplay } from './LogoDisplay';
 
 const getHibCodeForService = (name: string): string => {
   const cleanName = name.trim().toUpperCase();
@@ -53,6 +54,7 @@ interface ServiceBillingProps {
   currentUser: any;
   serviceItems: ServiceItem[];
   users?: AppUser[];
+  generalSettings?: OrganizationSettings;
 }
 
 export const ServiceBilling: React.FC<ServiceBillingProps> = ({ 
@@ -66,7 +68,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   onDeleteRecord,
   currentUser,
   serviceItems = [],
-  users = []
+  users = [],
+  generalSettings
 }) => {
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
@@ -1818,10 +1821,29 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       <div style={{ display: "none" }}>
         <div ref={printRef} className="p-8 bg-white text-slate-900 print:block font-sans">
           {/* Header */}
-          <div className="text-center mb-6 border-b-2 border-slate-800 pb-4">
-            <h1 className="text-2xl font-bold uppercase">{currentUser?.organizationName || 'Health Institution'}</h1>
-            <p className="text-sm text-slate-600">{currentUser?.address || 'Address'}</p>
-            <h2 className="text-lg font-bold mt-2 border-2 border-slate-800 inline-block px-4 py-1 rounded">INVOICE</h2>
+          <div className="flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
+            <div className="w-24 flex justify-start">
+              {generalSettings ? (
+                <LogoDisplay settings={generalSettings} width={80} height={80} />
+              ) : (
+                <div className="w-20 h-20 bg-slate-100 rounded flex items-center justify-center text-[10px] text-slate-400">No Logo</div>
+              )}
+            </div>
+            <div className="text-center flex-1 px-4">
+              <h1 className="text-2xl font-bold uppercase">
+                {generalSettings?.orgNameNepali || currentUser?.organizationName || 'Health Institution'}
+              </h1>
+              {generalSettings?.subTitleNepali && <p className="text-sm font-medium">{generalSettings.subTitleNepali}</p>}
+              {generalSettings?.subTitleNepali2 && <p className="text-sm font-medium">{generalSettings.subTitleNepali2}</p>}
+              {generalSettings?.subTitleNepali3 && <p className="text-sm font-medium">{generalSettings.subTitleNepali3}</p>}
+              {generalSettings?.subTitleNepali4 && <p className="text-sm font-medium">{generalSettings.subTitleNepali4}</p>}
+              <p className="text-sm text-slate-600">{generalSettings?.address || currentUser?.address || ''}</p>
+              <h2 className="text-lg font-bold mt-2 border-2 border-slate-800 inline-block px-4 py-1 rounded">INVOICE</h2>
+            </div>
+            <div className="w-24 text-right text-xs space-y-0.5">
+              {generalSettings?.panNo && <p><strong>PAN:</strong> {generalSettings.panNo}</p>}
+              {generalSettings?.phone && <p><strong>फोन:</strong> {generalSettings.phone}</p>}
+            </div>
           </div>
 
           {/* Bill Info */}
