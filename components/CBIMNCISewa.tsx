@@ -8,7 +8,7 @@ import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
 import { growthCharts } from '../constants/growthCharts';
 import { PrescriptionPrint } from './PrescriptionPrint';
-import { callPatientSpeech } from './nepaliUtils';
+import { callPatientSpeech, broadcastCall } from './nepaliUtils';
 
 interface CBIMNCISewaProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
@@ -396,6 +396,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
         ? patientsOnQueue[currentIndex + 1] 
         : undefined;
       callPatientSpeech(patient, nextPatient);
+      broadcastCall(patient, 'CBIMNCI');
 
       setCurrentPatient(patient);
       setIsDirectEntry(isEntry);

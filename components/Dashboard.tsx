@@ -8,14 +8,14 @@ import {
   BookOpen, Book, Archive, RotateCcw, Wrench, Scroll, BarChart3,
   Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
   Eye, ShieldAlert, ChevronLeft, Send, MapPin, Search, HeartHandshake,
-  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical
+  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical, Monitor
 } from 'lucide-react';
-import { APP_NAME, FISCAL_YEARS } from '../constants';
+import { APP_NAME, FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
 import { db } from '../firebase';
 import { ref, onValue, get } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
-import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter } from '../types';
+import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter, DisplayDevice, Talim, KarmachariTalimRecord } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { TalimByabasthapan } from './TalimByabasthapan';
 import { LekhaPrashasan } from './LekhaPrashasan';
@@ -38,6 +38,7 @@ import { CBIMNCIReport } from './CBIMNCIReport';
 import { ReportingStatusReport } from './ReportingStatusReport';
 import { InventoryMonthlyReport } from './InventoryMonthlyReport'; 
 import { StockEntryApproval } from './StockEntryApproval'; 
+import { DisplaySettings } from './DisplaySettings';
 import { DakhilaPratibedan } from './DakhilaPratibedan'; 
 import { SahayakJinshiKhata } from './SahayakJinshiKhata'; 
 import { JinshiKhata } from './JinshiKhata'; 
@@ -155,6 +156,9 @@ interface ExtendedDashboardProps extends DashboardProps {
   activeOrgName: string;
   onSetActiveOrgName: (orgName: string) => void;
   allUsers: User[];
+  displayDevices: DisplayDevice[];
+  onSaveDisplayDevice: (device: DisplayDevice) => void;
+  onDeleteDisplayDevice: (id: string) => void;
 
   // Finance Props
   financialPrograms: FinancialProgram[];
@@ -242,7 +246,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onUpdatePaymentRequest, onUpdateAllowance,
   onDeletePaymentRequest, onDeleteAllowance,
   talimEntries = [], onSaveTalim, onDeleteTalim,
-  karmachariTalimRecords = [], onSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord
+  karmachariTalimRecords = [], onSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord,
+  displayDevices = [], onSaveDisplayDevice, onDeleteDisplayDevice
 }) => {
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
@@ -267,6 +272,34 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
     return () => unsub();
   }, [currentUser?.id]);
   
+  const [deviceStatuses, setDeviceStatuses] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    const statusRef = ref(db, 'display_status');
+    const unsub = onValue(statusRef, (snap) => {
+      if (snap.exists()) setDeviceStatuses(snap.val());
+    });
+    return () => unsub();
+  }, []);
+
+  const enrichedDevices = useMemo(() => {
+    return (displayDevices || []).map(device => {
+      const statusInfo = deviceStatuses[device.id];
+      if (statusInfo) {
+        const lastPing = statusInfo.lastPing;
+        const now = Date.now();
+        // If last ping was within 2 minutes (allow for some delay), it's online
+        const isOnline = lastPing && (now - lastPing < 120000);
+        return {
+          ...device,
+          status: isOnline ? 'Online' : 'Offline' as any,
+          lastPing: lastPing ? new Date(lastPing).toLocaleString() : undefined
+        };
+      }
+      return device;
+    });
+  }, [displayDevices, deviceStatuses]);
+
   const readNotifIds = useMemo(() => currentUser?.readNotifications || [], [currentUser]);
 
   const [pendingPoDakhila, setPendingPoDakhila] = useState<PurchaseOrderEntry | null>(null);
@@ -661,6 +694,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         { id: 'organization_management', label: 'संस्था व्यवस्थापन', icon: <Building2 size={16} /> },
         { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)', icon: <Activity size={16} /> },
         { id: 'store_setup', label: 'स्टोर सेटअप', icon: <Store size={16} /> },
+        { id: 'display_settings', label: 'डिस्प्ले सेटिङ', icon: <Monitor size={16} /> },
         { id: 'user_management', label: 'प्रयोगकर्ता व्यवस्थापन', icon: <Users size={16} /> },
         { id: 'user_history', label: 'इतिहास', icon: <Activity size={16} /> },
         { id: 'change_password', label: 'पासवर्ड परिवर्तन', icon: <KeyRound size={16} /> },
@@ -2139,6 +2173,15 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         currentFiscalYear={currentFiscalYear}
       />;
       case 'store_setup': return <StoreSetup stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} />;
+      case 'display_settings': return (
+        <DisplaySettings 
+          currentUser={currentUser!}
+          displayDevices={enrichedDevices}
+          onSaveDisplayDevice={onSaveDisplayDevice}
+          onDeleteDisplayDevice={onDeleteDisplayDevice}
+          availableServices={generalSettings.allServiceOptions || AVAILABLE_SERVICES}
+        />
+      );
       default: return null;
     }
   };

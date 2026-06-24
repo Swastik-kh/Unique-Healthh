@@ -78,6 +78,17 @@ export interface ConferenceMessage {
   isEdited?: boolean;
 }
 
+export interface DisplayDevice {
+  id: string;
+  name: string;
+  location: string;
+  type: 'SmartTV' | 'LED' | 'Monitor' | 'Other';
+  status: 'Online' | 'Offline';
+  lastPing?: string;
+  url: string;
+  assignedServices: string[]; // e.g. ['OPD', 'Emergency']
+}
+
 export interface OrganizationSettings {
   orgNameNepali: string;
   orgNameEnglish: string;

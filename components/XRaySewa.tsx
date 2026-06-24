@@ -3,7 +3,7 @@ import { XRayRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRec
 import { Plus, Search, Edit2, Trash2, Calendar, User, Activity, AlertCircle, FileText } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
-import { callPatientSpeech } from './nepaliUtils';
+import { callPatientSpeech, broadcastCall } from './nepaliUtils';
 
 interface XRaySewaProps {
   records: XRayRecord[];
@@ -237,6 +237,7 @@ export const XRaySewa: React.FC<XRaySewaProps> = ({
                     ? patientsOnQueue[currentIndex + 1] 
                     : undefined;
                   callPatientSpeech(patient, nextPatient);
+                  broadcastCall(patient, 'X-Ray');
 
                   setEditingRecord(null);
                   handlePatientSelect(patient);
