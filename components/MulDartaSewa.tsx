@@ -66,7 +66,9 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const [ageUnit, setAgeUnit] = useState<'Days' | 'Months' | 'Years'>('Years');
   const [stickerPatient, setStickerPatient] = useState<ServiceSeekerRecord | null>(null);
   
-  const isUnder5 = (ageUnit === 'Years' && formData.ageYears < 5) || ageUnit === 'Months' || ageUnit === 'Days';
+  const isUnder5 = (ageUnit === 'Years' && formData.ageYears < 5 && (formData.ageYears > 0 || formData.ageMonths > 0)) || 
+                   (ageUnit === 'Months' && formData.ageMonths > 0) || 
+                   (ageUnit === 'Days' && formData.ageDays > 0);
 
   useEffect(() => {
     if (isUnder5 && formData.serviceType !== 'CBIMNCI') {
@@ -330,7 +332,17 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     }
 
     const finalValue = (name === 'ageYears' || name === 'ageMonths' || name === 'ageDays' || name === 'serviceFee') ? parseFloat(value) || 0 : value;
-    setFormData(prev => ({ ...prev, [name]: finalValue }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: finalValue };
+      // Update display age string
+      if (name === 'ageYears' || name === 'ageMonths' || name === 'ageDays') {
+        const y = name === 'ageYears' ? finalValue : prev.ageYears || 0;
+        const m = name === 'ageMonths' ? finalValue : prev.ageMonths || 0;
+        const d = name === 'ageDays' ? finalValue : prev.ageDays || 0;
+        newData.age = `${y}Y ${m}M ${d}D`;
+      }
+      return newData;
+    });
   };
 
   const handleDateChange = (value: string) => {
@@ -364,7 +376,8 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           dobAd: dateAd,
           ageYears: diffYears >= 0 ? diffYears : 0,
           ageMonths: diffMonths >= 0 ? diffMonths : 0,
-          ageDays: diffDays >= 0 ? diffDays : 0
+          ageDays: diffDays >= 0 ? diffDays : 0,
+          age: `${diffYears >= 0 ? diffYears : 0}Y ${diffMonths >= 0 ? diffMonths : 0}M ${diffDays >= 0 ? diffDays : 0}D`
         }));
 
         // Auto-set age unit based on calculated age
