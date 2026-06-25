@@ -1659,7 +1659,12 @@ const App: React.FC = () => {
           issueReports={issueReports} onUpdateIssueReport={handleUpdateIssueReport}
           rabiesPatients={rabiesPatients} onAddRabiesPatient={(p) => set(getOrgRef(`rabiesPatients/${p.id}`), JSON.parse(JSON.stringify(p)))}
           onUpdatePatient={(p) => set(getOrgRef(`rabiesPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onDeletePatient={(id) => remove(getOrgRef(`rabiesPatients/${id}`))}
-          tbPatients={tbPatients} onAddTbPatient={(p) => set(getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onUpdateTbPatient={(p, sourceOrgName) => set(sourceOrgName ? ref(db, `orgData/${sourceOrgName.trim().replace(/[.#$[\]]/g, "_")}/tbPatients/${p.id}`) : getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} 
+          tbPatients={tbPatients} onAddTbPatient={async (p) => {
+            await set(getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)));
+            if (p.serviceSeekerId) {
+              await update(getOrgRef(`serviceSeekerRecords/${p.serviceSeekerId}`), { status: 'Completed' });
+            }
+          }} onUpdateTbPatient={(p, sourceOrgName) => set(sourceOrgName ? ref(db, `orgData/${sourceOrgName.trim().replace(/[.#$[\]]/g, "_")}/tbPatients/${p.id}`) : getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} 
           onDeleteTbPatient={async (id) => {
             try {
               // 1. Remove associated inter-facility requests

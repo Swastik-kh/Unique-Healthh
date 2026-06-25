@@ -95,6 +95,7 @@ export interface TBPatient {
   regimen?: 'Adult' | 'Child';
   treatmentType?: string;
   labResultMonth2Positive?: boolean; 
+  serviceSeekerId?: string;
   completedSchedule: number[];
   newReportAvailable?: boolean;
   latestResult?: string;

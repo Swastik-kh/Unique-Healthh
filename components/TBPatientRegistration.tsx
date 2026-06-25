@@ -410,6 +410,44 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       return history.sort((a, b) => new Date(b.report.date).getTime() - new Date(a.report.date).getTime());
   }, [patients]);
 
+  const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
+
+  const patientsOnQueue = useMemo(() => {
+    return (serviceSeekerRecords || []).filter(patient => {
+      const isToday = patient.date === todayNepaliDate;
+      const isDepartmentMatch = patient.serviceType === activeTab;
+      if (!isToday || !isDepartmentMatch) return false;
+      
+      const isAlreadyRegistered = (patients || []).some(p => 
+        p.serviceType === activeTab && (
+          p.patientId === patient.uniquePatientId || 
+          p.patientId === patient.mulDartaNo ||
+          p.patientId === patient.registrationNumber ||
+          (p.name === patient.name && p.phone === patient.phone)
+        )
+      );
+      
+      return !isAlreadyRegistered && patient.status !== 'Completed';
+    });
+  }, [serviceSeekerRecords, patients, todayNepaliDate, activeTab]);
+
+  const selectPatientFromQueue = (patient: ServiceSeekerRecord) => {
+    handleReset();
+    setFormData(prev => ({
+      ...prev,
+      patientId: generateId(activeTab),
+      name: patient.name,
+      age: patient.age || (patient.ageYears !== undefined ? patient.ageYears.toString() : ''),
+      gender: patient.gender,
+      address: patient.address,
+      phone: patient.phone,
+      ethnicity: patient.casteCode || '',
+      serviceSeekerId: patient.id,
+    }));
+    setShowRegistrationForm(true);
+    alert(`क्यु (Queue) बाट बिरामी ${patient.name} छानियो।`);
+  };
+
   const medicineStats = useMemo(() => {
     const activePatients = (patients || []).filter(p => (p.status === 'Active' || !p.status) && p.serviceType === activeTab);
     const aggregate: Record<string, { totalRemaining: number, stock: number }> = {};
@@ -550,6 +588,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
         weight: '',
         regimen: 'Adult',
         treatmentType: '',
+        serviceSeekerId: '',
         regType: '',
         classification: '',
         leprosyType: activeTab === 'Leprosy' ? 'PB' : undefined, // Reset based on activeTab
@@ -912,6 +951,27 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
             </div>
             <div className="bg-blue-50 p-3 rounded-lg text-blue-600"><Users size={20} /></div>
         </div>
+
+        {patientsOnQueue.length > 0 && (
+          <div className="bg-white p-4 rounded-xl border border-primary-200 shadow-sm flex flex-col justify-center gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-primary-600 text-xs font-bold font-nepali">पर्खिरहेका बिरामीहरू ({activeTab})</p>
+                <span className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">{patientsOnQueue.length}</span>
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-12 overflow-y-auto pr-1">
+                {patientsOnQueue.map(patient => (
+                  <button 
+                    key={patient.id} 
+                    onClick={() => selectPatientFromQueue(patient)}
+                    className="px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded text-[10px] font-bold border border-primary-100 transition-all flex items-center gap-1 shrink-0"
+                  >
+                    <UserIcon size={10} />
+                    {patient.name}
+                  </button>
+                ))}
+              </div>
+          </div>
+        )}
 
         {showDefaulterModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
