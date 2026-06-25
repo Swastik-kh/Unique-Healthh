@@ -231,7 +231,10 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
         <div className="bg-gradient-to-br from-cyan-50 to-teal-50 border border-cyan-100 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-cyan-600 uppercase tracking-wider">जम्मा बिताएको समय (Total Time)</p>
+              <p className="text-xs font-bold text-cyan-600 uppercase tracking-wider flex items-center gap-1">
+                जम्मा बिताएको समय (Total Time)
+                <a href="https://www.smartinventoryy.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-500 lowercase font-normal hover:underline">@smartinventoryy</a>
+              </p>
               <h3 className="font-mono text-xl font-bold text-slate-800 mt-1.5">{formatDuration(accumulatedDurationTotal)}</h3>
             </div>
             <div className="bg-cyan-500/10 p-3 rounded-2xl text-cyan-500">
@@ -275,7 +278,10 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
                 <th className="py-4 px-6 text-center text-slate-500">अवस्था (Status)</th>
                 <th className="py-4 px-6 text-center text-slate-500">लगइन सङ्ख्या (Login Count)</th>
                 <th className="py-4 px-6 text-center text-slate-500">चालू सेसन अवधि (Active Session)</th>
-                <th className="py-4 px-6 text-center text-slate-500">कूल खर्चेको समय (Total Spent Time)</th>
+                <th className="py-4 px-6 text-center text-slate-500">
+                  कूल खर्चेको समय (Total Spent Time)
+                  <a href="https://www.smartinventoryy.com/" target="_blank" rel="noopener noreferrer" className="block text-[9px] text-blue-400 font-normal normal-case hover:underline">smartinventoryy.com</a>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -379,8 +385,13 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
 
                       {/* Total Time Spent Accumulator */}
                       <td className="py-4 px-6 text-center font-mono">
-                        <div className="font-bold text-slate-800 bg-slate-100 py-1.5 px-3 rounded-xl border border-slate-200 w-fit mx-auto">
-                          {formatDuration(totalDuration)}
+                        <div className="flex flex-col items-center">
+                          <div className="font-bold text-slate-800 bg-slate-100 py-1.5 px-3 rounded-xl border border-slate-200 w-fit mx-auto shadow-sm">
+                            {formatDuration(totalDuration)}
+                          </div>
+                          <a href="https://www.smartinventoryy.com/" target="_blank" rel="noopener noreferrer" className="text-[9px] text-blue-400 mt-1 hover:underline font-normal">
+                            smartinventoryy.com
+                          </a>
                         </div>
                       </td>
                     </tr>
