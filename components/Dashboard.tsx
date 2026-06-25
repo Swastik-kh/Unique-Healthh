@@ -1043,7 +1043,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                             <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
                         </div>
                         <div class="meta-row" style="margin-bottom: 0;">
-                            <span>चलानी नम्बर: ${toNepaliDigits(chalani.dispatchNumber)}</span>
+                            <div style="display: flex; flex-direction: column;">
+                                <span>पत्र संख्या : ${toNepaliDigits(currentFiscalYear)}</span>
+                                <span>चलानी नम्बर: ${toNepaliDigits(chalani.dispatchNumber)}</span>
+                            </div>
                             <span>मिति: ${toNepaliDigits(chalani.date)}</span>
                         </div>
                     </div>
