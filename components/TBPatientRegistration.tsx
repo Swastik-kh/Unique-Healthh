@@ -19,6 +19,15 @@ import { TBTreatmentCard } from './TBTreatmentCard';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
+const ETHNICITY_MAP: Record<string, string> = {
+  '1': 'Dalit',
+  '2': 'Janajati',
+  '3': 'Madhesi',
+  '4': 'Muslim',
+  '5': 'Brahmin/Chhetri',
+  '6': 'Other'
+};
+
 // Updated TBPatientRegistrationProps to receive data and handlers from App.tsx
 interface TBPatientRegistrationProps {
   currentFiscalYear: string;
@@ -62,6 +71,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null); // For editing existing patients
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [searchId, setSearchId] = useState('');
+  const [isLocked, setIsLocked] = useState(false);
   
   // State for Lab Report Entry
   const [selectedPatientForLab, setSelectedPatientForLab] = useState<{patient: TBPatient, reason: string, scheduleMonth: number} | null>(null);
@@ -211,6 +221,8 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
   // Effect to update patientId and reset leprosyType when activeTab or fiscal year changes
   useEffect(() => {
+    if (editingPatientId || isLocked) return;
+
     setFormData(prev => ({ 
       ...prev, 
       patientId: generateId(activeTab),
@@ -221,7 +233,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                    : undefined,
       classification: activeTab === 'Leprosy' ? (prev.leprosyType || 'PB') : '' // Sync classification for Leprosy
     }));
-  }, [currentFiscalYear, activeTab]);
+  }, [currentFiscalYear, activeTab, editingPatientId, isLocked]);
 
   const regTypes: Option[] = [
     { id: 'new', label: 'नयाँ (New)', value: 'New' },
@@ -433,15 +445,16 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
   const selectPatientFromQueue = (patient: ServiceSeekerRecord) => {
     handleReset();
+    
     setFormData(prev => ({
       ...prev,
       patientId: generateId(activeTab),
       name: patient.name,
-      age: patient.age || (patient.ageYears !== undefined ? patient.ageYears.toString() : ''),
+      age: patient.ageYears !== undefined ? patient.ageYears.toString() : (patient.age ? patient.age.split('Y')[0].trim() : ''),
       gender: patient.gender,
       address: patient.address,
       phone: patient.phone,
-      ethnicity: patient.casteCode || '',
+      ethnicity: ETHNICITY_MAP[patient.casteCode] || patient.casteCode || '',
       serviceSeekerId: patient.id,
     }));
     setShowRegistrationForm(true);
@@ -540,7 +553,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
     if (existingPatient) {
       handleEditPatient(existingPatient);
+      setIsLocked(true); // Lock form for existing patient found via search
       setSearchId('');
+      alert(`दर्ता नं. ${searchId.trim()} भएको बिरामी पहिले नै दर्ता भइसकेको छ। विवरण लक गरिएको छ।`);
     } else {
       // Check in Muldarta (Service Seeker Records)
       const muldartaRecord = (serviceSeekerRecords || []).find(r => 
@@ -555,11 +570,12 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
           ...prev,
           patientId: generateId(activeTab),
           name: muldartaRecord.name,
-          age: muldartaRecord.age || (muldartaRecord.ageYears !== undefined ? muldartaRecord.ageYears.toString() : ''),
+          age: muldartaRecord.ageYears !== undefined ? muldartaRecord.ageYears.toString() : (muldartaRecord.age ? muldartaRecord.age.split('Y')[0].trim() : ''),
           gender: muldartaRecord.gender,
           address: muldartaRecord.address,
           phone: muldartaRecord.phone,
-          ethnicity: muldartaRecord.casteCode || '', // Map casteCode to ethnicity if available
+          ethnicity: ETHNICITY_MAP[muldartaRecord.casteCode] || muldartaRecord.casteCode || '', // Map casteCode to ethnicity if available
+          serviceSeekerId: muldartaRecord.id,
         }));
         setShowRegistrationForm(true);
         setSearchId('');
@@ -576,6 +592,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   const handleReset = () => {
     setEditingPatientId(null);
     setShowRegistrationForm(false);
+    setIsLocked(false); // Reset lock state
     setFormData({
         id: '',
         patientId: generateId(activeTab), // Re-generate ID for new entry
@@ -1085,10 +1102,10 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                 </div>
             </div>
 
-            <Input label="बिरामीको नाम" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required icon={<UserIcon size={18}/>} />
+            <Input label="बिरामीको नाम" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required icon={<UserIcon size={18}/>} disabled={isLocked} />
             
             <div className="grid grid-cols-2 gap-4">
-              <Select label="लिङ्ग" options={[{id:'m',label:'पुरुष (Male)',value:'Male'},{id:'f',label:'महिला (Female)',value:'Female'},{id:'o',label:'अन्य (Other)',value:'Other'}]} value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})} required />
+              <Select label="लिङ्ग" options={[{id:'m',label:'पुरुष (Male)',value:'Male'},{id:'f',label:'महिला (Female)',value:'Female'},{id:'o',label:'अन्य (Other)',value:'Other'}]} value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})} required disabled={isLocked} />
               <Select 
                   label="जात/जाति (Ethnicity)" 
                   options={[
@@ -1102,20 +1119,21 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                   value={formData.ethnicity} 
                   onChange={e => setFormData({...formData, ethnicity: e.target.value})} 
                   required 
+                  disabled={isLocked}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                <Input label="उमेर" type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required icon={<Calendar size={18}/>} />
-                <Input label="फोन नं." value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} icon={<Phone size={18}/>} />
+                <Input label="उमेर" type="number" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required icon={<Calendar size={18}/>} disabled={isLocked} />
+                <Input label="फोन नं." value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} icon={<Phone size={18}/>} disabled={isLocked} />
             </div>
 
-            <Input label="ठेगाना" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={18}/>} />
+            <Input label="ठेगाना" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={18}/>} disabled={isLocked} />
 
-            <Select label="दर्ता प्रकार" options={regTypes} value={formData.regType} onChange={e => setFormData({...formData, regType: e.target.value})} required icon={<List size={18}/>} />
+            <Select label="दर्ता प्रकार" options={regTypes} value={formData.regType} onChange={e => setFormData({...formData, regType: e.target.value})} required icon={<List size={18}/>} disabled={isLocked} />
 
             {activeTab === 'TB' ? (
-                <Select label="TB वर्गीकरण" options={tbClassification} value={formData.classification} onChange={e => setFormData({...formData, classification: e.target.value})} required icon={<Stethoscope size={18}/>} />
+                <Select label="TB वर्गीकरण" options={tbClassification} value={formData.classification} onChange={e => setFormData({...formData, classification: e.target.value})} required icon={<Stethoscope size={18}/>} disabled={isLocked} />
             ) : (
                 <Select 
                   label="कुष्ठरोग प्रकार (MB/PB)" 
@@ -1128,6 +1146,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                   required 
                   icon={<ClipboardList size={18}/>} 
                   placeholder="-- प्रकार छान्नुहोस् --"
+                  disabled={isLocked}
                 />
             )}
             <NepaliDatePicker 
@@ -1135,7 +1154,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               value={formData.registrationDate} 
               onChange={val => setFormData({...formData, registrationDate: val})} 
               required 
-              // Removed minDate and maxDate restrictions
+              disabled={isLocked}
             />
 
             <NepaliDatePicker 
@@ -1143,13 +1162,14 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               value={formData.treatmentStartDate || ''} 
               onChange={val => setFormData({...formData, treatmentStartDate: val})} 
               required 
+              disabled={isLocked}
             />
 
             {activeTab === 'TB' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="बिरामीको तौल (Weight)" type="number" value={formData.weight} onChange={e => setFormData({...formData, weight: e.target.value})} icon={<Scale size={18}/>} />
-                  <Select label="उपचार तालिका (Regimen)" options={[{id:'adult', label:'Adult', value:'Adult'}, {id:'child', label:'Child', value:'Child'}]} value={formData.regimen} onChange={e => setFormData({...formData, regimen: e.target.value as any})} />
+                  <Input label="बिरामीको तौल (Weight)" type="number" value={formData.weight} onChange={e => setFormData({...formData, weight: e.target.value})} icon={<Scale size={18}/>} disabled={isLocked} />
+                  <Select label="उपचार तालिका (Regimen)" options={[{id:'adult', label:'Adult', value:'Adult'}, {id:'child', label:'Child', value:'Child'}]} value={formData.regimen} onChange={e => setFormData({...formData, regimen: e.target.value as any})} disabled={isLocked} />
                 </div>
 
                 <div className="space-y-4">
@@ -1166,6 +1186,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                       }
                     }} 
                     icon={<Pill size={18}/>}
+                    disabled={isLocked}
                   />
 
                   {formData.classification === 'EP' && (
@@ -1180,6 +1201,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                           value={formData.intensivePhaseExtensionDays} 
                           onChange={e => setFormData({...formData, intensivePhaseExtensionDays: parseInt(e.target.value) || 0})} 
                           placeholder="0"
+                          disabled={isLocked}
                         />
                         <Input 
                           label="निरन्तर चरण थप दिन (Continuation Ext. Days)" 
@@ -1193,6 +1215,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                           }} 
                           placeholder="0"
                           helperText="कुल निरन्तर चरण ३०० दिन भन्दा बढी हुन पाउने छैन।"
+                          disabled={isLocked}
                         />
                       </div>
                     </div>
@@ -1204,6 +1227,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                       placeholder="उपचार प्रकार लेख्नुहोस्..." 
                       value={formData.treatmentType} 
                       onChange={e => setFormData({...formData, treatmentType: e.target.value})} 
+                      disabled={isLocked}
                     />
                   )}
                 </div>
@@ -1230,6 +1254,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               }} 
               required 
               icon={<Activity size={18}/>} 
+              disabled={isLocked}
             />
 
             {formData.status !== 'Active' && (
@@ -1238,6 +1263,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                 value={formData.statusDateBs || ''}
                 onChange={val => setFormData({...formData, statusDateBs: val})}
                 required
+                disabled={isLocked}
               />
             )}
 
