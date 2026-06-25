@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { evaluateTableData } from '../lib/tableUtils';
+import { evaluateTableData, toNepaliDigits } from '../lib/tableUtils';
 import { 
   LogOut, Menu, Calendar, Stethoscope, Package, FileText, Settings, LayoutDashboard, 
   ChevronDown, ChevronRight, Syringe, Activity, Info, Building2,
@@ -2327,7 +2327,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-200">
               <Calendar size={14} className="text-slate-400" />
-              <span className="text-[11px] font-bold text-slate-600 font-nepali">आ.व. {currentFiscalYear}</span>
+              <span className="text-[11px] font-bold text-slate-600 font-nepali">आ.व. {toNepaliDigits(currentFiscalYear)}</span>
             </div>
 
             {currentUser?.role === 'HEALTH_SECTION' && managedOrgs.length > 1 && (
