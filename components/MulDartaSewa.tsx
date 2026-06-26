@@ -405,18 +405,41 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
         
         // Gender normalization
         let gender: 'Male' | 'Female' | 'Other' = 'Other';
-        const rawGender = patient.gender?.toLowerCase();
-        if (rawGender === 'male' || rawGender === 'm') gender = 'Male';
-        else if (rawGender === 'female' || rawGender === 'f') gender = 'Female';
+        const rawGender = patient.gender?.toString().toLowerCase().trim();
+        if (rawGender === 'male' || rawGender === 'm' || rawGender === '1') gender = 'Male';
+        else if (rawGender === 'female' || rawGender === 'f' || rawGender === '2') gender = 'Female';
         
         const birthDate = patient.birthDate; // YYYY-MM-DD (AD)
         
         let dobBs = '';
+        let calculatedYears = 0;
+        let calculatedMonths = 0;
+        let calculatedDays = 0;
+
         if (birthDate) {
           try {
             const adParts = birthDate.split('-');
             const jsDate = new Date(parseInt(adParts[0]), parseInt(adParts[1]) - 1, parseInt(adParts[2]));
             dobBs = new NepaliDate(jsDate).format('YYYY-MM-DD');
+
+            // Calculate age immediately
+            const today = new Date();
+            let years = today.getFullYear() - jsDate.getFullYear();
+            let months = today.getMonth() - jsDate.getMonth();
+            let days = today.getDate() - jsDate.getDate();
+
+            if (days < 0) {
+              months--;
+              const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+              days += lastMonth.getDate();
+            }
+            if (months < 0) {
+              years--;
+              months += 12;
+            }
+            calculatedYears = years >= 0 ? years : 0;
+            calculatedMonths = months >= 0 ? months : 0;
+            calculatedDays = days >= 0 ? days : 0;
           } catch (e) {
             console.error("DOB conversion error", e);
           }
@@ -438,6 +461,15 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           }
         }
 
+        // Auto-set age unit based on calculated age
+        let autoAgeUnit: 'Days' | 'Months' | 'Years' = 'Years';
+        if (calculatedYears === 0 && calculatedMonths === 0 && calculatedDays < 60) {
+          autoAgeUnit = 'Days';
+        } else if (calculatedYears < 5) {
+          autoAgeUnit = 'Months';
+        }
+        setAgeUnit(autoAgeUnit);
+
         setFormData(prev => ({
           ...prev,
           name: fullName,
@@ -445,7 +477,11 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           dobBs: dobBs,
           dobAd: birthDate,
           address: fullAddress,
-          insuranceNo: insuranceNo // In case it came from QR
+          insuranceNo: insuranceNo,
+          ageYears: calculatedYears,
+          ageMonths: calculatedMonths,
+          ageDays: calculatedDays,
+          age: `${calculatedYears}Y ${calculatedMonths}M ${calculatedDays}D`
         }));
 
         // Extract photo
@@ -464,28 +500,24 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
         try {
           const covRes = await axios.get(`/api/hib/coverage/${insuranceNo.trim()}`, { headers });
           const covBundle = covRes.data;
-          if (covBundle.entry && covBundle.entry.length > 0) {
+          if (covBundle.resourceType === 'Bundle' && covBundle.entry && covBundle.entry.length > 0) {
             const coverage = covBundle.entry[0].resource;
-            // In HIB FHIR, balance is often in an extension or subPlan
-            // For now, let's look for any numeric balance field
             let balance = null;
             if (coverage.extension) {
-              const balExt = coverage.extension.find((e: any) => e.url?.includes('balance') || e.url?.includes('remaining'));
+              const balExt = coverage.extension.find((e: any) => e.url?.toLowerCase().includes('balance') || e.url?.toLowerCase().includes('remaining'));
               if (balExt) balance = balExt.valueMoney?.value || balExt.valueDecimal || balExt.valueInteger;
             }
-            // Fallback for some IMIS versions
             if (balance === null && coverage.class) {
                const balClass = coverage.class.find((c: any) => c.type?.coding?.[0]?.code === 'balance');
                if (balClass) balance = parseFloat(balClass.name);
             }
             setHibPatientBalance(balance);
+          } else {
+            setHibPatientBalance(null);
           }
         } catch (e) {
           console.error("Balance fetch error", e);
-        }
-
-        if (dobBs) {
-          handleDOBChange(dobBs);
+          setHibPatientBalance(null);
         }
 
         alert(`बिरामी फेला पर्यो: ${fullName}`);

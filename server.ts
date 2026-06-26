@@ -42,9 +42,17 @@ async function startServer() {
       const { id } = req.params;
       const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
       const response = await axios.get(`${baseUrl}api/api_fhir/Coverage/?identifier=${id}`, {
-        headers: getHIBHeaders(req)
+        headers: getHIBHeaders(req),
+        validateStatus: () => true // Handle all status codes
       });
-      res.json(response.data);
+      
+      // If we get an HTML response (likely an error page or redirect), return empty bundle
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html')) {
+        console.error("HIB Coverage returned HTML instead of FHIR bundle for ID:", id);
+        return res.json({ resourceType: "Bundle", entry: [] });
+      }
+      
+      res.status(response.status).json(response.data);
     } catch (error: any) {
       console.error("HIB Coverage Search Error:", error.response?.data || error.message);
       res.status(error.response?.status || 500).json(error.response?.data || { error: "Failed to search coverage" });
