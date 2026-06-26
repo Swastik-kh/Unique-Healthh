@@ -6,6 +6,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   label, 
   error, 
   icon, 
+  suffix,
   helperText,
   className = '', 
   id,
@@ -21,9 +22,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
       >
         {label} {props.required && <span className="text-red-500">*</span>}
       </label>
-      <div className="relative group">
+      <div className="relative group flex items-center">
         {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-600 transition-colors">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary-600 transition-colors z-10">
             {icon}
           </div>
         )}
@@ -36,11 +37,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
             focus:border-primary-500 focus:bg-white focus:ring-4 focus:ring-primary-500/10
             disabled:cursor-not-allowed disabled:opacity-50
             ${icon ? 'pl-10' : ''}
+            ${suffix ? 'pr-20' : ''}
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10' : 'border-slate-300 hover:border-slate-400'}
             ${className}
           `}
           {...props}
         />
+        {suffix && (
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+            {suffix}
+          </div>
+        )}
       </div>
       {error && (
         <span className="text-xs text-red-500 font-medium animate-pulse">

@@ -32,7 +32,13 @@ const INITIAL_SETTINGS: OrganizationSettings = {
     activeFiscalYear: '2082/083',
     enableEnglishDate: 'no',
     logoUrl: '',
-    allServiceOptions: AVAILABLE_SERVICES
+    allServiceOptions: AVAILABLE_SERVICES,
+    hibBaseUrl: 'https://imislegacy.hib.gov.np/',
+    hibUsername: 'testuser',
+    hibPassword: 'f/\\N6k@67',
+    hibRemoteUser: 'hib_testuser_testfhir',
+    hibPartnerId: '7aa79c53-057e-4e77-8576-dfcfb03584a8',
+    hibLocationId: '1ac457d3-efd3-4a67-89b3-bf8cbe18045d'
 };
 
 const DEFAULT_ADMIN: User = {

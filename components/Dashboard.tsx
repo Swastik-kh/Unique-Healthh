@@ -48,6 +48,7 @@ import { DhuliyaunaFaram } from './DhuliyaunaFaram';
 import { BidaAbedan } from './BidaAbedan';
 import { LogBook } from './LogBook';
 import { GeneralSetting } from './GeneralSetting';
+import { HIBSettings } from './HIBSettings';
 import { VaccinationServiceTabs } from './VaccinationServiceTabs';
 import { ImmunizationTracking } from './ImmunizationTracking';
 import { ImmunizationReport } from './ImmunizationReport';
@@ -659,6 +660,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       subItems: [
         { id: 'general_setting', label: 'सामान्य सेटिङ', icon: <Sliders size={16} /> },
         { id: 'organization_management', label: 'संस्था व्यवस्थापन', icon: <Building2 size={16} /> },
+        { id: 'hib_settings', label: 'HIB सेटिङ', icon: <ShieldCheck size={16} /> },
         { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)', icon: <Activity size={16} /> },
         { id: 'store_setup', label: 'स्टोर सेटअप', icon: <Store size={16} /> },
         { id: 'user_management', label: 'प्रयोगकर्ता व्यवस्थापन', icon: <Users size={16} /> },
@@ -2135,6 +2137,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
       case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} users={allUsers} />;
+      case 'hib_settings': return <HIBSettings currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
       case 'service_settings': return <ServiceSettings 
         serviceItems={serviceItems}
         onSaveServiceItem={onSaveServiceItem}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Plus, X, Pencil, Trash2, Search, Printer } from 'lucide-react';
+import { ClipboardList, Plus, X, Pencil, Trash2, Search, Printer, Loader2, QrCode, UserCircle } from 'lucide-react';
 import { ServiceSeekerRecord, User, OrganizationSettings, ServiceItem, OPDRecord, EmergencyRecord, CBIMNCIRecord, IPDRecord } from '../types/coreTypes';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { PatientSticker } from './PatientSticker';
+import { QRScanner } from './QRScanner';
 import { PrescriptionPrint } from './PrescriptionPrint';
+import axios from 'axios';
 
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -41,6 +43,8 @@ const initialFormData: Omit<ServiceSeekerRecord, 'id' | 'fiscalYear'> = {
   phone: '',
   serviceType: 'OPD',
   visitType: 'New',
+  paymentMode: 'Cash',
+  insuranceNo: '',
   serviceFee: 0,
   remarks: '',
 };
@@ -63,6 +67,9 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const [printRecord, setPrintRecord] = useState<ServiceSeekerRecord | null>(null);
   const [formData, setFormData] = useState(initialFormData);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchingHIB, setIsSearchingHIB] = useState(false);
+  const [isScanningQR, setIsScanningQR] = useState(false);
+  const [hibPatientPhoto, setHibPatientPhoto] = useState<string | null>(null);
   const [ageUnit, setAgeUnit] = useState<'Days' | 'Months' | 'Years'>('Years');
   const [stickerPatient, setStickerPatient] = useState<ServiceSeekerRecord | null>(null);
   
@@ -277,6 +284,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const handleEdit = (record: ServiceSeekerRecord) => {
     setIsEditing(record.id);
     setFormData(record);
+    setHibPatientPhoto(null);
     
     // Determine age unit from age string or values
     if (record.age?.endsWith('D')) {
@@ -334,6 +342,21 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     const finalValue = (name === 'ageYears' || name === 'ageMonths' || name === 'ageDays' || name === 'serviceFee') ? parseFloat(value) || 0 : value;
     setFormData(prev => {
       const newData = { ...prev, [name]: finalValue };
+
+      // Auto-set serviceFee to 0 if paymentMode is Free
+      if (name === 'paymentMode' && finalValue === 'Free') {
+        newData.serviceFee = 0;
+      }
+      
+      // Reset serviceFee to default if switching from Free to Cash/HIB
+      if (name === 'paymentMode' && prev.paymentMode === 'Free' && finalValue !== 'Free') {
+        const mulDartaService = serviceItems.find(s => 
+          s.serviceName.toLowerCase().includes('mul darta') || 
+          s.serviceName.toLowerCase().includes('मूल दर्ता')
+        );
+        newData.serviceFee = mulDartaService ? mulDartaService.rate : 0;
+      }
+
       // Update display age string
       if (name === 'ageYears' || name === 'ageMonths' || name === 'ageDays') {
         const y = name === 'ageYears' ? finalValue : prev.ageYears || 0;
@@ -347,6 +370,82 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
 
   const handleDateChange = (value: string) => {
     setFormData(prev => ({ ...prev, date: value }));
+  };
+
+  const handleSearchHIBPatient = async (insuranceValue?: string) => {
+    const insuranceNo = insuranceValue || formData.insuranceNo;
+    if (!insuranceNo?.trim()) {
+      alert("कृपया पहिले बीमा नम्बर (Insurance No) भर्नुहोस्।");
+      return;
+    }
+    setIsSearchingHIB(true);
+    try {
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+      const res = await axios.get(`/api/hib/patient/${insuranceNo.trim()}`, { headers });
+      const bundle = res.data;
+      if (bundle.entry && bundle.entry.length > 0) {
+        const patient = bundle.entry[0].resource;
+        
+        // Auto-fill form
+        const nameObj = patient.name?.[0];
+        const fullName = `${nameObj?.given?.join(' ') || ''} ${nameObj?.family || ''}`.trim();
+        const gender = patient.gender === 'male' ? 'Male' : (patient.gender === 'female' ? 'Female' : 'Other');
+        const birthDate = patient.birthDate; // YYYY-MM-DD (AD)
+        
+        let dobBs = '';
+        if (birthDate) {
+          try {
+            const adParts = birthDate.split('-');
+            const jsDate = new Date(parseInt(adParts[0]), parseInt(adParts[1]) - 1, parseInt(adParts[2]));
+            dobBs = new NepaliDate(jsDate).format('YYYY-MM-DD');
+          } catch (e) {
+            console.error("DOB conversion error", e);
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          name: fullName,
+          gender: gender,
+          dobBs: dobBs,
+          dobAd: birthDate,
+          address: patient.address?.[0]?.text || '',
+          insuranceNo: insuranceNo // In case it came from QR
+        }));
+
+        // Extract photo
+        let photo = null;
+        if (patient.photo && patient.photo.length > 0) {
+          const photoObj = patient.photo[0];
+          if (photoObj.data) {
+            photo = `data:${photoObj.contentType || 'image/png'};base64,${photoObj.data}`;
+          } else if (photoObj.url) {
+            photo = photoObj.url;
+          }
+        }
+        setHibPatientPhoto(photo);
+
+        if (dobBs) {
+          handleDOBChange(dobBs);
+        }
+
+        alert(`बिरामी फेला पर्यो: ${fullName}`);
+      } else {
+        alert("बीमा प्रणालीमा यो नम्बरको बिरामी फेला परेन।");
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + (error.response?.data?.error || error.message));
+    } finally {
+      setIsSearchingHIB(false);
+    }
   };
 
   const handleDOBChange = (value: string) => {
@@ -526,6 +625,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                 <th className="p-4">फोन</th>
                 <th className="p-4">सेवाको प्रकार</th>
                 <th className="p-4">किसिम</th>
+                <th className="p-4">भुक्तानी</th>
                 <th className="p-4 text-right">शुल्क</th>
                 <th className="p-4 text-right">कार्य</th>
               </tr>
@@ -550,6 +650,16 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${record.visitType === 'New' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
                       {record.visitType}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      record.paymentMode === 'HIB' ? 'bg-indigo-50 text-indigo-700' : 
+                      record.paymentMode === 'Free' ? 'bg-emerald-50 text-emerald-700' : 
+                      'bg-slate-50 text-slate-700'
+                    }`}>
+                      {record.paymentMode === 'HIB' ? 'बीमा (HIB)' : 
+                       record.paymentMode === 'Free' ? 'नि:शुल्क' : 'नगद (Cash)'}
                     </span>
                   </td>
                   <td className="p-4 text-right font-bold text-slate-700">Rs. {record.serviceFee || 0}</td>
@@ -593,7 +703,61 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
             </div>
             
             <div className="flex-1 overflow-y-auto p-8">
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col lg:flex-row gap-8">
+                <form onSubmit={handleSubmit} className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium text-slate-600 mb-1 block">दर्ताको किसिम (Payment Type) *</label>
+                  <select 
+                    name="paymentMode" 
+                    value={formData.paymentMode} 
+                    onChange={handleChange} 
+                    required 
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-bold text-indigo-700"
+                  >
+                    <option value="Cash">नगद (Cash)</option>
+                    <option value="HIB">बीमा (HIB - Insurance)</option>
+                    <option value="Free">नि:शुल्क (Free)</option>
+                  </select>
+                </div>
+
+                {formData.paymentMode === 'HIB' && (
+                  <Input 
+                    label="बीमा नम्बर (Insurance No) *" 
+                    name="insuranceNo" 
+                    value={formData.insuranceNo || ''} 
+                    onChange={handleChange} 
+                    required 
+                    placeholder="उदा: 740500036"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchHIBPatient();
+                      }
+                    }}
+                    suffix={
+                      <div className="flex items-center gap-1">
+                        <button 
+                          type="button"
+                          onClick={() => handleSearchHIBPatient()}
+                          disabled={isSearchingHIB}
+                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                          title="Search IMIS"
+                        >
+                          {isSearchingHIB ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setIsScanningQR(true)}
+                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors"
+                          title="Scan QR Code"
+                        >
+                          <QrCode size={16} />
+                        </button>
+                      </div>
+                    }
+                  />
+                )}
+
                 <Input 
                   label="दर्ता नम्बर *" 
                   name="registrationNumber" 
@@ -790,7 +954,28 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                   <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium shadow-sm hover:bg-primary-700 transition-colors">सुरक्षित गर्नुहोस्</button>
                 </div>
               </form>
+
+              {formData.paymentMode === 'HIB' && hibPatientPhoto && (
+                <div className="w-full lg:w-72 shrink-0 space-y-4 animate-in fade-in slide-in-from-right-4">
+                  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm text-center">
+                    <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3 underline decoration-indigo-200 underline-offset-4">Patient Card Photo</h4>
+                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 relative group">
+                      <img 
+                        src={hibPatientPhoto} 
+                        alt="Patient" 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center justify-center gap-1.5 text-slate-400">
+                      <Search size={12} />
+                      <span className="text-[10px] font-medium">Verified from HIB System</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
           </div>
         </div>
       )}
@@ -820,6 +1005,17 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {isScanningQR && (
+        <QRScanner 
+          onScanSuccess={(decodedText) => {
+            setFormData(prev => ({ ...prev, insuranceNo: decodedText }));
+            handleSearchHIBPatient(decodedText);
+          }}
+          onClose={() => setIsScanningQR(false)}
+          title="बीमा कार्ड स्क्यान गर्नुहोस्"
+        />
       )}
     </div>
   );

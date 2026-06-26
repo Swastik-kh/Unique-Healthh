@@ -8,6 +8,8 @@ import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
 import { LogoDisplay } from './LogoDisplay';
 import { toNepaliDigits } from '../lib/tableUtils';
+import axios from 'axios';
+import { Loader2 } from 'lucide-react';
 
 const getHibCodeForService = (name: string): string => {
   const cleanName = name.trim().toUpperCase();
@@ -87,6 +89,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [claimCode, setClaimCode] = useState('');
   const [claimStatus, setClaimStatus] = useState<'Draft' | 'Submitted' | 'Verified' | 'Error'>('Draft');
   const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
+  const [isSearchingHIB, setIsSearchingHIB] = useState(false);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
+  const [hibPatient, setHibPatient] = useState<any>(null);
+  const [hibEligibility, setHibEligibility] = useState<any>(null);
   const [fhirResponseLog, setFhirResponseLog] = useState<string>('');
   const [showFhirLogModal, setShowFhirLogModal] = useState(false);
   const [currentBill, setCurrentBill] = useState<BillingRecord | null>(null);
@@ -472,8 +478,80 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const discountAmount = parseFloat(discount) || 0;
   const grandTotal = Math.max(0, subTotal - discountAmount);
 
+  const handleSearchHIBPatient = async () => {
+    if (!insuranceNo.trim()) {
+      alert("कृपया पहिले बीमा नम्बर (Insurance No) भर्नुहोस्।");
+      return;
+    }
+    setIsSearchingHIB(true);
+    try {
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+      const res = await axios.get(`/api/hib/patient/${insuranceNo.trim()}`, { headers });
+      const bundle = res.data;
+      if (bundle.entry && bundle.entry.length > 0) {
+        const patient = bundle.entry[0].resource;
+        setHibPatient(patient);
+        
+        // Auto-fill patient name if it's direct billing and empty
+        if (isDirectBilling && !directPatientName) {
+          const nameObj = patient.name?.[0];
+          const fullName = `${nameObj?.given?.join(' ') || ''} ${nameObj?.family || ''}`.trim();
+          setDirectPatientName(fullName);
+        }
+        
+        setFhirResponseLog(JSON.stringify(bundle, null, 2));
+      } else {
+        alert("बीमा प्रणालीमा यो नम्बरको बिरामी फेला परेन।");
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + (error.response?.data?.error || error.message));
+    } finally {
+      setIsSearchingHIB(false);
+    }
+  };
+
+  const handleCheckHIBEligibility = async () => {
+    if (!hibPatient) {
+      alert("पहिले बिरामी खोज्नुहोस्।");
+      return;
+    }
+    setIsCheckingEligibility(true);
+    try {
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+      const payload = {
+        resourceType: "EligibilityRequest",
+        patient: {
+          reference: `Patient/${hibPatient.id}`
+        }
+      };
+      const res = await axios.post('/api/hib/eligibility', payload, { headers });
+      setHibEligibility(res.data);
+      setFhirResponseLog(JSON.stringify(res.data, null, 2));
+    } catch (error: any) {
+      console.error(error);
+      alert("योग्यता (Eligibility) जाँच्दा त्रुटि भयो: " + (error.response?.data?.error || error.message));
+    } finally {
+      setIsCheckingEligibility(false);
+    }
+  };
+
   const handleSubmitClaim = async () => {
-    if (!currentPatient || billingItems.length === 0) {
+    if ((!currentPatient && !isDirectBilling) || billingItems.length === 0) {
       alert("दावी पेस गर्न पहिले बिरामी र सेवा सामग्री थप्नुहोस्।");
       return;
     }
@@ -481,96 +559,118 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       alert("कृपया पहिले बीमा नम्बर (Insurance No) भर्नुहोस्।");
       return;
     }
+    if (!hibPatient) {
+      alert("पहिले बिरामी खोज्नुहोस्।");
+      return;
+    }
 
     setIsSubmittingClaim(true);
     try {
-      // Goverment Health Insurance board claim API submission simulation
-      // We log request payload matching FHIR Claim constraints & support claim updates using preexisting claimCode
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+      const today = new NepaliDate().format('YYYY-MM-DD');
+      const uuid = crypto.randomUUID().toUpperCase();
+      
       const claimPayload = {
         resourceType: "Claim",
-        patient: {
-          reference: `Patient/${currentPatient.uniquePatientId}`,
-          display: currentPatient.name
+        billablePeriod: {
+          start: today,
+          end: today
         },
-        insurance: {
-          identifier: {
-            value: insuranceNo
-          }
-        },
-        originalClaimCode: claimCode || undefined, // Capture and send previous claimCode (Claim Update Case)
-        total: grandTotal,
-        items: billingItems.map(item => ({
-          name: item.serviceName,
-          unitPrice: item.price,
-          quantity: item.quantity,
-          net: item.total
-        }))
-      };
-
-      // Generate a new, official government claim code beginning with '208283'
-      const randomSeq = Math.floor(1000000000 + Math.random() * 9000000000); // 10 digit random sequence
-      const officialServerClaimCode = `208283${randomSeq}`;
-
-      // Construct a valid ClaimResponse exactly matching the JSON format from instructions
-      const claimResponseJSON = {
-        "resourceType": "ClaimResponse",
-        "id": "FC70D008-90C3-4A04-96D6-F9C1172ED34F",
-        "identifier": [
+        created: today,
+        diagnosis: [
           {
-            "type": {
-              "coding": [
+            diagnosisCodeableConcept: {
+              coding: [
                 {
-                  "code": "ACSN",
-                  "system": "https://hl7.org/fhir/valueset-identifier-type.html"
+                  code: "1A00" // Default code for test
                 }
               ]
             },
-            "use": "usual",
-            "value": "FC70D008-90C3-4A04-96D6-F9C1172ED34F"
-          },
-          {
-            "type": {
-              "coding": [
-                {
-                  "code": "MR",
-                  "system": "https://hl7.org/fhir/valueset-identifier-type.html"
-                }
-              ]
-            },
-            "use": "usual",
-            "value": officialServerClaimCode
+            sequence: 1,
+            type: [
+              {
+                text: "icd_0"
+              }
+            ]
           }
         ],
-        "outcome": {
-          "text": "entered"
-        }
+        enterer: {
+          reference: `Practitioner/${generalSettings?.hibPartnerId || '7aa79c53-057e-4e77-8576-dfcfb03584a8'}`
+        },
+        facility: {
+          reference: `Location/${generalSettings?.hibLocationId || '1ac457d3-efd3-4a67-89b3-bf8cbe18045d'}`
+        },
+        id: uuid,
+        identifier: [
+          {
+            type: {
+              coding: [
+                {
+                  code: "ACSN",
+                  system: "https://hl7.org/fhir/valueset-identifier-type.html"
+                }
+              ]
+            },
+            use: "usual",
+            value: uuid
+          }
+        ],
+        item: billingItems.map((item, index) => ({
+          category: {
+            text: "service"
+          },
+          quantity: {
+            value: item.quantity
+          },
+          sequence: index + 1,
+          service: {
+            text: getHibCodeForService(item.serviceName)
+          },
+          unitPrice: {
+            value: item.price
+          }
+        })),
+        patient: {
+          reference: `Patient/${hibPatient.id}`
+        },
+        total: {
+          value: grandTotal
+        },
+        type: {
+          text: "O" // OPD
+        },
+        nmc: currentUser?.username || "1234",
+        careType: "O"
       };
 
-      // Artificial latency feedback
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const res = await axios.post('/api/hib/claim', claimPayload, { headers });
+      const claimResponse = res.data;
+      setFhirResponseLog(JSON.stringify(claimResponse, null, 2));
 
-      // Locate the MR type entry inside the ClaimResponse identifier array
-      const identifiers = claimResponseJSON.identifier || [];
-      const mrIdentifier = identifiers.find(ident => 
-        ident.type?.coding?.some((codeObj: any) => codeObj.code === "MR")
+      // Extract claim code (MR)
+      const mrIdentifier = claimResponse.identifier?.find((ident: any) => 
+        ident.type?.coding?.some((c: any) => c.code === "MR")
       );
 
-      if (!mrIdentifier) {
-        throw new Error("Could not find the target 'MR' server-generated identifier in the ClaimResponse response");
+      if (mrIdentifier) {
+        setClaimCode(mrIdentifier.value);
+        setClaimStatus('Submitted');
+        alert(`बीमा दावी सफलतापूर्वक पेस भयो!\nप्राप्त आधिकारिक दावी कोड (Claim Code MR): ${mrIdentifier.value}`);
+      } else {
+        setClaimStatus('Submitted');
+        alert("बीमा दावी पेस भयो तर MR कोड फेला परेन।");
       }
-
-      const extractedClaimCode = mrIdentifier.value;
-
-      // Extract and save server-generated code locally
-      setClaimCode(extractedClaimCode);
-      setClaimStatus('Submitted');
-      setFhirResponseLog(JSON.stringify(claimResponseJSON, null, 2));
-      
-      alert(`बीमा दावी सफलतापूर्वक पेस भयो!\nप्राप्त आधिकारिक दावी कोड (Claim Code MR): ${extractedClaimCode}`);
     } catch (e: any) {
       console.error(e);
       setClaimStatus('Error');
-      alert("बीमा दावी गर्दा त्रुटि आइपर्‍यो: " + e.message);
+      alert("बीमा दावी गर्दा त्रुटि आइपर्‍यो: " + (e.response?.data?.error || e.message));
     } finally {
       setIsSubmittingClaim(false);
     }
@@ -696,9 +796,9 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           remarks: directRemarks || undefined,
           isDirectBilling: existingBill ? !!existingBill.isDirectBilling : true,
           referredBy: directReferredBy || undefined,
-          insuranceNo: existingBill?.insuranceNo,
-          claimCode: existingBill?.claimCode,
-          claimStatus: existingBill?.claimStatus,
+          insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
+          claimCode: paymentMode === 'Bima' ? claimCode : undefined,
+          claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
         };
 
         // Explicitly wait for persistence
@@ -1434,16 +1534,65 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                        </div>
 
                        <div className="grid grid-cols-2 gap-3">
-                         <div>
-                           <label className="block text-[10px] font-bold text-slate-500 mb-1">बीमा नम्बर (Insurance No) *</label>
-                           <input 
-                             type="text" 
-                             value={insuranceNo} 
-                             onChange={(e) => setInsuranceNo(e.target.value)}
-                             className="w-full p-2 border border-slate-300 rounded text-xs px-3 focus:ring-4 focus:ring-indigo-500/15 outline-none font-bold bg-white"
-                             placeholder="उदा: INS-982341"
-                           />
+                         <div className="col-span-2 flex gap-2">
+                           <div className="flex-1">
+                             <label className="block text-[10px] font-bold text-slate-500 mb-1">बीमा नम्बर (Insurance No) *</label>
+                             <div className="relative">
+                               <input 
+                                 type="text" 
+                                 value={insuranceNo} 
+                                 onChange={(e) => setInsuranceNo(e.target.value)}
+                                 className="w-full p-2 pr-10 border border-slate-300 rounded text-xs px-3 focus:ring-4 focus:ring-indigo-500/15 outline-none font-bold bg-white"
+                                 placeholder="उदा: 740500036"
+                               />
+                               <button 
+                                 type="button"
+                                 onClick={handleSearchHIBPatient}
+                                 disabled={isSearchingHIB || !insuranceNo.trim()}
+                                 className="absolute right-1 top-1 p-1 text-indigo-600 hover:bg-indigo-100 rounded transition-colors"
+                                 title="Search Patient"
+                               >
+                                 {isSearchingHIB ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                               </button>
+                             </div>
+                           </div>
                          </div>
+
+                         {hibPatient && (
+                           <div className="col-span-2 p-2 bg-white rounded border border-indigo-100 space-y-1">
+                             <div className="flex justify-between items-start">
+                               <div>
+                                 <p className="text-[10px] font-bold text-slate-400">नाम (Name):</p>
+                                 <p className="text-xs font-bold text-indigo-900">
+                                   {hibPatient.name?.[0]?.given?.join(' ')} {hibPatient.name?.[0]?.family}
+                                 </p>
+                               </div>
+                               <div className="text-right">
+                                 <p className="text-[10px] font-bold text-slate-400">लिंग (Gender):</p>
+                                 <p className="text-xs font-bold text-indigo-900 capitalize">{hibPatient.gender}</p>
+                               </div>
+                             </div>
+                             <div className="flex justify-between items-center pt-1 border-t border-indigo-50">
+                               <button 
+                                 type="button"
+                                 onClick={handleCheckHIBEligibility}
+                                 disabled={isCheckingEligibility}
+                                 className="text-[10px] text-indigo-600 hover:underline font-bold flex items-center gap-1"
+                                >
+                                 {isCheckingEligibility ? <Loader2 size={10} className="animate-spin" /> : <Activity size={10} />}
+                                 Balance Check
+                               </button>
+                               {hibEligibility && (
+                                 <div className="text-right">
+                                   <p className="text-[10px] font-bold text-emerald-600">
+                                     बाँकी रकम: रू {hibEligibility.insurance?.[0]?.benefitBalance?.[0]?.financial?.[0]?.allowedMoney?.value - (hibEligibility.insurance?.[0]?.benefitBalance?.[0]?.financial?.[0]?.usedMoney?.value || 0)}
+                                   </p>
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+                         )}
+
                          <div>
                            <label className="block text-[10px] font-bold text-slate-500 mb-1">दावी कोड (Claim Code - MR)</label>
                            <input 

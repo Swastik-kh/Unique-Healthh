@@ -113,6 +113,12 @@ export interface OrganizationSettings {
   customStandardMedicineNames?: string[];
   sewaBillingUserId?: string;
   ambulanceSewaUserId?: string;
+  hibBaseUrl?: string;
+  hibUsername?: string;
+  hibPassword?: string;
+  hibRemoteUser?: string;
+  hibPartnerId?: string;
+  hibLocationId?: string;
 }
 
 export interface SubscriptionRequest {
@@ -334,6 +340,8 @@ export interface ServiceSeekerRecord {
   phone: string;
   serviceType: string; // OPD, Emergency, Vaccination, etc.
   visitType: 'New' | 'Follow-up'; // New or Follow-up
+  paymentMode?: 'Cash' | 'HIB' | 'Free'; // Added for HIB auto-fill support
+  insuranceNo?: string; // Added for HIB auto-fill support
   serviceFee?: number; // Added field
   weight?: number;
   height?: number;
@@ -580,6 +588,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   label: string;
   error?: string;
   icon?: React.ReactNode;
+  suffix?: React.ReactNode;
   helperText?: string;
 }
 
