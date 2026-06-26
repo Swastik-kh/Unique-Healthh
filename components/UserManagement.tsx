@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react'; 
+import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
 import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
@@ -180,6 +180,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -213,6 +214,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     serviceType: 'Permanent' | 'Temporary' | 'Contract';
     hasSaveAccess: boolean;
     canDeleteBilling: boolean;
+    canEditBilling: boolean;
     canDeleteAmbulance: boolean;
     parentId?: string;
   }>({
@@ -228,6 +230,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     serviceType: 'Permanent',
     hasSaveAccess: true,
     canDeleteBilling: false,
+    canEditBilling: false,
     canDeleteAmbulance: false,
     parentId: currentUser.id
   });
@@ -272,6 +275,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         serviceType: 'Permanent',
         hasSaveAccess: true,
         canDeleteBilling: false,
+        canEditBilling: false,
         canDeleteAmbulance: false,
         parentId: currentUser.id
       });
@@ -291,10 +295,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
           canDeleteBilling: user.canDeleteBilling ?? false,
+          canEditBilling: user.canEditBilling ?? false,
           canDeleteAmbulance: user.canDeleteAmbulance ?? false,
           parentId: user.parentId
       });
       setShowForm(true);
+      setTimeout(() => {
+          formRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
   };
 
   const togglePermission = (menuId: string) => {
@@ -395,6 +403,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         serviceType: formData.serviceType,
         hasSaveAccess: formData.hasSaveAccess,
         canDeleteBilling: formData.canDeleteBilling,
+        canEditBilling: formData.canEditBilling,
         canDeleteAmbulance: formData.canDeleteAmbulance,
         parentId: formData.parentId || currentUser.id
     };
@@ -453,7 +462,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       )}
 
       {showForm && (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4">
+        <div ref={formRef} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4 scroll-mt-6">
           <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-slate-800">{editingId ? 'विवरण सम्पादन' : 'नयाँ प्रयोगकर्ता थप्नुहोस्'}</h3>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-red-500"><X size={20}/></button>
@@ -535,6 +544,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   className={`w-12 h-6 rounded-full transition-all relative ${formData.hasSaveAccess ? 'bg-indigo-600' : 'bg-slate-300'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.hasSaveAccess ? 'left-7' : 'left-1'}`}></div>
+                </button>
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-amber-50 border border-amber-100 rounded-xl mt-2">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-amber-600 shadow-sm">
+                        <Pencil size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">बिलिङ रेकर्ड सम्पादन (Edit) गर्ने अधिकार</p>
+                        <p className="text-xs text-slate-500">यो अनुमति भएको प्रयोगकर्ताले मात्र बिलिङ रेकर्डहरू संशोधन (Edit) गर्न पाउनेछन्।</p>
+                    </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, canEditBilling: !prev.canEditBilling }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canEditBilling ? 'bg-amber-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canEditBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
             </div>
 

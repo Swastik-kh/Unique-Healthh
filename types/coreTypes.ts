@@ -49,6 +49,7 @@ export interface User {
   biometricCredential?: BiometricCredential;
   hasSaveAccess?: boolean;
   canDeleteBilling?: boolean;
+  canEditBilling?: boolean;
   canDeleteAmbulance?: boolean;
 }
 
