@@ -545,7 +545,14 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           errorMsg = JSON.stringify(error.response.data);
         }
       }
-      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + errorMsg + (error.response?.status === 404 ? "\n(API URL मिलेन वा बिरामी फेला परेन)" : ""));
+      let alertMsg = "बीमा बिरामी खोज्दा त्रुटि भयो: " + errorMsg;
+      if (error.response?.status === 404) {
+        alertMsg += "\n(API URL मिलेन वा बिरामी फेला परेन)";
+      }
+      if (error.response?.data?.url) {
+        alertMsg += "\nURL: " + error.response.data.url;
+      }
+      alert(alertMsg);
     } finally {
       setIsSearchingHIB(false);
     }
