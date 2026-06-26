@@ -62,6 +62,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
+  const isEditingAndNonAdmin = useMemo(() => {
+    if (!editingRecord) return false;
+    const role = currentUser?.role;
+    return role !== 'SUPER_ADMIN' && role !== 'ADMIN';
+  }, [editingRecord, currentUser]);
   const [searchTerm, setSearchTerm] = useState('');
   const [patientSearchInput, setPatientSearchInput] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
@@ -630,6 +635,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     required
                     value={formData.dateBs || ''}
                     onChange={(val) => setFormData(prev => ({ ...prev, dateBs: val }))}
+                    disabled={isEditingAndNonAdmin}
                   />
                 </div>
 
@@ -647,8 +653,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         setFormData({...formData, patientName: e.target.value});
                         setShowPatientDropdown(true);
                       }}
-                      onFocus={() => setShowPatientDropdown(true)}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                      onFocus={() => !isEditingAndNonAdmin && setShowPatientDropdown(true)}
+                      disabled={isEditingAndNonAdmin}
+                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   {showPatientDropdown && filteredPatients.length > 0 && (
@@ -656,7 +663,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       {filteredPatients.map(patient => (
                         <div
                           key={patient.id}
-                          onClick={() => handlePatientSelect(patient)}
+                          onClick={() => !isEditingAndNonAdmin && handlePatientSelect(patient)}
                           className="p-3 text-sm hover:bg-slate-50 cursor-pointer flex items-center justify-between transition-all"
                         >
                           <div>
@@ -689,7 +696,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="जस्तै: 32 Years / 15 Months"
                     value={formData.age || ''}
                     onChange={e => setFormData({...formData, age: e.target.value})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -703,7 +711,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       placeholder="ठेगाना लेख्नुहोस्"
                       value={formData.address || ''}
                       onChange={e => setFormData({...formData, address: e.target.value})}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                      disabled={isEditingAndNonAdmin}
+                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -718,7 +727,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       placeholder="फोन नम्बर प्रविष्ट गर्नुहोस्"
                       value={formData.phone || ''}
                       onChange={e => setFormData({...formData, phone: e.target.value})}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                      disabled={isEditingAndNonAdmin}
+                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -734,7 +744,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       placeholder="चालकको पुरा नाम"
                       value={formData.driverName || ''}
                       onChange={e => setFormData({...formData, driverName: e.target.value})}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                      disabled={isEditingAndNonAdmin}
+                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -760,14 +771,15 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           };
                         });
                       }}
-                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-semibold text-slate-700"
+                      disabled={isEditingAndNonAdmin}
+                      className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-semibold text-slate-700 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 {/* Route Pre-selector if configured */}
                 {configuredRoutes.length > 0 && (
-                  <div className="space-y-1.5 lg:col-span-3 bg-rose-50/50 border border-rose-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className={`space-y-1.5 lg:col-span-3 bg-rose-50/50 border border-rose-200 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 ${isEditingAndNonAdmin ? 'opacity-60 pointer-events-none' : ''}`}>
                     <div className="space-y-0.5">
                       <h4 className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
                         <Truck size={14} className="text-rose-600" />
@@ -798,7 +810,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           });
                         }
                       }}
-                      className="text-xs p-2.5 bg-white border border-rose-300 rounded-xl text-rose-900 font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none w-full sm:w-64 cursor-pointer"
+                      disabled={isEditingAndNonAdmin}
+                      className="text-xs p-2.5 bg-white border border-rose-300 rounded-xl text-rose-900 font-bold focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none w-full sm:w-64 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
                     >
                       <option value="">-- मार्ग छनौट गर्नुहोस् (Select Route) --</option>
                       {configuredRoutes.map((r, i) => (
@@ -819,7 +832,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="प्रस्थान विन्दु"
                     value={formData.startLocation || ''}
                     onChange={e => setFormData({...formData, startLocation: e.target.value})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -832,7 +846,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="गन्तव्य विन्दु"
                     value={formData.destination || ''}
                     onChange={e => setFormData({...formData, destination: e.target.value})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -858,7 +873,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         };
                       });
                     }}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all text-sm font-mono text-orange-850"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all text-sm font-mono text-orange-850 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -908,7 +924,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         };
                       });
                     }}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -922,7 +939,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="जस्तै: 1500"
                     value={formData.amountCharged || ''}
                     onChange={e => setFormData({...formData, amountCharged: Number(e.target.value)})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-red-600"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-red-600 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -936,7 +954,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="जस्तै: 1500"
                     value={formData.receivedAmount || ''}
                     onChange={e => setFormData({...formData, receivedAmount: Number(e.target.value)})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-emerald-600"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-emerald-600 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -948,7 +967,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     placeholder="कैफियत प्रविष्ट गर्नुहोस्..."
                     value={formData.remarks || ''}
                     onChange={e => setFormData({...formData, remarks: e.target.value})}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                    disabled={isEditingAndNonAdmin}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
