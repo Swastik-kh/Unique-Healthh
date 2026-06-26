@@ -180,6 +180,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const formRef = useRef<HTMLDivElement>(null);
   const [expandedPermissions, setExpandedPermissions] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -237,21 +238,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   const canManageUsers = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' || currentUser.role === 'HEALTH_SECTION';
 
-  // FIXED: Visibility logic for managed users
+  // Visibility logic for managed users with search
   const managedUsers = useMemo(() => {
+      const searchStr = searchTerm.toLowerCase().trim();
+      
       return users.filter(u => {
-          if (currentUser.role === 'SUPER_ADMIN') return true; // Super admin sees everyone
-          if (currentUser.role === 'HEALTH_SECTION') {
-              // Health section sees users they created (their admins)
-              return u.parentId === currentUser.id;
-          }
-          if (currentUser.role === 'ADMIN') {
-              // Admin sees users in their organization
-              return u.organizationName === currentUser.organizationName;
-          }
-          return false;
+          // Role-based visibility logic
+          let isVisible = false;
+          if (currentUser.role === 'SUPER_ADMIN') isVisible = true;
+          else if (currentUser.role === 'HEALTH_SECTION') isVisible = u.parentId === currentUser.id;
+          else if (currentUser.role === 'ADMIN') isVisible = u.organizationName === currentUser.organizationName;
+
+          if (!isVisible) return false;
+
+          // Search logic
+          if (!searchStr) return true;
+          return (
+            u.username.toLowerCase().includes(searchStr) || 
+            u.fullName.toLowerCase().includes(searchStr) || 
+            u.id.toLowerCase().includes(searchStr)
+          );
       });
-  }, [users, currentUser]);
+  }, [users, currentUser, searchTerm]);
 
   const generateUniqueId = () => {
       const prefix = 'EMP';
@@ -627,9 +635,23 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       )}
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+        <div className="p-4 bg-slate-50 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h3 className="font-bold text-slate-700 font-nepali">प्रयोगकर्ताहरूको सूची</h3>
-            <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-tighter">Total: {managedUsers.length}</span>
+            
+            <div className="flex-1 max-w-md w-full relative">
+                <input 
+                  type="text" 
+                  placeholder="खोज्नुहोस् (नाम, युजरनेम वा आइडी...)" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <UserIcon size={18} />
+                </div>
+            </div>
+
+            <span className="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shrink-0">Total: {managedUsers.length}</span>
         </div>
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

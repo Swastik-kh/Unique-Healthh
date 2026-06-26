@@ -1204,6 +1204,14 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               >
                                 Reprint
                               </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canEditBilling !== false) || currentUser?.canEditBilling === true) && (
+                                <button 
+                                  onClick={() => handleEditDirectBill(bill)}
+                                  className="text-xs text-amber-600 hover:underline flex items-center gap-0.5"
+                                >
+                                  <Edit size={10} /> Edit
+                                </button>
+                              )}
                               {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canDeleteBilling !== false) || currentUser?.canDeleteBilling === true) && (
                                 <button 
                                   onClick={() => {
