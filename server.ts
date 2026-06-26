@@ -16,11 +16,22 @@ async function startServer() {
     return Buffer.from(`${username}:${password}`).toString('base64');
   };
 
-  const getHIBHeaders = (req: express.Request) => ({
-    'Authorization': `Basic ${getHIBAuth(req)}`,
-    'remote-user': (req.headers['x-hib-remote-user'] as string) || process.env.HIB_REMOTE_USER || 'hib_testuser_testfhir',
-    'Content-Type': 'application/json'
-  });
+  const getHIBHeaders = (req: express.Request) => {
+    const headers: any = {
+      'Authorization': `Basic ${getHIBAuth(req)}`,
+      'remote-user': (req.headers['x-hib-remote-user'] as string) || process.env.HIB_REMOTE_USER || 'hib_testuser_testfhir',
+      'Content-Type': 'application/json'
+    };
+
+    if (req.headers['x-hib-partner-id']) {
+      headers['partner-id'] = req.headers['x-hib-partner-id'];
+    }
+    if (req.headers['x-hib-location-id']) {
+      headers['location-id'] = req.headers['x-hib-location-id'];
+    }
+
+    return headers;
+  };
 
   // HIB API Routes
   app.get("/api/hib/patient/:id", async (req, res) => {

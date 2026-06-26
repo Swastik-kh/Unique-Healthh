@@ -526,7 +526,22 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
       }
     } catch (error: any) {
       console.error(error);
-      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + (error.response?.data?.error || error.message));
+      let errorMsg = error.message;
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMsg = error.response.data;
+        } else if (error.response.data.error) {
+          errorMsg = typeof error.response.data.error === 'object' 
+            ? JSON.stringify(error.response.data.error) 
+            : error.response.data.error;
+        } else if (error.response.data.issue) {
+          // Handle FHIR OperationOutcome issues
+          errorMsg = error.response.data.issue.map((i: any) => i.diagnostics || i.details?.text).join(', ');
+        } else {
+          errorMsg = JSON.stringify(error.response.data);
+        }
+      }
+      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + errorMsg);
     } finally {
       setIsSearchingHIB(false);
     }
