@@ -195,7 +195,7 @@ const READ_NOTIFS_KEY_PREFIX = 'smart_inv_read_notifs_v4_';
 
 export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const { 
-    onLogout, currentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onDeleteOrganization, onChangePassword, isDbLocked,
+    onLogout, currentUser: rawCurrentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onDeleteOrganization, onChangePassword, isDbLocked,
     generalSettings, onUpdateGeneralSettings: rawOnUpdateGeneralSettings, magForms = [], onSaveMagForm: rawOnSaveMagForm, onDeleteMagForm: rawOnDeleteMagForm,
     purchaseOrders = [], onUpdatePurchaseOrder: rawOnUpdatePurchaseOrder, onDeletePurchaseOrder: rawOnDeletePurchaseOrder, issueReports = [], onUpdateIssueReport: rawOnUpdateIssueReport, 
     rabiesPatients = [], onAddRabiesPatient: rawOnAddRabiesPatient, onUpdatePatient: rawOnUpdatePatient, onDeletePatient: rawOnDeletePatient,
@@ -253,29 +253,65 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     return localStorage.getItem('smart_inv_active_item') || 'dashboard';
   });
 
+  const currentUser = useMemo(() => {
+    if (!rawCurrentUser) return null;
+    if (rawCurrentUser.role === 'SUPER_ADMIN') {
+      return {
+        ...rawCurrentUser,
+        hasSaveAccess: true,
+      };
+    }
+    
+    // Check if the current user has edit access to the active menu
+    const hasEditPermission = rawCurrentUser.editAccessMenus 
+      ? rawCurrentUser.editAccessMenus.includes(activeItem)
+      : (rawCurrentUser.hasSaveAccess !== false);
+
+    return {
+      ...rawCurrentUser,
+      hasSaveAccess: hasEditPermission,
+    };
+  }, [rawCurrentUser, activeItem]);
+
   const checkEditPermission = useCallback(() => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'SUPER_ADMIN') return true;
-    if (!currentUser.editAccessMenus) return true;
-    const hasEdit = currentUser.editAccessMenus.includes(activeItem);
-    if (!hasEdit) {
-      alert("तपाईंलाई यो मेनुमा डाटा सम्पादन/सुरक्षित (Save/Edit) गर्ने अनुमति छैन।");
+    if (!rawCurrentUser) return false;
+    if (rawCurrentUser.role === 'SUPER_ADMIN') return true;
+    
+    // If editAccessMenus is defined, check if activeItem is included
+    if (rawCurrentUser.editAccessMenus) {
+      const hasEdit = rawCurrentUser.editAccessMenus.includes(activeItem);
+      if (!hasEdit) {
+        alert("तपाईंलाई यो मेनुमा डाटा सम्पादन/सुरक्षित (Save/Edit) गर्ने अनुमति छैन।");
+        return false;
+      }
+      return true;
+    }
+    
+    // Backward compatibility: If editAccessMenus is undefined, fallback to hasSaveAccess
+    if (rawCurrentUser.hasSaveAccess === false) {
+      alert("तपाईंलाई डाटा सम्पादन/सुरक्षित (Save/Edit) गर्ने अनुमति छैन।");
       return false;
     }
     return true;
-  }, [currentUser, activeItem]);
+  }, [rawCurrentUser, activeItem]);
 
   const checkDeletePermission = useCallback(() => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'SUPER_ADMIN') return true;
-    if (!currentUser.deleteAccessMenus) return true;
-    const hasDelete = currentUser.deleteAccessMenus.includes(activeItem);
-    if (!hasDelete) {
-      alert("तपाईंलाई यो मेनुमा डाटा मेटाउने (Delete) अनुमति छैन।");
-      return false;
+    if (!rawCurrentUser) return false;
+    if (rawCurrentUser.role === 'SUPER_ADMIN') return true;
+
+    // If deleteAccessMenus is defined, check if activeItem is included
+    if (rawCurrentUser.deleteAccessMenus) {
+      const hasDelete = rawCurrentUser.deleteAccessMenus.includes(activeItem);
+      if (!hasDelete) {
+        alert("तपाईंलाई यो मेनुमा डाटा मेटाउने (Delete) अनुमति छैन।");
+        return false;
+      }
+      return true;
     }
+
+    // Backward compatibility: If deleteAccessMenus is undefined, fallback to allowedMenus
     return true;
-  }, [currentUser, activeItem]);
+  }, [rawCurrentUser, activeItem]);
 
   // Wrapped functions
   const onUpdateGeneralSettings = (...args: any[]) => checkEditPermission() && rawOnUpdateGeneralSettings?.(...args);
