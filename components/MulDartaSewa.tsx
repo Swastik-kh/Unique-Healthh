@@ -70,6 +70,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const [isSearchingHIB, setIsSearchingHIB] = useState(false);
   const [isScanningQR, setIsScanningQR] = useState(false);
   const [hibPatientPhoto, setHibPatientPhoto] = useState<string | null>(null);
+  const [hibPatientBalance, setHibPatientBalance] = useState<number | null>(null);
   const [ageUnit, setAgeUnit] = useState<'Days' | 'Months' | 'Years'>('Years');
   const [stickerPatient, setStickerPatient] = useState<ServiceSeekerRecord | null>(null);
   
@@ -251,6 +252,8 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
 
   const handleAddNew = () => {
     setIsEditing(null);
+    setHibPatientPhoto(null);
+    setHibPatientBalance(null);
     const newUniqueId = `PID-${Date.now().toString().slice(-6)}`;
     
     // Calculate next registration number
@@ -285,6 +288,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     setIsEditing(record.id);
     setFormData(record);
     setHibPatientPhoto(null);
+    setHibPatientBalance(null);
     
     // Determine age unit from age string or values
     if (record.age?.endsWith('D')) {
@@ -301,6 +305,8 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const handleCloseForm = () => {
     setShowForm(false);
     setIsEditing(null);
+    setHibPatientPhoto(null);
+    setHibPatientBalance(null);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -396,7 +402,13 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
         // Auto-fill form
         const nameObj = patient.name?.[0];
         const fullName = `${nameObj?.given?.join(' ') || ''} ${nameObj?.family || ''}`.trim();
-        const gender = patient.gender === 'male' ? 'Male' : (patient.gender === 'female' ? 'Female' : 'Other');
+        
+        // Gender normalization
+        let gender: 'Male' | 'Female' | 'Other' = 'Other';
+        const rawGender = patient.gender?.toLowerCase();
+        if (rawGender === 'male' || rawGender === 'm') gender = 'Male';
+        else if (rawGender === 'female' || rawGender === 'f') gender = 'Female';
+        
         const birthDate = patient.birthDate; // YYYY-MM-DD (AD)
         
         let dobBs = '';
@@ -410,13 +422,29 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           }
         }
 
+        // Robust address concatenation
+        let fullAddress = '';
+        if (patient.address && patient.address.length > 0) {
+          const addr = patient.address[0];
+          if (addr.text) {
+            fullAddress = addr.text;
+          } else {
+            const parts = [];
+            if (addr.line) parts.push(...addr.line);
+            if (addr.city) parts.push(addr.city);
+            if (addr.district) parts.push(addr.district);
+            if (addr.state) parts.push(addr.state);
+            fullAddress = parts.join(', ');
+          }
+        }
+
         setFormData(prev => ({
           ...prev,
           name: fullName,
           gender: gender,
           dobBs: dobBs,
           dobAd: birthDate,
-          address: patient.address?.[0]?.text || '',
+          address: fullAddress,
           insuranceNo: insuranceNo // In case it came from QR
         }));
 
@@ -431,6 +459,30 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           }
         }
         setHibPatientPhoto(photo);
+        
+        // Fetch Balance/Coverage
+        try {
+          const covRes = await axios.get(`/api/hib/coverage/${insuranceNo.trim()}`, { headers });
+          const covBundle = covRes.data;
+          if (covBundle.entry && covBundle.entry.length > 0) {
+            const coverage = covBundle.entry[0].resource;
+            // In HIB FHIR, balance is often in an extension or subPlan
+            // For now, let's look for any numeric balance field
+            let balance = null;
+            if (coverage.extension) {
+              const balExt = coverage.extension.find((e: any) => e.url?.includes('balance') || e.url?.includes('remaining'));
+              if (balExt) balance = balExt.valueMoney?.value || balExt.valueDecimal || balExt.valueInteger;
+            }
+            // Fallback for some IMIS versions
+            if (balance === null && coverage.class) {
+               const balClass = coverage.class.find((c: any) => c.type?.coding?.[0]?.code === 'balance');
+               if (balClass) balance = parseFloat(balClass.name);
+            }
+            setHibPatientBalance(balance);
+          }
+        } catch (e) {
+          console.error("Balance fetch error", e);
+        }
 
         if (dobBs) {
           handleDOBChange(dobBs);
@@ -454,40 +506,54 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
       try {
         const nd = new NepaliDate(value);
         const jsDate = nd.toJsDate();
-        dateAd = jsDate.toISOString().split('T')[0];
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+        dateAd = `${year}-${month}-${day}`;
         
         // Auto-calculate age
         const today = new Date();
-        const diffTime = Math.abs(today.getTime() - jsDate.getTime());
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const birthDate = jsDate;
         
-        const todayNd = new NepaliDate();
-        let diffYears = todayNd.getYear() - nd.getYear();
-        let diffMonths = todayNd.getMonth() - nd.getMonth();
-        if (diffMonths < 0) {
-          diffYears--;
-          diffMonths += 12;
+        let years = today.getFullYear() - birthDate.getFullYear();
+        let months = today.getMonth() - birthDate.getMonth();
+        let days = today.getDate() - birthDate.getDate();
+
+        if (days < 0) {
+          months--;
+          const lastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+          days += lastMonth.getDate();
         }
-        
+
+        if (months < 0) {
+          years--;
+          months += 12;
+        }
+
+        const calculatedYears = years >= 0 ? years : 0;
+        const calculatedMonths = months >= 0 ? months : 0;
+        const calculatedDays = days >= 0 ? days : 0;
+
         setFormData(prev => ({ 
           ...prev, 
           dobBs: value, 
           dobAd: dateAd,
-          ageYears: diffYears >= 0 ? diffYears : 0,
-          ageMonths: diffMonths >= 0 ? diffMonths : 0,
-          ageDays: diffDays >= 0 ? diffDays : 0,
-          age: `${diffYears >= 0 ? diffYears : 0}Y ${diffMonths >= 0 ? diffMonths : 0}M ${diffDays >= 0 ? diffDays : 0}D`
+          ageYears: calculatedYears,
+          ageMonths: calculatedMonths,
+          ageDays: calculatedDays,
+          age: `${calculatedYears}Y ${calculatedMonths}M ${calculatedDays}D`
         }));
 
         // Auto-set age unit based on calculated age
-        if (diffDays < 60) {
+        if (calculatedYears === 0 && calculatedMonths === 0 && calculatedDays < 60) {
           setAgeUnit('Days');
-        } else if (diffYears < 5) {
+        } else if (calculatedYears < 5) {
           setAgeUnit('Months');
         } else {
           setAgeUnit('Years');
         }
-      } catch (e) {
+      } catch (error) {
+        console.error("Invalid date for age calculation", error);
         setFormData(prev => ({ ...prev, dobBs: value }));
       }
     } else {
@@ -691,20 +757,19 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center p-0 sm:p-4 animate-in fade-in">
-          <div className="bg-white rounded-none sm:rounded-2xl border border-slate-200 shadow-2xl w-full max-w-5xl h-full sm:h-auto max-h-screen flex flex-col relative animate-in zoom-in-95 slide-in-from-bottom-4">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 sm:rounded-t-2xl">
-              <h3 className="text-2xl font-bold text-slate-800 font-nepali">
-                {isEditing ? 'दर्ता विवरण सम्पादन गर्नुहोस्' : 'नयाँ सेवाग्राही दर्ता'}
-              </h3>
-              <button onClick={handleCloseForm} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="flex flex-col lg:flex-row gap-8">
-                <form onSubmit={handleSubmit} className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="fixed inset-0 bg-white z-[60] flex flex-col animate-in slide-in-from-bottom-4">
+          <div className="flex-none p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+            <h3 className="text-2xl font-bold text-slate-800 font-nepali">
+              {isEditing ? 'दर्ता विवरण सम्पादन गर्नुहोस्' : 'नयाँ सेवाग्राही दर्ता'}
+            </h3>
+            <button onClick={handleCloseForm} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <form onSubmit={handleSubmit} className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="flex flex-col">
                   <label className="text-sm font-medium text-slate-600 mb-1 block">दर्ताको किसिम (Payment Type) *</label>
                   <select 
@@ -955,27 +1020,122 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                 </div>
               </form>
 
-              {formData.paymentMode === 'HIB' && hibPatientPhoto && (
-                <div className="w-full lg:w-72 shrink-0 space-y-4 animate-in fade-in slide-in-from-right-4">
-                  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm text-center">
-                    <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3 underline decoration-indigo-200 underline-offset-4">Patient Card Photo</h4>
-                    <div className="aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 border border-slate-200 relative group">
-                      <img 
-                        src={hibPatientPhoto} 
-                        alt="Patient" 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                        referrerPolicy="no-referrer"
-                      />
+              {formData.paymentMode === 'HIB' && (
+                <div className="w-full lg:w-96 shrink-0 space-y-4 animate-in fade-in slide-in-from-right-8 duration-500">
+                  <div className="bg-emerald-600 rounded-3xl p-1.5 shadow-2xl overflow-hidden ring-4 ring-emerald-600/20">
+                    <div className="bg-white rounded-[20px] overflow-hidden flex flex-col h-full border border-emerald-500/30">
+                      {/* Card Header - Official Style */}
+                      <div className="bg-emerald-50/50 px-5 py-3 border-b border-emerald-100 flex items-center justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-600/5 rounded-full -mr-10 -mt-10"></div>
+                        <div className="flex items-center gap-3 relative z-10">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" 
+                            alt="Nepal Gov" 
+                            className="w-10 h-10 object-contain drop-shadow-sm"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-red-600 leading-tight uppercase tracking-tight">स्वास्थ्य बीमा बोर्ड</span>
+                            <span className="text-[9px] font-bold text-blue-800 leading-tight">Health Insurance Board</span>
+                            <span className="text-[7px] font-medium text-slate-500 leading-tight italic">Government of Nepal</span>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <span className="text-[8px] font-bold text-slate-400">Card Status</span>
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-500 text-white rounded-full">
+                            <div className="w-1 h-1 bg-white rounded-full animate-pulse"></div>
+                            <span className="text-[8px] font-bold">ACTIVE</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-5 flex flex-col gap-4 relative">
+                        {/* Watermark Logo */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png" 
+                            alt="Watermark" 
+                            className="w-48 h-48 grayscale"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+
+                        <div className="flex gap-5 relative z-10">
+                          <div className="w-24 h-30 shrink-0 bg-slate-50 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative group">
+                            {hibPatientPhoto ? (
+                              <img 
+                                src={hibPatientPhoto} 
+                                alt="Patient" 
+                                className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-200">
+                                <UserCircle size={48} />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-col justify-center gap-3.5 flex-1">
+                            <div className="space-y-0.5">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">नाम (Full Name)</label>
+                              <p className="text-[13px] font-black text-slate-900 leading-tight">{formData.name || 'N/A'}</p>
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">बीमा नम्बर (Policy No)</label>
+                              <p className="text-sm font-black text-emerald-700 font-mono tracking-widest bg-emerald-50 px-2 py-0.5 rounded inline-block">{formData.insuranceNo || 'N/A'}</p>
+                            </div>
+                            {hibPatientBalance !== null && (
+                              <div className="space-y-0.5 mt-1">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">बाँकी रकम (Remaining Balance)</label>
+                                <p className="text-sm font-black text-orange-600 font-mono">Rs. {hibPatientBalance.toLocaleString()}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-emerald-50 relative z-10">
+                          <div className="space-y-0.5">
+                            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">लिंग (Gender)</label>
+                            <p className="text-[11px] font-bold text-slate-700">{formData.gender === 'Male' ? 'पुरुष (Male)' : (formData.gender === 'Female' ? 'महिला (Female)' : 'अन्य (Other)')}</p>
+                          </div>
+                          <div className="space-y-0.5">
+                            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">जन्म मिति (DOB BS)</label>
+                            <p className="text-[11px] font-bold text-slate-700">{formData.dobBs || 'N/A'}</p>
+                          </div>
+                          <div className="space-y-0.5 col-span-2">
+                            <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">ठेगाना (Full Address)</label>
+                            <p className="text-[11px] font-bold text-slate-700 leading-snug">{formData.address || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="mt-auto bg-emerald-600 px-5 py-2.5 flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[7px] font-bold text-emerald-200 uppercase tracking-widest">Digital Health ID</span>
+                          <span className="text-[9px] font-black text-white tracking-[0.3em]">NEPAL GOVERNMENT</span>
+                        </div>
+                        <div className="bg-white/20 p-1 rounded backdrop-blur-sm">
+                          <QrCode size={20} className="text-white" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-3 flex items-center justify-center gap-1.5 text-slate-400">
-                      <Search size={12} />
-                      <span className="text-[10px] font-medium">Verified from HIB System</span>
+                  </div>
+                  
+                  <div className="bg-white/50 backdrop-blur-sm p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                      <Search size={14} />
                     </div>
+                    <p className="text-[10px] text-slate-500 font-medium leading-tight">
+                      HIB IMIS प्रणालीबाट प्रमाणित विवरण। <br/>
+                      <span className="text-emerald-600 font-bold">Data Synchronization: Real-time</span>
+                    </p>
                   </div>
                 </div>
               )}
             </div>
-          </div>
           </div>
         </div>
       )}

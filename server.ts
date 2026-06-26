@@ -37,6 +37,20 @@ async function startServer() {
     }
   });
 
+  app.get("/api/hib/coverage/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
+      const response = await axios.get(`${baseUrl}api/api_fhir/Coverage/?identifier=${id}`, {
+        headers: getHIBHeaders(req)
+      });
+      res.json(response.data);
+    } catch (error: any) {
+      console.error("HIB Coverage Search Error:", error.response?.data || error.message);
+      res.status(error.response?.status || 500).json(error.response?.data || { error: "Failed to search coverage" });
+    }
+  });
+
   app.post("/api/hib/eligibility", async (req, res) => {
     try {
       const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
