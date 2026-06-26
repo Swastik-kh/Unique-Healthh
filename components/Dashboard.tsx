@@ -193,63 +193,199 @@ interface AppNotification {
 
 const READ_NOTIFS_KEY_PREFIX = 'smart_inv_read_notifs_v4_';
 
-export const Dashboard: React.FC<ExtendedDashboardProps> = ({ 
-  onLogout, currentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onDeleteOrganization, onChangePassword, isDbLocked,
-  generalSettings, onUpdateGeneralSettings, magForms = [], onSaveMagForm, onDeleteMagForm,
-  purchaseOrders = [], onUpdatePurchaseOrder, onDeletePurchaseOrder, issueReports = [], onUpdateIssueReport, 
-  rabiesPatients = [], onAddRabiesPatient, onUpdatePatient, onDeletePatient,
-  tbPatients = [], onAddTbPatient, onUpdateTbPatient, onDeleteTbPatient, 
-  garbhawatiPatients = [], onAddGarbhawatiPatient, onUpdateGarbhawatiPatient, onDeleteGarbhawatiPatient, 
-  bachhaImmunizationRecords = [], onAddBachhaImmunizationRecord, onUpdateBachhaImmunizationRecord, onDeleteBachhaImmunizationRecord, 
-  firms = [], onAddFirm, quotations = [], onAddQuotation, inventoryItems = [], onAddInventoryItem, onUpdateInventoryItem, onDeleteInventoryItem,
-  stockEntryRequests = [], onRequestStockEntry, onApproveStockEntry, onRejectStockEntry, stores = [], onAddStore, onUpdateStore, onDeleteStore,
-  dakhilaReports = [], onSaveDakhilaReport, returnEntries = [], onSaveReturnEntry, 
-  marmatEntries = [], onSaveMarmatEntry, dhuliyaunaEntries = [], onSaveDhuliyaunaEntry,
-  logBookEntries = [], onSaveLogBookEntry, itemList = [], onAddItem, onUpdateItem, onDeleteItem, onClearData, onUploadData,
-  leaveApplications = [], onAddLeaveApplication, onUpdateLeaveStatus, onDeleteLeaveApplication,
-  leaveBalances = [], onSaveLeaveBalance,
-  dartaEntries = [], onSaveDarta, onDeleteDarta,
-  chalaniEntries = [], onSaveChalani, onDeleteChalani,
-  sentLetters = [], receivedLetters = [], onSendLetter, onDeleteReceivedLetter, onMarkReceivedLetterAsRead,
-  bharmanAdeshEntries = [], onSaveBharmanAdesh, onDeleteBharmanAdesh,
-  garbhawotiRecords = [], onSaveGarbhawotiRecord, onDeleteGarbhawotiRecord,
-  prasutiRecords = [], onSavePrasutiRecord, onDeletePrasutiRecord,
-  uttarPrasutiRecords = [], onSaveUttarPrasutiRecord, onDeleteUttarPrasutiRecord,
-  serviceSeekerRecords = [], onSaveServiceSeekerRecord, onDeleteServiceSeekerRecord,
-  opdRecords = [], onSaveOPDRecord, onDeleteOPDRecord,
-  emergencyRecords = [], onSaveEmergencyRecord, onDeleteEmergencyRecord,
-  cbimnciRecords = [], onSaveCBIMNCIRecord, onDeleteCBIMNCIRecord,
-  billingRecords = [], onSaveBillingRecord, onDeleteBillingRecord,
-  dispensaryRecords = [], onSaveDispensaryRecord, onDeleteDispensaryRecord,
-  serviceItems = [], onSaveServiceItem, onDeleteServiceItem,
-  labReports = [], onSaveLabReport, onDeleteLabReport,
-  pariwarSewaRecords = [], onSavePariwarSewaRecord, onDeletePariwarSewaRecord,
-  xrayRecords = [], onSaveXRayRecord, onDeleteXRayRecord,
-  ecgRecords = [], onSaveECGRecord, onDeleteECGRecord,
-  usgRecords = [], onSaveUSGRecord, onDeleteUSGRecord,
-  physiotherapyRecords = [], onSavePhysiotherapyRecord, onDeletePhysiotherapyRecord,
-  ambulanceRecords = [], onSaveAmbulanceRecord, onDeleteAmbulanceRecord,
-  ambulanceExpenseRecords = [], onSaveAmbulanceExpense = () => {}, onDeleteAmbulanceExpense = () => {},
-  ipdRecords = [], onSaveIPDRecord, onDeleteIPDRecord, onDeleteAllIPDRecords,
-  interFacilityRequests = [], onAddInterFacilityRequest, onUpdateInterFacilityRequest,
-  onUpdateReadNotifications,
-  activeOrgName, onSetActiveOrgName, allUsers = [],
-  financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
-  goswaraVouchers = [],
-  paymentRequests = [], allowances = [],
-  onSaveFinancialProgram, onDeleteFinancialProgram, onSaveListedParty, onDeleteListedParty, 
-  onSaveFinancialTransaction, onDeleteFinancialTransaction, onSavePartyPayment, onDeletePartyPayment,
-  onSavePaymentRequest, onSaveAllowance,
-  onUpdatePaymentRequest, onUpdateAllowance,
-  onDeletePaymentRequest, onDeleteAllowance,
-  talimEntries = [], onSaveTalim, onDeleteTalim,
-  karmachariTalimRecords = [], onSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord
-}) => {
+export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
+  const { 
+    onLogout, currentUser, currentFiscalYear, users = [], onAddUser, onUpdateUser, onDeleteUser, onDeleteOrganization, onChangePassword, isDbLocked,
+    generalSettings, onUpdateGeneralSettings: rawOnUpdateGeneralSettings, magForms = [], onSaveMagForm: rawOnSaveMagForm, onDeleteMagForm: rawOnDeleteMagForm,
+    purchaseOrders = [], onUpdatePurchaseOrder: rawOnUpdatePurchaseOrder, onDeletePurchaseOrder: rawOnDeletePurchaseOrder, issueReports = [], onUpdateIssueReport: rawOnUpdateIssueReport, 
+    rabiesPatients = [], onAddRabiesPatient: rawOnAddRabiesPatient, onUpdatePatient: rawOnUpdatePatient, onDeletePatient: rawOnDeletePatient,
+    tbPatients = [], onAddTbPatient: rawOnAddTbPatient, onUpdateTbPatient: rawOnUpdateTbPatient, onDeleteTbPatient: rawOnDeleteTbPatient, 
+    garbhawatiPatients = [], onAddGarbhawatiPatient: rawOnAddGarbhawatiPatient, onUpdateGarbhawatiPatient: rawOnUpdateGarbhawatiPatient, onDeleteGarbhawatiPatient: rawOnDeleteGarbhawatiPatient, 
+    bachhaImmunizationRecords = [], onAddBachhaImmunizationRecord: rawOnAddBachhaImmunizationRecord, onUpdateBachhaImmunizationRecord: rawOnUpdateBachhaImmunizationRecord, onDeleteBachhaImmunizationRecord: rawOnDeleteBachhaImmunizationRecord, 
+    firms = [], onAddFirm: rawOnAddFirm, quotations = [], onAddQuotation: rawOnAddQuotation, inventoryItems = [], onAddInventoryItem: rawOnAddInventoryItem, onUpdateInventoryItem: rawOnUpdateInventoryItem, onDeleteInventoryItem: rawOnDeleteInventoryItem,
+    stockEntryRequests = [], onRequestStockEntry: rawOnRequestStockEntry, onApproveStockEntry: rawOnApproveStockEntry, onRejectStockEntry: rawOnRejectStockEntry, stores = [], onAddStore: rawOnAddStore, onUpdateStore: rawOnUpdateStore, onDeleteStore: rawOnDeleteStore,
+    dakhilaReports = [], onSaveDakhilaReport: rawOnSaveDakhilaReport, returnEntries = [], onSaveReturnEntry: rawOnSaveReturnEntry, 
+    marmatEntries = [], onSaveMarmatEntry: rawOnSaveMarmatEntry, dhuliyaunaEntries = [], onSaveDhuliyaunaEntry: rawOnSaveDhuliyaunaEntry,
+    logBookEntries = [], onSaveLogBookEntry: rawOnSaveLogBookEntry, itemList = [], onAddItem: rawOnAddItem, onUpdateItem: rawOnUpdateItem, onDeleteItem: rawOnDeleteItem, onClearData, onUploadData,
+    leaveApplications = [], onAddLeaveApplication: rawOnAddLeaveApplication, onUpdateLeaveStatus: rawOnUpdateLeaveStatus, onDeleteLeaveApplication: rawOnDeleteLeaveApplication,
+    leaveBalances = [], onSaveLeaveBalance: rawOnSaveLeaveBalance,
+    dartaEntries = [], onSaveDarta: rawOnSaveDarta, onDeleteDarta: rawOnDeleteDarta,
+    chalaniEntries = [], onSaveChalani: rawOnSaveChalani, onDeleteChalani: rawOnDeleteChalani,
+    sentLetters = [], receivedLetters = [], onSendLetter: rawOnSendLetter, onDeleteReceivedLetter: rawOnDeleteReceivedLetter, onMarkReceivedLetterAsRead,
+    bharmanAdeshEntries = [], onSaveBharmanAdesh: rawOnSaveBharmanAdesh, onDeleteBharmanAdesh: rawOnDeleteBharmanAdesh,
+    garbhawotiRecords = [], onSaveGarbhawotiRecord: rawOnSaveGarbhawotiRecord, onDeleteGarbhawotiRecord: rawOnDeleteGarbhawotiRecord,
+    prasutiRecords = [], onSavePrasutiRecord: rawOnSavePrasutiRecord, onDeletePrasutiRecord: rawOnDeletePrasutiRecord,
+    uttarPrasutiRecords = [], onSaveUttarPrasutiRecord: rawOnSaveUttarPrasutiRecord, onDeleteUttarPrasutiRecord: rawOnDeleteUttarPrasutiRecord,
+    serviceSeekerRecords = [], onSaveServiceSeekerRecord: rawOnSaveServiceSeekerRecord, onDeleteServiceSeekerRecord: rawOnDeleteServiceSeekerRecord,
+    opdRecords = [], onSaveOPDRecord: rawOnSaveOPDRecord, onDeleteOPDRecord: rawOnDeleteOPDRecord,
+    emergencyRecords = [], onSaveEmergencyRecord: rawOnSaveEmergencyRecord, onDeleteEmergencyRecord: rawOnDeleteEmergencyRecord,
+    cbimnciRecords = [], onSaveCBIMNCIRecord: rawOnSaveCBIMNCIRecord, onDeleteCBIMNCIRecord: rawOnDeleteCBIMNCIRecord,
+    billingRecords = [], onSaveBillingRecord: rawOnSaveBillingRecord, onDeleteBillingRecord: rawOnDeleteBillingRecord,
+    dispensaryRecords = [], onSaveDispensaryRecord: rawOnSaveDispensaryRecord, onDeleteDispensaryRecord: rawOnDeleteDispensaryRecord,
+    serviceItems = [], onSaveServiceItem: rawOnSaveServiceItem, onDeleteServiceItem: rawOnDeleteServiceItem,
+    labReports = [], onSaveLabReport: rawOnSaveLabReport, onDeleteLabReport: rawOnDeleteLabReport,
+    pariwarSewaRecords = [], onSavePariwarSewaRecord: rawOnSavePariwarSewaRecord, onDeletePariwarSewaRecord: rawOnDeletePariwarSewaRecord,
+    xrayRecords = [], onSaveXRayRecord: rawOnSaveXRayRecord, onDeleteXRayRecord: rawOnDeleteXRayRecord,
+    ecgRecords = [], onSaveECGRecord: rawOnSaveECGRecord, onDeleteECGRecord: rawOnDeleteECGRecord,
+    usgRecords = [], onSaveUSGRecord: rawOnSaveUSGRecord, onDeleteUSGRecord: rawOnDeleteUSGRecord,
+    physiotherapyRecords = [], onSavePhysiotherapyRecord: rawOnSavePhysiotherapyRecord, onDeletePhysiotherapyRecord: rawOnDeletePhysiotherapyRecord,
+    ambulanceRecords = [], onSaveAmbulanceRecord: rawOnSaveAmbulanceRecord, onDeleteAmbulanceRecord: rawOnDeleteAmbulanceRecord,
+    ambulanceExpenseRecords = [], onSaveAmbulanceExpense: rawOnSaveAmbulanceExpense = () => {}, onDeleteAmbulanceExpense: rawOnDeleteAmbulanceExpense = () => {},
+    ipdRecords = [], onSaveIPDRecord: rawOnSaveIPDRecord, onDeleteIPDRecord: rawOnDeleteIPDRecord, onDeleteAllIPDRecords: rawOnDeleteAllIPDRecords,
+    interFacilityRequests = [], onAddInterFacilityRequest: rawOnAddInterFacilityRequest, onUpdateInterFacilityRequest: rawOnUpdateInterFacilityRequest,
+    onUpdateReadNotifications,
+    activeOrgName, onSetActiveOrgName, allUsers = [],
+    financialPrograms = [], listedParties = [], financialTransactions = [], partyPayments = [], 
+    goswaraVouchers = [],
+    paymentRequests = [], allowances = [],
+    onSaveFinancialProgram: rawOnSaveFinancialProgram, onDeleteFinancialProgram: rawOnDeleteFinancialProgram, onSaveListedParty: rawOnSaveListedParty, onDeleteListedParty: rawOnDeleteListedParty, 
+    onSaveFinancialTransaction: rawOnSaveFinancialTransaction, onDeleteFinancialTransaction: rawOnDeleteFinancialTransaction, onSavePartyPayment: rawOnSavePartyPayment, onDeletePartyPayment: rawOnDeletePartyPayment,
+    onSavePaymentRequest: rawOnSavePaymentRequest, onSaveAllowance: rawOnSaveAllowance,
+    onUpdatePaymentRequest: rawOnUpdatePaymentRequest, onUpdateAllowance: rawOnUpdateAllowance,
+    onDeletePaymentRequest: rawOnDeletePaymentRequest, onDeleteAllowance: rawOnDeleteAllowance,
+    talimEntries = [], onSaveTalim: rawOnSaveTalim, onDeleteTalim: rawOnDeleteTalim,
+    karmachariTalimRecords = [], onSaveKarmachariTalimRecord: rawOnSaveKarmachariTalimRecord, onDeleteKarmachariTalimRecord: rawOnDeleteKarmachariTalimRecord
+  } = props;
+
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [expandedSubMenu, setExpandedSubMenu] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<string>(() => {
     return localStorage.getItem('smart_inv_active_item') || 'dashboard';
   });
+
+  const checkEditPermission = useCallback(() => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    if (!currentUser.editAccessMenus) return true;
+    const hasEdit = currentUser.editAccessMenus.includes(activeItem);
+    if (!hasEdit) {
+      alert("तपाईंलाई यो मेनुमा डाटा सम्पादन/सुरक्षित (Save/Edit) गर्ने अनुमति छैन।");
+      return false;
+    }
+    return true;
+  }, [currentUser, activeItem]);
+
+  const checkDeletePermission = useCallback(() => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'SUPER_ADMIN') return true;
+    if (!currentUser.deleteAccessMenus) return true;
+    const hasDelete = currentUser.deleteAccessMenus.includes(activeItem);
+    if (!hasDelete) {
+      alert("तपाईंलाई यो मेनुमा डाटा मेटाउने (Delete) अनुमति छैन।");
+      return false;
+    }
+    return true;
+  }, [currentUser, activeItem]);
+
+  // Wrapped functions
+  const onUpdateGeneralSettings = (...args: any[]) => checkEditPermission() && rawOnUpdateGeneralSettings?.(...args);
+  const onSaveMagForm = (...args: any[]) => checkEditPermission() && rawOnSaveMagForm?.(...args);
+  const onDeleteMagForm = (...args: any[]) => checkDeletePermission() && rawOnDeleteMagForm?.(...args);
+  const onUpdatePurchaseOrder = (...args: any[]) => checkEditPermission() && rawOnUpdatePurchaseOrder?.(...args);
+  const onDeletePurchaseOrder = (...args: any[]) => checkDeletePermission() && rawOnDeletePurchaseOrder?.(...args);
+  const onUpdateIssueReport = (...args: any[]) => checkEditPermission() && rawOnUpdateIssueReport?.(...args);
+  const onAddRabiesPatient = (...args: any[]) => checkEditPermission() && rawOnAddRabiesPatient?.(...args);
+  const onUpdatePatient = (...args: any[]) => checkEditPermission() && rawOnUpdatePatient?.(...args);
+  const onDeletePatient = (...args: any[]) => checkDeletePermission() && rawOnDeletePatient?.(...args);
+  const onAddTbPatient = (...args: any[]) => checkEditPermission() && rawOnAddTbPatient?.(...args);
+  const onUpdateTbPatient = (...args: any[]) => checkEditPermission() && rawOnUpdateTbPatient?.(...args);
+  const onDeleteTbPatient = (...args: any[]) => checkDeletePermission() && rawOnDeleteTbPatient?.(...args);
+  const onAddGarbhawatiPatient = (...args: any[]) => checkEditPermission() && rawOnAddGarbhawatiPatient?.(...args);
+  const onUpdateGarbhawatiPatient = (...args: any[]) => checkEditPermission() && rawOnUpdateGarbhawatiPatient?.(...args);
+  const onDeleteGarbhawatiPatient = (...args: any[]) => checkDeletePermission() && rawOnDeleteGarbhawatiPatient?.(...args);
+  const onAddBachhaImmunizationRecord = (...args: any[]) => checkEditPermission() && rawOnAddBachhaImmunizationRecord?.(...args);
+  const onUpdateBachhaImmunizationRecord = (...args: any[]) => checkEditPermission() && rawOnUpdateBachhaImmunizationRecord?.(...args);
+  const onDeleteBachhaImmunizationRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteBachhaImmunizationRecord?.(...args);
+  const onAddFirm = (...args: any[]) => checkEditPermission() && rawOnAddFirm?.(...args);
+  const onAddQuotation = (...args: any[]) => checkEditPermission() && rawOnAddQuotation?.(...args);
+  const onAddInventoryItem = (...args: any[]) => checkEditPermission() && rawOnAddInventoryItem?.(...args);
+  const onUpdateInventoryItem = (...args: any[]) => checkEditPermission() && rawOnUpdateInventoryItem?.(...args);
+  const onDeleteInventoryItem = (...args: any[]) => checkDeletePermission() && rawOnDeleteInventoryItem?.(...args);
+  const onRequestStockEntry = (...args: any[]) => checkEditPermission() && rawOnRequestStockEntry?.(...args);
+  const onAddStore = (...args: any[]) => checkEditPermission() && rawOnAddStore?.(...args);
+  const onUpdateStore = (...args: any[]) => checkEditPermission() && rawOnUpdateStore?.(...args);
+  const onDeleteStore = (...args: any[]) => checkDeletePermission() && rawOnDeleteStore?.(...args);
+  const onSaveDakhilaReport = (...args: any[]) => checkEditPermission() && rawOnSaveDakhilaReport?.(...args);
+  const onSaveReturnEntry = (...args: any[]) => checkEditPermission() && rawOnSaveReturnEntry?.(...args);
+  const onSaveMarmatEntry = (...args: any[]) => checkEditPermission() && rawOnSaveMarmatEntry?.(...args);
+  const onSaveDhuliyaunaEntry = (...args: any[]) => checkEditPermission() && rawOnSaveDhuliyaunaEntry?.(...args);
+  const onSaveLogBookEntry = (...args: any[]) => checkEditPermission() && rawOnSaveLogBookEntry?.(...args);
+  const onAddItem = (...args: any[]) => checkEditPermission() && rawOnAddItem?.(...args);
+  const onUpdateItem = (...args: any[]) => checkEditPermission() && rawOnUpdateItem?.(...args);
+  const onDeleteItem = (...args: any[]) => checkDeletePermission() && rawOnDeleteItem?.(...args);
+  const onAddLeaveApplication = (...args: any[]) => checkEditPermission() && rawOnAddLeaveApplication?.(...args);
+  const onUpdateLeaveStatus = (...args: any[]) => checkEditPermission() && rawOnUpdateLeaveStatus?.(...args);
+  const onDeleteLeaveApplication = (...args: any[]) => checkDeletePermission() && rawOnDeleteLeaveApplication?.(...args);
+  const onSaveLeaveBalance = (...args: any[]) => checkEditPermission() && rawOnSaveLeaveBalance?.(...args);
+  const onSaveDarta = (...args: any[]) => checkEditPermission() && rawOnSaveDarta?.(...args);
+  const onDeleteDarta = (...args: any[]) => checkDeletePermission() && rawOnDeleteDarta?.(...args);
+  const onSaveChalani = (...args: any[]) => checkEditPermission() && rawOnSaveChalani?.(...args);
+  const onDeleteChalani = (...args: any[]) => checkDeletePermission() && rawOnDeleteChalani?.(...args);
+  const onSendLetter = (...args: any[]) => checkEditPermission() && rawOnSendLetter?.(...args);
+  const onDeleteReceivedLetter = (...args: any[]) => checkDeletePermission() && rawOnDeleteReceivedLetter?.(...args);
+  const onSaveBharmanAdesh = (...args: any[]) => checkEditPermission() && rawOnSaveBharmanAdesh?.(...args);
+  const onDeleteBharmanAdesh = (...args: any[]) => checkDeletePermission() && rawOnDeleteBharmanAdesh?.(...args);
+  const onSaveGarbhawotiRecord = (...args: any[]) => checkEditPermission() && rawOnSaveGarbhawotiRecord?.(...args);
+  const onDeleteGarbhawotiRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteGarbhawotiRecord?.(...args);
+  const onSavePrasutiRecord = (...args: any[]) => checkEditPermission() && rawOnSavePrasutiRecord?.(...args);
+  const onDeletePrasutiRecord = (...args: any[]) => checkDeletePermission() && rawOnDeletePrasutiRecord?.(...args);
+  const onSaveUttarPrasutiRecord = (...args: any[]) => checkEditPermission() && rawOnSaveUttarPrasutiRecord?.(...args);
+  const onDeleteUttarPrasutiRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteUttarPrasutiRecord?.(...args);
+  const onSaveServiceSeekerRecord = (...args: any[]) => checkEditPermission() && rawOnSaveServiceSeekerRecord?.(...args);
+  const onDeleteServiceSeekerRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteServiceSeekerRecord?.(...args);
+  const onSaveOPDRecord = (...args: any[]) => checkEditPermission() && rawOnSaveOPDRecord?.(...args);
+  const onDeleteOPDRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteOPDRecord?.(...args);
+  const onSaveEmergencyRecord = (...args: any[]) => checkEditPermission() && rawOnSaveEmergencyRecord?.(...args);
+  const onDeleteEmergencyRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteEmergencyRecord?.(...args);
+  const onSaveCBIMNCIRecord = (...args: any[]) => checkEditPermission() && rawOnSaveCBIMNCIRecord?.(...args);
+  const onDeleteCBIMNCIRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteCBIMNCIRecord?.(...args);
+  const onSaveBillingRecord = (...args: any[]) => checkEditPermission() && rawOnSaveBillingRecord?.(...args);
+  const onDeleteBillingRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteBillingRecord?.(...args);
+  const onSaveDispensaryRecord = (...args: any[]) => checkEditPermission() && rawOnSaveDispensaryRecord?.(...args);
+  const onDeleteDispensaryRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteDispensaryRecord?.(...args);
+  const onSaveServiceItem = (...args: any[]) => checkEditPermission() && rawOnSaveServiceItem?.(...args);
+  const onDeleteServiceItem = (...args: any[]) => checkDeletePermission() && rawOnDeleteServiceItem?.(...args);
+  const onSaveLabReport = (...args: any[]) => checkEditPermission() && rawOnSaveLabReport?.(...args);
+  const onDeleteLabReport = (...args: any[]) => checkDeletePermission() && rawOnDeleteLabReport?.(...args);
+  const onSavePariwarSewaRecord = (...args: any[]) => checkEditPermission() && rawOnSavePariwarSewaRecord?.(...args);
+  const onDeletePariwarSewaRecord = (...args: any[]) => checkDeletePermission() && rawOnDeletePariwarSewaRecord?.(...args);
+  const onSaveXRayRecord = (...args: any[]) => checkEditPermission() && rawOnSaveXRayRecord?.(...args);
+  const onDeleteXRayRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteXRayRecord?.(...args);
+  const onSaveECGRecord = (...args: any[]) => checkEditPermission() && rawOnSaveECGRecord?.(...args);
+  const onDeleteECGRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteECGRecord?.(...args);
+  const onSaveUSGRecord = (...args: any[]) => checkEditPermission() && rawOnSaveUSGRecord?.(...args);
+  const onDeleteUSGRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteUSGRecord?.(...args);
+  const onSavePhysiotherapyRecord = (...args: any[]) => checkEditPermission() && rawOnSavePhysiotherapyRecord?.(...args);
+  const onDeletePhysiotherapyRecord = (...args: any[]) => checkDeletePermission() && rawOnDeletePhysiotherapyRecord?.(...args);
+  const onSaveAmbulanceRecord = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceRecord?.(...args);
+  const onDeleteAmbulanceRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceRecord?.(...args);
+  const onSaveAmbulanceExpense = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceExpense?.(...args);
+  const onDeleteAmbulanceExpense = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceExpense?.(...args);
+  const onSaveIPDRecord = (...args: any[]) => checkEditPermission() && rawOnSaveIPDRecord?.(...args);
+  const onDeleteIPDRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteIPDRecord?.(...args);
+  const onDeleteAllIPDRecords = (...args: any[]) => checkDeletePermission() && rawOnDeleteAllIPDRecords?.(...args);
+  const onAddInterFacilityRequest = (...args: any[]) => checkEditPermission() && rawOnAddInterFacilityRequest?.(...args);
+  const onUpdateInterFacilityRequest = (...args: any[]) => checkEditPermission() && rawOnUpdateInterFacilityRequest?.(...args);
+  const onSaveFinancialProgram = (...args: any[]) => checkEditPermission() && rawOnSaveFinancialProgram?.(...args);
+  const onDeleteFinancialProgram = (...args: any[]) => checkDeletePermission() && rawOnDeleteFinancialProgram?.(...args);
+  const onSaveListedParty = (...args: any[]) => checkEditPermission() && rawOnSaveListedParty?.(...args);
+  const onDeleteListedParty = (...args: any[]) => checkDeletePermission() && rawOnDeleteListedParty?.(...args);
+  const onSaveFinancialTransaction = (...args: any[]) => checkEditPermission() && rawOnSaveFinancialTransaction?.(...args);
+  const onDeleteFinancialTransaction = (...args: any[]) => checkDeletePermission() && rawOnDeleteFinancialTransaction?.(...args);
+  const onSavePartyPayment = (...args: any[]) => checkEditPermission() && rawOnSavePartyPayment?.(...args);
+  const onDeletePartyPayment = (...args: any[]) => checkDeletePermission() && rawOnDeletePartyPayment?.(...args);
+  const onSavePaymentRequest = (...args: any[]) => checkEditPermission() && rawOnSavePaymentRequest?.(...args);
+  const onSaveAllowance = (...args: any[]) => checkEditPermission() && rawOnSaveAllowance?.(...args);
+  const onUpdatePaymentRequest = (...args: any[]) => checkEditPermission() && rawOnUpdatePaymentRequest?.(...args);
+  const onUpdateAllowance = (...args: any[]) => checkEditPermission() && rawOnUpdateAllowance?.(...args);
+  const onDeletePaymentRequest = (...args: any[]) => checkDeletePermission() && rawOnDeletePaymentRequest?.(...args);
+  const onDeleteAllowance = (...args: any[]) => checkDeletePermission() && rawOnDeleteAllowance?.(...args);
+  const onSaveTalim = (...args: any[]) => checkEditPermission() && rawOnSaveTalim?.(...args);
+  const onDeleteTalim = (...args: any[]) => checkDeletePermission() && rawOnDeleteTalim?.(...args);
+  const onSaveKarmachariTalimRecord = (...args: any[]) => checkEditPermission() && rawOnSaveKarmachariTalimRecord?.(...args);
+  const onDeleteKarmachariTalimRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteKarmachariTalimRecord?.(...args);
+  const onApproveStockEntry = (...args: any[]) => checkEditPermission() && rawOnApproveStockEntry?.(...args);
+  const onRejectStockEntry = (...args: any[]) => checkEditPermission() && rawOnRejectStockEntry?.(...args);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadConferenceCount, setUnreadConferenceCount] = useState(0);

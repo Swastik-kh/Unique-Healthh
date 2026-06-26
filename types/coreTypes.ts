@@ -51,6 +51,8 @@ export interface User {
   canDeleteBilling?: boolean;
   canEditBilling?: boolean;
   canDeleteAmbulance?: boolean;
+  editAccessMenus?: string[];
+  deleteAccessMenus?: string[];
 }
 
 export interface WardConfig {

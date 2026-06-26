@@ -213,6 +213,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     organizationName: string;
     role: UserRole;
     allowedMenus: string[];
+    editAccessMenus: string[];
+    deleteAccessMenus: string[];
     serviceType: 'Permanent' | 'Temporary' | 'Contract';
     hasSaveAccess: boolean;
     canDeleteBilling: boolean;
@@ -229,6 +231,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
     allowedMenus: [],
+    editAccessMenus: [],
+    deleteAccessMenus: [],
     serviceType: 'Permanent',
     hasSaveAccess: true,
     canDeleteBilling: false,
@@ -281,6 +285,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
         allowedMenus: [],
+        editAccessMenus: [],
+        deleteAccessMenus: [],
         serviceType: 'Permanent',
         hasSaveAccess: true,
         canDeleteBilling: false,
@@ -301,6 +307,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           organizationName: user.organizationName,
           role: user.role,
           allowedMenus: user.allowedMenus || [],
+          editAccessMenus: user.editAccessMenus || [],
+          deleteAccessMenus: user.deleteAccessMenus || [],
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
           canDeleteBilling: user.canDeleteBilling ?? false,
@@ -325,6 +333,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       });
   };
 
+  const toggleEditPermission = (menuId: string) => {
+      setFormData(prev => {
+          const current = prev.editAccessMenus || [];
+          if (current.includes(menuId)) {
+              return { ...prev, editAccessMenus: current.filter(id => id !== menuId) };
+          } else {
+              return { ...prev, editAccessMenus: [...current, menuId] };
+          }
+      });
+  };
+
+  const toggleDeletePermission = (menuId: string) => {
+      setFormData(prev => {
+          const current = prev.deleteAccessMenus || [];
+          if (current.includes(menuId)) {
+              return { ...prev, deleteAccessMenus: current.filter(id => id !== menuId) };
+          } else {
+              return { ...prev, deleteAccessMenus: [...current, menuId] };
+          }
+      });
+  };
+
   const flattenDescendantIds = (item: any): string[] => {
     if (!item.children) return [item.id];
     return [item.id, ...item.children.flatMap((child: any) => flattenDescendantIds(child))];
@@ -344,10 +374,45 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       });
   };
 
+  const toggleParentEditPermission = (parentId: string, groupChildren: any[]) => {
+      setFormData(prev => {
+          let newMenus = [...(prev.editAccessMenus || [])];
+          const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
+          const isParentCurrentlyChecked = newMenus.includes(parentId) && allDescendantIds.every(id => newMenus.includes(id));
+          if (isParentCurrentlyChecked) {
+              newMenus = newMenus.filter(id => id !== parentId && !allDescendantIds.includes(id));
+          } else {
+              newMenus = Array.from(new Set([...newMenus, parentId, ...allDescendantIds]));
+          }
+          return { ...prev, editAccessMenus: newMenus };
+      });
+  };
+
+  const toggleParentDeletePermission = (parentId: string, groupChildren: any[]) => {
+      setFormData(prev => {
+          let newMenus = [...(prev.deleteAccessMenus || [])];
+          const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
+          const isParentCurrentlyChecked = newMenus.includes(parentId) && allDescendantIds.every(id => newMenus.includes(id));
+          if (isParentCurrentlyChecked) {
+              newMenus = newMenus.filter(id => id !== parentId && !allDescendantIds.includes(id));
+          } else {
+              newMenus = Array.from(new Set([...newMenus, parentId, ...allDescendantIds]));
+          }
+          return { ...prev, deleteAccessMenus: newMenus };
+      });
+  };
+
   const renderPermissionGroup = (group: any, level: number = 0) => {
     const allDescendantIds = group.children ? group.children.flatMap((child: any) => flattenDescendantIds(child)) : [];
+    
     const isParentChecked = formData.allowedMenus.includes(group.id) && allDescendantIds.every(id => formData.allowedMenus.includes(id));
     const someChildrenChecked = allDescendantIds.some(id => formData.allowedMenus.includes(id)) && !isParentChecked;
+
+    const isParentEditChecked = (formData.editAccessMenus || []).includes(group.id) && allDescendantIds.every(id => (formData.editAccessMenus || []).includes(id));
+    const someChildrenEditChecked = allDescendantIds.some(id => (formData.editAccessMenus || []).includes(id)) && !isParentEditChecked;
+
+    const isParentDeleteChecked = (formData.deleteAccessMenus || []).includes(group.id) && allDescendantIds.every(id => (formData.deleteAccessMenus || []).includes(id));
+    const someChildrenDeleteChecked = allDescendantIds.some(id => (formData.deleteAccessMenus || []).includes(id)) && !isParentDeleteChecked;
 
     return (
         <div key={group.id} className={`${level > 0 ? 'ml-4 border-l border-slate-200' : ''}`}>
@@ -360,7 +425,47 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     )}
                     <div onClick={() => toggleParentPermission(group.id, group.children || [])} className="flex items-center gap-2 cursor-pointer">
                         <div className={isParentChecked ? 'text-primary-600' : 'text-slate-300'}>{isParentChecked ? <CheckSquare size={18} /> : (someChildrenChecked ? <div className="w-[18px] h-[18px] bg-primary-100 border-2 border-primary-600 rounded flex items-center justify-center"><div className="w-2 h-2 bg-primary-600 rounded-sm"></div></div> : <Square size={18} />)}</div>
-                        <span className="font-medium text-slate-700 text-sm">{group.label}</span>
+                        <span className="font-medium text-slate-700 text-sm font-nepali">{group.label}</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-6 pr-2">
+                    {/* EDIT CHECKBOX */}
+                    <div 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (group.children && group.children.length > 0) {
+                                toggleParentEditPermission(group.id, group.children);
+                            } else {
+                                toggleEditPermission(group.id);
+                            }
+                        }} 
+                        className="flex items-center gap-1.5 cursor-pointer text-slate-500 hover:text-amber-600 transition-colors"
+                        title="सम्पादन/सुरक्षित अधिकार (Edit/Save Access)"
+                    >
+                        <div className={isParentEditChecked ? 'text-amber-600' : 'text-slate-300'}>
+                            {isParentEditChecked ? <CheckSquare size={18} /> : (someChildrenEditChecked ? <div className="w-[18px] h-[18px] bg-amber-100 border-2 border-amber-600 rounded flex items-center justify-center"><div className="w-2 h-2 bg-amber-600 rounded-sm"></div></div> : <Square size={18} />)}
+                        </div>
+                        <Pencil size={14} className="text-slate-400" />
+                    </div>
+
+                    {/* DELETE CHECKBOX */}
+                    <div 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (group.children && group.children.length > 0) {
+                                toggleParentDeletePermission(group.id, group.children);
+                            } else {
+                                toggleDeletePermission(group.id);
+                            }
+                        }} 
+                        className="flex items-center gap-1.5 cursor-pointer text-slate-500 hover:text-rose-600 transition-colors"
+                        title="मेटाउने अधिकार (Delete Access)"
+                    >
+                        <div className={isParentDeleteChecked ? 'text-rose-600' : 'text-slate-300'}>
+                            {isParentDeleteChecked ? <CheckSquare size={18} /> : (someChildrenDeleteChecked ? <div className="w-[18px] h-[18px] bg-rose-100 border-2 border-rose-600 rounded flex items-center justify-center"><div className="w-2 h-2 bg-rose-600 rounded-sm"></div></div> : <Square size={18} />)}
+                        </div>
+                        <Trash2 size={14} className="text-slate-400" />
                     </div>
                 </div>
             </div>
@@ -368,10 +473,38 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <div className="bg-white">
                     {group.children.map((child: any) => (
                         child.children ? renderPermissionGroup(child, level + 1) : (
-                            <div key={child.id} onClick={() => togglePermission(child.id)} className="flex items-center gap-3 p-2 rounded hover:bg-slate-50 cursor-pointer ml-4">
-                                <div className="text-slate-300"><CornerDownRight size={14} /></div>
-                                <div className={formData.allowedMenus.includes(child.id) ? 'text-primary-600' : 'text-slate-300'}>{formData.allowedMenus.includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}</div>
-                                <span className={`text-sm ${formData.allowedMenus.includes(child.id) ? 'text-slate-800' : 'text-slate-500'}`}>{child.label}</span>
+                            <div key={child.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-50 ml-4 border-b border-slate-50">
+                                <div onClick={() => togglePermission(child.id)} className="flex items-center gap-3 cursor-pointer flex-1 py-1">
+                                    <div className="text-slate-300"><CornerDownRight size={14} /></div>
+                                    <div className={formData.allowedMenus.includes(child.id) ? 'text-primary-600' : 'text-slate-300'}>{formData.allowedMenus.includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}</div>
+                                    <span className={`text-sm ${formData.allowedMenus.includes(child.id) ? 'text-slate-800' : 'text-slate-500'} font-nepali`}>{child.label}</span>
+                                </div>
+                                
+                                <div className="flex items-center gap-6 pr-2">
+                                    {/* Edit Checkbox for leaf child */}
+                                    <div 
+                                        onClick={() => toggleEditPermission(child.id)} 
+                                        className="flex items-center gap-1.5 cursor-pointer text-slate-500 hover:text-amber-600 transition-colors"
+                                        title="सम्पादन/सुरक्षित अधिकार (Edit/Save Access)"
+                                    >
+                                        <div className={(formData.editAccessMenus || []).includes(child.id) ? 'text-amber-600' : 'text-slate-300'}>
+                                            {(formData.editAccessMenus || []).includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                                        </div>
+                                        <Pencil size={14} className="text-slate-400" />
+                                    </div>
+
+                                    {/* Delete Checkbox for leaf child */}
+                                    <div 
+                                        onClick={() => toggleDeletePermission(child.id)} 
+                                        className="flex items-center gap-1.5 cursor-pointer text-slate-500 hover:text-rose-600 transition-colors"
+                                        title="मेटाउने अधिकार (Delete Access)"
+                                    >
+                                        <div className={(formData.deleteAccessMenus || []).includes(child.id) ? 'text-rose-600' : 'text-slate-300'}>
+                                            {(formData.deleteAccessMenus || []).includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                                        </div>
+                                        <Trash2 size={14} className="text-slate-400" />
+                                    </div>
+                                </div>
                             </div>
                         )
                     ))}
@@ -409,6 +542,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         phoneNumber: formData.phoneNumber.trim(), 
         organizationName: formData.organizationName.trim(),
         allowedMenus: finalMenus,
+        editAccessMenus: Array.from(new Set([...formData.editAccessMenus])),
+        deleteAccessMenus: Array.from(new Set([...formData.deleteAccessMenus])),
         serviceType: formData.serviceType,
         hasSaveAccess: formData.hasSaveAccess,
         canDeleteBilling: formData.canDeleteBilling,
