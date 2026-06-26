@@ -56,9 +56,15 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
     setIsCheckingIp(true);
     try {
         const res = await axios.get('/api/debug/ip');
-        setOutboundIp(res.data.outboundIp);
-    } catch (error) {
-        alert("सर्भर IP चेक गर्न सकिएन।");
+        if (res.data.outboundIp) {
+            setOutboundIp(res.data.outboundIp);
+        } else {
+            throw new Error("IP not found in response");
+        }
+    } catch (error: any) {
+        console.error("IP Check Error:", error);
+        const errMsg = error.response?.data?.details || error.message;
+        alert(`सर्भर IP चेक गर्न सकिएन: ${errMsg}`);
     } finally {
         setIsCheckingIp(false);
     }

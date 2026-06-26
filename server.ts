@@ -44,9 +44,21 @@ async function startServer() {
   // Debug endpoint to check outbound IP (for HIB Whitelisting)
   app.get("/api/debug/ip", async (req, res) => {
     try {
-      const response = await axios.get('https://api.ipify.org?format=json');
-      res.json({ outboundIp: response.data.ip, note: "Provide this IP to HIB for whitelisting." });
+      console.log("Checking outbound IP via ipify...");
+      let ip = '';
+      try {
+        const response = await axios.get('https://api.ipify.org?format=json', { timeout: 5000 });
+        ip = response.data.ip;
+      } catch (e) {
+        console.warn("ipify failed, trying icanhazip...");
+        const response = await axios.get('https://icanhazip.com', { timeout: 5000 });
+        ip = response.data.trim();
+      }
+      
+      console.log("Outbound IP detected:", ip);
+      res.json({ outboundIp: ip, note: "Provide this IP to HIB for whitelisting." });
     } catch (error: any) {
+      console.error("IP check failed:", error.message);
       res.status(500).json({ error: "Failed to fetch outbound IP", details: error.message });
     }
   });
