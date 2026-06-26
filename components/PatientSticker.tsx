@@ -28,6 +28,12 @@ export const PatientSticker: React.FC<PatientStickerProps> = ({ record }) => {
         <p style={{ margin: '2px 0' }}><strong>ID:</strong> {record.uniquePatientId}</p>
         <p style={{ margin: '2px 0' }}><strong>Reg No:</strong> {record.registrationNumber}</p>
         <p style={{ margin: '2px 0' }}><strong>Age/Gender:</strong> {record.age} / {record.gender}</p>
+        {record.paymentMode === 'HIB' && (
+          <>
+            <p style={{ margin: '2px 0' }}><strong>Ins No:</strong> {record.insuranceNo}</p>
+            {record.claimId && <p style={{ margin: '2px 0' }}><strong>Claim ID:</strong> {record.claimId}</p>}
+          </>
+        )}
         <p style={{ margin: '2px 0' }}><strong>Date:</strong> {(() => {
           const dateStr = record.date || '';
           const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];

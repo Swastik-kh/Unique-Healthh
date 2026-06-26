@@ -54,6 +54,12 @@ export const PrescriptionPrint: React.FC<PrescriptionPrintProps> = ({ record, ge
           <div>
             <div><strong>Name:</strong> {record.name}</div>
             <div><strong>Age/Gender:</strong> {record.age} / {record.gender}</div>
+            {record.paymentMode === 'HIB' && (
+              <>
+                <div><strong>Insurance No:</strong> {record.insuranceNo}</div>
+                {record.claimId && <div><strong>Claim ID:</strong> {record.claimId}</div>}
+              </>
+            )}
             <div><strong>ID:</strong> {record.uniquePatientId} {record.mulDartaNo && `| Mul Darta No: ${record.mulDartaNo}`}</div>
             <div><strong>Address:</strong> {record.address || 'N/A'}</div>
           </div>

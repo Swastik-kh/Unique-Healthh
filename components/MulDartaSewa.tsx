@@ -1143,6 +1143,12 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                               <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">बीमा नम्बर (Policy No)</label>
                               <p className="text-sm font-black text-emerald-700 font-mono tracking-widest bg-emerald-50 px-2 py-0.5 rounded inline-block">{formData.insuranceNo || 'N/A'}</p>
                             </div>
+                            {formData.claimId && (
+                              <div className="space-y-0.5 mt-1">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">क्लेम आइडी (Claim ID)</label>
+                                <p className="text-sm font-black text-indigo-600 font-mono">{formData.claimId}</p>
+                              </div>
+                            )}
                             {hibPatientBalance !== null && (
                               <div className="space-y-0.5 mt-1">
                                 <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider">बाँकी रकम (Remaining Balance)</label>

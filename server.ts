@@ -11,23 +11,31 @@ async function startServer() {
 
   // HIB Helper to get auth header
   const getHIBAuth = (req: express.Request) => {
-    const username = (req.headers['x-hib-username'] as string) || process.env.HIB_USERNAME || 'testuser';
-    const password = (req.headers['x-hib-password'] as string) || process.env.HIB_PASSWORD || 'f/\\N6k@67';
+    const headerUser = req.headers['x-hib-username'] as string;
+    const headerPass = req.headers['x-hib-password'] as string;
+    const username = (headerUser && headerUser.trim() !== '') ? headerUser : (process.env.HIB_USERNAME || 'testuser');
+    const password = (headerPass && headerPass.trim() !== '') ? headerPass : (process.env.HIB_PASSWORD || 'f/\\N6k@67');
     return Buffer.from(`${username}:${password}`).toString('base64');
   };
 
   const getHIBHeaders = (req: express.Request) => {
+    const remoteUserHeader = req.headers['x-hib-remote-user'] as string;
+    const remoteUser = (remoteUserHeader && remoteUserHeader.trim() !== '') ? remoteUserHeader : (process.env.HIB_REMOTE_USER || 'hib_testuser_testfhir');
+    
     const headers: any = {
       'Authorization': `Basic ${getHIBAuth(req)}`,
-      'remote-user': (req.headers['x-hib-remote-user'] as string) || process.env.HIB_REMOTE_USER || 'hib_testuser_testfhir',
+      'remote-user': remoteUser,
       'Content-Type': 'application/json'
     };
 
-    if (req.headers['x-hib-partner-id']) {
-      headers['partner-id'] = req.headers['x-hib-partner-id'];
+    const partnerId = req.headers['x-hib-partner-id'] as string;
+    const locationId = req.headers['x-hib-location-id'] as string;
+
+    if (partnerId && partnerId.trim() !== '') {
+      headers['partner-id'] = partnerId;
     }
-    if (req.headers['x-hib-location-id']) {
-      headers['location-id'] = req.headers['x-hib-location-id'];
+    if (locationId && locationId.trim() !== '') {
+      headers['location-id'] = locationId;
     }
 
     return headers;
@@ -38,13 +46,35 @@ async function startServer() {
     try {
       const { id } = req.params;
       const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
+      
       const response = await axios.get(`${baseUrl}api/api_fhir/Patient/?identifier=${id}`, {
-        headers: getHIBHeaders(req)
+        headers: getHIBHeaders(req),
+        validateStatus: () => true
       });
-      res.json(response.data);
+
+      // If we get an HTML response (likely an error page or redirect), return error
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html')) {
+        console.error("HIB Patient Search returned HTML for ID:", id);
+        return res.status(response.status || 500).json({ 
+          error: "HIB Server returned an error page instead of patient data.",
+          status: response.status
+        });
+      }
+
+      res.status(response.status).json(response.data);
     } catch (error: any) {
-      console.error("HIB Patient Search Error:", error.response?.data || error.message);
-      res.status(error.response?.status || 500).json(error.response?.data || { error: "Failed to search patient" });
+      const errorData = error.response?.data;
+      const status = error.response?.status || 500;
+      console.error(`HIB Patient Search Error [${status}]:`, errorData || error.message);
+      
+      if (typeof errorData === 'string' && errorData.includes('<!DOCTYPE html')) {
+        return res.status(status).json({ 
+          error: "HIB Server returned an error page. Authentication failed or IP not whitelisted.",
+          details: "HTML response received"
+        });
+      }
+
+      res.status(status).json(errorData || { error: "Failed to search patient" });
     }
   });
 
@@ -57,9 +87,13 @@ async function startServer() {
         validateStatus: () => true // Handle all status codes
       });
       
-      // If we get an HTML response (likely an error page or redirect), return empty bundle
+      // If we get an HTML response (likely an error page or redirect), return empty bundle or error
       if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html')) {
         console.error("HIB Coverage returned HTML instead of FHIR bundle for ID:", id);
+        // If it's a 401/403, it's an auth error
+        if (response.status === 401 || response.status === 403) {
+          return res.status(response.status).json({ error: "HIB Authentication Failed. Please check your credentials." });
+        }
         return res.json({ resourceType: "Bundle", entry: [] });
       }
       
