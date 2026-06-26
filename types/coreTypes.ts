@@ -342,6 +342,7 @@ export interface ServiceSeekerRecord {
   visitType: 'New' | 'Follow-up'; // New or Follow-up
   paymentMode?: 'Cash' | 'HIB' | 'Free'; // Added for HIB auto-fill support
   insuranceNo?: string; // Added for HIB auto-fill support
+  claimId?: string; // Added for HIB claim support
   serviceFee?: number; // Added field
   weight?: number;
   height?: number;

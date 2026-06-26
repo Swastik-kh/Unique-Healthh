@@ -45,6 +45,7 @@ const initialFormData: Omit<ServiceSeekerRecord, 'id' | 'fiscalYear'> = {
   visitType: 'New',
   paymentMode: 'Cash',
   insuranceNo: '',
+  claimId: '',
   serviceFee: 0,
   remarks: '',
 };
@@ -833,41 +834,50 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                 </div>
 
                 {formData.paymentMode === 'HIB' && (
-                  <Input 
-                    label="बीमा नम्बर (Insurance No) *" 
-                    name="insuranceNo" 
-                    value={formData.insuranceNo || ''} 
-                    onChange={handleChange} 
-                    required 
-                    placeholder="उदा: 740500036"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSearchHIBPatient();
+                  <>
+                    <Input 
+                      label="बीमा नम्बर (Insurance No) *" 
+                      name="insuranceNo" 
+                      value={formData.insuranceNo || ''} 
+                      onChange={handleChange} 
+                      required 
+                      placeholder="उदा: 740500036"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearchHIBPatient();
+                        }
+                      }}
+                      suffix={
+                        <div className="flex items-center gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => handleSearchHIBPatient()}
+                            disabled={isSearchingHIB}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                            title="Search IMIS"
+                          >
+                            {isSearchingHIB ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setIsScanningQR(true)}
+                            className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors"
+                            title="Scan QR Code"
+                          >
+                            <QrCode size={16} />
+                          </button>
+                        </div>
                       }
-                    }}
-                    suffix={
-                      <div className="flex items-center gap-1">
-                        <button 
-                          type="button"
-                          onClick={() => handleSearchHIBPatient()}
-                          disabled={isSearchingHIB}
-                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                          title="Search IMIS"
-                        >
-                          {isSearchingHIB ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setIsScanningQR(true)}
-                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors"
-                          title="Scan QR Code"
-                        >
-                          <QrCode size={16} />
-                        </button>
-                      </div>
-                    }
-                  />
+                    />
+                    <Input 
+                      label="क्लेम आइडी (Claim ID)" 
+                      name="claimId" 
+                      value={formData.claimId || ''} 
+                      onChange={handleChange} 
+                      placeholder="Claim ID प्रविष्ट गर्नुहोस्"
+                    />
+                  </>
                 )}
 
                 <Input 
