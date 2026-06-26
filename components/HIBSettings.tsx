@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Globe, Lock, User, ShieldCheck, Database, MapPin, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Save, Globe, Lock, User, ShieldCheck, Database, MapPin, CheckCircle2, RotateCcw, Info, RefreshCw } from 'lucide-react';
 import { Input } from './Input';
 import { OrganizationSettings, User as UserType } from '../types/coreTypes';
+import axios from 'axios';
 
 interface HIBSettingsProps {
     currentUser: UserType;
@@ -12,6 +13,8 @@ interface HIBSettingsProps {
 export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings, onUpdateSettings }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
+  const [outboundIp, setOutboundIp] = useState<string | null>(null);
+  const [isCheckingIp, setIsCheckingIp] = useState(false);
 
   // Security Guard: Admin and Super Admin only (or those with specific permission if we add it)
   const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.allowedMenus?.includes('hib_settings');
@@ -49,6 +52,18 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
     }
   };
 
+  const handleCheckIp = async () => {
+    setIsCheckingIp(true);
+    try {
+        const res = await axios.get('/api/debug/ip');
+        setOutboundIp(res.data.outboundIp);
+    } catch (error) {
+        alert("सर्भर IP चेक गर्न सकिएन।");
+    } finally {
+        setIsCheckingIp(false);
+    }
+  };
+
   const fillTestData = () => {
     setLocalSettings(prev => ({
         ...prev,
@@ -72,14 +87,35 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
             <p className="text-sm text-slate-500">स्वास्थ्य बीमा बोर्ड (HIB) API को कन्फिगरेसन व्यवस्थापन गर्नुहोस्</p>
             </div>
         </div>
-        <button 
-            type="button" 
-            onClick={fillTestData}
-            className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
-        >
-            Fill Test Credentials
-        </button>
+        <div className="flex gap-2">
+            <button 
+                type="button"
+                onClick={handleCheckIp}
+                disabled={isCheckingIp}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+                {isCheckingIp ? <RefreshCw size={14} className="animate-spin" /> : <Globe size={14} />}
+                Check Server IP
+            </button>
+            <button 
+                type="button" 
+                onClick={fillTestData}
+                className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+            >
+                Fill Test Credentials
+            </button>
+        </div>
       </div>
+
+      {outboundIp && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 animate-in zoom-in-95">
+            <Info className="text-emerald-600 shrink-0 mt-0.5" size={20} />
+            <div>
+                <p className="text-sm font-bold text-emerald-900 font-nepali">तपाइँको सर्भरको IP: <code className="bg-emerald-100 px-2 py-0.5 rounded ml-1 font-mono">{outboundIp}</code></p>
+                <p className="text-xs text-emerald-700 mt-1">HIB प्रणालीमा यो IP लाई **Whitelist** गर्न अनुरोध गर्नुहोस्।</p>
+            </div>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="max-w-4xl space-y-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">

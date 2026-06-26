@@ -41,6 +41,16 @@ async function startServer() {
     return headers;
   };
 
+  // Debug endpoint to check outbound IP (for HIB Whitelisting)
+  app.get("/api/debug/ip", async (req, res) => {
+    try {
+      const response = await axios.get('https://api.ipify.org?format=json');
+      res.json({ outboundIp: response.data.ip, note: "Provide this IP to HIB for whitelisting." });
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch outbound IP", details: error.message });
+    }
+  });
+
   // HIB API Routes
   app.get("/api/hib/patient/:id", async (req, res) => {
     try {
@@ -50,17 +60,18 @@ async function startServer() {
         baseUrl = process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
       }
       
-      // Sanitize baseUrl: remove trailing slash if present
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
-      
       // Ensure protocol
       if (!baseUrl.startsWith('http')) {
         baseUrl = `https://${baseUrl}`;
       }
+
+      // Sanitize baseUrl: remove trailing slash if present for consistent joining
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
       
-      const targetUrl = `${baseUrl}/api/api_fhir/Patient?identifier=${id}`;
+      // Note: Some HIB endpoints are sensitive to trailing slashes before query params
+      const targetUrl = `${baseUrl}/api/api_fhir/Patient/?identifier=${id}`;
       console.log(`HIB Search URL: ${targetUrl}`);
       
       const response = await axios.get(targetUrl, {
@@ -109,15 +120,15 @@ async function startServer() {
         baseUrl = process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
       }
       
-      if (baseUrl.endsWith('/')) {
-        baseUrl = baseUrl.slice(0, -1);
-      }
-
       if (!baseUrl.startsWith('http')) {
         baseUrl = `https://${baseUrl}`;
       }
 
-      const targetUrl = `${baseUrl}/api/api_fhir/Coverage?identifier=${id}`;
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+
+      const targetUrl = `${baseUrl}/api/api_fhir/Coverage/?identifier=${id}`;
       
       const response = await axios.get(targetUrl, {
         headers: getHIBHeaders(req),
