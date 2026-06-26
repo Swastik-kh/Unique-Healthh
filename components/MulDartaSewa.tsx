@@ -535,6 +535,9 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           errorMsg = typeof error.response.data.error === 'object' 
             ? JSON.stringify(error.response.data.error) 
             : error.response.data.error;
+          if (error.response.data.details) {
+            errorMsg += ` (${error.response.data.details})`;
+          }
         } else if (error.response.data.issue) {
           // Handle FHIR OperationOutcome issues
           errorMsg = error.response.data.issue.map((i: any) => i.diagnostics || i.details?.text).join(', ');
@@ -542,7 +545,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           errorMsg = JSON.stringify(error.response.data);
         }
       }
-      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + errorMsg);
+      alert("बीमा बिरामी खोज्दा त्रुटि भयो: " + errorMsg + (error.response?.status === 404 ? "\n(API URL मिलेन वा बिरामी फेला परेन)" : ""));
     } finally {
       setIsSearchingHIB(false);
     }

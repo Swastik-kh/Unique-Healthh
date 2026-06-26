@@ -45,9 +45,17 @@ async function startServer() {
   app.get("/api/hib/patient/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
+      let baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
       
-      const response = await axios.get(`${baseUrl}api/api_fhir/Patient/?identifier=${id}`, {
+      // Sanitize baseUrl: remove trailing slash if present
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+      
+      const targetUrl = `${baseUrl}/api/api_fhir/Patient/?identifier=${id}`;
+      console.log(`HIB Search URL: ${targetUrl}`);
+      
+      const response = await axios.get(targetUrl, {
         headers: getHIBHeaders(req),
         validateStatus: () => true
       });
@@ -57,7 +65,8 @@ async function startServer() {
         console.error("HIB Patient Search returned HTML for ID:", id);
         return res.status(response.status || 500).json({ 
           error: "HIB Server returned an error page instead of patient data.",
-          status: response.status
+          status: response.status,
+          url: targetUrl
         });
       }
 
@@ -81,8 +90,15 @@ async function startServer() {
   app.get("/api/hib/coverage/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
-      const response = await axios.get(`${baseUrl}api/api_fhir/Coverage/?identifier=${id}`, {
+      let baseUrl = (req.headers['x-hib-base-url'] as string) || process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
+      
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+
+      const targetUrl = `${baseUrl}/api/api_fhir/Coverage/?identifier=${id}`;
+      
+      const response = await axios.get(targetUrl, {
         headers: getHIBHeaders(req),
         validateStatus: () => true // Handle all status codes
       });

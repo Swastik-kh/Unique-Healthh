@@ -92,9 +92,10 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
                     label="HIB API Base URL" 
                     value={localSettings.hibBaseUrl || ''} 
                     onChange={(e) => handleChange('hibBaseUrl', e.target.value)} 
-                    placeholder="https://imislegacy.hib.gov.np/"
+                    placeholder="उदा: https://imislegacy.hib.gov.np"
                     icon={<Globe size={16} />}
                 />
+                <p className="text-[10px] text-slate-400 -mt-5 ml-10">युआरएलको अन्त्यमा स्ल्याश (/) राख्न जरुरी छैन (उदा: https://imislegacy.hib.gov.np)</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
