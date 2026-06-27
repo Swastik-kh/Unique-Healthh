@@ -190,6 +190,50 @@ async function startServer() {
     }
   });
 
+  app.get("/api/hib/claim/search", async (req, res) => {
+    try {
+      const { chfid, date_claimed } = req.query;
+      if (!chfid || !date_claimed) {
+        return res.status(400).json({ error: "chfid and date_claimed are required query parameters" });
+      }
+
+      let baseUrl = (req.headers['x-hib-base-url'] as string);
+      if (!baseUrl || baseUrl === 'undefined' || baseUrl.trim() === '') {
+        baseUrl = process.env.HIB_BASE_URL || 'https://imislegacy.hib.gov.np/';
+      }
+      
+      if (!baseUrl.startsWith('http')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.slice(0, -1);
+      }
+
+      const targetUrl = `${baseUrl}/api/api_fhir/claim/code/search/?chfid=${chfid}&date_claimed=${date_claimed}`;
+      console.log(`HIB Claim Search URL: ${targetUrl}`);
+
+      const response = await axios.get(targetUrl, {
+        headers: getHIBHeaders(req),
+        validateStatus: () => true
+      });
+
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html')) {
+        console.error("HIB Claim Search returned HTML for chfid:", chfid);
+        return res.status(response.status || 500).json({
+          error: "HIB Server returned an error page instead of search data.",
+          status: response.status,
+          url: targetUrl
+        });
+      }
+
+      res.status(response.status).json(response.data);
+    } catch (error: any) {
+      console.error("HIB Claim Search Error:", error.response?.data || error.message);
+      res.status(error.response?.status || 500).json(error.response?.data || { error: "Failed to search claim code" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

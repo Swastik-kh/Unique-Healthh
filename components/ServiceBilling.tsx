@@ -89,6 +89,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [claimCode, setClaimCode] = useState('');
   const [claimStatus, setClaimStatus] = useState<'Draft' | 'Submitted' | 'Verified' | 'Error'>('Draft');
   const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
+  const [isFetchingClaimCode, setIsFetchingClaimCode] = useState(false);
   const [isSearchingHIB, setIsSearchingHIB] = useState(false);
   const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
   const [hibPatient, setHibPatient] = useState<any>(null);
@@ -265,13 +266,40 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       setBillingItems([]);
       setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
       setDiscount('');
-      setPaymentMode('Cash');
-      setInsuranceNo('');
-      setClaimCode('');
-      setClaimStatus('Draft');
+      const isHib = patient.paymentMode === 'HIB';
+      setPaymentMode(isHib ? 'Bima' : 'Cash');
+      const insNo = isHib ? (patient.insuranceNo || '') : '';
+      setInsuranceNo(insNo);
+      setClaimCode(isHib ? (patient.claimId || '') : '');
+      setClaimStatus(isHib && patient.claimId ? 'Submitted' : 'Draft');
       setFhirResponseLog('');
       setShowFhirLogModal(false);
       setCurrentBill(null);
+
+      if (isHib && insNo) {
+        // Silently fetch HIB patient FHIR resource to populate hibPatient state
+        (async () => {
+          try {
+            const headers = {
+              'x-hib-base-url': generalSettings?.hibBaseUrl,
+              'x-hib-username': generalSettings?.hibUsername,
+              'x-hib-password': generalSettings?.hibPassword,
+              'x-hib-remote-user': generalSettings?.hibRemoteUser,
+              'x-hib-partner-id': generalSettings?.hibPartnerId,
+              'x-hib-location-id': generalSettings?.hibLocationId
+            };
+            const res = await axios.get(`/api/hib/patient/${insNo.trim()}`, { headers });
+            const bundle = res.data;
+            if (bundle.entry && bundle.entry.length > 0) {
+              setHibPatient(bundle.entry[0].resource);
+            }
+          } catch (err) {
+            console.error("Silent HIB patient fetch failed:", err);
+          }
+        })();
+      } else {
+        setHibPatient(null);
+      }
     } else {
       alert('बिरामी भेटिएन (Patient not found)');
       setCurrentPatient(null);
@@ -620,7 +648,21 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             },
             use: "usual",
             value: uuid
-          }
+          },
+          ...(claimCode ? [
+            {
+              type: {
+                coding: [
+                  {
+                    code: "MR",
+                    system: "https://hl7.org/fhir/valueset-identifier-type.html"
+                  }
+                ]
+              },
+              use: "usual",
+              value: claimCode
+            }
+          ] : [])
         ],
         item: billingItems.map((item, index) => ({
           category: {
@@ -656,7 +698,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
       // Extract claim code (MR)
       const mrIdentifier = claimResponse.identifier?.find((ident: any) => 
-        ident.type?.coding?.some((c: any) => c.code === "MR")
+        ident.type?.coding?.[0]?.code === "MR" || ident.type?.coding?.some((c: any) => c.code === "MR")
       );
 
       if (mrIdentifier) {
@@ -673,6 +715,83 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       alert("बीमा दावी गर्दा त्रुटि आइपर्‍यो: " + (e.response?.data?.error || e.message));
     } finally {
       setIsSubmittingClaim(false);
+    }
+  };
+
+  const handleFetchClaimCode = async () => {
+    if (!insuranceNo.trim()) {
+      alert("कृपया पहिले बीमा नम्बर (Insurance No) प्रविष्ट गर्नुहोस्।");
+      return;
+    }
+
+    setIsFetchingClaimCode(true);
+    try {
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+
+      // Convert today's NepaliDate to AD Date
+      const todayNd = new NepaliDate();
+      const jsDate = todayNd.toJsDate();
+      const year = jsDate.getFullYear();
+      const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+      const day = String(jsDate.getDate()).padStart(2, '0');
+      const dateAd = `${year}-${month}-${day}`;
+
+      const res = await axios.get(`/api/hib/claim/search?chfid=${insuranceNo.trim()}&date_claimed=${dateAd}`, { headers });
+      const searchData = res.data;
+      
+      let foundClaimCode = '';
+      
+      const extractMR = (resource: any) => {
+        if (!resource) return '';
+        const mrIdent = resource.identifier?.find((ident: any) => 
+          ident.type?.coding?.[0]?.code === "MR" || ident.type?.coding?.some((c: any) => c.code === "MR")
+        );
+        return mrIdent?.value || '';
+      };
+
+      if (searchData.resourceType === 'Bundle' && searchData.entry) {
+        for (const entry of searchData.entry) {
+          const code = extractMR(entry.resource);
+          if (code) {
+            foundClaimCode = code;
+            break;
+          }
+        }
+      } else if (Array.isArray(searchData)) {
+        for (const claim of searchData) {
+          const code = extractMR(claim);
+          if (code) {
+            foundClaimCode = code;
+            break;
+          }
+        }
+      } else {
+        foundClaimCode = extractMR(searchData);
+      }
+
+      if (foundClaimCode) {
+        setClaimCode(foundClaimCode);
+        setClaimStatus('Submitted');
+        alert(`दावी कोड (Claim Code) फेला पर्यो र सेट गरियो: ${foundClaimCode}`);
+      } else {
+        alert("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
+      }
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        alert("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
+      } else {
+        console.error("Error searching claim code:", e);
+        alert("दावी कोड खोज्दा त्रुटि भयो: " + (e.response?.data?.error || e.message));
+      }
+    } finally {
+      setIsFetchingClaimCode(false);
     }
   };
 
@@ -1594,7 +1713,19 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                          )}
 
                          <div>
-                           <label className="block text-[10px] font-bold text-slate-500 mb-1">दावी कोड (Claim Code - MR)</label>
+                           <div className="flex justify-between items-center mb-1">
+                            <span className="block text-[10px] font-bold text-slate-500">दावी कोड (Claim Code - MR)</span>
+                            <button
+                              type="button"
+                              onClick={handleFetchClaimCode}
+                              disabled={isFetchingClaimCode || !insuranceNo.trim()}
+                              className="px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 disabled:opacity-50 text-[9px] font-bold rounded border border-indigo-200 transition-all flex items-center gap-1"
+                              title="दावी कोड खोज्नुहोस्"
+                            >
+                              {isFetchingClaimCode ? <Loader2 size={10} className="animate-spin" /> : <Search size={10} />}
+                              Fetch (खोज्नुहोस्)
+                            </button>
+                          </div>
                            <input 
                              type="text" 
                              value={claimCode} 

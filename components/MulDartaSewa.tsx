@@ -69,7 +69,10 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
   const [formData, setFormData] = useState(initialFormData);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchingHIB, setIsSearchingHIB] = useState(false);
+  const [isSearchingClaimId, setIsSearchingClaimId] = useState(false);
   const [isScanningQR, setIsScanningQR] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hibPatient, setHibPatient] = useState<any>(null);
   const [hibPatientPhoto, setHibPatientPhoto] = useState<string | null>(null);
   const [hibPatientBalance, setHibPatientBalance] = useState<number | null>(null);
   const [ageUnit, setAgeUnit] = useState<'Days' | 'Months' | 'Years'>('Years');
@@ -470,6 +473,7 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
           autoAgeUnit = 'Months';
         }
         setAgeUnit(autoAgeUnit);
+        setHibPatient(patient);
 
         setFormData(prev => ({
           ...prev,
@@ -558,6 +562,98 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     }
   };
 
+  const handleSearchClaimId = async () => {
+    if (!formData.insuranceNo?.trim()) {
+      alert("कृपया पहिले बीमा नम्बर (Insurance No) प्रविष्ट गर्नुहोस्।");
+      return;
+    }
+
+    setIsSearchingClaimId(true);
+    try {
+      const headers = {
+        'x-hib-base-url': generalSettings?.hibBaseUrl,
+        'x-hib-username': generalSettings?.hibUsername,
+        'x-hib-password': generalSettings?.hibPassword,
+        'x-hib-remote-user': generalSettings?.hibRemoteUser,
+        'x-hib-partner-id': generalSettings?.hibPartnerId,
+        'x-hib-location-id': generalSettings?.hibLocationId
+      };
+
+      // Convert formData.date (BS) to AD Date
+      let dateAd = '';
+      if (formData.date) {
+        try {
+          const nd = new NepaliDate(formData.date);
+          const jsDate = nd.toJsDate();
+          const year = jsDate.getFullYear();
+          const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+          const day = String(jsDate.getDate()).padStart(2, '0');
+          dateAd = `${year}-${month}-${day}`;
+        } catch (e) {
+          console.error("Date conversion error", e);
+        }
+      }
+
+      if (!dateAd) {
+        const todayNd = new NepaliDate();
+        const jsDate = todayNd.toJsDate();
+        const year = jsDate.getFullYear();
+        const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jsDate.getDate()).padStart(2, '0');
+        dateAd = `${year}-${month}-${day}`;
+      }
+
+      const res = await axios.get(`/api/hib/claim/search?chfid=${formData.insuranceNo.trim()}&date_claimed=${dateAd}`, { headers });
+      const searchData = res.data;
+      
+      let foundClaimId = '';
+      
+      const extractMR = (resource: any) => {
+        if (!resource) return '';
+        const mrIdent = resource.identifier?.find((ident: any) => 
+          ident.type?.coding?.[0]?.code === "MR" || ident.type?.coding?.some((c: any) => c.code === "MR")
+        );
+        return mrIdent?.value || '';
+      };
+
+      if (searchData.resourceType === 'Bundle' && searchData.entry) {
+        for (const entry of searchData.entry) {
+          const code = extractMR(entry.resource);
+          if (code) {
+            foundClaimId = code;
+            break;
+          }
+        }
+      } else if (Array.isArray(searchData)) {
+        for (const claim of searchData) {
+          const code = extractMR(claim);
+          if (code) {
+            foundClaimId = code;
+            break;
+          }
+        }
+      } else {
+        foundClaimId = extractMR(searchData);
+      }
+
+      if (foundClaimId) {
+        setFormData(prev => ({ ...prev, claimId: foundClaimId }));
+        alert(`दावी कोड (Claim ID) फेला पर्यो र सेट गरियो: ${foundClaimId}`);
+      } else {
+        alert("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
+      }
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        alert("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
+      } else {
+        console.error("Error searching claim ID:", e);
+        alert("क्लेम आइडी खोज्दा त्रुटि भयो: " + (e.response?.data?.error || e.message));
+      }
+    } finally {
+      setIsSearchingClaimId(false);
+    }
+  };
+
   const handleDOBChange = (value: string) => {
     let dateAd = '';
     if (value) {
@@ -619,7 +715,27 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getHibCodeForServiceLocal = (name: string): string => {
+    const cleanName = (name || '').trim().toUpperCase();
+    if (cleanName.includes("LAB") || cleanName.includes("PCR") || cleanName.includes("CBC")) {
+      return "V05E2W";
+    }
+    if (cleanName.includes("X-RAY") || cleanName.includes("USG")) {
+      return "D5C0W";
+    }
+    if (cleanName.includes("OPD") || cleanName.includes("CONSULT") || cleanName === "OPD") {
+      return "SRV001";
+    }
+    if (cleanName.includes("ECG") || cleanName.includes("HEART")) {
+      return "SRV002";
+    }
+    if (cleanName.includes("EMERG") || cleanName.includes("BED") || cleanName === "EMERGENCY") {
+      return "SRV003";
+    }
+    return "SRV001"; // default OPD ticket code
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
@@ -641,6 +757,223 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
       ageString = `${formData.ageYears}Y ${formData.ageMonths}M`;
     }
 
+    setIsSaving(true);
+    let finalClaimId = formData.claimId || '';
+
+    try {
+      // HIB Integration Logic on Save
+      if (formData.paymentMode === 'HIB') {
+        if (!formData.insuranceNo?.trim()) {
+          alert("कृपया बीमा नम्बर (Insurance No) प्रविष्ट गर्नुहोस्।");
+          setIsSaving(false);
+          return;
+        }
+
+        const headers = {
+          'x-hib-base-url': generalSettings?.hibBaseUrl,
+          'x-hib-username': generalSettings?.hibUsername,
+          'x-hib-password': generalSettings?.hibPassword,
+          'x-hib-remote-user': generalSettings?.hibRemoteUser,
+          'x-hib-partner-id': generalSettings?.hibPartnerId,
+          'x-hib-location-id': generalSettings?.hibLocationId
+        };
+
+        // Get AD date for today/record
+        let dateAd = '';
+        if (formData.date) {
+          try {
+            const nd = new NepaliDate(formData.date);
+            const jsDate = nd.toJsDate();
+            const year = jsDate.getFullYear();
+            const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+            const day = String(jsDate.getDate()).padStart(2, '0');
+            dateAd = `${year}-${month}-${day}`;
+          } catch (err) {
+            console.error("Date conversion error", err);
+          }
+        }
+        if (!dateAd) {
+          const todayNd = new NepaliDate();
+          const jsDate = todayNd.toJsDate();
+          const year = jsDate.getFullYear();
+          const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+          const day = String(jsDate.getDate()).padStart(2, '0');
+          dateAd = `${year}-${month}-${day}`;
+        }
+
+        // 1. Check if we already have claimId or can find an existing one today on the HIB server
+        if (!finalClaimId) {
+          try {
+            const searchRes = await axios.get(`/api/hib/claim/search?chfid=${formData.insuranceNo.trim()}&date_claimed=${dateAd}`, { headers });
+            const searchData = searchRes.data;
+            
+            let foundClaimCode = '';
+            const extractMR = (resource: any) => {
+              if (!resource) return '';
+              const mrIdent = resource.identifier?.find((ident: any) => 
+                ident.type?.coding?.[0]?.code === "MR" || ident.type?.coding?.some((c: any) => c.code === "MR")
+              );
+              return mrIdent?.value || '';
+            };
+
+            if (searchData.resourceType === 'Bundle' && searchData.entry) {
+              for (const entry of searchData.entry) {
+                const code = extractMR(entry.resource);
+                if (code) { foundClaimCode = code; break; }
+              }
+            } else if (Array.isArray(searchData)) {
+              for (const claim of searchData) {
+                const code = extractMR(claim);
+                if (code) { foundClaimCode = code; break; }
+              }
+            } else {
+              foundClaimCode = extractMR(searchData);
+            }
+
+            if (foundClaimCode) {
+              finalClaimId = foundClaimCode;
+              alert(`बीमा प्रणालीमा आजको मितिमा पहिले नै दावी गरिएको कोड फेला पर्यो: ${finalClaimId}`);
+            }
+          } catch (searchErr: any) {
+            if (searchErr.response?.status === 404) {
+              console.log("No existing claim found on HIB server for today (404 status). Proceeding to create a new claim.");
+            } else {
+              console.error("Error checking existing claim on save:", searchErr);
+            }
+          }
+        }
+
+        // 2. If no claim ID was found, let's submit a claim payload to HIB server to auto-generate a new claim ID (MR)
+        if (!finalClaimId) {
+          let currentHibPatient = hibPatient;
+
+          // If we don't have the HIB patient resource ID, fetch it silently now
+          if (!currentHibPatient) {
+            try {
+              const patientRes = await axios.get(`/api/hib/patient/${formData.insuranceNo.trim()}`, { headers });
+              const bundle = patientRes.data;
+              if (bundle.entry && bundle.entry.length > 0) {
+                currentHibPatient = bundle.entry[0].resource;
+                setHibPatient(currentHibPatient);
+              }
+            } catch (patErr) {
+              console.error("Error fetching patient silently during save:", patErr);
+            }
+          }
+
+          if (!currentHibPatient) {
+            alert("बीमा प्रणालीमा यो नम्बरको बिरामी फेला परेन। कृपया बीमा नम्बर सही भएको निश्चित गर्नुहोस् र 'बीमा खोज्नुहोस्' बटन थिचेर बिरामीको विवरण तान्नहोस्।");
+            setIsSaving(false);
+            return;
+          }
+
+          // Create the claim payload
+          const uuid = crypto.randomUUID().toUpperCase();
+          const todayBs = formData.date || new NepaliDate().format('YYYY-MM-DD');
+          const claimPayload = {
+            resourceType: "Claim",
+            billablePeriod: {
+              start: todayBs,
+              end: todayBs
+            },
+            created: todayBs,
+            diagnosis: [
+              {
+                diagnosisCodeableConcept: {
+                  coding: [
+                    {
+                      code: "1A00" // Default code for test
+                    }
+                  ]
+                },
+                sequence: 1,
+                type: [
+                  {
+                    text: "icd_0"
+                  }
+                ]
+              }
+            ],
+            enterer: {
+              reference: `Practitioner/${generalSettings?.hibPartnerId || '7aa79c53-057e-4e77-8576-dfcfb03584a8'}`
+            },
+            facility: {
+              reference: `Location/${generalSettings?.hibLocationId || '1ac457d3-efd3-4a67-89b3-bf8cbe18045d'}`
+            },
+            id: uuid,
+            identifier: [
+              {
+                type: {
+                  coding: [
+                    {
+                      code: "ACSN",
+                      system: "https://hl7.org/fhir/valueset-identifier-type.html"
+                    }
+                  ]
+                },
+                use: "usual",
+                value: uuid
+              }
+            ],
+            item: [
+              {
+                category: {
+                  text: "service"
+                },
+                quantity: {
+                  value: 1
+                },
+                sequence: 1,
+                service: {
+                  text: getHibCodeForServiceLocal(formData.serviceType || 'OPD')
+                },
+                unitPrice: {
+                  value: Number(formData.serviceFee) || 100
+                }
+              }
+            ],
+            patient: {
+              reference: `Patient/${currentHibPatient.id}`
+            },
+            total: {
+              value: Number(formData.serviceFee) || 100
+            },
+            type: {
+              text: "O"
+            },
+            nmc: currentUser?.username || "1234",
+            careType: "O"
+          };
+
+          try {
+            console.log("Submitting Auto-Claim from MulDarta:", claimPayload);
+            const claimRes = await axios.post('/api/hib/claim', claimPayload, { headers });
+            const claimResponse = claimRes.data;
+
+            const mrIdentifier = claimResponse.identifier?.find((ident: any) => 
+              ident.type?.coding?.[0]?.code === "MR" || ident.type?.coding?.some((c: any) => c.code === "MR")
+            );
+
+            if (mrIdentifier?.value) {
+              finalClaimId = mrIdentifier.value;
+              alert(`बीमा प्रणालीमा दर्ताको दावी सफलतापूर्वक पेस भयो र दावी कोड (Claim Code MR) सिर्जना भयो: ${finalClaimId}`);
+            } else {
+              alert("बीमा दावी पेस भयो तर प्रतिक्रियामा दावी कोड (MR) प्राप्त भएन।");
+            }
+          } catch (claimErr: any) {
+            console.error("Auto claim submission error:", claimErr);
+            const confirmSave = window.confirm("बीमा प्रणालीमा दावी पेस गर्दा त्रुटि भयो। के दावी बिना नै दर्ता सुरक्षित गर्न चाहनुहुन्छ?\n\nत्रुटि: " + (claimErr.response?.data?.error || claimErr.message));
+            if (!confirmSave) {
+              setIsSaving(false);
+              return;
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error("General error during HIB save check:", e);
+    }
+
     // Calculate paloNo if it's a new record
     let finalPaloNo = formData.paloNo;
     if (!isEditing) {
@@ -655,12 +988,14 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
 
     const recordToSave: ServiceSeekerRecord = {
       ...formData,
+      claimId: finalClaimId,
       paloNo: finalPaloNo,
       age: ageString,
       id: isEditing || Date.now().toString(),
       fiscalYear: currentFiscalYear,
     };
     onSaveRecord(recordToSave);
+    setIsSaving(false);
     handleCloseForm();
   };
 
@@ -886,6 +1221,17 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                       value={formData.claimId || ''} 
                       onChange={handleChange} 
                       placeholder="Claim ID प्रविष्ट गर्नुहोस्"
+                      suffix={
+                        <button 
+                          type="button"
+                          onClick={() => handleSearchClaimId()}
+                          disabled={isSearchingClaimId}
+                          className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                          title="Search Claim ID"
+                        >
+                          {isSearchingClaimId ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                        </button>
+                      }
                     />
                   </>
                 )}
@@ -1082,8 +1428,21 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
                 </div>
                 
                 <div className="md:col-span-3 flex justify-end gap-4 pt-6 border-t border-slate-200 sticky bottom-0 bg-white pb-2">
-                  <button type="button" onClick={handleCloseForm} className="px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">रद्द</button>
-                  <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium shadow-sm hover:bg-primary-700 transition-colors">सुरक्षित गर्नुहोस्</button>
+                  <button type="button" onClick={handleCloseForm} disabled={isSaving} className="px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors disabled:opacity-50">रद्द</button>
+                  <button 
+                    type="submit" 
+                    disabled={isSaving}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium shadow-sm hover:bg-primary-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        दावी र सुरक्षित हुँदैछ...
+                      </>
+                    ) : (
+                      "सुरक्षित गर्नुहोस्"
+                    )}
+                  </button>
                 </div>
               </form>
 
