@@ -640,11 +640,11 @@ export const MulDartaSewa: React.FC<MulDartaSewaProps> = ({
         setFormData(prev => ({ ...prev, claimId: foundClaimId }));
         alert(`दावी कोड (Claim ID) फेला पर्यो र सेट गरियो: ${foundClaimId}`);
       } else {
-        alert("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
+        console.log("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
       }
     } catch (e: any) {
       if (e.response?.status === 404) {
-        alert("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
+        console.log("बीमा प्रणालीमा यो मितिको दावी कोड फेला परेन।");
       } else {
         console.error("Error searching claim ID:", e);
         alert("क्लेम आइडी खोज्दा त्रुटि भयो: " + (e.response?.data?.error || e.message));

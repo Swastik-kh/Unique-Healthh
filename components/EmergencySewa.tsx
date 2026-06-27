@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Siren, AlertTriangle, Activity, Volume2, VolumeX } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, User, Stethoscope, Pill, History, Siren, AlertTriangle, Activity, Volume2, VolumeX, Eye, Edit2 } from 'lucide-react';
 import { ServiceSeekerRecord, EmergencyRecord, PrescriptionItem, ServiceItem } from '../types/coreTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { Input } from './Input';
@@ -78,6 +78,93 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
   };
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
+
+  const isAdmin = useMemo(() => {
+    return currentUser?.role === 'admin' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  }, [currentUser]);
+
+  const isReadOnly = useMemo(() => {
+    return editingRecordId !== null && !isAdmin;
+  }, [editingRecordId, isAdmin]);
+
+  const filteredHistoryRecords = useMemo(() => {
+    const term = historySearchTerm.trim().toLowerCase();
+    if (!term) return emergencyRecords;
+
+    return emergencyRecords.filter(record => {
+      const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+      const nameMatch = patient?.name.toLowerCase().includes(term) || false;
+      const idMatch = record.uniquePatientId.toLowerCase().includes(term);
+      const regMatch = patient?.registrationNumber.toLowerCase().includes(term) || false;
+      const dateMatch = record.visitDate.includes(term);
+      const diagnosisMatch = record.diagnosis?.toLowerCase().includes(term) || false;
+      const complaintsMatch = record.chiefComplaints?.toLowerCase().includes(term) || false;
+
+      return nameMatch || idMatch || regMatch || dateMatch || diagnosisMatch || complaintsMatch;
+    });
+  }, [emergencyRecords, serviceSeekerRecords, historySearchTerm]);
+
+  const sortedHistoryRecords = useMemo(() => {
+    return [...filteredHistoryRecords].sort((a, b) => b.visitDate.localeCompare(a.visitDate) || b.id.localeCompare(a.id));
+  }, [filteredHistoryRecords]);
+
+  const handleLoadRecord = (record: EmergencyRecord, editMode: boolean) => {
+    const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+    if (!patient) {
+      alert('बिरामीको मुख्य विवरण फेला परेन। (Patient details not found)');
+      return;
+    }
+
+    if (editMode && !isAdmin) {
+      alert('यो रेकर्ड सम्पादन गर्ने अधिकार एडमिनलाई मात्र छ। (Only Admin is allowed to edit this record)');
+      return;
+    }
+
+    setCurrentPatient(patient);
+    setEmergencyData({
+      chiefComplaints: record.chiefComplaints,
+      diagnosis: record.diagnosis,
+      investigation: record.investigation,
+      emergencyPrescriptions: record.emergencyPrescriptions || [],
+      dischargePrescriptions: record.dischargePrescriptions || [],
+      advice: record.advice,
+      nextVisitDate: record.nextVisitDate,
+      triage: record.triage || 'Green',
+      vitals: record.vitals || { temp: '', bp: '', pulse: '', rr: '', spo2: '' }
+    });
+    setEmergencyPrescriptions(record.emergencyPrescriptions || []);
+    setDischargePrescriptions(record.dischargePrescriptions || []);
+    setEditingRecordId(record.id);
+
+    // Smooth scroll to top form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const printRecordDirectly = (record: EmergencyRecord) => {
+    const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+    if (!patient) return;
+    
+    setCurrentPatient(patient);
+    setEmergencyData({
+      chiefComplaints: record.chiefComplaints,
+      diagnosis: record.diagnosis,
+      investigation: record.investigation,
+      emergencyPrescriptions: record.emergencyPrescriptions || [],
+      dischargePrescriptions: record.dischargePrescriptions || [],
+      advice: record.advice,
+      nextVisitDate: record.nextVisitDate,
+      triage: record.triage || 'Green',
+      vitals: record.vitals || { temp: '', bp: '', pulse: '', rr: '', spo2: '' }
+    });
+    setEmergencyPrescriptions(record.emergencyPrescriptions || []);
+    setDischargePrescriptions(record.dischargePrescriptions || []);
+    setEditingRecordId(record.id);
+
+    setTimeout(() => {
+      handlePrint();
+    }, 150);
+  };
 
   const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
 
@@ -452,6 +539,13 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
                 </span>
               </div>
 
+              {isReadOnly && (
+                <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs flex items-center gap-2 font-semibold">
+                  <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
+                  <span>सूचना: यो पुरानो रेकर्ड केवल हेर्न र प्रिन्ट गर्न मिल्ने (Read-Only) मोडमा छ। सम्पादन गर्न एडमिन हुनुपर्छ।</span>
+                </div>
+              )}
+
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">मुख्य समस्याहरू (Chief Complaints)</label>
@@ -663,21 +757,204 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
                 </div>
 
                 <div className="flex justify-end gap-4 pt-4 border-t">
-                  <button onClick={handleRestore} className="px-6 py-2.5 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 flex items-center gap-2 shadow-sm font-medium border border-amber-200">
-                    <History size={18} /> Restore Previous
-                  </button>
+                  {!isReadOnly && (
+                    <button onClick={handleRestore} className="px-6 py-2.5 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 flex items-center gap-2 shadow-sm font-medium border border-amber-200">
+                      <History size={18} /> Restore Previous
+                    </button>
+                  )}
                   <button onClick={handlePrint} className="px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 flex items-center gap-2 shadow-sm">
                     <Printer size={18} /> प्रिन्ट (Print)
                   </button>
-                  <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 shadow-sm font-medium">
-                    <Save size={18} /> {editingRecordId ? 'अपडेट गर्नुहोस्' : 'सुरक्षित गर्नुहोस्'}
-                  </button>
+                  {(!editingRecordId || isAdmin) ? (
+                    <button onClick={handleSave} className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center gap-2 shadow-sm font-medium">
+                      <Save size={18} /> {editingRecordId ? 'अपडेट गर्नुहोस्' : 'सुरक्षित गर्नुहोस्'}
+                    </button>
+                  ) : (
+                    <div className="text-xs text-amber-800 font-semibold italic bg-amber-50 px-4 py-2.5 rounded-lg border border-amber-200 flex items-center gap-2">
+                      <AlertTriangle size={14} className="text-amber-600" />
+                      सम्पादन गर्न एडमिन लगइन हुनुपर्छ (Admin required to update)
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* All-Time Emergency Records List */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+          <div>
+            <h3 className="font-bold text-slate-800 text-base font-nepali flex items-center gap-2">
+              <History className="text-indigo-600" size={20} />
+              सबै आकस्मिक सेवा रेकर्डहरू (All Emergency Patient Records)
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              दर्ता भएका सबै आकस्मिक बिरामीहरूको विवरण, खोजी, सम्पादन र प्रिन्ट कार्यहरू।
+            </p>
+          </div>
+          
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="नाम, ID, मिति वा निदान खोज्नुहोस्..."
+              value={historySearchTerm}
+              onChange={(e) => setHistorySearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-700 bg-slate-50 hover:bg-slate-100/50 focus:bg-white transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-100 max-h-[500px] overflow-y-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200 sticky top-0 z-10">
+                <th className="p-3 text-left">मिति (Date)</th>
+                <th className="p-3">सेवाग्राही विवरण (Patient Details)</th>
+                <th className="p-3">प्राथमिकता (Triage)</th>
+                <th className="p-3">मुख्य समस्या / निदान (Complaints & Diagnosis)</th>
+                <th className="p-3">औषधिहरू (Medications)</th>
+                <th className="p-3 text-right">कार्य (Actions)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {sortedHistoryRecords.length > 0 ? (
+                sortedHistoryRecords.map((record) => {
+                  const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+                  
+                  const emergencyCount = record.emergencyPrescriptions?.length || 0;
+                  const dischargeCount = record.dischargePrescriptions?.length || 0;
+                  
+                  return (
+                    <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-3 font-mono text-slate-600 whitespace-nowrap">
+                        {record.visitDate}
+                      </td>
+                      <td className="p-3">
+                        <div className="font-bold text-slate-800">{patient?.name || 'Unknown'}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 space-x-1.5">
+                          <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">ID: {record.uniquePatientId}</span>
+                          <span>|</span>
+                          <span>{patient?.age} / {patient?.gender}</span>
+                          {patient?.address && (
+                            <>
+                              <span>|</span>
+                              <span>{patient.address}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${triageColors[record.triage || 'Green']}`}>
+                          {record.triage || 'Green'}
+                        </span>
+                      </td>
+                      <td className="p-3 max-w-[240px]">
+                        {record.chiefComplaints && (
+                          <div className="truncate text-slate-600" title={`Complaints: ${record.chiefComplaints}`}>
+                            <span className="font-semibold text-slate-500">समस्या:</span> {record.chiefComplaints}
+                          </div>
+                        )}
+                        {record.diagnosis && (
+                          <div className="truncate text-slate-700 font-medium mt-0.5" title={`Diagnosis: ${record.diagnosis}`}>
+                            <span className="font-semibold text-slate-500">निदान:</span> {record.diagnosis}
+                          </div>
+                        )}
+                        {!record.chiefComplaints && !record.diagnosis && <span className="text-slate-400 italic">No entry</span>}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex flex-col gap-0.5 text-[10px]">
+                          {emergencyCount > 0 && (
+                            <span className="text-red-600 font-medium bg-red-50 px-1.5 py-0.5 rounded w-fit">
+                              Emergency: {emergencyCount}
+                            </span>
+                          )}
+                          {dischargeCount > 0 && (
+                            <span className="text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded w-fit mt-0.5">
+                              Discharge: {dischargeCount}
+                            </span>
+                          )}
+                          {emergencyCount === 0 && dischargeCount === 0 && (
+                            <span className="text-slate-400 italic">No prescriptions</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => printRecordDirectly(record)}
+                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          title="प्रिन्ट गर्नुहोस् (Print)"
+                        >
+                          <Printer size={14} />
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleLoadRecord(record, false)}
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="विवरण हेर्नुहोस् (View Details)"
+                        >
+                          <Eye size={14} />
+                        </button>
+
+                        {isAdmin ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleLoadRecord(record, true)}
+                              className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
+                              title="सम्पादन गर्नुहोस् (Edit - Admin Only)"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm('के तपाईं यो आकस्मिक सेवा रेकर्ड हटाउन निश्चित हुनुहुन्छ? यो फिर्ता गर्न सकिने छैन।')) {
+                                  onDeleteRecord(record.id);
+                                  if (editingRecordId === record.id) {
+                                    setEmergencyData({
+                                      chiefComplaints: '',
+                                      diagnosis: '',
+                                      investigation: '',
+                                      emergencyPrescriptions: [],
+                                      dischargePrescriptions: [],
+                                      advice: '',
+                                      nextVisitDate: '',
+                                      triage: 'Green',
+                                      vitals: { temp: '', bp: '', pulse: '', rr: '', spo2: '' }
+                                    });
+                                    setEmergencyPrescriptions([]);
+                                    setDischargePrescriptions([]);
+                                    setEditingRecordId(null);
+                                  }
+                                }
+                              }}
+                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                              title="हटाउनुहोस् (Delete - Admin Only)"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-400 font-medium italic">
+                    कुनै रेकर्ड फेला परेन (No records found)
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div style={{ display: "none" }}>
         <div ref={printRef} className="p-8 bg-white text-slate-900 print:block">

@@ -781,11 +781,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         setClaimStatus('Submitted');
         alert(`दावी कोड (Claim Code) फेला पर्यो र सेट गरियो: ${foundClaimCode}`);
       } else {
-        alert("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
+        console.log("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
       }
     } catch (e: any) {
       if (e.response?.status === 404) {
-        alert("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
+        console.log("बीमा प्रणालीमा आजको मितिमा यो बीमा नम्बरको दावी कोड फेला परेन।");
       } else {
         console.error("Error searching claim code:", e);
         alert("दावी कोड खोज्दा त्रुटि भयो: " + (e.response?.data?.error || e.message));

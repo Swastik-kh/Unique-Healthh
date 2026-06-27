@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, Save, Printer, Plus, Trash2, FileText, User, Calendar, Stethoscope, Activity, Pill, FlaskConical, History, X, Volume2, VolumeX } from 'lucide-react';
+import { Search, Save, Printer, Plus, Trash2, FileText, User, Calendar, Stethoscope, Activity, Pill, FlaskConical, History, X, Volume2, VolumeX, Send, MoreVertical } from 'lucide-react';
 import { ServiceSeekerRecord, OPDRecord, PrescriptionItem, ServiceItem, LabReport, OrganizationSettings } from '../types/coreTypes';
 import { XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, TBPatient } from '../types';
 import { InventoryItem } from '../types/inventoryTypes';
@@ -33,6 +33,7 @@ interface OPDSewaProps {
   onSaveECGRecord?: (record: ECGRecord) => void;
   onSaveUSGRecord?: (record: USGRecord) => void;
   onSavePhysiotherapyRecord?: (record: PhysiotherapyRecord) => void;
+  onSaveServiceSeekerRecord?: (record: ServiceSeekerRecord) => void;
 }
 
 const initialPrescriptionItem: PrescriptionItem = {
@@ -63,7 +64,8 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
   onSaveXRayRecord,
   onSaveECGRecord,
   onSaveUSGRecord,
-  onSavePhysiotherapyRecord
+  onSavePhysiotherapyRecord,
+  onSaveServiceSeekerRecord
 }) => {
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
@@ -80,6 +82,55 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
   const [showPrescriptionForm, setShowPrescriptionForm] = useState(false);
   const [currentPrescription, setCurrentPrescription] = useState<PrescriptionItem>(initialPrescriptionItem);
   const [searchResults, setSearchResults] = useState<ServiceSeekerRecord[]>([]);
+  const [transferService, setTransferService] = useState('');
+  const [transferRemarks, setTransferRemarks] = useState('');
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const [transferModalPatient, setTransferModalPatient] = useState<ServiceSeekerRecord | null>(null);
+
+  React.useEffect(() => {
+    const handleOutsideClick = () => {
+      setActiveDropdownId(null);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const handleTransfer = () => {
+    if (!currentPatient) return;
+    if (!transferService) {
+      alert("स्थानान्तरण गरिने सेवा छान्नुहोस्।");
+      return;
+    }
+    if (!onSaveServiceSeekerRecord) {
+      alert("सेवाग्राही दर्ता सुरक्षित गर्ने प्रकार्य उपलब्ध छैन।");
+      return;
+    }
+
+    const confirmTransfer = window.confirm(`के तपाईं निश्चित रूपमा यो बिरामीलाई ${transferService} सेवामा ट्रान्सफर गर्न चाहनुहुन्छ?`);
+    if (!confirmTransfer) return;
+
+    const currentRemarks = currentPatient.remarks || '';
+    const formattedTransferRemarks = transferRemarks.trim() 
+      ? ` [Referral: OPD -> ${transferService}: ${transferRemarks.trim()}]` 
+      : ` [Referral: OPD -> ${transferService}]`;
+
+    const updatedPatient: ServiceSeekerRecord = {
+      ...currentPatient,
+      date: new NepaliDate().format('YYYY-MM-DD'), // Update date to today's Nepali date so they appear in target service queue today
+      serviceType: transferService,
+      status: 'Pending', // Reset to Pending so they appear in target service queue
+      remarks: `${currentRemarks}${formattedTransferRemarks}`.trim()
+    };
+
+    onSaveServiceSeekerRecord(updatedPatient);
+    alert(`बिरामीलाई सफलतापूर्वक ${transferService} सेवामा ट्रान्सफर गरियो।`);
+    
+    // Clear active patient
+    setCurrentPatient(null);
+    setTransferService('');
+    setTransferRemarks('');
+  };
+
   const [isMuted, setIsMuted] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('queue_voice_muted') === 'true';
@@ -292,6 +343,8 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
     });
     setPrescriptionItems([]);
     setEditingRecordId(null);
+    setTransferService('');
+    setTransferRemarks('');
   };
 
   const handleRestore = () => {
@@ -516,6 +569,8 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                 <div className="flex justify-between"><span className="text-slate-500">फोन:</span> <span>{currentPatient.phone}</span></div>
               </div>
             </div>
+
+            {/* Service Transfer Card removed to use 3-dot dropdown menu */}
             
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
@@ -543,7 +598,7 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                         <p className="text-slate-500 truncate">Diagnosis: {record.diagnosis || 'N/A'}</p>
                         <p className="text-[10px] text-slate-400 truncate">Complaints: {record.chiefComplaints || 'N/A'}</p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 relative">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -579,6 +634,40 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                           >
                             <Trash2 size={13} />
                           </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(activeDropdownId === `hist-${record.id}` ? null : `hist-${record.id}`);
+                          }}
+                          className="p-1 text-slate-500 hover:text-slate-700 hover:bg-white rounded transition-colors"
+                          title="Options"
+                        >
+                          <MoreVertical size={13} />
+                        </button>
+                        {activeDropdownId === `hist-${record.id}` && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId(null);
+                                const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+                                if (patient) {
+                                  setTransferModalPatient(patient);
+                                  setTransferService('');
+                                  setTransferRemarks('');
+                                } else {
+                                  alert("यो बिरामीको विवरण फेला परेन।");
+                                }
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 font-medium"
+                            >
+                              <Send size={12} className="text-indigo-600" />
+                              <span>ट्रान्सफर (Transfer)</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1089,9 +1178,40 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                       </div>
                       <p className="text-[10px] text-slate-500 truncate">{patient.age} / {patient.gender} | {patient.address}</p>
                     </div>
-                    <span className="text-[10px] text-primary-600 font-bold bg-primary-50 border border-primary-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                      On Queue
-                    </span>
+                    <div className="flex items-center gap-1 relative">
+                      <span className="text-[10px] text-primary-600 font-bold bg-primary-50 border border-primary-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                        On Queue
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveDropdownId(activeDropdownId === `queue-${patient.id}` ? null : `queue-${patient.id}`);
+                        }}
+                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                        title="Options"
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+                      {activeDropdownId === `queue-${patient.id}` && (
+                        <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownId(null);
+                              setTransferModalPatient(patient);
+                              setTransferService('');
+                              setTransferRemarks('');
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 font-medium"
+                          >
+                            <Send size={12} className="text-indigo-600" />
+                            <span>ट्रान्सफर (Transfer)</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -1132,7 +1252,7 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      <div className="flex gap-1 items-center opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap relative">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1169,6 +1289,40 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                             <Trash2 size={13} />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdownId(activeDropdownId === `sidebar-${record.id}` ? null : `sidebar-${record.id}`);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600 hover:bg-white rounded border border-transparent hover:border-slate-200"
+                          title="Options"
+                        >
+                          <MoreVertical size={13} />
+                        </button>
+                        {activeDropdownId === `sidebar-${record.id}` && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownId(null);
+                                const patient = serviceSeekerRecords.find(p => p.uniquePatientId === record.uniquePatientId);
+                                if (patient) {
+                                  setTransferModalPatient(patient);
+                                  setTransferService('');
+                                  setTransferRemarks('');
+                                } else {
+                                  alert("यो बिरामीको विवरण फेला परेन।");
+                                }
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 font-medium"
+                            >
+                              <Send size={12} className="text-indigo-600" />
+                              <span>ट्रान्सफर (Transfer)</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1186,6 +1340,124 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
           </div>
         </div>
       </div>
+      
+      {/* Service Transfer Modal */}
+      {transferModalPatient && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-indigo-600 text-white px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Send size={18} />
+                <h3 className="font-bold text-sm">आन्तरिक सेवा ट्रान्सफर (Internal Transfer)</h3>
+              </div>
+              <button 
+                onClick={() => setTransferModalPatient(null)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs space-y-1.5">
+                <div className="flex justify-between"><span className="text-slate-500 font-medium">बिरामीको नाम:</span> <span className="font-bold text-slate-800">{transferModalPatient.name}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500 font-medium">Patient ID:</span> <span className="font-mono bg-white px-2 py-0.5 rounded border border-slate-100 text-slate-700">{transferModalPatient.uniquePatientId}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500 font-medium">उमेर/लिङ्ग:</span> <span className="text-slate-700">{transferModalPatient.age} / {transferModalPatient.gender}</span></div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">स्थानान्तरण गरिने सेवा (Target Service) *</label>
+                <select 
+                  value={transferService}
+                  onChange={(e) => setTransferService(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs bg-white font-medium text-slate-800"
+                >
+                  <option value="">-- सेवा छान्नुहोस् --</option>
+                  <option value="CBIMNCI">CBIMNCI सेवा</option>
+                  <option value="Emergency">Emergency (आकस्मिक)</option>
+                  <option value="IPD">IPD (भर्ना / Admission)</option>
+                  <option value="Vaccination">Vaccination (खोप)</option>
+                  <option value="Safe Motherhood">Safe Motherhood (सुरक्षित मातृत्व)</option>
+                  <option value="Prasuti">Prasuti (प्रसूति)</option>
+                  <option value="Family Planning">Family Planning (परिवार नियोजन)</option>
+                  <option value="TB">TB (क्षयरोग)</option>
+                  <option value="Leprosy">Leprosy (कुष्ठरोग)</option>
+                  <option value="Lab">Lab (प्रयोगशाला)</option>
+                  <option value="X-Ray">X-Ray (एक्स-रे)</option>
+                  <option value="ECG">ECG (ई.सी.जी.)</option>
+                  <option value="USG">USG (भिडियो एक्स-रे)</option>
+                  <option value="Physiotherapy">Physiotherapy (फिजियोथेरापी)</option>
+                  <option value="Other">Other (अन्य)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">कैफियत / कारण (Remarks/Reason)</label>
+                <textarea
+                  value={transferRemarks}
+                  onChange={(e) => setTransferRemarks(e.target.value)}
+                  placeholder="स्थानान्तरण गर्नुको कारण वा कैफियत लेख्नुहोस्..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs min-h-[80px] text-slate-700"
+                />
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setTransferModalPatient(null)}
+                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                रद्द गर्नुहोस् (Cancel)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!transferService) {
+                    alert("स्थानान्तरण गरिने सेवा छान्नुहोस्।");
+                    return;
+                  }
+                  if (!onSaveServiceSeekerRecord) {
+                    alert("सेवाग्राही दर्ता सुरक्षित गर्ने प्रकार्य उपलब्ध छैन।");
+                    return;
+                  }
+                  
+                  const currentRemarks = transferModalPatient.remarks || '';
+                  const formattedTransferRemarks = transferRemarks.trim() 
+                    ? ` [Referral: OPD -> ${transferService}: ${transferRemarks.trim()}]` 
+                    : ` [Referral: OPD -> ${transferService}]`;
+
+                  const updatedPatient: ServiceSeekerRecord = {
+                    ...transferModalPatient,
+                    date: new NepaliDate().format('YYYY-MM-DD'), // Update date to today's Nepali date so they appear in target service queue today
+                    serviceType: transferService,
+                    status: 'Pending',
+                    remarks: `${currentRemarks}${formattedTransferRemarks}`.trim()
+                  };
+
+                  onSaveServiceSeekerRecord(updatedPatient);
+                  alert(`बिरामीलाई सफलतापूर्वक ${transferService} सेवामा ट्रान्सफर गरियो।`);
+                  
+                  setTransferModalPatient(null);
+                  setTransferService('');
+                  setTransferRemarks('');
+                  // If the transferred patient was the currently active one, clear active view
+                  if (currentPatient?.id === transferModalPatient.id) {
+                    setCurrentPatient(null);
+                  }
+                }}
+                disabled={!transferService}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5"
+              >
+                <Send size={12} /> ठीक छ (Transfer)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

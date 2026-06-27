@@ -2128,6 +2128,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         opdRecords={opdRecords}
         onSaveRecord={onSaveOPDRecord}
         onDeleteRecord={onDeleteOPDRecord}
+        onSaveServiceSeekerRecord={onSaveServiceSeekerRecord}
         currentFiscalYear={currentFiscalYear}
         currentUser={currentUser}
         generalSettings={generalSettings}
