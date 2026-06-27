@@ -920,7 +920,9 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                       <div key={m.id} className="text-xs p-3 bg-primary-50 rounded-xl border border-primary-100 flex justify-between items-center">
                         <div>
                           <p className="font-bold text-slate-800">{m.name}</p>
-                          <p className="text-[10px] text-primary-600">{m.route}</p>
+                          <p className="text-[10px] text-primary-600">
+                            {m.route} {m.startDate && `| मिति: ${m.startDate}`} {m.time && `| समय: ${m.time}`}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-primary-700">{m.dosage}</p>
@@ -942,7 +944,9 @@ export const IPDSewa: React.FC<IPDSewaProps> = ({
                       <div key={m.id} className="text-xs p-3 bg-orange-50 rounded-xl border border-orange-100 flex justify-between items-center">
                         <div>
                           <p className="font-bold text-slate-800">{m.name}</p>
-                          <p className="text-[10px] text-orange-600">{m.route}</p>
+                          <p className="text-[10px] text-orange-600">
+                            {m.route} {m.startDate && `| मिति: ${m.startDate}`} {m.time && `| समय: ${m.time}`}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-orange-700">{m.dosage}</p>
@@ -1008,7 +1012,8 @@ const MedicationManager: React.FC<MedicationManagerProps> = ({ medications, onCh
       dosage: '',
       frequency: '',
       route: '',
-      startDate: new NepaliDate().format('YYYY-MM-DD')
+      startDate: new NepaliDate().format('YYYY-MM-DD'),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     onChange([...medications, newMed]);
   };
@@ -1027,7 +1032,7 @@ const MedicationManager: React.FC<MedicationManagerProps> = ({ medications, onCh
         <div className="space-y-2">
           {medications.map((med, index) => (
             <div key={med.id} className="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 relative group">
-              <div className="sm:col-span-4">
+              <div className="sm:col-span-3">
                 <input 
                   placeholder="औषधिको नाम (Medicine Name)"
                   value={med.name}
@@ -1051,7 +1056,7 @@ const MedicationManager: React.FC<MedicationManagerProps> = ({ medications, onCh
                   className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-primary-500"
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-1">
                 <input 
                   placeholder="विधि (Route)"
                   value={med.route}
@@ -1059,12 +1064,21 @@ const MedicationManager: React.FC<MedicationManagerProps> = ({ medications, onCh
                   className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-primary-500"
                 />
               </div>
-              <div className="sm:col-span-2 flex items-center gap-1">
+              <div className="sm:col-span-2">
                 <input 
                   type="text"
                   placeholder="मिति"
                   value={med.startDate}
                   onChange={(e) => updateMedication(med.id, 'startDate', e.target.value)}
+                  className="w-full text-[10px] p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-1">
+                <input 
+                  type="text"
+                  placeholder="समय (Time)"
+                  value={med.time || ''}
+                  onChange={(e) => updateMedication(med.id, 'time', e.target.value)}
                   className="w-full text-[10px] p-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-primary-500"
                 />
                 <button 

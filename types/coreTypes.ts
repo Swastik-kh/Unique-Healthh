@@ -554,6 +554,7 @@ export interface Medication {
   frequency: string;
   route: string;
   startDate: string;
+  time?: string;
   endDate?: string;
   remarks?: string;
 }
