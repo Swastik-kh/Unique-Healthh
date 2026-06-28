@@ -78,6 +78,11 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
       const isToday = patient.date === todayNepaliDate;
       const isPrasuti = patient.serviceType === 'Prasuti';
       if (!isToday || !isPrasuti) return false;
+      
+      const patientGender = (patient.gender || '').trim().toLowerCase();
+      const isFemale = patientGender === 'female' || patientGender === 'f' || patient.gender === 'महिला';
+      if (!isFemale) return false;
+
       const hasRecordToday = prasutiRecords.some(r => (r.serviceSeekerId === patient.id) || (r.name === patient.name));
       return !hasRecordToday && patient.status !== 'Completed';
     });
@@ -99,6 +104,14 @@ export const PrasutiSewa: React.FC<PrasutiSewaProps> = ({ garbhawotiRecords = []
     );
 
     if (patient) {
+      const patientGender = (patient.gender || '').trim().toLowerCase();
+      const isFemale = patientGender === 'female' || patientGender === 'f' || patient.gender === 'महिला';
+
+      if (!isFemale) {
+        setSearchError('यो सेवा केवल महिला बिरामीका लागि मात्र उपलब्ध छ। (This service is only available for female patients)');
+        return;
+      }
+
       setIsEditing(null);
       // Try to find if she has a Garbhawoti record
       const garbhawoti = garbhawotiRecords.find(g => g.name === patient.name);

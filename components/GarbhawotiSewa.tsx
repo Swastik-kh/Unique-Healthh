@@ -75,6 +75,14 @@ export const GarbhawotiSewa: React.FC<GarbhawotiSewaProps> = ({ records = [], se
     );
 
     if (patient) {
+      const patientGender = (patient.gender || '').trim().toLowerCase();
+      const isFemale = patientGender === 'female' || patientGender === 'f' || patient.gender === 'महिला';
+      
+      if (!isFemale) {
+        setSearchError('यो सेवा केवल महिला बिरामीका लागि मात्र उपलब्ध छ। (This service is only available for female patients)');
+        return;
+      }
+
       setIsEditing(null);
       setFormData({
         ...initialFormData,
