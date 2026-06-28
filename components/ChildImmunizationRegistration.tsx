@@ -484,8 +484,12 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     <div className="text-[10px] text-slate-500 flex items-center gap-1"><MapPinned size={10}/> {record.vaccinationCenter}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold">{record.childName}</div>
-                    <div className="text-[10px] text-slate-400">{record.dobBs} | {record.motherName}</div>
+                    <div className="font-bold text-slate-800">{record.childName}</div>
+                    <div className="text-[11px] text-slate-600 mt-1 space-y-0.5">
+                      <div><span className="font-medium text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{record.dobBs}</span></div>
+                      <div><span className="font-medium text-slate-400">अभिभावक:</span> {record.motherName} (आमा) {record.fatherName && `/ ${record.fatherName} (बुबा)`}</div>
+                      <div><span className="font-medium text-slate-400">ठेगाना:</span> {record.address} | <span className="font-medium text-slate-400">फोन:</span> <span className="font-mono">{record.phone}</span></div>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">

@@ -476,13 +476,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{item.child.childName}</div>
-                                            <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                                <MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}
+                                            <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
+                                                <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-slate-600 font-medium">{item.child.motherName}</div>
-                                            <div className="text-[10px] text-slate-400">{item.child.address}</div>
+                                            <div className="text-slate-700 font-medium">
+                                                आमा: {item.child.motherName} {item.child.fatherName && `/ बुबा: ${item.child.fatherName}`}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-0.5">{item.child.address}</div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex flex-col gap-2 justify-center">
@@ -548,7 +551,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <tr key={idx} className="hover:bg-red-50/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{item.child.childName}</div>
-                                            <div className="text-[10px] text-slate-500 flex items-center gap-1"><MapPinned size={10}/> {item.child.vaccinationCenter}</div>
+                                            <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
+                                                <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
+                                                <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}</div>
+                                                <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1 mb-1">
@@ -590,7 +598,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <thead className="bg-slate-50 text-slate-500 font-bold border-b">
                                 <tr>
                                     <th className="px-6 py-3">बच्चाको नाम / केन्द्र</th>
-                                    <th className="px-6 py-3">आमाको नाम</th>
+                                    <th className="px-6 py-3">अभिभावकको नाम (Guardian)</th>
                                     <th className="px-6 py-3">ठेगाना</th>
                                     <th className="px-6 py-3 text-right">सम्पन्न मिति</th>
                                 </tr>
@@ -604,10 +612,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     >
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{child.childName}</div>
-                                            <div className="text-[10px] text-slate-500 flex items-center gap-1"><MapPinned size={10}/> {child.vaccinationCenter}</div>
+                                            <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{child.dobBs}</span></div>
+                                                <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {child.vaccinationCenter}</div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600">{child.motherName}</td>
-                                        <td className="px-6 py-4 text-slate-600">{child.address}</td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {child.motherName} {child.fatherName && `/ ${child.fatherName}`}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            <div>{child.address}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-mono font-bold">फोन: {child.phone}</div>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className="text-teal-700 font-bold font-nepali">{getCompletionDate(child)}</span>
                                         </td>
@@ -741,6 +757,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                 <thead>
                     <tr>
                         <th>बच्चाको नाम / दर्ता नं</th>
+                        <th>जन्म मिति (DOB)</th>
+                        <th>अभिभावकको नाम (Guardian)</th>
+                        <th>ठेगाना (Address)</th>
                         <th>केन्द्र</th>
                         <th>लगाउनुपर्ने खोपहरू (Vaccines Due)</th>
                         <th>निर्धारित मिति</th>
@@ -751,6 +770,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {upcomingSessionList.map((item, idx) => (
                         <tr key={idx}>
                             <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
+                            <td>{item.child.dobBs}</td>
+                            <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
+                            <td>{item.child.address}</td>
                             <td>{item.child.vaccinationCenter}</td>
                             <td style={{fontWeight: 'bold'}}>
                                 {item.vaccines.map(v => `${v.name}`).join(', ')}
@@ -773,7 +795,10 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
             <table className="print-table">
                 <thead>
                     <tr>
-                        <th>बच्चाको नाम</th>
+                        <th>बच्चाको नाम / दर्ता नं</th>
+                        <th>जन्म मिति (DOB)</th>
+                        <th>अभिभावकको नाम (Guardian)</th>
+                        <th>ठेगाना (Address)</th>
                         <th>केन्द्र</th>
                         <th>छुटेका खोपहरू</th>
                         <th>निर्धारित मिति</th>
@@ -783,7 +808,10 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                 <tbody>
                     {defaulterList.map((item, idx) => (
                         <tr key={idx}>
-                            <td>{item.child.childName}</td>
+                            <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
+                            <td>{item.child.dobBs}</td>
+                            <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
+                            <td>{item.child.address}</td>
                             <td>{item.child.vaccinationCenter}</td>
                             <td style={{color: 'red', fontWeight: 'bold'}}>
                                 {item.vaccines.map(v => v.name).join(', ')}
@@ -808,9 +836,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     <tr>
                         <th>बच्चाको नाम</th>
                         <th>दर्ता नं</th>
+                        <th>जन्म मिति (DOB)</th>
+                        <th>अभिभावकको नाम (Guardian)</th>
                         <th>केन्द्र</th>
-                        <th>आमाको नाम</th>
                         <th>ठेगाना</th>
+                        <th>सम्पर्क (Phone)</th>
                         <th>सम्पन्न मिति</th>
                     </tr>
                 </thead>
@@ -819,9 +849,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <tr key={idx}>
                             <td>{child.childName}</td>
                             <td>{child.regNo}</td>
+                            <td>{child.dobBs}</td>
+                            <td>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</td>
                             <td>{child.vaccinationCenter}</td>
-                            <td>{child.motherName}</td>
                             <td>{child.address}</td>
+                            <td style={{fontFamily: 'monospace'}}>{child.phone}</td>
                             <td>{getCompletionDate(child)}</td>
                         </tr>
                     ))}
