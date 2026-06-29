@@ -2146,14 +2146,18 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               )}
             </div>
             <div className="text-center flex-1 px-4">
-              <h1 className="text-2xl font-bold uppercase">
-                {generalSettings?.orgNameNepali || currentUser?.organizationName || 'Health Institution'}
+              <h1 className="text-2xl font-black text-slate-900 mb-1">
+                {generalSettings?.orgNameNepali || currentUser?.organizationName || ''}
               </h1>
-              {generalSettings?.subTitleNepali && <p className="text-sm font-medium">{generalSettings.subTitleNepali}</p>}
-              {generalSettings?.subTitleNepali2 && <p className="text-sm font-medium">{generalSettings.subTitleNepali2}</p>}
-              {generalSettings?.subTitleNepali3 && <p className="text-sm font-medium">{generalSettings.subTitleNepali3}</p>}
-              {generalSettings?.subTitleNepali4 && <p className="text-sm font-medium">{generalSettings.subTitleNepali4}</p>}
-              <p className="text-sm text-slate-600">{generalSettings?.address || currentUser?.address || ''}</p>
+              <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali || ''}</p>
+              <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+              <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
+              <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
+              <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || currentUser?.address || ''}</p>
+              <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500 mt-1">
+                {generalSettings?.phone && <p>फोन नं: {generalSettings.phone}</p>}
+                {generalSettings?.panNo && <p>PAN No: {generalSettings.panNo}</p>}
+              </div>
               <h2 className="text-lg font-bold mt-2 border-2 border-slate-800 inline-block px-4 py-1 rounded">INVOICE</h2>
             </div>
             <div className="w-24 text-right text-xs space-y-0.5">

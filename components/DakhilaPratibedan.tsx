@@ -415,9 +415,10 @@ export const DakhilaPratibedan: React.FC<DakhilaPratibedanProps> = ({
                         </div>
                         <div className="flex-1 text-center space-y-1">
                             <h1 className="text-xl font-bold text-red-600">{generalSettings.orgNameNepali}</h1>
-                            <h2 className="text-lg font-bold">{generalSettings.subTitleNepali}</h2>
-                            {generalSettings.subTitleNepali2 && <h3 className="text-base font-bold">{generalSettings.subTitleNepali2}</h3>}
-                            {generalSettings.subTitleNepali3 && <h3 className="text-lg font-bold">{generalSettings.subTitleNepali3}</h3>}
+                            <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali}</p>
+                            {generalSettings.subTitleNepali2 && <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali2}</p>}
+                            {generalSettings.subTitleNepali3 && <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali3}</p>}
+                            {generalSettings.subTitleNepali4 && <p className="text-xs font-bold text-slate-600">{generalSettings.subTitleNepali4}</p>}
                             <div className="text-[10px] mt-2 space-x-3 font-medium text-slate-600">
                                 {generalSettings.address && <span>{generalSettings.address}</span>}
                                 {generalSettings.phone && <span>| फोन: {generalSettings.phone}</span>}

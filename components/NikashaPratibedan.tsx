@@ -152,9 +152,10 @@ export const NikashaPratibedan: React.FC<NikashaPratibedanProps> = ({ reports, o
                         {/* Center Text */}
                         <div className="flex-1 text-center space-y-1 pt-2">
                             <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
-                            <h2 className="text-lg font-medium">{generalSettings.subTitleNepali}</h2>
-                            {generalSettings.subTitleNepali2 && <h3 className="text-lg font-medium">{generalSettings.subTitleNepali2}</h3>}
-                            {generalSettings.subTitleNepali3 && <h3 className="text-base font-medium">{generalSettings.subTitleNepali3}</h3>}
+                            <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali}</p>
+                            {generalSettings.subTitleNepali2 && <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali2}</p>}
+                            {generalSettings.subTitleNepali3 && <p className="text-sm font-bold text-slate-700">{generalSettings.subTitleNepali3}</p>}
+                            {generalSettings.subTitleNepali4 && <p className="text-xs font-bold text-slate-600">{generalSettings.subTitleNepali4}</p>}
                             <h2 className="text-lg font-bold mt-4">खर्च निकासा फाराम</h2>
                         </div>
 

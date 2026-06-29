@@ -1008,11 +1008,11 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
                                 />
                             </div>
                             <div className="flex-1 text-center px-4">
-                                <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
-                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
-                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+                                <h1 className="text-2xl font-black text-slate-900 mb-1">{generalSettings?.orgNameNepali || currentUser?.organizationName || ''}</h1>
                                 <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali || ''}</p>
-                                <h1 className="text-2xl font-black text-slate-900 mt-1">{generalSettings?.orgNameNepali || currentUser?.organizationName || 'आधारभूत नगर अस्पताल'}</h1>
+                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
+                                <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
                                 <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
                                 <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500 mt-1">
                                     {generalSettings?.phone && <p>फोन नं: {generalSettings.phone}</p>}

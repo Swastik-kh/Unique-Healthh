@@ -349,9 +349,10 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                <!-- Center Text -->
                <div class="center-text">
                   <h1 class="header-red org-name">${generalSettings.orgNameNepali}</h1>
-                  ${generalSettings.subTitleNepali ? `<h2 class="office-name">${generalSettings.subTitleNepali}</h2>` : ''}
-                  ${generalSettings.subTitleNepali2 ? `<h3 class="sub-title">${generalSettings.subTitleNepali2}</h3>` : ''}
-                  ${generalSettings.subTitleNepali3 ? `<h4 class="sub-title-3">${generalSettings.subTitleNepali3}</h4>` : ''}
+                  ${generalSettings.subTitleNepali ? `<p class="office-name" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali}</p>` : ''}
+                  ${generalSettings.subTitleNepali2 ? `<p class="sub-title" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali2}</p>` : ''}
+                  ${generalSettings.subTitleNepali3 ? `<p class="sub-title-3" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali3}</p>` : ''}
+                  ${generalSettings.subTitleNepali4 ? `<p class="sub-title-4" style="font-size: 12px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali4}</p>` : ''}
                   <div class="address-text">${[generalSettings.address, generalSettings.phone ? `फोन: ${generalSettings.phone}` : '', generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''].filter(Boolean).join(' | ')}</div>
                   <div class="form-title">माग फारम</div>
                </div>

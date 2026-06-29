@@ -613,11 +613,11 @@ export const KhopAbhiyan: React.FC<{
                   />
                 </div>
                 <div className="flex-1 text-center px-4">
-                  <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
-                  <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
-                  <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+                  <h1 className="text-2xl font-black text-slate-900 mb-1">{generalSettings?.orgNameNepali || activeOrgName}</h1>
                   <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali || ''}</p>
-                  <h1 className="text-2xl font-black text-slate-900 mt-1">{generalSettings?.orgNameNepali || activeOrgName}</h1>
+                  <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+                  <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
+                  <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
                   <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
                 </div>
                 <div className="w-24 h-24 flex justify-end">
