@@ -2317,7 +2317,6 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         onDeleteServiceItem={onDeleteServiceItem}
         currentFiscalYear={currentFiscalYear}
       />;
-      case 'store_setup': return <StoreSetup stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} />;
       default: return null;
     }
   };
