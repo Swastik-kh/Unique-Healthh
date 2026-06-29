@@ -2205,6 +2205,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         currentFiscalYear={currentFiscalYear}
         currentUser={currentUser}
         generalSettings={generalSettings}
+        users={users}
       />;
       case 'dispensory_sewa': return <DispensarySewa 
                                         currentFiscalYear={currentFiscalYear} 

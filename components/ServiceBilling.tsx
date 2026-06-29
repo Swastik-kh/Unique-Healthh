@@ -110,6 +110,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [directMiti, setDirectMiti] = useState('');
   const [directRemarks, setDirectRemarks] = useState('');
   const [directReferredBy, setDirectReferredBy] = useState('');
+  const [referredBy, setReferredBy] = useState('');
 
   const [prevMiti, setPrevMiti] = useState('');
   const [prevIsDirect, setPrevIsDirect] = useState(false);
@@ -271,6 +272,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       const insNo = isHib ? (patient.insuranceNo || '') : '';
       setInsuranceNo(insNo);
       setClaimCode(isHib ? (patient.claimId || '') : '');
+      setReferredBy('');
       setClaimStatus(isHib && patient.claimId ? 'Submitted' : 'Draft');
       setFhirResponseLog('');
       setShowFhirLogModal(false);
@@ -988,6 +990,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         grandTotal: grandTotal,
         paymentMode: paymentMode,
         createdBy: currentUser?.username || 'Unknown',
+        referredBy: referredBy || undefined,
         insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
         claimCode: paymentMode === 'Bima' ? claimCode : undefined,
         claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
@@ -1001,6 +1004,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       setDiscount('');
       setInsuranceNo('');
       setClaimCode('');
+      setReferredBy('');
       setClaimStatus('Draft');
       setFhirResponseLog('');
       
@@ -1615,6 +1619,24 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               {/* Summary & Actions */}
               <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div className="w-full md:w-1/2 space-y-4">
+                   <div>
+                     <label className="block text-sm font-medium text-slate-707 mb-2 font-nepali">सिफारिस गर्ने (Referred By)</label>
+                     <select
+                       value={referredBy}
+                       onChange={(e) => setReferredBy(e.target.value)}
+                       className="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none font-medium"
+                     >
+                       <option value="">-- छान्नुहोस् (Select Recommending User) --</option>
+                       {users
+                         .filter((u) => u.organizationName === currentUser?.organizationName)
+                         .map((u) => (
+                           <option key={u.id} value={u.username}>
+                             {u.fullName} ({u.designation || u.role})
+                           </option>
+                         ))}
+                     </select>
+                   </div>
+
                    <div>
                      <label className="block text-sm font-medium text-slate-707 mb-2 font-nepali">भुक्तानी माध्यम (Payment Mode)</label>
                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">

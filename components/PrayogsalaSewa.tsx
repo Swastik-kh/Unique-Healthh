@@ -18,6 +18,7 @@ interface PrayogsalaSewaProps {
   currentFiscalYear: string;
   currentUser: any;
   generalSettings: OrganizationSettings;
+  users?: User[];
 }
 
 interface PendingTest extends LabTestResult {
@@ -33,7 +34,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   onDeleteRecord,
   currentFiscalYear,
   currentUser,
-  generalSettings
+  generalSettings,
+  users = []
 }) => {
   const [searchId, setSearchId] = useState('');
   const [currentPatient, setCurrentPatient] = useState<ServiceSeekerRecord | null>(null);
@@ -452,6 +454,11 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       createdBy: currentUser?.username || 'Unknown',
       barcodeId: existingReport?.barcodeId || invoiceTests[0]?.barcodeId || ''
     };
+
+    const billingRecord = billingRecords.find(b => b.invoiceNumber === invoiceNumber);
+    if (billingRecord?.referredBy) {
+      newReport.referredBy = billingRecord.referredBy;
+    }
 
     onSaveRecord(newReport);
     setCurrentReport(newReport);
@@ -1096,6 +1103,9 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
               <p><strong>Patient Name:</strong> {currentReport?.patientName}</p>
               <p><strong>Age/Gender:</strong> {currentReport?.age} / {currentReport?.gender}</p>
               <p><strong>Patient ID:</strong> {currentPatient?.uniquePatientId} {currentPatient?.mulDartaNo && `| Mul Darta No: ${currentPatient.mulDartaNo}`}</p>
+              {currentReport?.referredBy && (
+                <p><strong>Referred By:</strong> {users.find(u => u.username === currentReport.referredBy)?.fullName || currentReport.referredBy}</p>
+              )}
             </div>
             <div className="space-y-1 text-right">
               <p><strong>Report Date:</strong> {currentReport?.reportDate}</p>
