@@ -24,6 +24,7 @@ const PERMISSION_STRUCTURE = [
                 label: 'कार्यक्रम (Programs)',
                 children: [
                     { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम (Vitamin A)' },
+                    { id: 'khop_abhiyan', label: 'खोप अभियान (Campaign)' },
                 ] 
             },
             { id: 'opd_sewa', label: 'ओ.पी.डी. सेवा (OPD Service)' },

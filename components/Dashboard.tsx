@@ -86,6 +86,7 @@ import { MCHReport } from './MCHReport';
 import { MedicineStatusReport } from './MedicineStatusReport';
 import { DHISReport } from './DHISReport';
 import { VitaminAProgram } from './VitaminAProgram';
+import { KhopAbhiyan } from './KhopAbhiyan';
 import { AmbulanceSewa } from './AmbulanceSewa';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -753,7 +754,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
           label: 'कार्यक्रम (Programs)', 
           icon: <Activity size={16} />,
           subItems: [
-            { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> }
+            { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> },
+            { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> }
           ]
         }
       ] 
@@ -1085,6 +1087,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
                                   onUpdateInterFacilityRequest={onUpdateInterFacilityRequest}
                                 />;
       case 'vitamin_a': return <VitaminAProgram currentFiscalYear={currentFiscalYear} activeOrgName={activeOrgName} generalSettings={generalSettings} />;
+      case 'khop_abhiyan': return <KhopAbhiyan currentFiscalYear={currentFiscalYear} activeOrgName={activeOrgName} generalSettings={generalSettings} />;
       case 'rabies': return <RabiesRegistration currentFiscalYear={currentFiscalYear} patients={rabiesPatients} onAddPatient={onAddRabiesPatient} onUpdatePatient={onUpdatePatient} onDeletePatient={onDeletePatient} currentUser={currentUser} />;
       case 'report_rabies': return <RabiesReport currentFiscalYear={currentFiscalYear} currentUser={currentUser} patients={rabiesPatients} />;
       case 'report_cbimnci': return <CBIMNCIReport cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} currentFiscalYear={currentFiscalYear} />;
