@@ -25,6 +25,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
     const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
     const [allRecords, setAllRecords] = useState<VitaminADistributionRecord[]>([]);
     const [reportRound, setReportRound] = useState<'1st' | '2nd'>('1st');
+    const [filterFchvId, setFilterFchvId] = useState<string>('all');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -137,6 +138,11 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
         alert('कार्यक्रम मिति सुरक्षित भयो');
     };
 
+    const visibleFchvs = useMemo(() => {
+        if (filterFchvId === 'all') return fchvs;
+        return fchvs.filter(f => f.id === filterFchvId);
+    }, [fchvs, filterFchvId]);
+
     const totals = useMemo(() => {
         const stats = {
             v6_11_m: 0, v6_11_f: 0, v6_11_t: 0,
@@ -151,7 +157,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
             tot_m: 0, tot_f: 0, tot_t: 0
         };
 
-        fchvs.forEach(fchv => {
+        visibleFchvs.forEach(fchv => {
             const rec = allRecords.find(r => r.fchvId === fchv.id && r.round === reportRound);
             if (rec?.data) {
                 // 6-11m Vit A
@@ -208,7 +214,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
         });
 
         return stats;
-    }, [fchvs, allRecords, reportRound]);
+    }, [visibleFchvs, allRecords, reportRound]);
 
     useEffect(() => {
         const loadExistingRecord = async () => {
@@ -373,17 +379,33 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                 <div className="flex justify-between items-center mb-6 no-print">
                     <div>
                         <h3 className="text-lg font-semibold font-nepali">भिटामिन ए तथा अल्बेन्डाजोल वितरण प्रतिवेदन</h3>
-                        <p className="text-xs text-slate-500">राउन्ड अनुसारको विस्तृत रिपोर्ट र प्रिन्ट</p>
+                        <p className="text-xs text-slate-500">राउन्ड तथा स्वयंसेविका अनुसारको विस्तृत रिपोर्ट र प्रिन्ट</p>
                     </div>
-                    <div className="flex gap-3 items-center">
-                        <select 
-                            value={reportRound} 
-                            onChange={(e) => setReportRound(e.target.value as '1st' | '2nd')} 
-                            className="border p-2 rounded text-sm bg-white"
-                        >
-                            <option value="1st">१st राउन्ड प्रतिवेदन</option>
-                            <option value="2nd">२nd राउन्ड प्रतिवेदन</option>
-                        </select>
+                    <div className="flex gap-3 items-center flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-nepali">स्वयंसेविका:</span>
+                            <select 
+                                value={filterFchvId}
+                                onChange={(e) => setFilterFchvId(e.target.value)}
+                                className="border p-2 rounded text-sm bg-white font-nepali"
+                            >
+                                <option value="all">सबै स्वयंसेविका हरू (All FCHVs)</option>
+                                {fchvs.map(f => (
+                                    <option key={f.id} value={f.id}>{f.name} (वडा नं: {f.wardNumber})</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-nepali">राउन्ड:</span>
+                            <select 
+                                value={reportRound} 
+                                onChange={(e) => setReportRound(e.target.value as '1st' | '2nd')} 
+                                className="border p-2 rounded text-sm bg-white font-nepali"
+                            >
+                                <option value="1st">१st राउन्ड प्रतिवेदन</option>
+                                <option value="2nd">२nd राउन्ड प्रतिवेदन</option>
+                            </select>
+                        </div>
                         <button 
                             onClick={() => window.print()} 
                             className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 text-sm hover:bg-slate-900 transition-colors"
@@ -401,6 +423,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                         <p className="text-sm text-slate-600 mt-1">
                             आर्थिक वर्ष: {currentFiscalYear} | राउन्ड: {reportRound === '1st' ? 'पहिलो (1st)' : 'दोस्रो (2nd)'} | 
                             मिति: {reportRound === '1st' ? programDates.round1 : programDates.round2}
+                            {filterFchvId !== 'all' && ` | स्वयंसेविका: ${fchvs.find(f => f.id === filterFchvId)?.name} (वडा नं: ${fchvs.find(f => f.id === filterFchvId)?.wardNumber})`}
                         </p>
                     </div>
 
@@ -445,7 +468,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {fchvs.map((fchv, idx) => {
+                                    {visibleFchvs.map((fchv, idx) => {
                                         const rec = allRecords.find(r => r.fchvId === fchv.id && r.round === reportRound);
                                         return (
                                             <tr key={fchv.id} className="border hover:bg-slate-50 transition-colors">
@@ -537,7 +560,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {fchvs.map((fchv, idx) => {
+                                    {visibleFchvs.map((fchv, idx) => {
                                         const rec = allRecords.find(r => r.fchvId === fchv.id && r.round === reportRound);
                                         
                                         // Calculate sums across age groups

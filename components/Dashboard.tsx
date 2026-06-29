@@ -702,14 +702,6 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       icon: <Stethoscope size={20} />, 
       subItems: [ 
         { id: 'mul_darta', label: 'मूल दर्ता सेवा', icon: <ClipboardList size={16} /> },
-        { 
-          id: 'karyakram', 
-          label: 'कार्यक्रम (Programs)', 
-          icon: <Activity size={16} />,
-          subItems: [
-            { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> }
-          ]
-        },
         { id: 'opd_sewa', label: 'ओ.पी.डी. सेवा', icon: <UserPlus size={16} /> },
         { id: 'ipd_sewa', label: 'आई.पी.डी. सेवा (IPD)', icon: <Building2 size={16} /> },
         { id: 'emergency_sewa', label: 'आकस्मिक सेवा (Emergency)', icon: <Siren size={16} /> },
@@ -755,7 +747,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
             { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा', icon: <Baby size={16} /> },
           ]
         },
-        { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> } 
+        { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
+        { 
+          id: 'karyakram', 
+          label: 'कार्यक्रम (Programs)', 
+          icon: <Activity size={16} />,
+          subItems: [
+            { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> }
+          ]
+        }
       ] 
     },
     {
