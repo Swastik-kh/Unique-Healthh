@@ -631,26 +631,28 @@ export const KhopAbhiyan: React.FC<{
                 </div>
               </div>
 
-              <div className="mt-6 text-center border-t border-slate-200 pt-4">
-                <h2 className="text-xl font-bold text-indigo-700">
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <h2 className="text-xl font-bold text-indigo-700 text-center mb-4">
                   {reportCampaignId === 'all' 
                     ? `खोप अभियान ${reportType === 'statistical' ? 'सांख्यिकीय' : 'विस्तृत'} रिपोर्ट`
                     : campaigns.find(c => c.id === reportCampaignId)?.name || 'खोप अभियान रिपोर्ट'} ({toNepaliNumber(currentFiscalYear)})
                 </h2>
-                {(() => {
-                  const campaign = campaigns.find(c => c.id === reportCampaignId);
-                  const nepDate = new NepaliDate();
-                  const formattedNepDate = toNepaliNumber(nepDate.format('YYYY/MM/DD'));
-                  
-                  return (
-                    <div className="mt-2 text-sm font-bold text-slate-600 space-y-1">
-                      {campaign && (
-                        <p>सञ्चालन मिति: {toNepaliNumber(campaign.startDate)} देखि {toNepaliNumber(campaign.endDate)} सम्म</p>
-                      )}
-                      <p>रिपोर्ट निकालिएको मिति: {formattedNepDate}</p>
-                    </div>
-                  );
-                })()}
+                
+                <div className="flex justify-between items-end mb-2">
+                  <div>
+                    {reportCampaignId !== 'all' && (() => {
+                      const campaign = campaigns.find(c => c.id === reportCampaignId);
+                      return campaign ? (
+                        <p className="text-sm font-bold text-slate-600">
+                          सञ्चालन मिति: {toNepaliNumber(campaign.startDate)} देखि {toNepaliNumber(campaign.endDate)} सम्म
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                  <div className="text-sm font-bold text-slate-700">
+                    मिति: {toNepaliNumber(new NepaliDate().format('YYYY/MM/DD'))}
+                  </div>
+                </div>
               </div>
             </div>
 
