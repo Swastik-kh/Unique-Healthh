@@ -997,11 +997,43 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
         <div ref={reportPrintRef} className="p-8 bg-white text-slate-900 print:block">
             {selectedReport && (
                 <div>
-                    <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
-                        <h1 className="text-2xl font-bold">{currentUser?.organizationName}</h1>
-                        <h2 className="text-lg font-bold mt-1">{selectedReport.type} Report</h2>
-                        <p className="text-sm text-slate-600">Date: {selectedReport.date}</p>
+                    {/* Header */}
+                    <div className="mb-8 border-b-2 border-slate-800 pb-6">
+                        <div className="flex justify-between items-start">
+                            <div className="w-24 h-24">
+                                <img 
+                                    src={generalSettings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                    alt="Logo" 
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
+                            <div className="flex-1 text-center px-4">
+                                <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
+                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali3 || ''}</p>
+                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali2 || ''}</p>
+                                <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings?.subTitleNepali || ''}</p>
+                                <h1 className="text-2xl font-black text-slate-900 mt-1">{generalSettings?.orgNameNepali || currentUser?.organizationName || 'आधारभूत नगर अस्पताल'}</h1>
+                                <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
+                                <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500 mt-1">
+                                    {generalSettings?.phone && <p>फोन नं: {generalSettings.phone}</p>}
+                                    {generalSettings?.panNo && <p>PAN No: {generalSettings.panNo}</p>}
+                                </div>
+                            </div>
+                            <div className="w-24 h-24 flex justify-end">
+                                {generalSettings?.provinceLogoUrl && (
+                                    <img 
+                                        src={generalSettings.provinceLogoUrl} 
+                                        alt="Province Logo" 
+                                        className="w-full h-full object-contain"
+                                    />
+                                )}
+                            </div>
+                        </div>
+                        <div className="text-center mt-4">
+                            <h2 className="text-lg font-bold border-2 border-slate-800 inline-block px-6 py-1 rounded-md uppercase tracking-wider">{selectedReport.type} Report</h2>
+                        </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
                         <div><strong>Patient:</strong> {selectedReport.patientName}</div>
                         <div><strong>Age/Sex:</strong> {selectedReport.age}/{selectedReport.gender || selectedReport.sex}</div>
