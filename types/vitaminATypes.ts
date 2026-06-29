@@ -1,8 +1,9 @@
 export interface VitaminATarget {
     fiscalYear: string;
     target6to11Months: number;
-    target12to23Months: number;
-    target24to59Months: number;
+    target12to23Months?: number;
+    target24to59Months?: number;
+    target12to59Months?: number;
 }
 
 export interface FCHV {
@@ -43,11 +44,22 @@ export interface VitaminADistributionRecord {
     fchvId: string;
     data: {
         '6-11months': AgeGroupData;
-        '12-23months': AgeGroupData;
-        '24-59months': AgeGroupData;
+        '12-23months'?: AgeGroupData;
+        '24-59months'?: AgeGroupData;
+        '12-59months'?: AgeGroupData;
     };
     programDates: {
-        round1: string;
-        round2: string;
+        round1?: string;
+        round2?: string;
+        round1From?: string;
+        round1To?: string;
+        round2From?: string;
+        round2To?: string;
+    };
+    inventory?: {
+        receivedVitaminA?: number;
+        spentVitaminA?: number;
+        receivedAlbendazole?: number;
+        spentAlbendazole?: number;
     };
 }
