@@ -317,18 +317,32 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <Input label="डिफल्ट VAT दर (%)" type="number" value={localSettings.defaultVatRate} onChange={(e) => handleChange('defaultVatRate', e.target.value)} icon={<Percent size={16} />} />
                 </div>
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
-                    <Select 
-                      label="सेवा बिलिङ प्रतिवेदन तयार गर्ने" 
-                      options={users.map(u => ({ id: u.id, label: u.fullName, value: u.id }))} 
-                      value={localSettings.sewaBillingUserId || ''} 
-                      onChange={(e) => handleChange('sewaBillingUserId', e.target.value)} 
-                    />
-                    <Select 
-                      label="एम्बुलेन्स सेवा प्रतिवेदन तयार गर्ने" 
-                      options={users.map(u => ({ id: u.id, label: u.fullName, value: u.id }))} 
-                      value={localSettings.ambulanceSewaUserId || ''} 
-                      onChange={(e) => handleChange('ambulanceSewaUserId', e.target.value)} 
-                    />
+                    {(() => {
+                        const orgUsers = users.filter(u => u.organization === currentUser.organization);
+                        const userOptions = orgUsers.map(u => ({ id: u.id, label: u.fullName, value: u.id }));
+                        return (
+                            <>
+                                <Select 
+                                    label="सेवा बिलिङ प्रतिवेदन तयार गर्ने" 
+                                    options={userOptions} 
+                                    value={localSettings.sewaBillingUserId || ''} 
+                                    onChange={(e) => handleChange('sewaBillingUserId', e.target.value)} 
+                                />
+                                <Select 
+                                    label="एम्बुलेन्स सेवा प्रतिवेदन तयार गर्ने" 
+                                    options={userOptions} 
+                                    value={localSettings.ambulanceSewaUserId || ''} 
+                                    onChange={(e) => handleChange('ambulanceSewaUserId', e.target.value)} 
+                                />
+                                <Select 
+                                    label="खोप अभियान प्रतिवेदन तयार गर्ने" 
+                                    options={userOptions} 
+                                    value={localSettings.khopReportPreparerUserId || ''} 
+                                    onChange={(e) => handleChange('khopReportPreparerUserId', e.target.value)} 
+                                />
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
         </div>

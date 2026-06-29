@@ -788,9 +788,15 @@ export const KhopAbhiyan: React.FC<{
             <div className="hidden print:block mt-32">
               {(() => {
                 const orgUsers = allUsers.filter(u => u.organization === activeOrgName);
-                const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-                // If current user is admin, they are the certifier. Otherwise, find the first admin in their organization.
-                const certifier = isAdmin ? currentUser : orgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN');
+                
+                // Preparer from settings
+                const preparerId = generalSettings?.khopReportPreparerUserId;
+                const preparer = allUsers.find(u => u.id === preparerId) || currentUser;
+                
+                // Certifier: First ADMIN/SUPER_ADMIN in organization
+                const certifier = orgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || 
+                                  orgUsers[0] || 
+                                  currentUser;
                 
                 const nepDate = new NepaliDate();
                 const formattedNepDate = toNepaliNumber(nepDate.format('YYYY/MM/DD'));
@@ -798,8 +804,8 @@ export const KhopAbhiyan: React.FC<{
                 const certifierName = certifier?.fullName || certifier?.name || '................................';
                 const certifierDesignation = certifier?.designation || (certifier?.role === 'ADMIN' || certifier?.role === 'SUPER_ADMIN' ? 'प्रशासक' : '................................');
 
-                const preparerName = currentUser?.fullName || currentUser?.name || '................................';
-                const preparerDesignation = currentUser?.designation || '................................';
+                const preparerName = preparer?.fullName || preparer?.name || '................................';
+                const preparerDesignation = preparer?.designation || '................................';
 
                 return (
                   <div className="flex justify-between px-4">
