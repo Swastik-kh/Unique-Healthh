@@ -613,8 +613,8 @@ export const KhopAbhiyan: React.FC<{
                   />
                 </div>
                 <div className="flex-1 text-center px-4">
-                  <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali || ''}</p>
                   <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali2 || ''}</p>
+                  <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali || ''}</p>
                   <h1 className="text-2xl font-black text-slate-900 my-1">{generalSettings?.orgNameNepali || activeOrgName}</h1>
                   <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali3 || ''}</p>
                   <p className="text-xs font-bold text-slate-600">{generalSettings?.subTitleNepali4 || ''}</p>
@@ -635,7 +635,7 @@ export const KhopAbhiyan: React.FC<{
                 <h2 className="text-xl font-bold text-indigo-700">
                   {reportCampaignId === 'all' 
                     ? `खोप अभियान ${reportType === 'statistical' ? 'सांख्यिकीय' : 'विस्तृत'} रिपोर्ट`
-                    : campaigns.find(c => c.id === reportCampaignId)?.name} ({toNepaliNumber(currentFiscalYear)})
+                    : campaigns.find(c => c.id === reportCampaignId)?.name || 'खोप अभियान रिपोर्ट'} ({toNepaliNumber(currentFiscalYear)})
                 </h2>
                 {(() => {
                   const campaign = campaigns.find(c => c.id === reportCampaignId);
@@ -794,7 +794,7 @@ export const KhopAbhiyan: React.FC<{
                     <div className="text-center w-64">
                       <div className="border-t border-slate-900 pt-2">
                         <p className="text-sm font-bold">तयार गर्ने</p>
-                        <p className="text-xs mt-1 font-bold">नाम: {currentUser?.name || '................................'}</p>
+                        <p className="text-xs mt-1 font-bold">नाम: {currentUser?.fullName || '................................'}</p>
                         <p className="text-xs font-bold">पद: {currentUser?.designation || '................................'}</p>
                         <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
                       </div>
@@ -802,7 +802,7 @@ export const KhopAbhiyan: React.FC<{
                     <div className="text-center w-64">
                       <div className="border-t border-slate-900 pt-2">
                         <p className="text-sm font-bold">प्रमाणित गर्ने</p>
-                        <p className="text-xs mt-1 font-bold">नाम: {adminUser?.name || '................................'}</p>
+                        <p className="text-xs mt-1 font-bold">नाम: {adminUser?.fullName || '................................'}</p>
                         <p className="text-xs font-bold">पद: {adminUser?.designation || 'प्रशासक'}</p>
                         <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
                       </div>
