@@ -27,10 +27,11 @@ interface AbhiyanRecord {
   fiscalYear: string;
 }
 
-export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any }> = ({ 
+export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any; currentUser?: any }> = ({ 
   currentFiscalYear, 
   activeOrgName, 
-  generalSettings 
+  generalSettings,
+  currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'records' | 'report' | 'manage'>('records');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -55,6 +56,7 @@ export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: s
   // Report Filter State
   const [reportCampaignId, setReportCampaignId] = useState('all');
   const [reportCenter, setReportCenter] = useState('all');
+  const [reportType, setReportType] = useState<'statistical' | 'detail'>('statistical');
 
   useEffect(() => {
     const campaignsRef = ref(db, `orgData/${activeOrgName}/khop_campaigns`);
@@ -569,117 +571,219 @@ export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: s
                 </button>
               </div>
             </div>
+
+            <div className="mt-6 flex bg-slate-100 p-1 rounded-xl w-fit">
+              <button
+                onClick={() => setReportType('statistical')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  reportType === 'statistical' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                सांख्यिकीय रिपोर्ट
+              </button>
+              <button
+                onClick={() => setReportType('detail')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  reportType === 'detail' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                विस्तृत रिपोर्ट
+              </button>
+            </div>
           </div>
 
           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm print:shadow-none print:border-none print:p-0">
-            <div className="hidden print:block text-center mb-8 border-b-2 border-indigo-600 pb-4">
-               <h1 className="text-2xl font-black text-slate-900">{generalSettings?.orgName || activeOrgName}</h1>
-               <p className="text-sm font-bold text-slate-600 uppercase tracking-widest">{generalSettings?.address || 'Health Service Report'}</p>
-               <h2 className="text-xl font-bold mt-4 text-indigo-700">खोप अभियान रिपोर्ट ({toNepaliNumber(currentFiscalYear)})</h2>
-               <div className="flex justify-between mt-4 text-xs font-bold text-slate-500 px-4">
-                  <p>अभियान: {reportCampaignId === 'all' ? 'सबै' : campaigns.find(c => c.id === reportCampaignId)?.name}</p>
-                  <p>मिती: {toNepaliNumber(new Date().toLocaleDateString())}</p>
-               </div>
+            {/* Professional Report Header for Print */}
+            <div className="hidden print:block mb-8 border-b-2 border-slate-300 pb-6">
+              <div className="flex justify-between items-start">
+                <div className="w-24 h-24">
+                  <img 
+                    src={generalSettings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                    alt="Logo" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="flex-1 text-center px-4">
+                  <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali || ''}</p>
+                  <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali2 || ''}</p>
+                  <h1 className="text-2xl font-black text-slate-900 my-1">{generalSettings?.orgNameNepali || activeOrgName}</h1>
+                  <p className="text-sm font-bold text-slate-700">{generalSettings?.subTitleNepali3 || ''}</p>
+                  <p className="text-xs font-bold text-slate-600">{generalSettings?.subTitleNepali4 || ''}</p>
+                  <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
+                </div>
+                <div className="w-24 h-24 flex justify-end">
+                  {generalSettings?.provinceLogoUrl && (
+                    <img 
+                      src={generalSettings.provinceLogoUrl} 
+                      alt="Province Logo" 
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 text-center border-t border-slate-200 pt-4">
+                <h2 className="text-xl font-bold text-indigo-700">
+                  खोप अभियान {reportType === 'statistical' ? 'सांख्यिकीय' : 'विस्तृत'} रिपोर्ट ({toNepaliNumber(currentFiscalYear)})
+                </h2>
+                {reportCampaignId !== 'all' && (() => {
+                  const campaign = campaigns.find(c => c.id === reportCampaignId);
+                  return (
+                    <div className="mt-2 text-sm font-bold text-slate-600 space-y-1">
+                      <p>अभियानको नाम: {campaign?.name}</p>
+                      <p>सञ्चालन मिति: {toNepaliNumber(campaign?.startDate || '')} देखि {toNepaliNumber(campaign?.endDate || '')} सम्म</p>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             <div className="flex justify-between items-center mb-6 print:hidden">
               <h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
-                सांख्यिकीय रिपोर्ट (Statistical Report)
+                {reportType === 'statistical' ? 'सांख्यिकीय रिपोर्ट (Statistical)' : 'विस्तृत रिपोर्ट (Detailed)'}
                 <span className="text-xs bg-indigo-100 text-indigo-600 px-3 py-1 rounded-full">{toNepaliNumber(filteredRecords.length)} रेकर्डहरू</span>
               </h3>
             </div>
 
-            {(() => {
-              const selectedReportCampaign = campaigns.find(c => c.id === reportCampaignId);
-              const displayCenters = reportCampaignId === 'all' 
-                ? Array.from(new Set(records.map(r => r.centerName)))
-                : (reportCenter === 'all' ? selectedReportCampaign?.centers || [] : [reportCenter]);
-              
-              const displayAgeGroups = reportCampaignId === 'all'
-                ? Array.from(new Set(records.map(r => r.ageGroup)))
-                : (selectedReportCampaign?.ageGroups || []);
+            {reportType === 'statistical' ? (
+              (() => {
+                const selectedReportCampaign = campaigns.find(c => c.id === reportCampaignId);
+                const displayCenters = reportCampaignId === 'all' 
+                  ? Array.from(new Set(records.map(r => r.centerName)))
+                  : (reportCenter === 'all' ? selectedReportCampaign?.centers || [] : [reportCenter]);
+                
+                const displayAgeGroups = reportCampaignId === 'all'
+                  ? Array.from(new Set(records.map(r => r.ageGroup)))
+                  : (selectedReportCampaign?.ageGroups || []);
 
-              if (displayAgeGroups.length === 0) {
-                return <div className="p-12 text-center text-slate-400 italic">डाटा उपलब्ध छैन। अभियान छान्नुहोस्।</div>;
-              }
+                if (displayAgeGroups.length === 0) {
+                  return <div className="p-12 text-center text-slate-400 italic">डाटा उपलब्ध छैन। अभियान छान्नुहोस्।</div>;
+                }
 
-              return (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[12px] border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-700">
-                        <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">क्र.सं.</th>
-                        <th rowSpan={2} className="p-2 border border-slate-300">खोप केन्द्रको नाम</th>
-                        {displayAgeGroups.map(group => (
-                          <th key={group} colSpan={3} className="p-2 border border-slate-300 text-center">{group}</th>
-                        ))}
-                        <th rowSpan={2} className="p-2 border border-slate-300 text-center bg-slate-200">जम्मा (Total)</th>
-                      </tr>
-                      <tr className="bg-slate-50 text-slate-600">
-                        {displayAgeGroups.map(group => (
-                          <React.Fragment key={group}>
-                            <th className="p-1 border border-slate-300 text-center w-10">पु</th>
-                            <th className="p-1 border border-slate-300 text-center w-10">म</th>
-                            <th className="p-1 border border-slate-300 text-center w-10 bg-slate-100">ज</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayCenters.map((center, idx) => {
-                        let centerTotal = 0;
-                        return (
-                          <tr key={center} className="hover:bg-slate-50">
-                            <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(idx + 1)}</td>
-                            <td className="p-2 border border-slate-200 font-bold">{center}</td>
-                            {displayAgeGroups.map(group => {
-                              const m = filteredRecords.filter(r => r.centerName === center && r.ageGroup === group && r.gender === 'Male').length;
-                              const f = filteredRecords.filter(r => r.centerName === center && r.ageGroup === group && r.gender === 'Female').length;
-                              const t = m + f;
-                              centerTotal += t;
-                              return (
-                                <React.Fragment key={group}>
-                                  <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(m)}</td>
-                                  <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(f)}</td>
-                                  <td className="p-2 border border-slate-200 text-center bg-slate-50 font-bold">{toNepaliNumber(t)}</td>
-                                </React.Fragment>
-                              );
-                            })}
-                            <td className="p-2 border border-slate-200 text-center font-black bg-slate-100">{toNepaliNumber(centerTotal)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="bg-slate-100 font-black">
-                      <tr>
-                        <td colSpan={2} className="p-2 border border-slate-300 text-right">कुल जम्मा (Grand Total):</td>
-                        {displayAgeGroups.map(group => {
-                          const m = filteredRecords.filter(r => r.ageGroup === group && r.gender === 'Male').length;
-                          const f = filteredRecords.filter(r => r.ageGroup === group && r.gender === 'Female').length;
-                          const t = m + f;
-                          return (
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px] border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-700">
+                          <th rowSpan={2} className="p-2 border border-slate-300 text-center w-12">क्र.सं.</th>
+                          <th rowSpan={2} className="p-2 border border-slate-300">खोप केन्द्रको नाम</th>
+                          {displayAgeGroups.map(group => (
+                            <th key={group} colSpan={3} className="p-2 border border-slate-300 text-center">{group}</th>
+                          ))}
+                          <th rowSpan={2} className="p-2 border border-slate-300 text-center bg-slate-200">जम्मा (Total)</th>
+                        </tr>
+                        <tr className="bg-slate-50 text-slate-600">
+                          {displayAgeGroups.map(group => (
                             <React.Fragment key={group}>
-                              <td className="p-2 border border-slate-300 text-center">{toNepaliNumber(m)}</td>
-                              <td className="p-2 border border-slate-300 text-center">{toNepaliNumber(f)}</td>
-                              <td className="p-2 border border-slate-300 text-center bg-slate-200">{toNepaliNumber(t)}</td>
+                              <th className="p-1 border border-slate-300 text-center w-10">पु</th>
+                              <th className="p-1 border border-slate-300 text-center w-10">म</th>
+                              <th className="p-1 border border-slate-300 text-center w-10 bg-slate-100">ज</th>
                             </React.Fragment>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayCenters.map((center, idx) => {
+                          let centerTotal = 0;
+                          return (
+                            <tr key={center} className="hover:bg-slate-50">
+                              <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(idx + 1)}</td>
+                              <td className="p-2 border border-slate-200 font-bold">{center}</td>
+                              {displayAgeGroups.map(group => {
+                                const m = filteredRecords.filter(r => r.centerName === center && r.ageGroup === group && r.gender === 'Male').length;
+                                const f = filteredRecords.filter(r => r.centerName === center && r.ageGroup === group && r.gender === 'Female').length;
+                                const t = m + f;
+                                centerTotal += t;
+                                return (
+                                  <React.Fragment key={group}>
+                                    <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(m)}</td>
+                                    <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(f)}</td>
+                                    <td className="p-2 border border-slate-200 text-center bg-slate-50 font-bold">{toNepaliNumber(t)}</td>
+                                  </React.Fragment>
+                                );
+                              })}
+                              <td className="p-2 border border-slate-200 text-center font-black bg-slate-100">{toNepaliNumber(centerTotal)}</td>
+                            </tr>
                           );
                         })}
-                        <td className="p-2 border border-slate-300 text-center bg-indigo-100 text-indigo-700">{toNepaliNumber(filteredRecords.length)}</td>
+                      </tbody>
+                      <tfoot className="bg-slate-100 font-black">
+                        <tr>
+                          <td colSpan={2} className="p-2 border border-slate-300 text-right">कुल जम्मा (Grand Total):</td>
+                          {displayAgeGroups.map(group => {
+                            const m = filteredRecords.filter(r => r.ageGroup === group && r.gender === 'Male').length;
+                            const f = filteredRecords.filter(r => r.ageGroup === group && r.gender === 'Female').length;
+                            const t = m + f;
+                            return (
+                              <React.Fragment key={group}>
+                                <td className="p-2 border border-slate-300 text-center">{toNepaliNumber(m)}</td>
+                                <td className="p-2 border border-slate-300 text-center">{toNepaliNumber(f)}</td>
+                                <td className="p-2 border border-slate-300 text-center bg-slate-200">{toNepaliNumber(t)}</td>
+                              </React.Fragment>
+                            );
+                          })}
+                          <td className="p-2 border border-slate-300 text-center bg-indigo-100 text-indigo-700">{toNepaliNumber(filteredRecords.length)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px] border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <th className="p-2 border border-slate-300 text-center w-12">क्र.सं.</th>
+                      <th className="p-2 border border-slate-300">मिति</th>
+                      <th className="p-2 border border-slate-300">सेवाग्राहीको नाम</th>
+                      <th className="p-2 border border-slate-300 text-center">उमेर समूह</th>
+                      <th className="p-2 border border-slate-300 text-center">उमेर</th>
+                      <th className="p-2 border border-slate-300 text-center">लिङ्ग</th>
+                      <th className="p-2 border border-slate-300">अभियान</th>
+                      <th className="p-2 border border-slate-300">खोप केन्द्र</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.map((r, idx) => (
+                      <tr key={r.id} className="hover:bg-slate-50">
+                        <td className="p-2 border border-slate-200 text-center">{toNepaliNumber(idx + 1)}</td>
+                        <td className="p-2 border border-slate-200">{toNepaliNumber(r.date)}</td>
+                        <td className="p-2 border border-slate-200 font-bold">{r.beneficiaryName}</td>
+                        <td className="p-2 border border-slate-200 text-center">{r.ageGroup}</td>
+                        <td className="p-2 border border-slate-200 text-center">{r.age}</td>
+                        <td className="p-2 border border-slate-200 text-center">{r.gender === 'Male' ? 'पुरुष' : r.gender === 'Female' ? 'महिला' : 'अन्य'}</td>
+                        <td className="p-2 border border-slate-200 text-[10px]">{campaigns.find(c => c.id === r.campaignId)?.name || '-'}</td>
+                        <td className="p-2 border border-slate-200 text-[10px] font-bold">{r.centerName}</td>
                       </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              );
-            })()}
+                    ))}
+                    {filteredRecords.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="p-12 text-center text-slate-400 italic">डाटा उपलब्ध छैन। फिल्टर परिवर्तन गरी हेर्नुहोस्।</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-            <div className="hidden print:block mt-24">
-              <div className="flex justify-between px-12">
-                <div className="text-center border-t border-slate-900 pt-2 w-48">
-                  <p className="text-sm font-bold">तयार गर्ने</p>
+            <div className="hidden print:block mt-32">
+              <div className="flex justify-between px-4">
+                <div className="text-center w-64">
+                  <div className="border-t border-slate-900 pt-2">
+                    <p className="text-sm font-bold">तयार गर्ने</p>
+                    <p className="text-xs mt-1">नाम: ................................</p>
+                    <p className="text-xs">पद: ................................</p>
+                    <p className="text-xs">मिति: ................................</p>
+                  </div>
                 </div>
-                <div className="text-center border-t border-slate-900 pt-2 w-48">
-                  <p className="text-sm font-bold">सदर गर्ने</p>
+                <div className="text-center w-64">
+                  <div className="border-t border-slate-900 pt-2">
+                    <p className="text-sm font-bold">प्रमाणित गर्ने</p>
+                    <p className="text-xs mt-1">नाम: {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? currentUser.name : '................................'}</p>
+                    <p className="text-xs">पद: {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? 'प्रशासक' : '................................'}</p>
+                    <p className="text-xs">मिति: {toNepaliNumber(new Date().toLocaleDateString())}</p>
+                  </div>
                 </div>
               </div>
             </div>
