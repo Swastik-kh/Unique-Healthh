@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Syringe, Plus, Search, Calendar, Users, MapPin, Printer, Save, Trash2, Info, ChevronRight, Filter, Download } from 'lucide-react';
 import { db } from '../firebase';
 import { ref, onValue, push, set, remove, get } from 'firebase/database';
+// @ts-ignore
+import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { toNepaliNumber } from './nepaliUtils';
 
@@ -27,11 +29,18 @@ interface AbhiyanRecord {
   fiscalYear: string;
 }
 
-export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any; currentUser?: any }> = ({ 
+export const KhopAbhiyan: React.FC<{ 
+  currentFiscalYear: string; 
+  activeOrgName: string; 
+  generalSettings?: any; 
+  currentUser?: any;
+  allUsers?: any[];
+}> = ({ 
   currentFiscalYear, 
   activeOrgName, 
   generalSettings,
-  currentUser
+  currentUser,
+  allUsers = []
 }) => {
   const [activeTab, setActiveTab] = useState<'records' | 'report' | 'manage'>('records');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -624,14 +633,21 @@ export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: s
 
               <div className="mt-6 text-center border-t border-slate-200 pt-4">
                 <h2 className="text-xl font-bold text-indigo-700">
-                  खोप अभियान {reportType === 'statistical' ? 'सांख्यिकीय' : 'विस्तृत'} रिपोर्ट ({toNepaliNumber(currentFiscalYear)})
+                  {reportCampaignId === 'all' 
+                    ? `खोप अभियान ${reportType === 'statistical' ? 'सांख्यिकीय' : 'विस्तृत'} रिपोर्ट`
+                    : campaigns.find(c => c.id === reportCampaignId)?.name} ({toNepaliNumber(currentFiscalYear)})
                 </h2>
-                {reportCampaignId !== 'all' && (() => {
+                {(() => {
                   const campaign = campaigns.find(c => c.id === reportCampaignId);
+                  const nepDate = new NepaliDate();
+                  const formattedNepDate = toNepaliNumber(nepDate.format('YYYY/MM/DD'));
+                  
                   return (
                     <div className="mt-2 text-sm font-bold text-slate-600 space-y-1">
-                      <p>अभियानको नाम: {campaign?.name}</p>
-                      <p>सञ्चालन मिति: {toNepaliNumber(campaign?.startDate || '')} देखि {toNepaliNumber(campaign?.endDate || '')} सम्म</p>
+                      {campaign && (
+                        <p>सञ्चालन मिति: {toNepaliNumber(campaign.startDate)} देखि {toNepaliNumber(campaign.endDate)} सम्म</p>
+                      )}
+                      <p>रिपोर्ट निकालिएको मिति: {formattedNepDate}</p>
                     </div>
                   );
                 })()}
@@ -768,24 +784,32 @@ export const KhopAbhiyan: React.FC<{ currentFiscalYear: string; activeOrgName: s
             )}
 
             <div className="hidden print:block mt-32">
-              <div className="flex justify-between px-4">
-                <div className="text-center w-64">
-                  <div className="border-t border-slate-900 pt-2">
-                    <p className="text-sm font-bold">तयार गर्ने</p>
-                    <p className="text-xs mt-1">नाम: ................................</p>
-                    <p className="text-xs">पद: ................................</p>
-                    <p className="text-xs">मिति: ................................</p>
+              {(() => {
+                const adminUser = allUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN');
+                const nepDate = new NepaliDate();
+                const formattedNepDate = toNepaliNumber(nepDate.format('YYYY/MM/DD'));
+
+                return (
+                  <div className="flex justify-between px-4">
+                    <div className="text-center w-64">
+                      <div className="border-t border-slate-900 pt-2">
+                        <p className="text-sm font-bold">तयार गर्ने</p>
+                        <p className="text-xs mt-1 font-bold">नाम: {currentUser?.name || '................................'}</p>
+                        <p className="text-xs font-bold">पद: {currentUser?.designation || '................................'}</p>
+                        <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
+                      </div>
+                    </div>
+                    <div className="text-center w-64">
+                      <div className="border-t border-slate-900 pt-2">
+                        <p className="text-sm font-bold">प्रमाणित गर्ने</p>
+                        <p className="text-xs mt-1 font-bold">नाम: {adminUser?.name || '................................'}</p>
+                        <p className="text-xs font-bold">पद: {adminUser?.designation || 'प्रशासक'}</p>
+                        <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="text-center w-64">
-                  <div className="border-t border-slate-900 pt-2">
-                    <p className="text-sm font-bold">प्रमाणित गर्ने</p>
-                    <p className="text-xs mt-1">नाम: {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? currentUser.name : '................................'}</p>
-                    <p className="text-xs">पद: {currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' ? 'प्रशासक' : '................................'}</p>
-                    <p className="text-xs">मिति: {toNepaliNumber(new Date().toLocaleDateString())}</p>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
         </div>
