@@ -4,6 +4,7 @@ import { collection, doc, getDoc, setDoc, addDoc, query, getDocs, updateDoc, whe
 import { VitaminATarget, FCHV, VitaminADistributionRecord, AgeGroupData } from '../types/vitaminATypes';
 import { Save, UserPlus, Plus, Printer } from 'lucide-react';
 import { NepaliDatePicker } from './NepaliDatePicker';
+import { toNepaliNumber } from './nepaliUtils';
 
 const INITIAL_DISTRIBUTION_DATA: Record<string, AgeGroupData> = {
     '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
@@ -11,7 +12,7 @@ const INITIAL_DISTRIBUTION_DATA: Record<string, AgeGroupData> = {
     '24-59months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
 };
 
-export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string }> = ({ currentFiscalYear, activeOrgName }) => {
+export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any }> = ({ currentFiscalYear, activeOrgName, generalSettings }) => {
     const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_");
     const [targets, setTargets] = useState<VitaminATarget>({ fiscalYear: currentFiscalYear, target6to11Months: 0, target12to23Months: 0, target24to59Months: 0 });
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
@@ -417,29 +418,65 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
 
                 <div className="print-container">
                     {/* Print Header */}
-                    <div className="hidden print:block text-center mb-6">
-                        <h1 className="text-xl font-bold font-nepali">{activeOrgName}</h1>
-                        <h2 className="text-lg font-bold font-nepali mt-1">भिटामिन ए तथा जुकाको औषधि (अल्बेन्डाजोल) वितरण प्रतिवेदन</h2>
-                        <p className="text-sm text-slate-600 mt-1">
-                            आर्थिक वर्ष: {currentFiscalYear} | राउन्ड: {reportRound === '1st' ? 'पहिलो (1st)' : 'दोस्रो (2nd)'} | 
-                            मिति: {reportRound === '1st' ? programDates.round1 : programDates.round2}
-                            {filterFchvId !== 'all' && ` | स्वयंसेविका: ${fchvs.find(f => f.id === filterFchvId)?.name} (वडा नं: ${fchvs.find(f => f.id === filterFchvId)?.wardNumber})`}
-                        </p>
+                    <div className="border-b-2 border-slate-300 pb-4 mb-6 flex items-start justify-between gap-4">
+                        {/* Left side: Logo */}
+                        <div className="flex-shrink-0">
+                            <img 
+                                src={generalSettings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                alt="Logo" 
+                                className="w-20 h-20 md:w-24 md:h-24 object-contain"
+                            />
+                        </div>
+                        {/* Center: General settings headers 1, 2, 3, 4 */}
+                        <div className="flex-grow text-center pr-10 md:pr-16">
+                            <h1 className="text-xl font-bold font-nepali text-red-600 leading-tight">
+                                {generalSettings?.orgNameNepali || activeOrgName}
+                            </h1>
+                            {generalSettings?.subTitleNepali && (
+                                <h2 className="text-md font-semibold font-nepali mt-1 text-slate-800 leading-tight">
+                                    {generalSettings.subTitleNepali}
+                                </h2>
+                            )}
+                            {generalSettings?.subTitleNepali2 && (
+                                <h3 className="text-sm font-medium font-nepali mt-1 text-slate-700 leading-tight">
+                                    {generalSettings.subTitleNepali2}
+                                </h3>
+                            )}
+                            {generalSettings?.subTitleNepali3 && (
+                                <h4 className="text-xs font-normal font-nepali mt-1 text-slate-600 leading-tight">
+                                    {generalSettings.subTitleNepali3}
+                                </h4>
+                            )}
+                            {generalSettings?.subTitleNepali4 && (
+                                <h5 className="text-[10px] font-normal font-nepali mt-0.5 text-slate-500 leading-tight">
+                                    {generalSettings.subTitleNepali4}
+                                </h5>
+                            )}
+                            
+                            <h2 className="text-base font-bold font-nepali mt-3 border-t pt-2 text-slate-900">
+                                भिटामिन ए तथा जुकाको औषधि (अल्बेन्डाजोल) वितरण प्रतिवेदन
+                            </h2>
+                            <p className="text-xs text-slate-600 mt-1 font-nepali">
+                                आर्थिक वर्ष: {toNepaliNumber(currentFiscalYear)} | राउन्ड: {reportRound === '1st' ? 'पहिलो (1st)' : 'दोस्रो (2nd)'} | 
+                                मिति: {toNepaliNumber(reportRound === '1st' ? programDates.round1 : programDates.round2)}
+                                {filterFchvId !== 'all' && ` | स्वयंसेविका: ${fchvs.find(f => f.id === filterFchvId)?.name} (वडा नं: ${toNepaliNumber(fchvs.find(f => f.id === filterFchvId)?.wardNumber || '')})`}
+                            </p>
+                        </div>
                     </div>
 
                     {/* Target Stats Summary */}
                     <div className="mb-6 grid grid-cols-3 gap-4 text-center print:border print:p-3 print:rounded print:mb-4">
                         <div className="p-3 bg-slate-50 rounded border print:border-none print:bg-transparent">
                             <span className="block text-xs text-slate-500 font-nepali">६-११ महिना लक्ष्य</span>
-                            <span className="text-lg font-bold font-mono">{targets.target6to11Months || 0}</span>
+                            <span className="text-lg font-bold font-mono">{toNepaliNumber(targets.target6to11Months || 0)}</span>
                         </div>
                         <div className="p-3 bg-slate-50 rounded border print:border-none print:bg-transparent">
                             <span className="block text-xs text-slate-500 font-nepali">१२-२३ महिना लक्ष्य</span>
-                            <span className="text-lg font-bold font-mono">{targets.target12to23Months || 0}</span>
+                            <span className="text-lg font-bold font-mono">{toNepaliNumber(targets.target12to23Months || 0)}</span>
                         </div>
                         <div className="p-3 bg-slate-50 rounded border print:border-none print:bg-transparent">
                             <span className="block text-xs text-slate-500 font-nepali">२४-५९ महिना लक्ष्य</span>
-                            <span className="text-lg font-bold font-mono">{targets.target24to59Months || 0}</span>
+                            <span className="text-lg font-bold font-mono">{toNepaliNumber(targets.target24to59Months || 0)}</span>
                         </div>
                     </div>
 
@@ -448,7 +485,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                         <h4 className="text-sm font-bold text-slate-700 font-nepali mb-3 print:text-xs">१. भिटामिन ए र जुकाको औषधी (अल्बेन्डाजोल) वितरण विवरण</h4>
                         <div className="overflow-x-auto">
                             <table className="w-full text-xs text-left border-collapse print-table">
-                                <thead className="bg-slate-100 text-slate-700 border font-bold">
+                                <thead className="bg-slate-100 text-slate-700 border font-bold font-nepali">
                                     <tr>
                                         <th className="border p-2 text-center" rowSpan={2}>क्र.सं.</th>
                                         <th className="border p-2" rowSpan={2}>स्वयंसेविकाको नाम</th>
@@ -460,11 +497,11 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                         <th className="border p-2 text-center" colSpan={3}>जुकाको औषधी (२४-५९ महिना)</th>
                                     </tr>
                                     <tr>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -472,34 +509,34 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                         const rec = allRecords.find(r => r.fchvId === fchv.id && r.round === reportRound);
                                         return (
                                             <tr key={fchv.id} className="border hover:bg-slate-50 transition-colors">
-                                                <td className="border p-2 text-center">{idx + 1}</td>
+                                                <td className="border p-2 text-center">{toNepaliNumber(idx + 1)}</td>
                                                 <td className="border p-2 font-medium">{fchv.name}</td>
-                                                <td className="border p-2 text-center font-mono">{fchv.wardNumber}</td>
+                                                <td className="border p-2 text-center font-mono">{toNepaliNumber(fchv.wardNumber)}</td>
                                                 
                                                 {/* 6-11m Vit A */}
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['6-11months']?.maleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['6-11months']?.femaleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{rec?.data?.['6-11months']?.totalVitaminA || 0}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['6-11months']?.maleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['6-11months']?.femaleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(rec?.data?.['6-11months']?.totalVitaminA || 0)}</td>
 
                                                 {/* 12-23m Vit A */}
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['12-23months']?.maleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['12-23months']?.femaleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{rec?.data?.['12-23months']?.totalVitaminA || 0}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['12-23months']?.maleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['12-23months']?.femaleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(rec?.data?.['12-23months']?.totalVitaminA || 0)}</td>
 
                                                 {/* 24-59m Vit A */}
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['24-59months']?.maleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['24-59months']?.femaleVitaminA || 0}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{rec?.data?.['24-59months']?.totalVitaminA || 0}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['24-59months']?.maleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['24-59months']?.femaleVitaminA || 0)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(rec?.data?.['24-59months']?.totalVitaminA || 0)}</td>
 
                                                 {/* 12-23m Albendazole */}
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['12-23months']?.maleAlbendazole || 0}</td>
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['12-23months']?.femaleAlbendazole || 0}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{rec?.data?.['12-23months']?.totalAlbendazole || 0}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['12-23months']?.maleAlbendazole || 0)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['12-23months']?.femaleAlbendazole || 0)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(rec?.data?.['12-23months']?.totalAlbendazole || 0)}</td>
 
                                                 {/* 24-59m Albendazole */}
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['24-59months']?.maleAlbendazole || 0}</td>
-                                                <td className="border p-1 text-center font-mono">{rec?.data?.['24-59months']?.femaleAlbendazole || 0}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{rec?.data?.['24-59months']?.totalAlbendazole || 0}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['24-59months']?.maleAlbendazole || 0)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(rec?.data?.['24-59months']?.femaleAlbendazole || 0)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(rec?.data?.['24-59months']?.totalAlbendazole || 0)}</td>
                                             </tr>
                                         );
                                     })}
@@ -508,29 +545,29 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                         <td className="border p-2 text-center" colSpan={3}>कुल जम्मा (Grand Total)</td>
                                         
                                         {/* 6-11m Vit A Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.v6_11_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.v6_11_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.v6_11_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v6_11_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v6_11_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.v6_11_t)}</td>
 
                                         {/* 12-23m Vit A Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.v12_23_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.v12_23_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.v12_23_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v12_23_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v12_23_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.v12_23_t)}</td>
 
                                         {/* 24-59m Vit A Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.v24_59_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.v24_59_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.v24_59_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v24_59_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.v24_59_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.v24_59_t)}</td>
 
                                         {/* 12-23m Albendazole Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.a12_23_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.a12_23_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.a12_23_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.a12_23_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.a12_23_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.a12_23_t)}</td>
 
                                         {/* 24-59m Albendazole Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.a24_59_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.a24_59_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.a24_59_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.a24_59_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.a24_59_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.a24_59_t)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -542,7 +579,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                         <h4 className="text-sm font-bold text-slate-700 font-nepali mb-3 print:text-xs">२. पाखुराको घेरा (MUAC) स्क्रिनिङ स्थिति विवरण (६-५९ महिना)</h4>
                         <div className="overflow-x-auto">
                             <table className="w-full text-xs text-left border-collapse print-table">
-                                <thead className="bg-slate-100 text-slate-700 border font-bold">
+                                <thead className="bg-slate-100 text-slate-700 border font-bold font-nepali">
                                     <tr>
                                         <th className="border p-2 text-center" rowSpan={2}>क्र.सं.</th>
                                         <th className="border p-2" rowSpan={2}>स्वयंसेविकाको नाम</th>
@@ -553,10 +590,10 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                         <th className="border p-2 text-center" colSpan={3}>जम्मा स्क्रिनिङ (Total Screened)</th>
                                     </tr>
                                     <tr>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
-                                        <th className="border p-1 text-center">M</th><th className="border p-1 text-center">F</th><th className="border p-1 text-center">T</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
+                                        <th className="border p-1 text-center bg-slate-50 text-slate-600">पु</th><th className="border p-1 text-center bg-slate-50 text-slate-600">म</th><th className="border p-1 text-center bg-slate-200 text-slate-800">जम्मा</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -582,29 +619,29 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
 
                                         return (
                                             <tr key={fchv.id} className="border hover:bg-slate-50 transition-colors">
-                                                <td className="border p-2 text-center">{idx + 1}</td>
+                                                <td className="border p-2 text-center">{toNepaliNumber(idx + 1)}</td>
                                                 <td className="border p-2 font-medium">{fchv.name}</td>
-                                                <td className="border p-2 text-center font-mono">{fchv.wardNumber}</td>
+                                                <td className="border p-2 text-center font-mono">{toNepaliNumber(fchv.wardNumber)}</td>
                                                 
                                                 {/* Green */}
-                                                <td className="border p-1 text-center font-mono">{greenM}</td>
-                                                <td className="border p-1 text-center font-mono">{greenF}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{greenT}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(greenM)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(greenF)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(greenT)}</td>
 
                                                 {/* Yellow */}
-                                                <td className="border p-1 text-center font-mono">{yellowM}</td>
-                                                <td className="border p-1 text-center font-mono">{yellowF}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{yellowT}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(yellowM)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(yellowF)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(yellowT)}</td>
 
                                                 {/* Red */}
-                                                <td className="border p-1 text-center font-mono">{redM}</td>
-                                                <td className="border p-1 text-center font-mono">{redF}</td>
-                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{redT}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(redM)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(redF)}</td>
+                                                <td className="border p-1 text-center font-mono font-bold bg-slate-50/50">{toNepaliNumber(redT)}</td>
 
                                                 {/* Total Screened */}
-                                                <td className="border p-1 text-center font-mono">{totalM}</td>
-                                                <td className="border p-1 text-center font-mono">{totalF}</td>
-                                                <td className="border p-1 text-center font-mono font-black bg-slate-100">{totalT}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(totalM)}</td>
+                                                <td className="border p-1 text-center font-mono">{toNepaliNumber(totalF)}</td>
+                                                <td className="border p-1 text-center font-mono font-black bg-slate-100">{toNepaliNumber(totalT)}</td>
                                             </tr>
                                         );
                                     })}
@@ -613,24 +650,24 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                         <td className="border p-2 text-center" colSpan={3}>कुल जम्मा (Grand Total)</td>
                                         
                                         {/* Green Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.g_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.g_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.g_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.g_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.g_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.g_t)}</td>
 
                                         {/* Yellow Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.y_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.y_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.y_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.y_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.y_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.y_t)}</td>
 
                                         {/* Red Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.r_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.r_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black">{totals.r_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.r_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.r_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black">{toNepaliNumber(totals.r_t)}</td>
 
                                         {/* Grand Screened Total */}
-                                        <td className="border p-1 text-center font-mono">{totals.tot_m}</td>
-                                        <td className="border p-1 text-center font-mono">{totals.tot_f}</td>
-                                        <td className="border p-1 text-center font-mono font-black bg-slate-200">{totals.tot_t}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.tot_m)}</td>
+                                        <td className="border p-1 text-center font-mono">{toNepaliNumber(totals.tot_f)}</td>
+                                        <td className="border p-1 text-center font-mono font-black bg-slate-200">{toNepaliNumber(totals.tot_t)}</td>
                                     </tr>
                                 </tbody>
                             </table>
