@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, FileText, User, Activity, Save, Printer, History, FlaskConical, Trash2, CheckCircle2, Beaker } from 'lucide-react';
+import { Search, FileText, User as UserIcon, Activity, Save, Printer, History, FlaskConical, Trash2, CheckCircle2, Beaker } from 'lucide-react';
 import Barcode from 'react-barcode';
-import { ServiceSeekerRecord, BillingRecord, ServiceItem, LabReport, LabTestResult, OrganizationSettings } from '../types/coreTypes';
+import { ServiceSeekerRecord, BillingRecord, ServiceItem, LabReport, LabTestResult, OrganizationSettings, User } from '../types/coreTypes';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { callPatientSpeech } from './nepaliUtils';
@@ -70,7 +70,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       age: string;
       gender: string;
       latestDate: string;
-      invoiceNumber?: string;
+      allInvoices: string[];
       barcodeId?: string;
       pendingSamplesCount: number;
       pendingResultsCount: number;
@@ -89,6 +89,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
           age: age,
           gender: gender,
           latestDate: '',
+          allInvoices: [],
           pendingSamplesCount: 0,
           pendingResultsCount: 0,
           completedReportsCount: 0,
@@ -102,7 +103,6 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
     billingRecords.forEach(bill => {
       const patient = serviceSeekerRecords.find(p => p.id === bill.serviceSeekerId);
-      if (!patient) return;
 
       const hasLabItems = bill.items.some(item => {
         const itemName = item.serviceName.trim().toLowerCase();
@@ -111,11 +111,23 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
       if (!hasLabItems) return;
 
-      const pEntry = getOrInitPatient(patient.id, patient.name, patient.uniquePatientId, patient.age, patient.gender, bill.fiscalYear, patient.address, patient.phone);
+      const pEntry = getOrInitPatient(
+        bill.serviceSeekerId, 
+        patient?.name || bill.patientName || 'Unknown', 
+        patient?.uniquePatientId || bill.serviceSeekerId, 
+        patient?.age || 'N/A', 
+        patient?.gender || 'N/A', 
+        bill.fiscalYear, 
+        patient?.address || '', 
+        patient?.phone || ''
+      );
+
       if (!pEntry.latestDate || bill.billDate > pEntry.latestDate) {
         pEntry.latestDate = bill.billDate;
       }
-      if (!pEntry.invoiceNumber) pEntry.invoiceNumber = bill.invoiceNumber;
+      if (!pEntry.allInvoices.includes(bill.invoiceNumber)) {
+        pEntry.allInvoices.push(bill.invoiceNumber);
+      }
 
       const existingReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
       bill.items.forEach(item => {
@@ -157,8 +169,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       if (report.barcodeId) {
         pEntry.barcodeId = report.barcodeId;
       }
-      if (report.invoiceNumber && !pEntry.invoiceNumber) {
-        pEntry.invoiceNumber = report.invoiceNumber;
+      if (report.invoiceNumber && !pEntry.allInvoices.includes(report.invoiceNumber)) {
+        pEntry.allInvoices.push(report.invoiceNumber);
       }
     });
 
@@ -173,7 +185,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       p.uniquePatientId.toLowerCase().includes(query) ||
       p.address.toLowerCase().includes(query) ||
       p.phone.includes(query) ||
-      (p.invoiceNumber && p.invoiceNumber.toLowerCase().includes(query)) ||
+      p.allInvoices.some(inv => inv.toLowerCase().includes(query)) ||
       (p.barcodeId && p.barcodeId.toLowerCase().includes(query))
     );
   }, [labPatientsList, searchId]);
@@ -503,7 +515,6 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     // Process all billing records to find lab items
     billingRecords.forEach(bill => {
       const patient = serviceSeekerRecords.find(p => p.id === bill.serviceSeekerId);
-      if (!patient) return;
 
       const labItems = bill.items.filter(item => {
         const itemName = item.serviceName.trim().toLowerCase();
@@ -519,12 +530,12 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
         const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
 
         const taskData = {
-          patientId: patient.id,
-          patientName: patient.name,
-          patientPID: patient.uniquePatientId,
+          patientId: bill.serviceSeekerId,
+          patientName: patient?.name || bill.patientName || 'Unknown',
+          patientPID: patient?.uniquePatientId || bill.serviceSeekerId,
           testName: item.serviceName,
           invoiceNumber: bill.invoiceNumber,
-          date: bill.date,
+          date: bill.billDate,
           status: existingTest?.sampleCollected ? (existingReport?.status === 'Completed' ? 'Completed' : 'Sample Collected') : 'Pending Sample',
           barcodeId: existingTest?.barcodeId || ''
         };
@@ -546,6 +557,29 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       setCurrentPatient(patient);
       loadPendingTests(patient.id);
       setViewMode('search');
+    } else {
+      // Check if it's a direct billing patient
+      const lp = labPatientsList.find(p => p.patientId === patientId);
+      if (lp) {
+        const tempPatient: ServiceSeekerRecord = {
+          id: lp.patientId,
+          uniquePatientId: lp.uniquePatientId,
+          registrationNumber: '',
+          date: lp.latestDate,
+          name: lp.name,
+          age: lp.age,
+          gender: (lp.gender === 'Female' || lp.gender === 'Other') ? lp.gender : 'Male',
+          casteCode: '',
+          address: lp.address || '',
+          phone: lp.phone || '',
+          serviceType: 'Lab',
+          visitType: 'New',
+          fiscalYear: lp.fiscalYear
+        };
+        setCurrentPatient(tempPatient);
+        loadPendingTests(lp.patientId);
+        setViewMode('search');
+      }
     }
   };
 
@@ -618,7 +652,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                 type="text"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
-                placeholder="बिरामी ID (PID-XXXXXX) वा दर्ता नं. राख्नुहोस्"
+                placeholder="बिरामी ID, दर्ता नं. वा बिल नं. राख्नुहोस्"
                 className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 autoFocus
               />
@@ -705,7 +739,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                  <User size={18} /> बिरामीको विवरण
+                  <UserIcon size={18} /> बिरामीको विवरण
                 </h3>
                 <button 
                   onClick={() => setCurrentPatient(null)}
@@ -950,9 +984,9 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                         <td className="p-3 font-mono text-xs text-slate-500">{patient.uniquePatientId}</td>
                         <td className="p-3 text-slate-600">{patient.age} / {patient.gender}</td>
                         <td className="p-3 text-xs font-mono text-slate-500">
-                          {patient.invoiceNumber && <div>Inv: {patient.invoiceNumber}</div>}
+                          {patient.allInvoices.length > 0 && <div>Inv: {patient.allInvoices[patient.allInvoices.length - 1]}</div>}
                           {patient.barcodeId && <div className="text-[10px] text-primary-600">BC: {patient.barcodeId}</div>}
-                          {!patient.invoiceNumber && !patient.barcodeId && <span className="text-slate-400 italic">N/A</span>}
+                          {patient.allInvoices.length === 0 && !patient.barcodeId && <span className="text-slate-400 italic">N/A</span>}
                         </td>
                         <td className="p-3">
                           <div className="text-xs space-y-0.5 text-slate-600">
