@@ -201,8 +201,13 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   const handleCollectInvoiceSamples = (invoiceNumber: string) => {
     if (!currentPatient) return;
 
-    // Generate a unique barcode ID for the entire invoice
-    const barcodeId = `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    const today = new NepaliDate().format('YYYY-MM-DD');
+    // Check if any test already has a barcode in current session or recent reports for today
+    const existingBarcode = pendingTests.find(t => t.barcodeId)?.barcodeId || 
+                           labReports.find(r => r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
+
+    // Generate a unique barcode ID for the entire invoice only if not already exists
+    const barcodeId = existingBarcode || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
     const collectionDate = new NepaliDate().format('YYYY-MM-DD HH:mm');
     const collectedBy = currentUser?.username || 'System';
 
@@ -210,7 +215,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       ...t, 
       sampleCollected: true, 
       sampleCollectedDate: collectionDate,
-      sampleCollectedBy: collectedBy,
+      sampleCollectedBy: collectedBy, 
       barcodeId: barcodeId
     } : t);
     
@@ -227,7 +232,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     const reportToSave: LabReport = {
       id: existingReport?.id || Date.now().toString(),
       fiscalYear: currentFiscalYear,
-      reportDate: existingReport?.reportDate || new NepaliDate().format('YYYY-MM-DD'),
+      reportDate: existingReport?.reportDate || today,
       serviceSeekerId: currentPatient.id,
       patientName: currentPatient.name,
       age: currentPatient.age,
@@ -260,14 +265,13 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     if (!testToCollect) return;
 
     const invoiceNumber = testToCollect.invoiceNumber;
+    const today = new NepaliDate().format('YYYY-MM-DD');
     
-    // Check if a barcode already exists for this invoice in existing reports
-    const existingReport = labReports.find(r => 
-      r.serviceSeekerId === currentPatient.id && 
-      r.invoiceNumber === invoiceNumber
-    );
+    // Check if any test already has a barcode in current session or recent reports for today
+    const existingBarcode = pendingTests.find(t => t.barcodeId)?.barcodeId || 
+                           labReports.find(r => r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
 
-    const barcodeId = existingReport?.barcodeId || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    const barcodeId = existingBarcode || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
 
     const updatedTests = pendingTests.map(t => t.id === id ? { 
       ...t, 
@@ -282,10 +286,15 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     // Auto-save to database immediately
     const invoiceTests = updatedTests.filter(t => t.invoiceNumber === invoiceNumber && t.sampleCollected);
     
+    const existingReport = labReports.find(r => 
+      r.serviceSeekerId === currentPatient.id && 
+      r.invoiceNumber === invoiceNumber
+    );
+
     const reportToSave: LabReport = {
       id: existingReport?.id || Date.now().toString(),
       fiscalYear: currentFiscalYear,
-      reportDate: existingReport?.reportDate || new NepaliDate().format('YYYY-MM-DD'),
+      reportDate: existingReport?.reportDate || today,
       serviceSeekerId: currentPatient.id,
       patientName: currentPatient.name,
       age: currentPatient.age,
