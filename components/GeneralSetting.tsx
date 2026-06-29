@@ -318,7 +318,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 </div>
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                     {(() => {
-                        const orgUsers = users.filter(u => u.organization === currentUser.organization);
+                        const orgUsers = users.filter(u => u.organizationName === currentUser.organizationName);
                         const userOptions = orgUsers.map(u => ({ id: u.id, label: u.fullName, value: u.id }));
                         return (
                             <>

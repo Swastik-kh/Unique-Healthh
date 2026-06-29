@@ -787,7 +787,7 @@ export const KhopAbhiyan: React.FC<{
 
             <div className="hidden print:block mt-32">
               {(() => {
-                const orgUsers = allUsers.filter(u => u.organization === activeOrgName);
+                const orgUsers = allUsers.filter(u => u.organizationName === currentUser?.organizationName);
                 
                 // Preparer from settings
                 const preparerId = generalSettings?.khopReportPreparerUserId;
