@@ -133,13 +133,20 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       bill.items.forEach(item => {
         const itemName = item.serviceName.trim().toLowerCase();
         if (labServiceNames.has(itemName) || labSubTestNames.has(itemName)) {
-          const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
-          if (!existingTest?.sampleCollected) {
+          // Check if this test or its sub-tests are collected
+          const relatedTestsInReport = existingReport?.tests?.filter(t => 
+            t.testName.trim().toLowerCase() === itemName || 
+            t.parentTestName?.trim().toLowerCase() === itemName
+          ) || [];
+
+          const isCollected = relatedTestsInReport.length > 0 && relatedTestsInReport.every(t => t.sampleCollected);
+          
+          if (!isCollected) {
             pEntry.pendingSamplesCount += 1;
           } else if (existingReport?.status !== 'Completed') {
             pEntry.pendingResultsCount += 1;
-            if (!pEntry.barcodeId && existingTest.barcodeId) {
-              pEntry.barcodeId = existingTest.barcodeId;
+            if (!pEntry.barcodeId && (existingReport.barcodeId || relatedTestsInReport[0]?.barcodeId)) {
+              pEntry.barcodeId = existingReport.barcodeId || relatedTestsInReport[0]?.barcodeId;
             }
           }
         }
@@ -258,13 +265,28 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     setActiveTab('result');
   };
 
-  const handleCollectSample = (id: string) => {
+  const handleCollectSample = (idOrParent: string, isParentGroup: boolean = false) => {
     if (!currentPatient) return;
 
-    const testToCollect = pendingTests.find(t => t.id === id);
-    if (!testToCollect) return;
+    let testsToUpdate: PendingTest[] = [];
+    let invoiceNumber = '';
 
-    const invoiceNumber = testToCollect.invoiceNumber;
+    if (isParentGroup) {
+      // idOrParent is parentTestName
+      testsToUpdate = pendingTests.filter(t => 
+        (t.parentTestName === idOrParent || (!t.parentTestName && t.testName === idOrParent))
+      );
+      if (testsToUpdate.length > 0) invoiceNumber = testsToUpdate[0].invoiceNumber;
+    } else {
+      const test = pendingTests.find(t => t.id === idOrParent);
+      if (test) {
+        testsToUpdate = [test];
+        invoiceNumber = test.invoiceNumber;
+      }
+    }
+
+    if (testsToUpdate.length === 0) return;
+
     const today = new NepaliDate().format('YYYY-MM-DD');
     
     // Check if any test already has a barcode in current session or recent reports for today
@@ -272,12 +294,16 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                            labReports.find(r => r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
 
     const barcodeId = existingBarcode || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
+    const collectionDate = new NepaliDate().format('YYYY-MM-DD HH:mm');
+    const collectedBy = currentUser?.username || 'System';
 
-    const updatedTests = pendingTests.map(t => t.id === id ? { 
+    const targetIds = new Set(testsToUpdate.map(t => t.id));
+
+    const updatedTests = pendingTests.map(t => targetIds.has(t.id) ? { 
       ...t, 
       sampleCollected: true, 
-      sampleCollectedDate: new NepaliDate().format('YYYY-MM-DD HH:mm'),
-      sampleCollectedBy: currentUser?.username || 'System',
+      sampleCollectedDate: collectionDate,
+      sampleCollectedBy: collectedBy,
       barcodeId: barcodeId
     } : t);
     
@@ -300,12 +326,15 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       age: currentPatient.age,
       gender: currentPatient.gender,
       invoiceNumber: invoiceNumber,
-      tests: invoiceTests.map(({ invoiceNumber, ...rest }) => rest),
+      tests: invoiceTests.map(({ invoiceNumber, parentTestName, ...rest }) => rest),
       status: existingReport?.status === 'Completed' ? 'Completed' : 'Sample Collected',
       createdBy: existingReport?.createdBy || currentUser?.username || 'Unknown',
       barcodeId: barcodeId
     };
 
+    // If report has sub-tests, we should make sure we're saving all of them correctly
+    // Actually invoiceTests already includes all collected tests for this invoice
+    
     onSaveRecord(reportToSave);
     
     // Set current barcode report and print
@@ -398,9 +427,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
   const loadPendingTests = (patientId: string) => {
     const labServices = serviceItems.filter(s => s.category === 'Lab');
-    const labServiceNames = new Set(labServices.map(s => s.serviceName.trim().toLowerCase()));
-    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => st.testName.trim().toLowerCase()));
-
+    
     const patientBills = billingRecords.filter(b => b.serviceSeekerId === patientId);
     const tests: PendingTest[] = [];
 
@@ -409,25 +436,49 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       
       bill.items.forEach(item => {
         const itemName = item.serviceName.trim().toLowerCase();
-        const isLabService = labServiceNames.has(itemName);
-        const isLabSubTest = labSubTestNames.has(itemName);
-
-        if (isLabService || isLabSubTest) {
-          const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
-          
-          tests.push({
-            id: existingTest?.id || `${bill.invoiceNumber}-${item.serviceName}-${Date.now()}`,
-            testName: item.serviceName,
-            unit: existingTest?.unit || '',
-            normalRange: existingTest?.normalRange || '',
-            result: existingTest?.result || '',
-            remarks: existingTest?.remarks || '',
-            sampleCollected: existingTest?.sampleCollected || false,
-            sampleCollectedDate: existingTest?.sampleCollectedDate || '',
-            sampleCollectedBy: existingTest?.sampleCollectedBy || '',
-            invoiceNumber: bill.invoiceNumber,
-            barcodeId: existingTest?.barcodeId || existingReport?.barcodeId || ''
-          });
+        const serviceItem = labServices.find(s => s.serviceName.trim().toLowerCase() === itemName);
+        
+        if (serviceItem) {
+          if (serviceItem.subTests && serviceItem.subTests.length > 0) {
+            // Expand sub-tests for entry but keep parent reference
+            serviceItem.subTests.forEach(subTest => {
+              const existingTest = existingReport?.tests?.find(t => 
+                t.testName.trim().toLowerCase() === subTest.testName.trim().toLowerCase() && 
+                t.parentTestName?.trim().toLowerCase() === itemName
+              );
+              
+              tests.push({
+                id: existingTest?.id || `${bill.invoiceNumber}-${item.serviceName}-${subTest.testName}-${Date.now()}-${Math.random()}`,
+                testName: subTest.testName,
+                unit: existingTest?.unit || subTest.unit || '',
+                normalRange: existingTest?.normalRange || subTest.valueRange || '',
+                result: existingTest?.result || '',
+                remarks: existingTest?.remarks || '',
+                sampleCollected: existingTest?.sampleCollected || false,
+                sampleCollectedDate: existingTest?.sampleCollectedDate || '',
+                sampleCollectedBy: existingTest?.sampleCollectedBy || '',
+                invoiceNumber: bill.invoiceNumber,
+                barcodeId: existingTest?.barcodeId || existingReport?.barcodeId || '',
+                parentTestName: item.serviceName
+              });
+            });
+          } else {
+            const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
+            
+            tests.push({
+              id: existingTest?.id || `${bill.invoiceNumber}-${item.serviceName}-${Date.now()}`,
+              testName: item.serviceName,
+              unit: existingTest?.unit || serviceItem.unit || '',
+              normalRange: existingTest?.normalRange || serviceItem.valueRange || '',
+              result: existingTest?.result || '',
+              remarks: existingTest?.remarks || '',
+              sampleCollected: existingTest?.sampleCollected || false,
+              sampleCollectedDate: existingTest?.sampleCollectedDate || '',
+              sampleCollectedBy: existingTest?.sampleCollectedBy || '',
+              invoiceNumber: bill.invoiceNumber,
+              barcodeId: existingTest?.barcodeId || existingReport?.barcodeId || ''
+            });
+          }
         }
       });
     });
@@ -536,7 +587,16 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
       labItems.forEach(item => {
         const itemName = item.serviceName.trim().toLowerCase();
-        const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
+        
+        // Find if this test or its sub-tests exist in any report for this invoice
+        const invoiceReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
+        const relatedTestsInReport = invoiceReport?.tests?.filter(t => 
+          t.testName.trim().toLowerCase() === itemName || 
+          t.parentTestName?.trim().toLowerCase() === itemName
+        ) || [];
+
+        const isCollected = relatedTestsInReport.length > 0 && relatedTestsInReport.every(t => t.sampleCollected);
+        const isCompleted = invoiceReport?.status === 'Completed';
 
         const taskData = {
           patientId: bill.serviceSeekerId,
@@ -545,13 +605,13 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
           testName: item.serviceName,
           invoiceNumber: bill.invoiceNumber,
           date: bill.billDate,
-          status: existingTest?.sampleCollected ? (existingReport?.status === 'Completed' ? 'Completed' : 'Sample Collected') : 'Pending Sample',
-          barcodeId: existingTest?.barcodeId || ''
+          status: isCollected ? (isCompleted ? 'Completed' : 'Sample Collected') : 'Pending Sample',
+          barcodeId: invoiceReport?.barcodeId || relatedTestsInReport[0]?.barcodeId || ''
         };
 
-        if (!existingTest?.sampleCollected) {
+        if (!isCollected) {
           pendingSamples.push(taskData);
-        } else if (existingReport?.status !== 'Completed') {
+        } else if (!isCompleted) {
           pendingResults.push(taskData);
         }
       });
@@ -848,27 +908,49 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {tests.map((test) => (
-                                  <tr key={test.id} className="hover:bg-slate-50">
-                                    <td className="p-3 font-medium">{test.testName}</td>
-                                    <td className="p-3 text-xs text-slate-500">{test.invoiceNumber}</td>
-                                    <td className="p-3 text-xs font-mono text-slate-600">{test.barcodeId || '-'}</td>
-                                    <td className="p-3 text-center">
-                                      {!test.sampleCollected ? (
-                                        <button 
-                                          onClick={() => handleCollectSample(test.id)}
-                                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs font-bold shadow-sm"
-                                        >
-                                          Collect
-                                        </button>
-                                      ) : (
-                                        <span className="text-green-600 flex items-center gap-1 text-xs font-bold justify-center">
-                                          <CheckCircle2 size={14} /> Collected
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                                {(() => {
+                                  // Group tests by parentTestName for Sample Collection
+                                  const parentGroups: Record<string, PendingTest[]> = {};
+                                  tests.forEach(t => {
+                                    const key = t.parentTestName || t.testName;
+                                    if (!parentGroups[key]) parentGroups[key] = [];
+                                    parentGroups[key].push(t);
+                                  });
+
+                                  return Object.entries(parentGroups).map(([parentName, groupTests]) => {
+                                    const allCollected = groupTests.every(t => t.sampleCollected);
+                                    const firstTest = groupTests[0];
+                                    
+                                    return (
+                                      <tr key={parentName} className="hover:bg-slate-50">
+                                        <td className="p-3">
+                                          <div className="font-medium">{parentName}</div>
+                                          {groupTests.length > 1 && (
+                                            <div className="text-[10px] text-slate-400">
+                                              Sub-tests: {groupTests.map(t => t.testName).join(', ')}
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="p-3 text-xs text-slate-500">{firstTest.invoiceNumber}</td>
+                                        <td className="p-3 text-xs font-mono text-slate-600">{firstTest.barcodeId || '-'}</td>
+                                        <td className="p-3 text-center">
+                                          {!allCollected ? (
+                                            <button 
+                                              onClick={() => handleCollectSample(parentName, true)}
+                                              className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs font-bold shadow-sm"
+                                            >
+                                              Collect
+                                            </button>
+                                          ) : (
+                                            <span className="text-green-600 flex items-center gap-1 text-xs font-bold justify-center">
+                                              <CheckCircle2 size={14} /> Collected
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  });
+                                })()}
                               </tbody>
                             </table>
                           </div>
@@ -902,7 +984,12 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                               <tbody className="divide-y divide-slate-100">
                                 {tests.filter(t => t.sampleCollected).map((test) => (
                                   <tr key={test.id} className="hover:bg-slate-50">
-                                    <td className="p-3 font-medium">{test.testName}</td>
+                                    <td className="p-3 font-medium">
+                                      {test.testName}
+                                      {test.parentTestName && (
+                                        <div className="text-[10px] text-slate-400 font-normal">Parent: {test.parentTestName}</div>
+                                      )}
+                                    </td>
                                     <td className="p-3"><input type="text" value={test.result} onChange={(e) => handleResultChange(test.id, 'result', e.target.value)} className="w-full p-2 border rounded" placeholder="Result" /></td>
                                     <td className="p-3"><input type="text" value={test.unit} onChange={(e) => handleResultChange(test.id, 'unit', e.target.value)} className="w-full p-2 border rounded" placeholder="Unit" /></td>
                                     <td className="p-3 text-slate-500 text-xs">{test.normalRange}</td>

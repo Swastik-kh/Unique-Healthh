@@ -528,6 +528,7 @@ export interface LabTestResult {
   sampleCollectedDate?: string;
   sampleCollectedBy?: string;
   barcodeId?: string; // Added barcodeId
+  parentTestName?: string; // Added parentTestName
 }
 
 export interface LabReport {
