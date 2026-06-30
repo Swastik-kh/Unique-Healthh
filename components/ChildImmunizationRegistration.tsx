@@ -106,6 +106,36 @@ const calculateImmunizationDate = (
     }
 };
 
+const getInitialVaccineSchedule = (dobAd: string, gender: string): ChildImmunizationVaccine[] => {
+  try {
+    const filteredTemplate = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(v => {
+      if (v.name.includes('HPV') && gender === 'Male') return false;
+      return true;
+    });
+
+    return filteredTemplate.map(vaccine => {
+      const { bs: scheduledDateBs, ad: scheduledDateAdString } = calculateImmunizationDate(
+        dobAd,
+        vaccine.relativeDays,
+        vaccine.base,
+        []
+      );
+
+      return {
+        name: vaccine.name,
+        scheduledDateAd: scheduledDateAdString,
+        scheduledDateBs: scheduledDateBs,
+        givenDateAd: null, 
+        givenDateBs: null, 
+        status: 'Pending',
+      } as ChildImmunizationVaccine;
+    });
+  } catch (e) {
+    console.error("Error in getInitialVaccineSchedule:", e);
+    return [];
+  }
+};
+
 export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrationProps> = ({
   currentFiscalYear,
   records,
@@ -122,8 +152,6 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [selectedVaccineForUpdate, setSelectedVaccineForUpdate] = useState<{ record: ChildImmunizationRecord; vaccineIndex: number; } | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
 
-  const centerOptions: Option[] = (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c }));
-
   const getTodayAd = () => toLocalISO(new Date());
   const getTodayBs = () => {
     try {
@@ -132,6 +160,20 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       return '';
     }
   };
+
+  useEffect(() => {
+    if (selectedVaccineForUpdate) {
+      const { record, vaccineIndex } = selectedVaccineForUpdate;
+      const currentVaccine = (record.vaccines || [])[vaccineIndex];
+      if (currentVaccine) {
+        setModalGivenDateBs(currentVaccine.givenDateBs || getTodayBs());
+      }
+    } else {
+      setModalGivenDateBs('');
+    }
+  }, [selectedVaccineForUpdate]);
+
+  const centerOptions: Option[] = (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c }));
 
   const generateRegNo = (fy: string, recordsList: ChildImmunizationRecord[]) => {
     try {
@@ -165,7 +207,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     address: '',
     phone: '',
     birthWeightKg: undefined,
-    vaccines: [],
+    vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
     remarks: '',
     vaccinationCenter: centerOptions[0]?.value || '',
   });
@@ -179,7 +221,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             dobBs: getTodayBs(),
             dobAd: getTodayAd(),
             jatCode: '',
-            vaccines: [],
+            vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
             vaccinationCenter: centerOptions[0]?.value || '',
         }));
     }
@@ -312,6 +354,39 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       fiscalYear: currentFiscalYear,
     };
 
+    // Deduct stock for vaccines that are newly marked as "Given"
+    if (onUpdateGeneralSettings) {
+      const oldRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
+      const oldGivenVaccines = new Set(oldRecord ? (oldRecord.vaccines || []).filter(v => v.status === 'Given').map(v => v.name) : []);
+      
+      let updatedInventory = { ...(generalSettings.vaccineInventory || {}) };
+      let inventoryChanged = false;
+      let outOfStockWarnings: string[] = [];
+
+      (formData.vaccines || []).forEach(v => {
+        if (v.status === 'Given' && !oldGivenVaccines.has(v.name)) {
+          const currentStock = updatedInventory[v.name] || 0;
+          if (currentStock > 0) {
+            updatedInventory[v.name] = currentStock - 1;
+            inventoryChanged = true;
+          } else {
+            outOfStockWarnings.push(v.name);
+          }
+        }
+      });
+
+      if (inventoryChanged) {
+        onUpdateGeneralSettings({
+          ...generalSettings,
+          vaccineInventory: updatedInventory
+        });
+      }
+
+      if (outOfStockWarnings.length > 0) {
+        alert(`चेतावनी: निम्न खोपहरुको मौज्दात मौज्दात ० छ: ${outOfStockWarnings.join(', ')}। विवरण सुरक्षित गरिनेछ।`);
+      }
+    }
+
     if (editingRecordId) onUpdateRecord(recordToSave);
     else onAddRecord(recordToSave);
     
@@ -319,8 +394,6 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     handleReset();
     // NEW: Clear filters after successful save to ensure new/updated record is visible
     setSearchTerm('');
-    // setFilterCenter(''); // No filterCenter state in this file directly
-    // setFilterDay(''); // No filterDay state in this file directly
   };
 
   const handleEditRecord = (record: ChildImmunizationRecord) => {
@@ -354,12 +427,60 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       address: '',
       phone: '',
       birthWeightKg: undefined,
-      vaccines: [],
+      vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
       remarks: '',
       vaccinationCenter: centerOptions[0]?.value || '',
     }));
     setValidationError(null);
     setSuccessMessage(null); // Clear success message on reset
+  };
+
+  const handleFormVaccineChange = (vaccineName: string, status: 'Given' | 'Pending', givenDateBs: string) => {
+    let givenDateAd: string | null = null;
+    if (status === 'Given' && givenDateBs) {
+      try {
+        const nd = new NepaliDate(givenDateBs);
+        givenDateAd = toLocalISO(nd.toJsDate());
+      } catch (e) {
+        givenDateAd = formData.dobAd;
+      }
+    }
+
+    const currentVaccines = formData.vaccines || [];
+    
+    // Call recalculateFutureDoses
+    const updated = recalculateFutureDoses(
+      currentVaccines,
+      vaccineName,
+      givenDateAd || '',
+      givenDateBs,
+      formData.dobAd,
+      formData.gender
+    );
+
+    if (status === 'Pending') {
+      const foundIdx = updated.findIndex(v => v.name === vaccineName);
+      if (foundIdx !== -1) {
+        updated[foundIdx] = {
+          ...updated[foundIdx],
+          status: 'Pending',
+          givenDateAd: null,
+          givenDateBs: null
+        };
+      }
+      // Recalculate without any newly marked dose
+      const finalRecalculated = recalculateFutureDoses(
+        updated,
+        "",
+        "",
+        "",
+        formData.dobAd,
+        formData.gender
+      );
+      setFormData(prev => ({ ...prev, vaccines: finalRecalculated }));
+    } else {
+      setFormData(prev => ({ ...prev, vaccines: updated }));
+    }
   };
 
   const handleDeleteRecord = (recordId: string, childName: string) => {
@@ -462,6 +583,117 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           <Input label="बुबाको नाम *" value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} required icon={<User size={16} />} />
           <Input label="ठेगाना *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
           <Input label="फोन नं *" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required icon={<Phone size={16} />} />
+          
+          {/* Vaccine Status Card inside Form */}
+          <div className="md:col-span-3 mt-4 border-t pt-6">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 size={18} className="text-green-700" />
+                <h4 className="font-bold text-slate-700 text-sm font-nepali">खोपहरूको स्थिति र लगाइएको विवरण (Vaccines Status & Records)</h4>
+              </div>
+              <p className="text-xs text-slate-500 mb-4 font-nepali">
+                नयाँ बच्चा दर्ता गर्दा वा सम्पादन गर्दा, तलका खोपहरूको स्थिति 'लगाएको' (Given) वा 'बाँकी' (Pending) सेट गर्न सक्नुहुन्छ। 'लगाएको' छान्दा खोप लगाएको वास्तविक मिति भर्नुहोस्।
+              </p>
+              
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(formData.vaccines || []).map((v, idx) => {
+                  const isGiven = v.status === 'Given';
+                  const originalRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
+                  const isAlreadySavedAsGiven = !!(originalRecord && (originalRecord.vaccines || []).some(origV => origV.name === v.name && origV.status === 'Given'));
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                        isGiven 
+                          ? 'bg-green-50/70 border-green-200 shadow-sm' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start gap-1 mb-2">
+                          <span className="font-bold text-xs text-slate-800 font-nepali">{v.name}</span>
+                          <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">सिफारिस: {v.scheduledDateBs}</span>
+                        </div>
+                        
+                        <div className="mt-2.5 flex items-center gap-2">
+                          {/* Status selector buttons */}
+                          <button
+                            type="button"
+                            disabled={isAlreadySavedAsGiven}
+                            onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Pending', '')}
+                            className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
+                              isAlreadySavedAsGiven
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                                : !isGiven 
+                                  ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-xs' 
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            लगाउन बाँकी
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isAlreadySavedAsGiven}
+                            onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Given', v.givenDateBs || v.scheduledDateBs || getTodayBs())}
+                            className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
+                              isAlreadySavedAsGiven
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                                : isGiven 
+                                  ? 'bg-green-600 text-white border-green-600 shadow-sm' 
+                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            लगाएको (Given)
+                          </button>
+                        </div>
+                      </div>
+
+                      {isGiven && (
+                        <div className="mt-3.5 pt-3 border-t border-dashed border-green-200 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                          <label className="text-[10px] font-bold text-slate-500 font-nepali flex items-center justify-between">
+                            <span>लगाएको वास्तविक मिति:</span>
+                            {isAlreadySavedAsGiven && <span className="text-red-500 font-bold text-[8px] bg-red-50 border border-red-100 px-1 py-0.5 rounded">परिमार्जन गर्न नमिल्ने</span>}
+                          </label>
+                          <div className="flex gap-1.5 items-center">
+                            <div className="flex-1">
+                              <NepaliDatePicker
+                                label=""
+                                value={v.givenDateBs || ''}
+                                onChange={(val) => handleFormVaccineChange(v.name, 'Given', val)}
+                                disabled={isAlreadySavedAsGiven}
+                                hideIcon={true}
+                                inputClassName="h-8 py-1 text-xs font-mono font-bold"
+                              />
+                            </div>
+                            {!isAlreadySavedAsGiven && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFormVaccineChange(v.name, 'Given', getTodayBs())}
+                                  className="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-[10px] font-bold rounded border border-green-200 transition-colors shrink-0 h-8 flex items-center justify-center"
+                                  title="आजको मिति सेट गर्नुहोस्"
+                                >
+                                  आज
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFormVaccineChange(v.name, 'Given', v.scheduledDateBs || '')}
+                                  className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 transition-colors shrink-0 h-8 flex items-center justify-center"
+                                  title="निर्धारित मिति सेट गर्नुहोस्"
+                                >
+                                  सिफारिस
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
           
           <div className="md:col-span-3 pt-4 border-t flex justify-end gap-3">
             <button type="button" onClick={handleReset} className="px-6 py-2 bg-slate-100 rounded-lg text-sm font-bold">रिसेट</button>
