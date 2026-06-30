@@ -210,8 +210,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
     const today = new NepaliDate().format('YYYY-MM-DD');
     // Check if any test already has a barcode in current session or recent reports for today
-    const existingBarcode = pendingTests.find(t => t.barcodeId)?.barcodeId || 
-                           labReports.find(r => r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
+    const existingBarcode = (pendingTests || []).find(t => t.barcodeId)?.barcodeId || 
+                           (labReports || []).find(r => r && r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
 
     // Generate a unique barcode ID for the entire invoice only if not already exists
     const barcodeId = existingBarcode || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
@@ -232,7 +232,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     const invoiceTests = updatedTests.filter(t => t.invoiceNumber === invoiceNumber && t.sampleCollected);
     
     const existingReport = labReports.find(r => 
-      r.serviceSeekerId === currentPatient.id && 
+      r && r.serviceSeekerId === currentPatient.id && 
       r.invoiceNumber === invoiceNumber
     );
 
@@ -253,15 +253,19 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
     onSaveRecord(reportToSave);
     
-    // Set current barcode report and print
+    // Set current barcode report and print ONLY if new barcode was generated
     setCurrentBarcodeReport(reportToSave);
-    setTimeout(() => {
-      if (barcodePrintRef.current) {
-        handlePrintBarcode();
-      }
-    }, 300);
-
-    alert(`Invoice ${invoiceNumber} को सबै नमुना संकलन गरियो र बारकोड प्रिन्टको लागि तयार छ।`);
+    if (!existingBarcode) {
+      setTimeout(() => {
+        if (barcodePrintRef.current) {
+          handlePrintBarcode();
+        }
+      }, 300);
+      alert(`Invoice ${invoiceNumber} को सबै नमुना संकल गरियो र नयाँ बारकोड प्रिन्टको लागि तयार छ।`);
+    } else {
+      alert(`Invoice ${invoiceNumber} को सबै नमुना संकल गरियो। पुरानै बारकोड (${existingBarcode}) प्रयोग गर्नुहोस्।`);
+    }
+    
     setActiveTab('result');
   };
 
@@ -290,8 +294,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     const today = new NepaliDate().format('YYYY-MM-DD');
     
     // Check if any test already has a barcode in current session or recent reports for today
-    const existingBarcode = pendingTests.find(t => t.barcodeId)?.barcodeId || 
-                           labReports.find(r => r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
+    const existingBarcode = (pendingTests || []).find(t => t.barcodeId)?.barcodeId || 
+                           (labReports || []).find(r => r && r.serviceSeekerId === currentPatient.id && r.reportDate === today && r.barcodeId)?.barcodeId;
 
     const barcodeId = existingBarcode || `BC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
     const collectionDate = new NepaliDate().format('YYYY-MM-DD HH:mm');
@@ -313,7 +317,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     const invoiceTests = updatedTests.filter(t => t.invoiceNumber === invoiceNumber && t.sampleCollected);
     
     const existingReport = labReports.find(r => 
-      r.serviceSeekerId === currentPatient.id && 
+      r && r.serviceSeekerId === currentPatient.id && 
       r.invoiceNumber === invoiceNumber
     );
 
@@ -332,20 +336,20 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       barcodeId: barcodeId
     };
 
-    // If report has sub-tests, we should make sure we're saving all of them correctly
-    // Actually invoiceTests already includes all collected tests for this invoice
-    
     onSaveRecord(reportToSave);
     
-    // Set current barcode report and print
+    // Set current barcode report and print ONLY if it's a new barcode
     setCurrentBarcodeReport(reportToSave);
-    setTimeout(() => {
-      if (barcodePrintRef.current) {
-        handlePrintBarcode();
-      }
-    }, 300);
-
-    alert('नमुना सफलतापूर्वक संकलन गरियो।');
+    if (!existingBarcode) {
+      setTimeout(() => {
+        if (barcodePrintRef.current) {
+          handlePrintBarcode();
+        }
+      }, 300);
+      alert('नमुना सफलतापूर्वक संकलन गरियो र बारकोड प्रिन्टको लागि तयार छ।');
+    } else {
+      alert(`नमुना सफलतापूर्वक संकलन गरियो। पुरानै बारकोड (${barcodeId}) प्रयोग गर्नुहोस्।`);
+    }
 
     // Check if all samples for this invoice are collected, if so, switch to result tab
     const allInvoiceTests = updatedTests.filter(t => t.invoiceNumber === invoiceNumber);
@@ -823,6 +827,26 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                 <div className="flex justify-between"><span className="text-slate-500">उमेर/लिङ्ग:</span> <span>{currentPatient.age} / {currentPatient.gender}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">ठेगाना:</span> <span>{currentPatient.address}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">फोन:</span> <span>{currentPatient.phone}</span></div>
+                {labReports.find(r => r.serviceSeekerId === currentPatient.id && r.barcodeId) && (
+                  <div className="pt-4 border-t mt-2">
+                    <button 
+                      onClick={() => {
+                        const reportWithBarcode = labReports.find(r => r.serviceSeekerId === currentPatient.id && r.barcodeId);
+                        if (reportWithBarcode) {
+                          setCurrentBarcodeReport(reportWithBarcode);
+                          setTimeout(() => {
+                            if (barcodePrintRef.current) {
+                              handlePrintBarcode();
+                            }
+                          }, 300);
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors text-xs font-bold shadow-sm"
+                    >
+                      <Printer size={14} /> बारकोड प्रिन्ट गर्नुहोस् (Print Barcode)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -982,20 +1006,61 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {tests.filter(t => t.sampleCollected).map((test) => (
-                                  <tr key={test.id} className="hover:bg-slate-50">
-                                    <td className="p-3 font-medium">
-                                      {test.testName}
-                                      {test.parentTestName && (
-                                        <div className="text-[10px] text-slate-400 font-normal">Parent: {test.parentTestName}</div>
-                                      )}
-                                    </td>
-                                    <td className="p-3"><input type="text" value={test.result} onChange={(e) => handleResultChange(test.id, 'result', e.target.value)} className="w-full p-2 border rounded" placeholder="Result" /></td>
-                                    <td className="p-3"><input type="text" value={test.unit} onChange={(e) => handleResultChange(test.id, 'unit', e.target.value)} className="w-full p-2 border rounded" placeholder="Unit" /></td>
-                                    <td className="p-3 text-slate-500 text-xs">{test.normalRange}</td>
-                                    <td className="p-3"><input type="text" value={test.remarks} onChange={(e) => handleResultChange(test.id, 'remarks', e.target.value)} className="w-full p-2 border rounded" placeholder="Remarks" /></td>
-                                  </tr>
-                                ))}
+                                {(() => {
+                                  // Group tests by parentTestName/invoice for Result Entry
+                                  const parentGroups: Record<string, PendingTest[]> = {};
+                                  tests.filter(t => t.sampleCollected).forEach(t => {
+                                    const key = t.parentTestName || t.testName;
+                                    if (!parentGroups[key]) parentGroups[key] = [];
+                                    parentGroups[key].push(t);
+                                  });
+
+                                  return Object.entries(parentGroups).map(([parentName, groupTests]) => (
+                                    <React.Fragment key={parentName}>
+                                      <tr className="bg-slate-50/50">
+                                        <td colSpan={5} className="p-2 font-bold text-slate-700 border-t border-slate-200">
+                                          {parentName}
+                                        </td>
+                                      </tr>
+                                      {groupTests.map((test) => (
+                                        <tr key={test.id} className="hover:bg-slate-50 border-b border-slate-100 last:border-0">
+                                          <td className="p-3 pl-6">
+                                            <div className="font-medium text-slate-800">{test.testName}</div>
+                                            {test.barcodeId && <div className="text-[10px] font-mono text-primary-600">Barcode: {test.barcodeId}</div>}
+                                          </td>
+                                          <td className="p-3">
+                                            <input 
+                                              type="text" 
+                                              value={test.result} 
+                                              onChange={(e) => handleResultChange(test.id, 'result', e.target.value)} 
+                                              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all" 
+                                              placeholder="Result" 
+                                            />
+                                          </td>
+                                          <td className="p-3">
+                                            <input 
+                                              type="text" 
+                                              value={test.unit} 
+                                              onChange={(e) => handleResultChange(test.id, 'unit', e.target.value)} 
+                                              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-xs" 
+                                              placeholder="Unit" 
+                                            />
+                                          </td>
+                                          <td className="p-3 text-slate-500 text-xs font-medium">{test.normalRange}</td>
+                                          <td className="p-3">
+                                            <input 
+                                              type="text" 
+                                              value={test.remarks} 
+                                              onChange={(e) => handleResultChange(test.id, 'remarks', e.target.value)} 
+                                              className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all text-xs" 
+                                              placeholder="Remarks" 
+                                            />
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </React.Fragment>
+                                  ));
+                                })()}
                               </tbody>
                             </table>
                           </div>

@@ -49,12 +49,21 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   };
 
   const generateRegNo = (fy: string, patientsList: GarbhawatiPatient[]) => {
-    const fyClean = fy.replace('/', '');
-    const maxNum = patientsList
-      .filter(p => p.fiscalYear === fy && p.regNo.startsWith(`GTD-${fyClean}-`))
-      .map(p => parseInt(p.regNo.split('-')[2]))
-      .reduce((max, num) => Math.max(max, num), 0);
-    return `GTD-${fyClean}-${String(maxNum + 1).padStart(3, '0')}`;
+    try {
+      const fyClean = fy.replace('/', '');
+      const maxNum = (patientsList || [])
+        .filter(p => p && p.fiscalYear === fy && typeof p.regNo === 'string' && p.regNo.startsWith(`GTD-${fyClean}-`))
+        .map(p => {
+          const parts = p.regNo.split('-');
+          return parts.length >= 3 ? parseInt(parts[2]) : 0;
+        })
+        .filter(n => !isNaN(n))
+        .reduce((max, num) => Math.max(max, num), 0);
+      return `GTD-${fyClean}-${String(maxNum + 1).padStart(3, '0')}`;
+    } catch (e) {
+      console.error("Error generating reg no:", e);
+      return `GTD-${fy.replace('/', '')}-001`;
+    }
   };
 
   const [formData, setFormData] = useState<GarbhawatiPatient>({
@@ -104,8 +113,14 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     if (formData.lmpBs) {
       try {
         const lmpAdDate = new NepaliDate(formData.lmpBs).toJsDate();
+        if (isNaN(lmpAdDate.getTime())) {
+          throw new Error("Invalid LMP date");
+        }
         // Add 280 days (40 weeks) for EDD
         const eddAdDate = new Date(lmpAdDate.getTime() + (280 * 24 * 60 * 60 * 1000));
+        if (isNaN(eddAdDate.getTime())) {
+          throw new Error("Invalid EDD calculation");
+        }
         setFormData(prev => ({
           ...prev,
           eddAd: eddAdDate.toISOString().split('T')[0],
@@ -257,14 +272,17 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   };
 
   const filteredPatients = useMemo(() => {
-    return patients
-      .filter(p => p.fiscalYear === currentFiscalYear)
-      .filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        p.regNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.address.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => b.id.localeCompare(a.id));
+    return (patients || [])
+      .filter(p => p && p.fiscalYear === currentFiscalYear)
+      .filter(p => {
+        const query = (searchTerm || '').toLowerCase();
+        return (
+          (p.name || '').toLowerCase().includes(query) || 
+          (p.regNo || '').toLowerCase().includes(query) ||
+          (p.address || '').toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   }, [patients, currentFiscalYear, searchTerm]);
 
   // Helper to get estimated TD dates (based on LMP, 4 weeks after TD1, 6 months after TD2)

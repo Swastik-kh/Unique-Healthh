@@ -28,13 +28,13 @@ export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: strin
     const clickedTokenText = clickedToken ? `पालो नम्बर ${clickedToken}` : '';
     
     // Primary call for the clicked patient
-    let textToSpeak = `बिरामी ${clickedPatient.name}, ${clickedTokenText}, कृपया भित्र आउनुहोला।`;
+    let textToSpeak = `${clickedPatient.name}, ${clickedTokenText}, कृपया भित्र आउनुहोला।`;
     
     // Call the next patient in queue to be ready
     if (nextPatient) {
       const nextToken = nextPatient.paloNo || nextPatient.uniquePatientId || '';
       const nextTokenText = nextToken ? `पालो नम्बर ${nextToken}` : '';
-      textToSpeak += ` अर्को पालो, बिरामी ${nextPatient.name}, ${nextTokenText}, कृपया तयारी अवस्थामा रहनुहोला।`;
+      textToSpeak += ` अर्को पालो, ${nextPatient.name}, ${nextTokenText}, कृपया तयारी अवस्थामा रहनुहोला।`;
     }
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);

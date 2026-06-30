@@ -46,7 +46,7 @@ export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
     { name: 'PCV-2 (१० हप्ता)', relativeDays: 28, base: 'PCV-1 (६ हप्ता)' },
     { name: 'FIPV (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)' },
     { name: 'DPT-HepB-Hib-3 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)' },
-    { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (६ हप्ता)' },
+    { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (१० हप्ता)' },
     { name: 'MR-1 (९ महिना)', relativeDays: 270, base: 'dob' },
     { name: 'JE (९ महिना)', relativeDays: 270, base: 'dob' }, 
     { name: 'PCV-3 (९ महिना)', relativeDays: 270, base: 'dob' }, 
@@ -134,12 +134,21 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   };
 
   const generateRegNo = (fy: string, recordsList: ChildImmunizationRecord[]) => {
-    const fyClean = fy.replace('/', '');
-    const maxNum = recordsList
-      .filter(p => p.fiscalYear === fy && p.regNo.startsWith(`CIP-${fyClean}-`))
-      .map(p => parseInt(p.regNo.split('-')[2]))
-      .reduce((max, num) => Math.max(max, num), 0);
-    return `CIP-${fyClean}-${String(maxNum + 1).padStart(3, '0')}`;
+    try {
+      const fyClean = fy.replace('/', '');
+      const maxNum = (recordsList || [])
+        .filter(p => p && p.fiscalYear === fy && typeof p.regNo === 'string' && p.regNo.startsWith(`CIP-${fyClean}-`))
+        .map(p => {
+          const parts = p.regNo.split('-');
+          return parts.length >= 3 ? parseInt(parts[2]) : 0;
+        })
+        .filter(n => !isNaN(n))
+        .reduce((max, num) => Math.max(max, num), 0);
+      return `CIP-${fyClean}-${String(maxNum + 1).padStart(3, '0')}`;
+    } catch (e) {
+      console.error("Error generating reg no:", e);
+      return `CIP-${fy.replace('/', '')}-001`;
+    }
   };
 
   const [formData, setFormData] = useState<ChildImmunizationRecord>({
@@ -396,15 +405,18 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   };
 
   const filteredRecords = useMemo(() => {
-    return records
-      .filter(r => r.fiscalYear === currentFiscalYear)
-      .filter(r => 
-        r.childName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        r.regNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.jatCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.vaccinationCenter?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) => b.id.localeCompare(a.id));
+    return (records || [])
+      .filter(r => r && r.fiscalYear === currentFiscalYear)
+      .filter(r => {
+        const query = (searchTerm || '').toLowerCase();
+        return (
+          (r.childName || '').toLowerCase().includes(query) || 
+          (r.regNo || '').toLowerCase().includes(query) ||
+          (r.jatCode || '').toLowerCase().includes(query) ||
+          (r.vaccinationCenter || '').toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   }, [records, currentFiscalYear, searchTerm]);
 
   return (
