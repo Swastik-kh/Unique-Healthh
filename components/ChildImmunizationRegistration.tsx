@@ -327,13 +327,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     setEditingRecordId(record.id);
     const loadedRecord = { 
         ...record,
-        vaccines: record.vaccines.map(v => ({
+        vaccines: (record.vaccines || []).map(v => ({
             ...v,
             givenDateAd: v.givenDateAd || null,
             givenDateBs: v.givenDateBs || null,
         }))
     };
-    const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines, "", "", "", loadedRecord.dobAd, loadedRecord.gender);
+    const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines || [], "", "", "", loadedRecord.dobAd, loadedRecord.gender);
     setFormData({ ...loadedRecord, vaccines: reEvaluatedVaccines });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -372,7 +372,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const handleUpdateDoseStatus = () => {
     if (!selectedVaccineForUpdate) return;
     const { record, vaccineIndex } = selectedVaccineForUpdate;
-    const currentVaccine = record.vaccines[vaccineIndex];
+    const currentVaccine = (record.vaccines || [])[vaccineIndex];
+    if (!currentVaccine) return;
 
     if (!modalGivenDateBs.trim()) {
         alert("कृपया खोप दिएको मिति भर्नुहोस्।");
@@ -399,7 +400,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       }
     }
 
-    const finalVaccines = recalculateFutureDoses(record.vaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
+    const finalVaccines = recalculateFutureDoses(record.vaccines || [], currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
     onUpdateRecord({ ...record, vaccines: finalVaccines });
     setSelectedVaccineForUpdate(null);
   };
@@ -505,7 +506,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
-                        {record.vaccines.map((v, idx) => (
+                        {(record.vaccines || []).map((v, idx) => (
                             <div 
                                 key={idx} 
                                 onClick={() => setSelectedVaccineForUpdate({ record, vaccineIndex: idx })}
