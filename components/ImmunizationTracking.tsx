@@ -325,18 +325,116 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         listType === 'defaulter' ? 'defaulter-list-print' : 
         listType === 'fic' ? 'fic-list-print' : 'single-card-print';
         
-    const originalContents = document.body.innerHTML;
-    const printContents = document.getElementById(printContentId)?.innerHTML;
+    const printElement = document.getElementById(printContentId);
 
-    if (!printContents) {
+    if (!printElement) {
       alert('प्रिन्ट गर्नको लागि कुनै डाटा छैन।');
       return;
     }
 
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents; 
-    window.location.reload(); 
+    // Create a temporary hidden iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write('<html><head><title>खोप प्रतिवेदन</title>');
+    
+    // Copy all active stylesheets and style blocks to the iframe
+    Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).forEach(style => {
+        doc.write(style.outerHTML);
+    });
+    
+    // Injected print-specific styles inside iframe
+    doc.write(`
+      <style>
+        body { 
+          margin: 0; 
+          padding: 20px; 
+          background: white !important; 
+          color: black !important;
+          font-family: 'Mukta', sans-serif !important; 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact;
+        }
+        .print-container { 
+          display: block !important; 
+        }
+        .print-header { 
+          text-align: center; 
+          margin-bottom: 20px; 
+          border-bottom: 2px solid #000; 
+          padding-bottom: 10px; 
+        }
+        .print-header h1 { 
+          font-size: 20px; 
+          margin: 0 0 5px 0;
+        }
+        .print-header h2 { 
+          font-size: 16px; 
+          margin: 0;
+        }
+        .print-table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin-top: 10px; 
+        }
+        .print-table th, .print-table td { 
+          border: 1px solid #000 !important; 
+          padding: 8px; 
+          text-align: left; 
+          font-size: 12px; 
+          color: black !important;
+        }
+        .print-table th { 
+          background-color: #f2f2f2 !important; 
+        }
+        #single-card-print { 
+          border: 5px double #115e59 !important; 
+          padding: 15px !important; 
+          text-align: center !important; 
+          width: 100% !important;
+          box-sizing: border-box;
+          background: white !important;
+          box-shadow: none !important;
+          display: flex;
+          flex-direction: column;
+        }
+        @page { size: A4; margin: 10mm; }
+      </style>
+    `);
+    
+    doc.write('</head><body>');
+    
+    // Clone the element and make sure it is not hidden in the iframe
+    const clonedElement = printElement.cloneNode(true) as HTMLElement;
+    clonedElement.classList.remove('hidden');
+    clonedElement.style.display = 'block';
+    
+    doc.write(clonedElement.outerHTML);
+    doc.write('</body></html>');
+    doc.close();
+
+    // Give iframe slightly more time to load resources, then trigger print
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      // Remove iframe safely after some time
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1000);
+    }, 500);
   }, []);
 
   const getCompletionDate = (child: ChildImmunizationRecord) => {

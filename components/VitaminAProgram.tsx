@@ -1188,9 +1188,13 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                             const preparerId = generalSettings?.vitaminAReportPreparerUserId;
                             const preparer = allUsers.find(u => u.id === preparerId) || currentUser;
                             
-                            // Certifier
+                            // Certifier: If specific certifier is selected in settings, use that.
+                            // If preparer is an admin/super_admin, default certifier to the preparer.
+                            // Otherwise, fallback to finding an admin or first user.
                             const certifierId = generalSettings?.vitaminAReportCertifierUserId;
+                            const isPreparerAdmin = preparer?.role === 'ADMIN' || preparer?.role === 'SUPER_ADMIN';
                             const certifier = allUsers.find(u => u.id === certifierId) || 
+                                              (isPreparerAdmin ? preparer : null) ||
                                               orgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || 
                                               orgUsers[0] || 
                                               currentUser;
