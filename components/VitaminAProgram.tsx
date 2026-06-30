@@ -5,6 +5,7 @@ import { VitaminATarget, FCHV, VitaminADistributionRecord, AgeGroupData } from '
 import { Save, UserPlus, Plus, Printer } from 'lucide-react';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { toNepaliNumber } from './nepaliUtils';
+import NepaliDate from 'nepali-date-converter';
 
 const INITIAL_DISTRIBUTION_DATA: Record<string, AgeGroupData> = {
     '6-11months': { maleVitaminA: 0, femaleVitaminA: 0, totalVitaminA: 0, maleAlbendazole: 0, femaleAlbendazole: 0, totalAlbendazole: 0, maleMuacGreen: 0, femaleMuacGreen: 0, totalMuacGreen: 0, maleMuacYellow: 0, femaleMuacYellow: 0, totalMuacYellow: 0, maleMuacRed: 0, femaleMuacRed: 0, totalMuacRed: 0 },
@@ -93,7 +94,7 @@ const sanitizeRecordData = (data: any): Record<string, AgeGroupData> => {
     return sanitized;
 };
 
-export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any }> = ({ currentFiscalYear, activeOrgName, generalSettings }) => {
+export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any; currentUser?: any; allUsers?: any[] }> = ({ currentFiscalYear, activeOrgName, generalSettings, currentUser, allUsers = [] }) => {
     const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_");
     const [targets, setTargets] = useState<VitaminATarget>({ 
         fiscalYear: currentFiscalYear, 
@@ -1176,6 +1177,54 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    {/* Signature Block */}
+                    <div className="mt-16 pt-8 border-t border-dashed border-slate-200">
+                        {(() => {
+                            const orgUsers = allUsers.filter(u => u.organizationName === currentUser?.organizationName);
+                            
+                            // Preparer from settings
+                            const preparerId = generalSettings?.vitaminAReportPreparerUserId;
+                            const preparer = allUsers.find(u => u.id === preparerId) || currentUser;
+                            
+                            // Certifier
+                            const certifierId = generalSettings?.vitaminAReportCertifierUserId;
+                            const certifier = allUsers.find(u => u.id === certifierId) || 
+                                              orgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || 
+                                              orgUsers[0] || 
+                                              currentUser;
+                            
+                            const nepDate = new NepaliDate();
+                            const formattedNepDate = toNepaliNumber(nepDate.format('YYYY/MM/DD'));
+
+                            const certifierName = certifier?.fullName || certifier?.name || '................................';
+                            const certifierDesignation = certifier?.designation || (certifier?.role === 'ADMIN' || certifier?.role === 'SUPER_ADMIN' ? 'प्रशासक' : '................................');
+
+                            const preparerName = preparer?.fullName || preparer?.name || '................................';
+                            const preparerDesignation = preparer?.designation || '................................';
+
+                            return (
+                                <div className="flex justify-between px-4 mt-8">
+                                    <div className="text-center w-64">
+                                        <div className="border-t border-slate-900 pt-2">
+                                            <p className="text-sm font-bold font-nepali">तयार गर्ने</p>
+                                            <p className="text-xs mt-1 font-bold font-nepali">नाम: {preparerName}</p>
+                                            <p className="text-xs font-bold font-nepali">पद: {preparerDesignation}</p>
+                                            <p className="text-xs font-bold font-nepali">मिति: {formattedNepDate}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-center w-64">
+                                        <div className="border-t border-slate-900 pt-2">
+                                            <p className="text-sm font-bold font-nepali">प्रमाणित गर्ने</p>
+                                            <p className="text-xs mt-1 font-bold font-nepali">नाम: {certifierName}</p>
+                                            <p className="text-xs font-bold font-nepali">पद: {certifierDesignation}</p>
+                                            <p className="text-xs font-bold font-nepali">मिति: {formattedNepDate}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

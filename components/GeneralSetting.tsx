@@ -340,6 +340,18 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                     value={localSettings.khopReportPreparerUserId || ''} 
                                     onChange={(e) => handleChange('khopReportPreparerUserId', e.target.value)} 
                                 />
+                                <Select 
+                                    label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन तयार गर्ने" 
+                                    options={userOptions} 
+                                    value={localSettings.vitaminAReportPreparerUserId || ''} 
+                                    onChange={(e) => handleChange('vitaminAReportPreparerUserId', e.target.value)} 
+                                />
+                                <Select 
+                                    label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन प्रमाणित गर्ने" 
+                                    options={userOptions} 
+                                    value={localSettings.vitaminAReportCertifierUserId || ''} 
+                                    onChange={(e) => handleChange('vitaminAReportCertifierUserId', e.target.value)} 
+                                />
                             </>
                         );
                     })()}
