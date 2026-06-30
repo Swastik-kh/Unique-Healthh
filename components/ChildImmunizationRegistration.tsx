@@ -48,7 +48,7 @@ export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
     { name: 'DPT-HepB-Hib-3 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)' },
     { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (१० हप्ता)' },
     { name: 'MR-1 (९ महिना)', relativeDays: 270, base: 'dob' },
-    { name: 'JE (९ महिना)', relativeDays: 270, base: 'dob' }, 
+    { name: 'JE (१२ महिना)', relativeDays: 360, base: 'dob' }, 
     { name: 'PCV-3 (९ महिना)', relativeDays: 270, base: 'dob' }, 
     { name: 'MR-2 (१५ महिना)', relativeDays: 450, base: 'dob' },
     { name: 'Typhoid (१५ महिना)', relativeDays: 450, base: 'dob' },
