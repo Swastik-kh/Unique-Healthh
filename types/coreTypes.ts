@@ -107,6 +107,7 @@ export interface OrganizationSettings {
   allServiceOptions?: string[]; // Added for managing master list of services
   vaccinationSessions?: number[]; 
   vaccinationCenters?: string[]; // Added for managing centers
+  vaccinationCenterDays?: Record<string, number[]>; // Added for managing days per center
   vaccineInventory?: Record<string, number>; // Added for tracking received vaccine doses/stock
   ipdWards?: WardConfig[]; 
   isSubscribed?: boolean;
@@ -115,6 +116,9 @@ export interface OrganizationSettings {
   customStandardMedicineNames?: string[];
   sewaBillingUserId?: string;
   ambulanceSewaUserId?: string;
+  khopReportPreparerUserId?: string;
+  vitaminAReportPreparerUserId?: string;
+  vitaminAReportCertifierUserId?: string;
   hibBaseUrl?: string;
   hibUsername?: string;
   hibPassword?: string;

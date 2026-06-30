@@ -1180,7 +1180,7 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                     </div>
 
                     {/* Signature Block */}
-                    <div className="mt-16 pt-8 border-t border-dashed border-slate-200">
+                    <div className="mt-16 border-t border-slate-200 pt-8 print:border-slate-800">
                         {(() => {
                             const orgUsers = allUsers.filter(u => u.organizationName === currentUser?.organizationName);
                             
@@ -1205,21 +1205,21 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                             const preparerDesignation = preparer?.designation || '................................';
 
                             return (
-                                <div className="flex justify-between px-4 mt-8">
+                                <div className="flex justify-between px-4">
                                     <div className="text-center w-64">
-                                        <div className="border-t border-slate-900 pt-2">
-                                            <p className="text-sm font-bold font-nepali">तयार गर्ने</p>
-                                            <p className="text-xs mt-1 font-bold font-nepali">नाम: {preparerName}</p>
-                                            <p className="text-xs font-bold font-nepali">पद: {preparerDesignation}</p>
-                                            <p className="text-xs font-bold font-nepali">मिति: {formattedNepDate}</p>
+                                        <div className="border-t border-slate-950 pt-2 font-nepali">
+                                            <p className="text-sm font-bold">तयार गर्ने</p>
+                                            <p className="text-xs mt-1 font-bold">नाम: {preparerName}</p>
+                                            <p className="text-xs font-bold">पद: {preparerDesignation}</p>
+                                            <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
                                         </div>
                                     </div>
                                     <div className="text-center w-64">
-                                        <div className="border-t border-slate-900 pt-2">
-                                            <p className="text-sm font-bold font-nepali">प्रमाणित गर्ने</p>
-                                            <p className="text-xs mt-1 font-bold font-nepali">नाम: {certifierName}</p>
-                                            <p className="text-xs font-bold font-nepali">पद: {certifierDesignation}</p>
-                                            <p className="text-xs font-bold font-nepali">मिति: {formattedNepDate}</p>
+                                        <div className="border-t border-slate-950 pt-2 font-nepali">
+                                            <p className="text-sm font-bold">प्रमाणित गर्ने</p>
+                                            <p className="text-xs mt-1 font-bold">नाम: {certifierName}</p>
+                                            <p className="text-xs font-bold">पद: {certifierDesignation}</p>
+                                            <p className="text-xs font-bold">मिति: {formattedNepDate}</p>
                                         </div>
                                     </div>
                                 </div>

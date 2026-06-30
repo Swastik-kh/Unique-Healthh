@@ -123,12 +123,13 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Center Management */}
-            <div className="space-y-4">
-              <label className="text-sm font-bold text-slate-700 font-nepali flex items-center gap-2">
-                <MapPin size={16} className="text-indigo-600"/> खोप केन्द्रहरू व्यवस्थापन गर्नुहोस्:
+            {/* Center Management with specific operational dates */}
+            <div className="md:col-span-2 space-y-4">
+              <label className="text-sm font-bold text-indigo-900 font-nepali flex items-center gap-2">
+                <MapPin size={18} className="text-indigo-600"/> खोप केन्द्रहरू व्यवस्थापन तथा खोप सञ्चालन हुने गतेहरू (१-३२):
               </label>
-              <div className="flex gap-2">
+              
+              <div className="flex gap-2 max-w-md">
                 <input 
                   type="text"
                   value={newCenter}
@@ -139,50 +140,83 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
                 />
                 <button 
                   onClick={handleAddCenter}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
                 >
                   <Plus size={18}/> थप्नुहोस्
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {centers.map(center => (
-                  <div key={center} className="bg-white border border-indigo-200 pl-3 pr-1 py-1 rounded-full flex items-center gap-2 text-xs font-bold text-indigo-700 shadow-sm group">
-                    {center}
-                    <button 
-                      onClick={() => handleRemoveCenter(center)}
-                      className="p-1 hover:bg-red-50 rounded-full text-slate-300 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={14}/>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            {/* Session Day Management */}
-            <div className="space-y-4">
-              <label className="text-sm font-bold text-slate-700 font-nepali flex items-center gap-2">
-                <CalendarDays size={16} className="text-indigo-600"/> खोप चल्ने गतेहरू छान्नुहोस् (१-३२):
-              </label>
-              <div className="grid grid-cols-8 gap-1.5">
-                {Array.from({ length: 32 }, (_, i) => i + 1).map(day => (
-                  <button
-                    key={day}
-                    onClick={() => toggleSessionDay(day)}
-                    className={`h-9 rounded-lg text-xs font-bold transition-all border ${
-                      sessionDays.includes(day)
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md scale-105'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ))}
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                {centers.map(center => {
+                  const centerDays: number[] = generalSettings.vaccinationCenterDays?.[center] || [];
+                  return (
+                    <div key={center} className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm space-y-3 hover:border-indigo-200 transition-all">
+                      <div className="flex justify-between items-center border-b border-indigo-50 pb-2">
+                        <span className="font-bold text-indigo-900 text-sm font-nepali flex items-center gap-1.5">
+                          <MapPin size={15} className="text-indigo-600" />
+                          {center}
+                        </span>
+                        <button 
+                          onClick={() => handleRemoveCenter(center)}
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                          title="केन्द्र हटाउनुहोस्"
+                        >
+                          <Trash2 size={15}/>
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold block mb-1 font-nepali">
+                          यो केन्द्रमा खोप सञ्चालन हुने गतेहरू (१-३२):
+                        </span>
+                        <div className="grid grid-cols-8 gap-1">
+                          {Array.from({ length: 32 }, (_, i) => i + 1).map(day => {
+                            const isSelected = centerDays.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const updatedDays = isSelected
+                                    ? centerDays.filter(d => d !== day)
+                                    : [...centerDays, day].sort((a, b) => a - b);
+                                  
+                                  const updatedCenterDays = {
+                                    ...(generalSettings.vaccinationCenterDays || {}),
+                                    [center]: updatedDays
+                                  };
+                                  onUpdateGeneralSettings({
+                                    ...generalSettings,
+                                    vaccinationCenterDays: updatedCenterDays
+                                  });
+                                }}
+                                className={`h-6 rounded-md text-[10px] font-mono font-bold transition-all border flex items-center justify-center ${
+                                  isSelected
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                    : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="text-[9px] text-slate-400 font-nepali mt-1">
+                          {centerDays.length > 0 
+                            ? `छनोट गरिएका गतेहरू: ${centerDays.join(', ')}`
+                            : 'कुनै गते रोजिएको छैन (सबै गते सञ्चालन हुनेछ)'
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+
               <div className="p-3 bg-indigo-100/50 rounded-xl flex items-start gap-3 border border-indigo-200">
                 <Info size={16} className="text-indigo-600 mt-0.5 shrink-0" />
-                <p className="text-[10px] text-indigo-800 font-nepali">
-                  यहाँ छनोट गरिएका गतेहरूमा मात्र 'आगामी खोप' प्रणालीले गणना गर्नेछ।
+                <p className="text-[11px] text-indigo-800 font-nepali leading-relaxed">
+                  यहाँ प्रत्येक केन्द्रको लागि छानिएका गतेहरूका आधारमा <strong>'खोप अनुगमन (Immunization Tracking)'</strong> मा आगामी खोपको सूचीमा बच्चाको खोप केन्द्र अनुसार सञ्चालन हुने गतेहरू स्वतः मिलाएर प्रदर्शन गरिनेछ।
                 </p>
               </div>
             </div>

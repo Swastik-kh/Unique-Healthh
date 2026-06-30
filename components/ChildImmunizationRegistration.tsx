@@ -738,20 +738,27 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
-                        {(record.vaccines || []).map((v, idx) => (
-                            <div 
-                                key={idx} 
-                                onClick={() => setSelectedVaccineForUpdate({ record, vaccineIndex: idx })}
-                                className={`group relative cursor-pointer px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center min-w-[80px] transition-all
-                                    ${v.status === 'Given' ? 'bg-green-100 text-green-800 border-green-300' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400'}`}
-                            >
-                                <span className="mb-0.5">{v.name}</span>
-                                <div className="flex flex-col text-[8px] font-normal leading-tight">
-                                    <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={8}/> {v.scheduledDateBs}</span>
-                                    {v.givenDateBs && <span className="flex items-center gap-0.5 text-green-700 font-bold"><CheckCircle2 size={8}/> {v.givenDateBs}</span>}
-                                </div>
-                            </div>
-                        ))}
+                        {(record.vaccines || []).map((v, idx) => {
+                            const isGiven = v.status === 'Given';
+                            return (
+                              <div 
+                                  key={idx} 
+                                  onClick={() => {
+                                      if (isGiven) return; // Locked! Feri edit garna namilos
+                                      setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
+                                  }}
+                                  className={`group relative px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center min-w-[80px] transition-all
+                                      ${isGiven ? 'bg-green-100 text-green-800 border-green-300 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
+                                  title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
+                              >
+                                  <span className="mb-0.5">{v.name}</span>
+                                  <div className="flex flex-col text-[8px] font-normal leading-tight">
+                                      <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={8}/> {v.scheduledDateBs}</span>
+                                      {v.givenDateBs && <span className="flex items-center gap-0.5 text-green-700 font-bold"><CheckCircle2 size={8}/> {v.givenDateBs}</span>}
+                                  </div>
+                              </div>
+                            );
+                        })}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">

@@ -88,14 +88,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
   
-// Filters
+  // Filters
   const [filterCenter, setFilterCenter] = useState('');
-  // New state for vaccination centers operational dates
-  const [centerDates, setCenterDates] = useState<Record<string, string>>({
-    'मुसरहनिया': 'प्रत्येक महिनाको ५ र २० गते',
-    'मुख्य अस्पताल': 'प्रत्येक दिन (आइतबार-बिहीबार)',
-    'वडा नं १': 'प्रत्येक महिनाको १० गते',
-  });
 
   const [filterFiscalYear, setFilterFiscalYear] = useState(currentFiscalYear);
   const [filterMonth, setFilterMonth] = useState(() => {
@@ -106,6 +100,44 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
 
   const todayBsFormatted = useMemo(() => getTodayBsFormatted(), []);
+
+  // Helper to find the actual vaccine date based on center schedule
+  const getSessionDateForCenter = useCallback((scheduledDateBs: string, centerName: string) => {
+    if (!scheduledDateBs) return '-';
+    
+    // Retrieve the days configured for this specific center from settings
+    const days: number[] = generalSettings?.vaccinationCenterDays?.[centerName] || [];
+    if (days.length === 0) {
+      // If no specific days are configured, return the raw scheduled date
+      return scheduledDateBs;
+    }
+
+    const parts = scheduledDateBs.split('-');
+    if (parts.length !== 3) return scheduledDateBs;
+
+    const year = parts[0];
+    const month = parts[1];
+    const scheduledDay = parseInt(parts[2], 10);
+
+    // Find the next available session day in the same month
+    const nextSessionDay = days.find(d => d >= scheduledDay);
+    if (nextSessionDay !== undefined) {
+      const paddedDay = nextSessionDay.toString().padStart(2, '0');
+      return `${year}-${month}-${paddedDay}`;
+    } else {
+      // Move to the first session day of the next month
+      const nextMonthInt = parseInt(month, 10) + 1;
+      let nextMonthStr = nextMonthInt.toString().padStart(2, '0');
+      let nextYearStr = year;
+      if (nextMonthInt > 12) {
+        nextMonthStr = '01';
+        nextYearStr = (parseInt(year, 10) + 1).toString();
+      }
+      const firstSessionDay = days[0];
+      const paddedDay = firstSessionDay.toString().padStart(2, '0');
+      return `${nextYearStr}-${nextMonthStr}-${paddedDay}`;
+    }
+  }, [generalSettings?.vaccinationCenterDays]);
 
   // Options for filters
   const centerOptions: Option[] = useMemo(() => 
@@ -131,7 +163,6 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   // Filter records based on Center and Search
   const filteredBaseRecords = useMemo(() => {
     return records
-      // Note: We don't filter by r.fiscalYear here because a child registered in prev year might have vaccine due in current year
       .filter(r => {
         const matchesSearch = r.childName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              r.regNo.toLowerCase().includes(searchTerm.toLowerCase());
@@ -164,32 +195,40 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // Check if vaccine matches scheduled month
-          const matchesDate = vaccine.scheduledDateBs.startsWith(targetYearPrefix);
+          // Calculate the actual session date for this center
+          const actualSessionDateBs = getSessionDateForCenter(vaccine.scheduledDateBs, child.vaccinationCenter);
+          const vaccineYearMonth = actualSessionDateBs.substring(0, 7); // e.g. "2083-03"
+          
+          // Check if vaccine session month is equal to or earlier than the selected filter month
+          const matchesDate = targetYearPrefix ? (vaccineYearMonth <= targetYearPrefix) : true;
           
           if (
             vaccine.status === 'Pending' &&
             matchesDate &&
             matchesVaccine 
           ) {
-            // Group solely by Child ID to ensure one row per child
             const key = child.id;
             
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, {
                     child,
                     vaccines: [],
-                    scheduledDateBs: vaccine.scheduledDateBs // This will be the earliest date if multiple
+                    scheduledDateBs: actualSessionDateBs // This will store the calculated session date
                 });
             }
-            groupedMap.get(key)?.vaccines.push(vaccine);
+            
+            // Push vaccine with updated session date
+            groupedMap.get(key)?.vaccines.push({
+                ...vaccine,
+                scheduledDateBs: actualSessionDateBs
+            });
           }
         });
       });
     
     // Sort by scheduled date
     return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
-  }, [filteredBaseRecords, targetYearPrefix, filterVaccine]); 
+  }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter]); 
 
   // Grouped Defaulter List (Logic: Due Date was in past, but not given)
   const defaulterList = useMemo(() => {
@@ -199,12 +238,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // For defaulters with filter: Show if due date was in the selected month OR earlier
-          const matchesDate = vaccine.scheduledDateBs.substring(0, 7) <= targetYearPrefix;
+          // Calculate center session date for defaulters too
+          const actualSessionDateBs = getSessionDateForCenter(vaccine.scheduledDateBs, child.vaccinationCenter);
+          const matchesDate = actualSessionDateBs.substring(0, 7) <= targetYearPrefix;
 
           if (
             vaccine.status === 'Pending' &&
-            vaccine.scheduledDateBs < todayBsFormatted && // Strictly past due
+            actualSessionDateBs < todayBsFormatted && // Strictly past due
             matchesDate && // Matches the filter window (selected month or earlier)
             matchesVaccine 
           ) {
@@ -213,16 +253,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                  groupedMap.set(key, {
                      child,
                      vaccines: [],
-                     scheduledDateBs: vaccine.scheduledDateBs
+                     scheduledDateBs: actualSessionDateBs
                  });
              }
-             groupedMap.get(key)?.vaccines.push(vaccine);
+             groupedMap.get(key)?.vaccines.push({
+                 ...vaccine,
+                 scheduledDateBs: actualSessionDateBs
+             });
           }
         });
       });
     
     return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
-  }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine]); 
+  }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter]); 
 
   // FIC List: Fully Immunized Children (Excluding HPV)
   const ficList = useMemo(() => {
@@ -412,9 +455,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         onChange={e => setFilterCenter(e.target.value)}
                         icon={<MapPinned size={16} />}
                     />
-                    {filterCenter && centerDates[filterCenter] && (
-                        <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-0.5 rounded border border-teal-100 italic">
-                            * {centerDates[filterCenter]}
+                    {filterCenter && (
+                        <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-1 rounded border border-teal-100 font-nepali leading-relaxed">
+                            {(() => {
+                                const days = generalSettings?.vaccinationCenterDays?.[filterCenter] || [];
+                                return days.length > 0 
+                                    ? `* यो केन्द्रमा खोप चल्ने गतेहरू: प्रत्येक महिनाको ${days.join(', ')} गते`
+                                    : `* यो केन्द्रमा सबै गते खोप सञ्चालन हुन्छ (गतेहरू सेट गरिएको छैन)`;
+                            })()}
                         </div>
                     )}
                 </div>
