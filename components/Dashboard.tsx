@@ -1137,10 +1137,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         const nextDispatchNumber = `${nextSerialNumber}-${fiscalYearFormatted}`;
 
         const filteredChalaniEntries = sortedChalaniEntries.filter(c => 
-            c.dispatchNumber.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            c.subject.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            c.sender.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            c.recipient.toLowerCase().includes(chalaniSearchQuery.toLowerCase())
+            (c.dispatchNumber || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (c.subject || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (c.sender || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (c.recipient || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase())
         );
 
         const toNepaliDigits = (num: string | number) => {
@@ -1301,10 +1301,10 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
         const sentForYear = (sentLetters || []).filter(s => s.fiscalYear === currentFiscalYear);
         const sortedSent = [...sentForYear].sort((a,b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
         const filteredSent = sortedSent.filter(s => 
-            s.dispatchNumber.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            s.subject.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            s.recipientOrgName.toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
-            s.sender.toLowerCase().includes(chalaniSearchQuery.toLowerCase())
+            (s.dispatchNumber || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (s.subject || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (s.recipientOrgName || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase()) ||
+            (s.sender || '').toLowerCase().includes(chalaniSearchQuery.toLowerCase())
         );
 
         return (
@@ -1612,10 +1612,10 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
         const nextRegistrationNumber = `${nextSerialNumber}-${fiscalYearFormatted}`;
 
         const filteredDartaEntries = sortedDartaEntries.filter(d => 
-            d.registrationNumber.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            d.subject.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            d.sender.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            d.recipient.toLowerCase().includes(dartaSearchQuery.toLowerCase())
+            (d.registrationNumber || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (d.subject || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (d.sender || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (d.recipient || '').toLowerCase().includes(dartaSearchQuery.toLowerCase())
         );
 
         const toNepaliDigits = (num: string | number) => {
@@ -1630,10 +1630,10 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
         const receivedForYear = (receivedLetters || []).filter(r => r.fiscalYear === currentFiscalYear);
         const sortedReceived = [...receivedForYear].sort((a,b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
         const filteredReceived = sortedReceived.filter(r => 
-            r.dispatchNumber.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            r.subject.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            r.senderOrgName.toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
-            r.sender.toLowerCase().includes(dartaSearchQuery.toLowerCase())
+            (r.dispatchNumber || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (r.subject || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (r.senderOrgName || '').toLowerCase().includes(dartaSearchQuery.toLowerCase()) ||
+            (r.sender || '').toLowerCase().includes(dartaSearchQuery.toLowerCase())
         );
 
         const handlePrintReceivedLetter = async (receivedLetter: ReceivedLetter) => {

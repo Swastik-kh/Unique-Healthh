@@ -125,12 +125,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const filteredPatients = useMemo(() => {
     if (!patientSearchInput) return [];
-    return serviceSeekerRecords.filter(p => 
-      p.name.toLowerCase().includes(patientSearchInput.toLowerCase()) ||
-      (p.uniquePatientId && p.uniquePatientId.toLowerCase().includes(patientSearchInput.toLowerCase())) ||
-      (p.registrationNumber && p.registrationNumber.toLowerCase().includes(patientSearchInput.toLowerCase())) ||
-      (p.phone && p.phone.includes(patientSearchInput))
-    ).slice(0, 10);
+    const query = patientSearchInput.toLowerCase();
+    return (serviceSeekerRecords || []).filter(p => {
+      if (!p) return false;
+      return (
+        (p.name || '').toLowerCase().includes(query) ||
+        (p.uniquePatientId && String(p.uniquePatientId).toLowerCase().includes(query)) ||
+        (p.registrationNumber && String(p.registrationNumber).toLowerCase().includes(query)) ||
+        (p.phone && String(p.phone).includes(patientSearchInput))
+      );
+    }).slice(0, 10);
   }, [patientSearchInput, serviceSeekerRecords]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -236,21 +240,29 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsExpenseFormOpen(true);
   };
 
-  const filteredExpenseRecords = (expenseRecords || []).filter(e => 
-    (e.expenseCategory && e.expenseCategory.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
-    (e.driverName && e.driverName.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
-    (e.paidTo && e.paidTo.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
-    (e.billNo && e.billNo.toLowerCase().includes(expenseSearchTerm.toLowerCase())) ||
-    (e.remarks && e.remarks.toLowerCase().includes(expenseSearchTerm.toLowerCase()))
-  );
+  const filteredExpenseRecords = (expenseRecords || []).filter(e => {
+    if (!e) return false;
+    const query = (expenseSearchTerm || '').toLowerCase();
+    return (
+      (e.expenseCategory && String(e.expenseCategory).toLowerCase().includes(query)) ||
+      (e.driverName && String(e.driverName).toLowerCase().includes(query)) ||
+      (e.paidTo && String(e.paidTo).toLowerCase().includes(query)) ||
+      (e.billNo && String(e.billNo).toLowerCase().includes(query)) ||
+      (e.remarks && String(e.remarks).toLowerCase().includes(query))
+    );
+  });
 
-  const filteredRecords = records.filter(r => 
-    r.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.ambulanceNo && r.ambulanceNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (r.driverName && r.driverName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (r.destination && r.destination.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (r.phone && r.phone.includes(searchTerm))
-  );
+  const filteredRecords = (records || []).filter(r => {
+    if (!r) return false;
+    const query = (searchTerm || '').toLowerCase();
+    return (
+      (r.patientName && String(r.patientName).toLowerCase().includes(query)) ||
+      (r.ambulanceNo && String(r.ambulanceNo).toLowerCase().includes(query)) ||
+      (r.driverName && String(r.driverName).toLowerCase().includes(query)) ||
+      (r.destination && String(r.destination).toLowerCase().includes(query)) ||
+      (r.phone && String(r.phone).includes(searchTerm))
+    );
+  });
 
   // Constants & memoized helpers for advanced log book filtering
   const NEPALI_MONTHS = useMemo(() => [
@@ -279,17 +291,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [records]);
 
   const filteredLogBookRecords = useMemo(() => {
-    return records.filter(r => {
+    return (records || []).filter(r => {
+      if (!r) return false;
       // 1. General Search
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = (searchTerm || '').toLowerCase();
       const matchesSearch = !searchTerm || 
-        r.patientName.toLowerCase().includes(searchLower) ||
-        (r.ambulanceNo && r.ambulanceNo.toLowerCase().includes(searchLower)) ||
-        (r.driverName && r.driverName.toLowerCase().includes(searchLower)) ||
-        (r.startLocation && r.startLocation.toLowerCase().includes(searchLower)) ||
-        (r.destination && r.destination.toLowerCase().includes(searchLower)) ||
-        (r.phone && r.phone.includes(searchTerm)) ||
-        (r.remarks && r.remarks.toLowerCase().includes(searchLower));
+        (r.patientName && String(r.patientName).toLowerCase().includes(searchLower)) ||
+        (r.ambulanceNo && String(r.ambulanceNo).toLowerCase().includes(searchLower)) ||
+        (r.driverName && String(r.driverName).toLowerCase().includes(searchLower)) ||
+        (r.startLocation && String(r.startLocation).toLowerCase().includes(searchLower)) ||
+        (r.destination && String(r.destination).toLowerCase().includes(searchLower)) ||
+        (r.phone && String(r.phone).includes(searchTerm)) ||
+        (r.remarks && String(r.remarks).toLowerCase().includes(searchLower));
 
       // 2. Month Filter
       let matchesMonth = true;

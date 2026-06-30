@@ -60,8 +60,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
   const labPatientsList = useMemo(() => {
     const labServices = serviceItems.filter(s => s.category === 'Lab');
-    const labServiceNames = new Set(labServices.map(s => s.serviceName.trim().toLowerCase()));
-    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => st.testName.trim().toLowerCase()));
+    const labServiceNames = new Set(labServices.map(s => (s.serviceName || '').trim().toLowerCase()));
+    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => (st.testName || '').trim().toLowerCase()));
 
     const patientsMap = new Map<string, {
       patientId: string;
@@ -105,7 +105,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       const patient = serviceSeekerRecords.find(p => p.id === bill.serviceSeekerId);
 
       const hasLabItems = bill.items.some(item => {
-        const itemName = item.serviceName.trim().toLowerCase();
+        const itemName = (item.serviceName || '').trim().toLowerCase();
         return labServiceNames.has(itemName) || labSubTestNames.has(itemName);
       });
 
@@ -131,12 +131,12 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
 
       const existingReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
       bill.items.forEach(item => {
-        const itemName = item.serviceName.trim().toLowerCase();
+        const itemName = (item.serviceName || '').trim().toLowerCase();
         if (labServiceNames.has(itemName) || labSubTestNames.has(itemName)) {
           // Check if this test or its sub-tests are collected
           const relatedTestsInReport = existingReport?.tests?.filter(t => 
-            t.testName.trim().toLowerCase() === itemName || 
-            t.parentTestName?.trim().toLowerCase() === itemName
+            (t.testName || '').trim().toLowerCase() === itemName || 
+            (t.parentTestName || '').trim().toLowerCase() === itemName
           ) || [];
 
           const isCollected = relatedTestsInReport.length > 0 && relatedTestsInReport.every(t => t.sampleCollected);
@@ -439,16 +439,16 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       const existingReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === patientId);
       
       bill.items.forEach(item => {
-        const itemName = item.serviceName.trim().toLowerCase();
-        const serviceItem = labServices.find(s => s.serviceName.trim().toLowerCase() === itemName);
+        const itemName = (item.serviceName || '').trim().toLowerCase();
+        const serviceItem = labServices.find(s => (s.serviceName || '').trim().toLowerCase() === itemName);
         
         if (serviceItem) {
           if (serviceItem.subTests && serviceItem.subTests.length > 0) {
             // Expand sub-tests for entry but keep parent reference
             serviceItem.subTests.forEach(subTest => {
               const existingTest = existingReport?.tests?.find(t => 
-                t.testName.trim().toLowerCase() === subTest.testName.trim().toLowerCase() && 
-                t.parentTestName?.trim().toLowerCase() === itemName
+                (t.testName || '').trim().toLowerCase() === (subTest.testName || '').trim().toLowerCase() && 
+                (t.parentTestName || '').trim().toLowerCase() === itemName
               );
               
               tests.push({
@@ -467,7 +467,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
               });
             });
           } else {
-            const existingTest = existingReport?.tests?.find(t => t.testName.trim().toLowerCase() === itemName);
+            const existingTest = existingReport?.tests?.find(t => (t.testName || '').trim().toLowerCase() === itemName);
             
             tests.push({
               id: existingTest?.id || `${bill.invoiceNumber}-${item.serviceName}-${Date.now()}`,
@@ -570,8 +570,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   // Global Pending Tasks Logic
   const globalPendingTasks = useMemo(() => {
     const labServices = serviceItems.filter(s => s.category === 'Lab');
-    const labServiceNames = new Set(labServices.map(s => s.serviceName.trim().toLowerCase()));
-    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => st.testName.trim().toLowerCase()));
+    const labServiceNames = new Set(labServices.map(s => (s.serviceName || '').trim().toLowerCase()));
+    const labSubTestNames = new Set(labServices.flatMap(s => s.subTests || []).map(st => (st.testName || '').trim().toLowerCase()));
 
     const pendingSamples: any[] = [];
     const pendingResults: any[] = [];
@@ -581,7 +581,7 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       const patient = serviceSeekerRecords.find(p => p.id === bill.serviceSeekerId);
 
       const labItems = bill.items.filter(item => {
-        const itemName = item.serviceName.trim().toLowerCase();
+        const itemName = (item.serviceName || '').trim().toLowerCase();
         return labServiceNames.has(itemName) || labSubTestNames.has(itemName);
       });
 
@@ -590,13 +590,13 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
       const existingReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
 
       labItems.forEach(item => {
-        const itemName = item.serviceName.trim().toLowerCase();
+        const itemName = (item.serviceName || '').trim().toLowerCase();
         
         // Find if this test or its sub-tests exist in any report for this invoice
         const invoiceReport = labReports.find(r => r.invoiceNumber === bill.invoiceNumber && r.serviceSeekerId === bill.serviceSeekerId);
         const relatedTestsInReport = invoiceReport?.tests?.filter(t => 
-          t.testName.trim().toLowerCase() === itemName || 
-          t.parentTestName?.trim().toLowerCase() === itemName
+          (t.testName || '').trim().toLowerCase() === itemName || 
+          (t.parentTestName || '').trim().toLowerCase() === itemName
         ) || [];
 
         const isCollected = relatedTestsInReport.length > 0 && relatedTestsInReport.every(t => t.sampleCollected);

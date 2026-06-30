@@ -1377,7 +1377,7 @@ const App: React.FC = () => {
               for (const issueItem of report.items) {
                   let remainingIssuedQty = parseFloat(issueItem.quantity) || 0;
                   let potentialInventoryItems = currentInvList.filter(inv => {
-                      const nameMatches = inv.itemName.trim().toLowerCase() === issueItem.name.trim().toLowerCase();
+                      const nameMatches = (inv.itemName || '').trim().toLowerCase() === (issueItem.name || '').trim().toLowerCase();
                       const storeMatches = inv.storeId === report.selectedStoreId;
                       const typeMatches = inv.itemType === report.itemType;
                       const codeMatches = issueItem.codeNo ? (inv.uniqueCode === issueItem.codeNo || inv.sanketNo === issueItem.codeNo) : true;
@@ -1426,7 +1426,7 @@ const App: React.FC = () => {
           const updates: Record<string, any> = {};
           const dakhilaItems: DakhilaItem[] = [];
           for (const item of request.items) {
-              const existingItem = currentInvList.find(i => i.itemName.trim().toLowerCase() === item.itemName.trim().toLowerCase() && i.storeId === request.storeId && i.itemType === item.itemType);
+              const existingItem = currentInvList.find(i => (i.itemName || '').trim().toLowerCase() === (item.itemName || '').trim().toLowerCase() && i.storeId === request.storeId && i.itemType === item.itemType);
               const incomingQty = Number(item.currentQuantity) || 0;
               const incomingRate = Number(item.rate) || 0;
               const incomingTax = Number(item.tax) || 0;
@@ -1550,9 +1550,9 @@ const App: React.FC = () => {
                   // Allowing both Expendable and Non-Expendable items to be added back to stock upon return approval.
                   const existingItem = currentInvList.find(i => 
                       i.id === returnedItem.inventoryId || 
-                      (i.itemName.trim().toLowerCase() === returnedItem.name.trim().toLowerCase() && 
-                       (i.uniqueCode?.trim().toLowerCase() === returnedItem.codeNo?.trim().toLowerCase() ||
-                        i.sanketNo?.trim().toLowerCase() === returnedItem.codeNo?.trim().toLowerCase()) &&
+                      ((i.itemName || '').trim().toLowerCase() === (returnedItem.name || '').trim().toLowerCase() && 
+                       ((i.uniqueCode || '').trim().toLowerCase() === (returnedItem.codeNo || '').trim().toLowerCase() ||
+                        (i.sanketNo || '').trim().toLowerCase() === (returnedItem.codeNo || '').trim().toLowerCase()) &&
                         i.itemType === returnedItem.itemType
                       )
                   );
@@ -1621,9 +1621,9 @@ const App: React.FC = () => {
               for (const disposalItem of entry.items) {
                   const existingItem = currentInvList.find(i => 
                       i.id === disposalItem.inventoryId || 
-                      (i.itemName.trim().toLowerCase() === disposalItem.name.trim().toLowerCase() && 
-                       (i.uniqueCode?.trim().toLowerCase() === disposalItem.codeNo?.trim().toLowerCase() ||
-                        i.sanketNo?.trim().toLowerCase() === disposalItem.codeNo?.trim().toLowerCase())
+                      ((i.itemName || '').trim().toLowerCase() === (disposalItem.name || '').trim().toLowerCase() && 
+                       ((i.uniqueCode || '').trim().toLowerCase() === (disposalItem.codeNo || '').trim().toLowerCase() ||
+                        (i.sanketNo || '').trim().toLowerCase() === (disposalItem.codeNo || '').trim().toLowerCase())
                       )
                   );
 

@@ -55,10 +55,10 @@ export const SahayakJinshiKhata: React.FC<SahayakJinshiKhataProps> = ({
     // Map to store aggregated return data for each issued item
     const returnedItemsMap = new Map<string, { qty: number; dates: string[]; receivers: string[]; }>();
     returnEntries.forEach(r => {
-        if (r.status === 'Approved' && r.returnedBy?.name?.trim().toLowerCase() === safeSelectedName) {
+        if (r.status === 'Approved' && (r.returnedBy?.name || '').trim().toLowerCase() === safeSelectedName) {
             r.items.forEach(retItem => {
                 // Key to match issued item: Combination of original inventory ID (if available), name and code
-                const key = `${retItem.inventoryId || retItem.name.trim().toLowerCase()}-${(retItem.codeNo || '').trim().toLowerCase()}`;
+                const key = `${retItem.inventoryId || (retItem.name || '').trim().toLowerCase()}-${(retItem.codeNo || '').trim().toLowerCase()}`;
                 const current = returnedItemsMap.get(key) || { qty: 0, dates: [], receivers: [] };
                 current.qty += retItem.quantity;
                 current.dates.push(r.date);
@@ -78,7 +78,7 @@ export const SahayakJinshiKhata: React.FC<SahayakJinshiKhataProps> = ({
                 // Find the original inventory item details for more context
                 const invItem = inventoryItems.find(i => 
                     (item.id !== undefined && i.id === String(item.id)) || // FIX: Convert item.id (number) to string for comparison with i.id (string)
-                    (i.itemName.trim().toLowerCase() === item.name.trim().toLowerCase() && 
+                    ((i.itemName || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase() && 
                      (item.codeNo ? (i.uniqueCode === item.codeNo || i.sanketNo === item.codeNo) : true)) // Fallback to name/code
                 );
                 
@@ -89,7 +89,7 @@ export const SahayakJinshiKhata: React.FC<SahayakJinshiKhataProps> = ({
                 const itemCode = item.codeNo || invItem?.uniqueCode || invItem?.sanketNo || '';
                 
                 // Construct the same key as used in returnedItemsMap
-                const returnKey = `${invItem?.id || item.name.trim().toLowerCase()}-${itemCode.trim().toLowerCase()}`;
+                const returnKey = `${invItem?.id || (item.name || '').trim().toLowerCase()}-${itemCode.trim().toLowerCase()}`;
                 const itemReturnData = returnedItemsMap.get(returnKey) || { qty: 0, dates: [], receivers: [] };
                 
                 // Determine source for issued item
