@@ -953,12 +953,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     switch (activeItem) {
       case 'dashboard': return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex justify-between items-center border-b pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
             <div className="flex items-center gap-3">
-              <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600"><Activity size={24} /></div>
-              <div><h2 className="text-xl font-bold text-slate-800 font-nepali">प्रणाली ड्यासबोर्ड (System Dashboard)</h2><p className="text-sm text-slate-500">प्रणालीको हालको अवस्था र तथ्याङ्क</p></div>
+              <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600 shrink-0"><Activity size={24} /></div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 font-nepali">प्रणाली ड्यासबोर्ड (System Dashboard)</h2>
+                <p className="text-xs sm:text-sm text-slate-500">प्रणालीको हालको अवस्था र तथ्याङ्क</p>
+              </div>
             </div>
-            <button onClick={() => handlePrint('dashboard-main-print')} className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg font-medium shadow-sm hover:bg-slate-900 no-print">
+            <button onClick={() => handlePrint('dashboard-main-print')} className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg font-medium shadow-sm hover:bg-slate-900 no-print">
               <Printer size={18} /> प्रिन्ट
             </button>
           </div>
@@ -1023,15 +1026,15 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
                       <tbody className="divide-y">
                           {(rabiesPatients || []).filter(p => (p.schedule || []).some(d => fixDate(d.dateBs || '') === fixDate(selectedStatsDate))).map(p => (
                               <tr key={p.id} className="hover:bg-slate-50">
-                                <td className="p-2 font-bold" data-label="Name">{p.name}</td>
-                                <td className="p-2 text-center" data-label="Dose">
+                                <td className="p-2 font-bold" data-label="बिरामीको नाम">{p.name}</td>
+                                <td className="p-2 text-center" data-label="डोज">
                                   <div className="flex justify-center md:justify-center gap-1">
                                     {(p.schedule || []).filter(d => fixDate(d.dateBs || '') === fixDate(selectedStatsDate)).map(d => ( 
                                       <span key={d.day} className={`px-2 py-0.5 rounded-full font-black text-[10px] ${d.status === 'Given' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>D{d.day}</span> 
                                     ))}
                                   </div>
                                 </td>
-                                <td className="p-2 text-right font-mono" data-label="Phone">{p.phone}</td>
+                                <td className="p-2 text-right font-mono" data-label="सम्पर्क">{p.phone}</td>
                               </tr>
                           ))}
                           {(rabiesPatients || []).filter(p => (p.schedule || []).some(d => fixDate(d.dateBs || '') === fixDate(selectedStatsDate))).length === 0 && <tr><td colSpan={3} className="p-8 text-center text-slate-400 italic">छानिएको मितिमा कुनै सेवाग्राही छैनन्।</td></tr>}
@@ -2484,20 +2487,20 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <header className="h-20 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-20 shrink-0 no-print">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-slate-500 hover:bg-slate-50 rounded-lg">
+        <header className="min-h-16 md:h-20 bg-white border-b border-slate-200 px-3 md:px-6 py-2 flex items-center justify-between z-20 shrink-0 no-print">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1 mr-2">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 text-slate-500 hover:bg-slate-50 rounded-lg shrink-0">
               <Menu size={20} />
             </button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
               <img 
                 src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
                 alt="Logo" 
-                className="h-12 w-12 object-contain"
+                className="h-8 w-8 md:h-12 md:w-12 object-contain shrink-0"
               />
-              <div className="flex flex-col">
-                <h1 className="font-black text-slate-800 text-lg leading-tight">{generalSettings.orgNameNepali}</h1>
-                <div className="flex flex-wrap gap-2 text-[10px] text-slate-600 font-bold">
+              <div className="flex flex-col min-w-0">
+                <h1 className="font-black text-slate-800 text-xs sm:text-sm md:text-lg leading-tight truncate sm:whitespace-normal">{generalSettings.orgNameNepali}</h1>
+                <div className="hidden sm:flex flex-wrap gap-1.5 md:gap-2 text-[9px] md:text-[10px] text-slate-600 font-bold">
                     {generalSettings.subTitleNepali && <span>{generalSettings.subTitleNepali}</span>}
                     {generalSettings.subTitleNepali2 && <span>| {generalSettings.subTitleNepali2}</span>}
                     {generalSettings.subTitleNepali3 && <span>| {generalSettings.subTitleNepali3}</span>}
