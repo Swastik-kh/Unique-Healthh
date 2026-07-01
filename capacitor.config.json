@@ -1,0 +1,6 @@
+{
+  "appId": "com.uniquehealth.app",
+  "appName": "Unique Health",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
