@@ -110,6 +110,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const [txnFormDate, setTxnFormDate] = useState(today);
   const [txnRefNo, setTxnRefNo] = useState('');
+  const [txnIsVatBill, setTxnIsVatBill] = useState(false);
+  const [txnVatTaxableAmount, setTxnVatTaxableAmount] = useState<number | ''>('');
 
   const getNepaliMonthName = (dateBs: string) => {
     const parts = dateBs.split(/[-/]/);
@@ -325,8 +327,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const amount = Number(formData.get('amount'));
-    const isVatBill = formData.get('isVatBill') === 'on';
-    const amountWithoutVAT = isVatBill ? amount / 1.13 : amount;
+    const isVatBill = txnIsVatBill;
+    const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
+    const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
+    const amountWithoutVAT = amount - vatAmount;
     const amountWithVAT = amount;
     const applyTds = formData.get('applyTds') === 'on';
     const tdsAmount = applyTds ? amount * 0.015 : 0;
@@ -339,11 +343,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
       category: formData.get('category') as any,
       type: formData.get('type') as any,
-      amountWithoutVAT: amountWithoutVAT,
-      amountWithVAT: amountWithVAT,
-      tdsAmount: tdsAmount,
-      sasukarAmount: sasukarAmount,
-      amount: amount,
+      isVatBill,
+      vatTaxableAmount,
+      amountWithoutVAT,
+      amountWithVAT,
+      tdsAmount,
+      sasukarAmount,
+      amount,
       remarks: formData.get('remarks') as string,
       partyName: formData.get('partyName') as string || undefined,
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
@@ -2451,7 +2457,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
                           </td>
                           <td className="px-6 py-4 text-right font-black font-mono text-sm">
-                             <div className="text-[10px] text-slate-400">VAT बाहेक: रू {(item.amountWithoutVAT || item.amount || 0).toLocaleString()}</div>
+                             {item.isVatBill && (
+                               <div className="text-[10px] text-rose-600 font-bold font-nepali mb-1 bg-rose-50 rounded px-1.5 py-0.5 inline-block">भ्याट बिल (VAT Bill)</div>
+                             )}
+                             {item.isVatBill && item.vatTaxableAmount > 0 && (
+                               <>
+                                 <div className="text-[10px] text-slate-500">भ्याट लाग्ने: रू {item.vatTaxableAmount.toLocaleString()}</div>
+                                 <div className="text-[10px] text-slate-500">भ्याट (१३%): रू {Math.round(item.vatTaxableAmount * 0.13).toLocaleString()}</div>
+                               </>
+                             )}
+                             <div className="text-[10px] text-slate-400">VAT बाहेक: रू {Math.round(item.amountWithoutVAT || item.amount || 0).toLocaleString()}</div>
                              <div className="text-emerald-700">
                                VAT सहित: रू {(item.amountWithVAT || item.amount || 0).toLocaleString()}
                                {item.type === 'Expense' && item.tdsAmount > 0 && (
@@ -2490,7 +2505,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                  if (item._type === 'PaymentRequest') setFormType('nagarpalika_payment');
                                  else if (item._type === 'Allowance') setFormType('allowance');
                                  else if (activeTab === 'vendors') setFormType('party');
-                                 else if (activeTab === 'transactions') setFormType('transaction');
+                                 else if (activeTab === 'transactions') {
+                                   setFormType('transaction');
+                                   setTxnIsVatBill(!!item.isVatBill);
+                                   setTxnVatTaxableAmount(item.vatTaxableAmount !== undefined && item.vatTaxableAmount !== null ? item.vatTaxableAmount : '');
+                                 }
                                  else if (activeTab === 'payments') {
                                    setFormType('payment');
                                    setPaymentSelectedProgram(item.programId);
@@ -2595,6 +2614,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     setFormType('transaction');
                     setTxnFormDate(today);
                     setTxnRefNo(generateReferenceNo());
+                    setTxnIsVatBill(false);
+                    setTxnVatTaxableAmount('');
                   } else if (activeTab === 'payments') {
                     setFormType('payment');
                     setPaymentSelectedProgram('');
@@ -2807,7 +2828,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         </div>
                         <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount || editingItem?.amountWithVAT} required />
                         <div className="flex items-center gap-2 mt-6">
-                            <input type="checkbox" name="isVatBill" id="isVatBill" className="rounded text-rose-600 focus:ring-rose-500" />
+                            <input 
+                              type="checkbox" 
+                              name="isVatBill" 
+                              id="isVatBill" 
+                              checked={txnIsVatBill}
+                              onChange={(e) => {
+                                setTxnIsVatBill(e.target.checked);
+                                if (!e.target.checked) setTxnVatTaxableAmount('');
+                              }}
+                              className="rounded text-rose-600 focus:ring-rose-500" 
+                            />
                             <label htmlFor="isVatBill" className="text-xs font-black text-slate-700 uppercase tracking-widest">VAT बिल हो? (Is VAT Bill?)</label>
                         </div>
                         <div className="flex items-center gap-2 mt-6">
@@ -2819,6 +2850,28 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <label htmlFor="applySasukar" className="text-xs font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर काट्ने? (Deduct 1% SASUKAR?)</label>
                         </div>
                       </div>
+
+                      {txnIsVatBill && (
+                        <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 space-y-2 mt-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">VAT लाग्ने रकम (VAT Taxable Amount)</label>
+                          <input 
+                            type="number" 
+                            name="vatTaxableAmount" 
+                            value={txnVatTaxableAmount} 
+                            onChange={(e) => setTxnVatTaxableAmount(e.target.value === '' ? '' : Number(e.target.value))} 
+                            required 
+                            placeholder="VAT लाग्ने रकम प्रविष्ट गर्नुहोस्" 
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                          />
+                          {txnVatTaxableAmount !== '' && (
+                            <div className="text-[10px] text-slate-500 font-nepali flex justify-between px-1">
+                              <span>VAT बाहेक: रू {Number(txnVatTaxableAmount).toLocaleString()}</span>
+                              <span>VAT (१३%): रू {Math.round(Number(txnVatTaxableAmount) * 0.13).toLocaleString()}</span>
+                              <span className="font-bold text-rose-700">VAT सहित: रू {Math.round(Number(txnVatTaxableAmount) * 1.13).toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
                         <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category} options={[

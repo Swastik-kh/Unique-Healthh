@@ -30,6 +30,8 @@ export interface FinancialTransaction {
   amountWithoutVAT?: number;
   amountWithVAT?: number;
   amount?: number;
+  vatTaxableAmount?: number;
+  isVatBill?: boolean;
   remarks: string;
   partyId?: string;
   programId?: string;
