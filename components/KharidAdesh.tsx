@@ -537,7 +537,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <th className="border border-slate-900 p-2 w-16" rowSpan={2}>एकाई</th>
                               <th className="border border-slate-900 p-2 w-20" rowSpan={2}>परिमाण</th>
                               <th className="border border-slate-900 p-2" colSpan={2}>मूल्य(मू.अ.क. बाहेक)</th>
-                              <th className="border border-slate-900 p-2 w-16" rowSpan={2}>भ्याट (१३%)</th>
+                              <th className="border border-slate-900 p-2 w-16 print:hidden" rowSpan={2}>भ्याट (१३%)</th>
                               <th className="border border-slate-900 p-2" rowSpan={2}>कैफियत</th>
                           </tr>
                           <tr>
@@ -592,7 +592,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                   <td className="border border-slate-900 p-1 text-right px-2 font-bold">
                                       {(item.totalAmount || 0).toFixed(2)}
                                   </td>
-                                  <td className="border border-slate-900 p-1">
+                                  <td className="border border-slate-900 p-1 print:hidden">
                                       <div className="flex justify-center items-center gap-1">
                                           <input 
                                               type="checkbox" 
@@ -643,7 +643,8 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">जम्मा रकम</td>
                               <td className="border border-slate-900 p-2 text-right font-bold">{subTotal.toFixed(2)}</td>
-                              <td className="border border-slate-900 p-2" colSpan={2}></td>
+                              <td className="border border-slate-900 p-2 print:hidden"></td>
+                              <td className="border border-slate-900 p-2"></td>
                           </tr>
                           <tr>
                               <td colSpan={8} 
@@ -693,7 +694,8 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                       </button>
                                   )}
                               </td>
-                              <td className="border border-slate-900 p-2" colSpan={2}></td>
+                              <td className="border border-slate-900 p-2 print:hidden"></td>
+                              <td className="border border-slate-900 p-2"></td>
                           </tr>
                           <tr>
                               <td colSpan={8} 
@@ -727,12 +729,14 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                       </button>
                                   )}
                               </td>
-                              <td className="border border-slate-900 p-2" colSpan={2}></td>
+                              <td className="border border-slate-900 p-2 print:hidden"></td>
+                              <td className="border border-slate-900 p-2"></td>
                           </tr>
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">कुल जम्मा रकम</td>
                               <td className="border border-slate-900 p-2 text-right font-bold">{grandTotal.toFixed(2)}</td>
-                              <td className="border border-slate-900 p-2" colSpan={2}></td>
+                              <td className="border border-slate-900 p-2 print:hidden"></td>
+                              <td className="border border-slate-900 p-2"></td>
                           </tr>
                       </tfoot>
                   </table>
