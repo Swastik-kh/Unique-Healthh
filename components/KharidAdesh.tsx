@@ -59,7 +59,8 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
               rate: item.rate || 0,
               totalAmount: item.totalAmount || ((parseFloat(item.quantity) || 0) * (item.rate || 0)),
               model: item.model || '',
-              codeNo: item.codeNo || ''
+              codeNo: item.codeNo || '',
+              hasVat: item.hasVat !== undefined ? item.hasVat : false
           })),
           decisionNo: selectedOrder.decisionNo || '',
           decisionDate: selectedOrder.decisionDate || '',
@@ -128,10 +129,25 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
       const updatedItems = [...formData.items];
       updatedItems[index] = { ...updatedItems[index], [field]: value };
       
-      if (field === 'rate' || field === 'quantity') {
+      if (field === 'rate' || field === 'quantity' || field === 'hasVat') {
           const qty = parseFloat(field === 'quantity' ? value : updatedItems[index].quantity) || 0;
           const rate = parseFloat(field === 'rate' ? value : (updatedItems[index].rate || 0)) || 0;
           updatedItems[index].totalAmount = qty * rate;
+          
+          // Re-calculate VAT amount dynamically based on items that have hasVat enabled
+          const calcVat = updatedItems.reduce((acc, item) => {
+              if (item.hasVat) {
+                  return acc + (item.totalAmount || 0) * 0.13;
+              }
+              return acc;
+          }, 0);
+          
+          setFormData({ 
+              ...formData, 
+              items: updatedItems,
+              vatAmount: parseFloat(calcVat.toFixed(2))
+          });
+          return;
       }
       setFormData({ ...formData, items: updatedItems });
   };
@@ -518,6 +534,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <th className="border border-slate-900 p-2 w-16" rowSpan={2}>एकाई</th>
                               <th className="border border-slate-900 p-2 w-20" rowSpan={2}>परिमाण</th>
                               <th className="border border-slate-900 p-2" colSpan={2}>मूल्य(मू.अ.क. बाहेक)</th>
+                              <th className="border border-slate-900 p-2 w-16" rowSpan={2}>भ्याट (१३%)</th>
                               <th className="border border-slate-900 p-2" rowSpan={2}>कैफियत</th>
                           </tr>
                           <tr>
@@ -572,13 +589,40 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                   <td className="border border-slate-900 p-1 text-right px-2 font-bold">
                                       {(item.totalAmount || 0).toFixed(2)}
                                   </td>
+                                  <td className="border border-slate-900 p-1">
+                                      <div className="flex justify-center items-center gap-1">
+                                          <input 
+                                              type="checkbox" 
+                                              checked={!!item.hasVat} 
+                                              onChange={(e) => handleItemChange(index, 'hasVat', e.target.checked)} 
+                                              disabled={!canEdit}
+                                              className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 no-print" 
+                                          />
+                                          <span className="hidden print:inline font-bold">
+                                              {item.hasVat ? '✓' : '-'}
+                                          </span>
+                                          {item.hasVat && (
+                                              <span className="text-[10px] text-emerald-700 font-bold no-print">हो</span>
+                                          )}
+                                      </div>
+                                  </td>
                                   <td className="border border-slate-900 p-1 relative group">
                                       <input value={item.remarks} onChange={e => handleItemChange(index, 'remarks', e.target.value)} disabled={!canEdit} className="w-full bg-transparent outline-none pr-6" />
                                       {canEdit && (
                                           <button 
                                               onClick={() => {
                                                   const newItems = formData.items.filter((_, i) => i !== index);
-                                                  setFormData({...formData, items: newItems});
+                                                  const calcVat = newItems.reduce((acc, it) => {
+                                                      if (it.hasVat) {
+                                                          return acc + (it.totalAmount || 0) * 0.13;
+                                                      }
+                                                      return acc;
+                                                  }, 0);
+                                                  setFormData({
+                                                      ...formData,
+                                                      items: newItems,
+                                                      vatAmount: parseFloat(calcVat.toFixed(2))
+                                                  });
                                               }}
                                               className="absolute right-1 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 transition-opacity"
                                               title="हटाउनुहोस्"
@@ -594,20 +638,25 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">जम्मा रकम</td>
                               <td className="border border-slate-900 p-2 text-right font-bold">{subTotal.toFixed(2)}</td>
-                              <td className="border border-slate-900 p-2"></td>
+                              <td className="border border-slate-900 p-2" colSpan={2}></td>
                           </tr>
                           <tr>
                               <td colSpan={8} 
                                 className="border border-slate-900 p-2 text-right font-bold cursor-pointer hover:bg-slate-100 transition-colors"
                                 onClick={() => {
                                     if(canEdit) {
-                                        const calcVat = subTotal * 0.13;
+                                        const calcVat = formData.items.reduce((acc, it) => {
+                                            if (it.hasVat) {
+                                                return acc + (it.totalAmount || 0) * 0.13;
+                                            }
+                                            return acc;
+                                        }, 0);
                                         setFormData({...formData, vatAmount: parseFloat(calcVat.toFixed(2))});
                                     }
                                 }}
-                                title="Click to auto calculate 13% VAT"
+                                title="भ्याट टिक गरिएका सामानहरूको १३% भ्याट गणना गर्न क्लिक गर्नुहोस् (Click to calculate 13% VAT for checked items)"
                               >
-                                भ्याट/कर (VAT/Tax) <span className="text-[10px] text-slate-500 font-normal no-print">(Click for 13%)</span>
+                                भ्याट/कर (VAT/Tax) <span className="text-[10px] text-slate-500 font-normal no-print">(चयन गरिएका सामानहरूको १३% को लागि क्लिक गर्नुहोस्)</span>
                               </td>
                               <td className="border border-slate-900 p-2 text-right font-bold relative group">
                                   <input 
@@ -628,12 +677,12 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                       </button>
                                   )}
                               </td>
-                              <td className="border border-slate-900 p-2"></td>
+                              <td className="border border-slate-900 p-2" colSpan={2}></td>
                           </tr>
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">कुल जम्मा रकम</td>
                               <td className="border border-slate-900 p-2 text-right font-bold">{grandTotal.toFixed(2)}</td>
-                              <td className="border border-slate-900 p-2"></td>
+                              <td className="border border-slate-900 p-2" colSpan={2}></td>
                           </tr>
                       </tfoot>
                   </table>

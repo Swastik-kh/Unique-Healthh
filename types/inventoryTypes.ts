@@ -19,6 +19,7 @@ export interface MagItem {
   model?: string; // Added model field
   batchNo?: string; // Added for batch selection
   expiryDate?: string; // Added for expiry selection
+  hasVat?: boolean; // Added to toggle VAT on individual items
 }
 
 export interface StoreKeeperSignature {
