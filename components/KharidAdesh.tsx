@@ -629,7 +629,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                                       vatAmount: parseFloat(calcVat.toFixed(2))
                                                   });
                                               }}
-                                              className="absolute right-1 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 transition-opacity"
+                                              className="absolute right-1 top-1/2 -translate-y-1/2 text-red-500 hover:text-red-700 transition-opacity print:hidden no-print"
                                               title="हटाउनुहोस्"
                                           >
                                               <X size={14} />
