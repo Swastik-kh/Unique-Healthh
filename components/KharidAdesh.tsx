@@ -65,7 +65,8 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
           decisionNo: selectedOrder.decisionNo || '',
           decisionDate: selectedOrder.decisionDate || '',
           budgetDetails: selectedOrder.budgetDetails || { budgetSubHeadNo: '', expHeadNo: '', activityNo: '' },
-          vatAmount: selectedOrder.vatAmount || 0 
+          vatAmount: selectedOrder.vatAmount || 0,
+          vatTaxableAmount: selectedOrder.vatTaxableAmount !== undefined ? selectedOrder.vatTaxableAmount : selectedOrder.items.reduce((acc, item) => item.hasVat ? acc + (item.totalAmount || 0) : acc, 0)
       };
       setFormData(JSON.parse(JSON.stringify(initializedOrder)));
     }
@@ -134,17 +135,19 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
           const rate = parseFloat(field === 'rate' ? value : (updatedItems[index].rate || 0)) || 0;
           updatedItems[index].totalAmount = qty * rate;
           
-          // Re-calculate VAT amount dynamically based on items that have hasVat enabled
-          const calcVat = updatedItems.reduce((acc, item) => {
+          // Re-calculate VAT Taxable Amount and VAT amount dynamically based on items that have hasVat enabled
+          const calcVatTaxable = updatedItems.reduce((acc, item) => {
               if (item.hasVat) {
-                  return acc + (item.totalAmount || 0) * 0.13;
+                  return acc + (item.totalAmount || 0);
               }
               return acc;
           }, 0);
+          const calcVat = calcVatTaxable * 0.13;
           
           setFormData({ 
               ...formData, 
               items: updatedItems,
+              vatTaxableAmount: parseFloat(calcVatTaxable.toFixed(2)),
               vatAmount: parseFloat(calcVat.toFixed(2))
           });
           return;
@@ -612,15 +615,17 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                           <button 
                                               onClick={() => {
                                                   const newItems = formData.items.filter((_, i) => i !== index);
-                                                  const calcVat = newItems.reduce((acc, it) => {
+                                                  const calcVatTaxable = newItems.reduce((acc, it) => {
                                                       if (it.hasVat) {
-                                                          return acc + (it.totalAmount || 0) * 0.13;
+                                                          return acc + (it.totalAmount || 0);
                                                       }
                                                       return acc;
                                                   }, 0);
+                                                  const calcVat = calcVatTaxable * 0.13;
                                                   setFormData({
                                                       ...formData,
                                                       items: newItems,
+                                                      vatTaxableAmount: parseFloat(calcVatTaxable.toFixed(2)),
                                                       vatAmount: parseFloat(calcVat.toFixed(2))
                                                   });
                                               }}
@@ -642,21 +647,66 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           </tr>
                           <tr>
                               <td colSpan={8} 
-                                className="border border-slate-900 p-2 text-right font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                                className="border border-slate-900 p-2 text-right font-bold cursor-pointer hover:bg-slate-100 transition-colors text-emerald-800"
                                 onClick={() => {
                                     if(canEdit) {
-                                        const calcVat = formData.items.reduce((acc, it) => {
+                                        const calcVatTaxable = formData.items.reduce((acc, it) => {
                                             if (it.hasVat) {
-                                                return acc + (it.totalAmount || 0) * 0.13;
+                                                return acc + (it.totalAmount || 0);
                                             }
                                             return acc;
                                         }, 0);
-                                        setFormData({...formData, vatAmount: parseFloat(calcVat.toFixed(2))});
+                                        setFormData({
+                                            ...formData, 
+                                            vatTaxableAmount: parseFloat(calcVatTaxable.toFixed(2)),
+                                            vatAmount: parseFloat((calcVatTaxable * 0.13).toFixed(2))
+                                        });
                                     }
                                 }}
-                                title="भ्याट टिक गरिएका सामानहरूको १३% भ्याट गणना गर्न क्लिक गर्नुहोस् (Click to calculate 13% VAT for checked items)"
+                                title="भ्याट टिक गरिएका सामानहरूको रकम गणना गर्न क्लिक गर्नुहोस् (Click to calculate total for checked items)"
                               >
-                                भ्याट/कर (VAT/Tax) <span className="text-[10px] text-slate-500 font-normal no-print">(चयन गरिएका सामानहरूको १३% को लागि क्लिक गर्नुहोस्)</span>
+                                भ्याट लाग्ने जम्मा रकम (VAT Taxable Amount) <span className="text-[10px] text-slate-500 font-normal no-print">(टिक गरिएका सामानहरूको योगफल लिन क्लिक गर्नुहोस्)</span>
+                              </td>
+                              <td className="border border-slate-900 p-2 text-right font-bold relative group bg-emerald-50/30">
+                                  <input 
+                                      type="number" 
+                                      value={formData.vatTaxableAmount !== undefined ? formData.vatTaxableAmount : ''} 
+                                      onChange={(e) => {
+                                          const taxableVal = parseFloat(e.target.value) || 0;
+                                          setFormData({
+                                              ...formData, 
+                                              vatTaxableAmount: taxableVal,
+                                              vatAmount: parseFloat((taxableVal * 0.13).toFixed(2))
+                                          });
+                                      }}
+                                      disabled={!canEdit}
+                                      className="w-full bg-transparent text-right outline-none font-bold pr-5 text-emerald-700"
+                                      placeholder="0.00"
+                                  />
+                                  {formData.vatTaxableAmount !== undefined && formData.vatTaxableAmount > 0 && canEdit && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); setFormData({...formData, vatTaxableAmount: 0, vatAmount: 0}); }}
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 no-print"
+                                        title="Clear"
+                                      >
+                                          <X size={14} />
+                                      </button>
+                                  )}
+                              </td>
+                              <td className="border border-slate-900 p-2" colSpan={2}></td>
+                          </tr>
+                          <tr>
+                              <td colSpan={8} 
+                                className="border border-slate-900 p-2 text-right font-bold cursor-pointer hover:bg-slate-100 transition-colors"
+                                onClick={() => {
+                                    if(canEdit) {
+                                        const currentTaxable = formData.vatTaxableAmount || 0;
+                                        setFormData({...formData, vatAmount: parseFloat((currentTaxable * 0.13).toFixed(2))});
+                                    }
+                                }}
+                                title="भ्याट लाग्ने रकमको १३% गणना गर्न क्लिक गर्नुहोस् (Click to calculate 13% of VAT Taxable Amount)"
+                              >
+                                भ्याट/कर (VAT/Tax) <span className="text-[10px] text-slate-500 font-normal no-print">(भ्याट लाग्ने रकमको १३% को लागि क्लिक गर्नुहोस्)</span>
                               </td>
                               <td className="border border-slate-900 p-2 text-right font-bold relative group">
                                   <input 

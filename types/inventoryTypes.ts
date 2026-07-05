@@ -74,6 +74,7 @@ export interface PurchaseOrderEntry {
     activityNo?: string;
   };
   vatAmount?: number; // Added VAT amount field
+  vatTaxableAmount?: number; // Added manual/computed VAT taxable amount field
   preparedBy?: Signature; // Storekeeper
   recommendedBy?: Signature; // (Optional)
   financeBy?: Signature; // Account
