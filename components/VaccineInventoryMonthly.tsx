@@ -443,18 +443,42 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
         const rec = monthlyRecords[m];
         if (!rec) return '';
         
-        const totalVaxRec = Object.values(rec.vaccines || {}).reduce((a: any, b: any) => a + b, 0) as number;
-        const totalVaxExp = Object.values(rec.vaccineExpenses || {}).reduce((a: any, b: any) => a + b, 0) as number;
-        const totalSupRec = Object.values(rec.supplies || {}).reduce((a: any, b: any) => a + b, 0) as number;
-        const totalSupExp = Object.values(rec.supplyExpenses || {}).reduce((a: any, b: any) => a + b, 0) as number;
+        let rows = '';
+        
+        // Vaccine items
+        VACCINE_ITEMS.forEach(v => {
+           const vRec = rec.vaccines?.[v.name] || 0;
+           const vExp = rec.vaccineExpenses?.[v.name] || 0;
+           if (vRec === 0 && vExp === 0) return;
+           rows += `
+             <tr>
+               <td class="text-center font-bold">${m}</td>
+               <td class="font-bold">${v.label}</td>
+               <td class="text-center font-mono">${toNepaliDigits(vRec)} Doses</td>
+               <td class="text-center font-mono">${toNepaliDigits(vExp)} Doses</td>
+             </tr>
+           `;
+        });
+        
+        // Supply items
+        SUPPLY_ITEMS.forEach(s => {
+           const sRec = rec.supplies?.[s.name] || 0;
+           const sExp = rec.supplyExpenses?.[s.name] || 0;
+           if (sRec === 0 && sExp === 0) return;
+           rows += `
+             <tr>
+               <td class="text-center font-bold">${m}</td>
+               <td class="font-bold">${s.label}</td>
+               <td class="text-center font-mono">${toNepaliDigits(sRec)} थान</td>
+               <td class="text-center font-mono">${toNepaliDigits(sExp)} थान</td>
+             </tr>
+           `;
+        });
 
-        return `
+        return rows || `
           <tr>
             <td class="text-center font-bold">${m}</td>
-            <td class="text-center font-bold text-indigo-700">${toNepaliDigits(totalVaxRec)} Doses</td>
-            <td class="text-center text-rose-600">${toNepaliDigits(totalVaxExp)} Doses</td>
-            <td class="text-center font-bold text-emerald-700">${toNepaliDigits(totalSupRec)} थान</td>
-            <td class="text-center text-rose-600">${toNepaliDigits(totalSupExp)} थान</td>
+            <td colspan="3" class="text-center italic text-slate-400">कुनै रेकर्ड छैन</td>
           </tr>
         `;
       }).join('');
@@ -493,19 +517,18 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
 
     const tableHeadersHtml = filterItem === 'all' ? `
       <tr>
-        <th class="p-2 text-center" style="width: 20%">महिना</th>
-        <th class="p-2 text-center" style="width: 20%">कुल खोप प्राप्त</th>
-        <th class="p-2 text-center" style="width: 20%">कुल खोप खर्च</th>
-        <th class="p-2 text-center" style="width: 20%">कुल सामग्री प्राप्त</th>
-        <th class="p-2 text-center" style="width: 20%">कुल सामग्री खर्च</th>
+        <th class="p-2 text-center" style="width: 15%">महिना</th>
+        <th class="p-2 text-left" style="width: 45%">विवरण</th>
+        <th class="p-2 text-center" style="width: 20%">प्राप्त</th>
+        <th class="p-2 text-center" style="width: 20%">खर्च</th>
       </tr>
     ` : `
       <tr>
-        <th class="p-2 text-center" style="width: 20%">महिना</th>
-        <th class="p-2 text-left" style="width: 35%">खोप / सामग्री विवरण</th>
+        <th class="p-2 text-center" style="width: 15%">महिना</th>
+        <th class="p-2 text-left" style="width: 35%">विवरण</th>
         <th class="p-2 text-center" style="width: 15%">प्राप्त</th>
         <th class="p-2 text-center" style="width: 15%">खर्च</th>
-        <th class="p-2 text-center" style="width: 15%">बाँकी</th>
+        <th class="p-2 text-center" style="width: 20%">बाँकी</th>
       </tr>
     `;
 
