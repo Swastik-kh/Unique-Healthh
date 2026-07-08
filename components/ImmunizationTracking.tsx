@@ -11,6 +11,7 @@ import NepaliDate from 'nepali-date-converter';
 // Add missing import for NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 import { FISCAL_YEARS } from '../constants';
+import { safeEncodeKey } from '../firebase';
 
 interface ImmunizationTrackingProps {
   currentFiscalYear: string;
@@ -106,7 +107,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     if (!scheduledDateBs) return '-';
     
     // Retrieve the days configured for this specific center from settings
-    const days: number[] = generalSettings?.vaccinationCenterDays?.[centerName] || [];
+    const encodedKey = safeEncodeKey(centerName);
+    const days: number[] = generalSettings?.vaccinationCenterDays?.[encodedKey] || [];
     if (days.length === 0) {
       // If no specific days are configured, return the raw scheduled date
       return scheduledDateBs;
@@ -556,7 +558,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {filterCenter && (
                         <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-1 rounded border border-teal-100 font-nepali leading-relaxed">
                             {(() => {
-                                const days = generalSettings?.vaccinationCenterDays?.[filterCenter] || [];
+                                const encodedKey = safeEncodeKey(filterCenter);
+                                const days = generalSettings?.vaccinationCenterDays?.[encodedKey] || [];
                                 return days.length > 0 
                                     ? `* यो केन्द्रमा खोप चल्ने गतेहरू: प्रत्येक महिनाको ${days.join(', ')} गते`
                                     : `* यो केन्द्रमा सबै गते खोप सञ्चालन हुन्छ (गतेहरू सेट गरिएको छैन)`;

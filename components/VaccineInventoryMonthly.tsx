@@ -27,6 +27,7 @@ interface VaccineInventoryMonthlyProps {
   generalSettings: OrganizationSettings;
   bachhaImmunizationRecords: ChildImmunizationRecord[];
   garbhawatiPatients: GarbhawatiPatient[];
+  showSettings?: boolean;
 }
 
 const NEPALI_MONTHS = [
@@ -57,12 +58,26 @@ const SUPPLY_ITEMS = [
   { id: 'safety_box', name: 'safety_box', label: 'Safety Box (सुरक्षित बाकस)' }
 ];
 
+const getMonthFromBsDate = (dateBs?: string | null): string | null => {
+  if (!dateBs) return null;
+  const parts = dateBs.split(/[-/]/);
+  if (parts.length < 2) return null;
+  const monthNum = parseInt(parts[1], 10);
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) return null;
+  
+  const monthNames = [
+    'वैशाख', 'जेठ', 'असार', 'साउन', 'भदौ', 'असोज', 'कात्तिक', 'मंसिर', 'पुस', 'माघ', 'फागुन', 'चैत'
+  ];
+  return monthNames[monthNum - 1] || null;
+};
+
 export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = ({
   currentFiscalYear,
   activeOrgName,
   generalSettings,
   bachhaImmunizationRecords = [],
-  garbhawatiPatients = []
+  garbhawatiPatients = [],
+  showSettings
 }) => {
   const [selectedMonth, setSelectedMonth] = useState<string>('साउन');
   const [vaccineInputs, setVaccineInputs] = useState<Record<string, number>>({});
@@ -73,6 +88,9 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
   // History list filter selection
   const [filterItem, setFilterItem] = useState<string>('all');
   const [filterMonth, setFilterMonth] = useState<string>('all');
+  
+  // Summary lists month filter selection
+  const [summaryMonth, setSummaryMonth] = useState<string>('all');
   
   const [monthlyRecords, setMonthlyRecords] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -185,6 +203,15 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       return;
     }
 
+    const isEditing = !!monthlyRecords[selectedMonth];
+    const confirmMessage = isEditing 
+      ? `के तपाईं ${selectedMonth} महिनाको खोप तथा सामग्रीको रेकर्ड अपडेट गर्न निश्चित हुनुहुन्छ?`
+      : `के तपाईं ${selectedMonth} महिनाको खोप तथा सामग्रीको नयाँ रेकर्ड सुरक्षित गर्न निश्चित हुनुहुन्छ?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
     try {
       const vaccinesToSave: Record<string, number> = {};
       const vaccineExpensesToSave: Record<string, number> = {};
@@ -271,6 +298,11 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       
       (record.vaccines || []).forEach(vax => {
         if (vax.status === 'Given') {
+          if (summaryMonth !== 'all') {
+            const vaxMonth = getMonthFromBsDate(vax.givenDateBs);
+            if (vaxMonth !== summaryMonth) return;
+          }
+
           const name = vax.name;
           
           if (name.startsWith('BCG')) {
@@ -301,15 +333,28 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
     // Calculate TD doses from Maternal registrations
     garbhawatiPatients.forEach(patient => {
       if (patient.fiscalYear !== currentFiscalYear) return;
-      if (patient.td1DateBs) stats.TD += 1;
-      if (patient.td2DateBs) stats.TD += 1;
-      if (patient.tdBoosterDateBs) stats.TD += 1;
+      
+      if (patient.td1DateBs) {
+        if (summaryMonth === 'all' || getMonthFromBsDate(patient.td1DateBs) === summaryMonth) {
+          stats.TD += 1;
+        }
+      }
+      if (patient.td2DateBs) {
+        if (summaryMonth === 'all' || getMonthFromBsDate(patient.td2DateBs) === summaryMonth) {
+          stats.TD += 1;
+        }
+      }
+      if (patient.tdBoosterDateBs) {
+        if (summaryMonth === 'all' || getMonthFromBsDate(patient.tdBoosterDateBs) === summaryMonth) {
+          stats.TD += 1;
+        }
+      }
     });
 
     return stats;
-  }, [bachhaImmunizationRecords, garbhawatiPatients, currentFiscalYear]);
+  }, [bachhaImmunizationRecords, garbhawatiPatients, currentFiscalYear, summaryMonth]);
 
-  // Aggregate total received and expended quantities per item for the whole fiscal year
+  // Aggregate total received and expended quantities per item for the whole fiscal year or filtered by summaryMonth
   const cumulativeStats = useMemo(() => {
     const vaccineTotals: Record<string, number> = {};
     const vaccineExpTotals: Record<string, number> = {};
@@ -325,7 +370,9 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       supplyExpTotals[s.name] = 0;
     });
 
-    Object.values(monthlyRecords).forEach((record: any) => {
+    Object.entries(monthlyRecords).forEach(([monthName, record]: [string, any]) => {
+      if (summaryMonth !== 'all' && monthName !== summaryMonth) return;
+
       if (record.vaccines) {
         Object.entries(record.vaccines).forEach(([name, qty]) => {
           if (vaccineTotals[name] !== undefined) {
@@ -362,7 +409,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       suppliesRec: supplyTotals, 
       suppliesExp: supplyExpTotals 
     };
-  }, [monthlyRecords]);
+  }, [monthlyRecords, summaryMonth]);
 
   const handlePrintHistory = () => {
     const filteredMonths = NEPALI_MONTHS.filter(m => filterMonth === 'all' || filterMonth === m);
@@ -560,14 +607,49 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
         </div>
       )}
 
+      {/* Summary Filter Bar */}
+      {!showSettings && (
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 text-base">
+              <Filter size={18} className="text-indigo-600" />
+              सारांश तालिका विवरण फिल्टर (Summary Ledger Filter)
+            </h3>
+            <p className="text-xs text-slate-500 font-nepali">
+              खोप प्राप्ति तथा उपयोग सारांश र खोपजन्य सामग्री मौज्दात सारांश तालिकालाई महिना अनुसार फिल्टर गर्नुहोस्
+            </p>
+          </div>
+          <div className="flex items-center gap-2 min-w-[220px]">
+            <label className="text-xs font-black text-slate-600 font-nepali whitespace-nowrap">
+              महिना छान्नुहोस्:
+            </label>
+            <select
+              value={summaryMonth}
+              onChange={(e) => setSummaryMonth(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-100 outline-none text-xs font-bold text-slate-700 bg-white"
+            >
+              <option value="all">सबै महिना (All Months)</option>
+              {NEPALI_MONTHS.map(month => (
+                <option key={month} value={month}>{month}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* Main Stock Summary / Ledger Cards */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Cumulative Vaccine Balance Ledger */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 border-b pb-3 text-base">
-            <TrendingUp size={20} className="text-indigo-600" />
-            खोप प्राप्ति तथा उपयोग सारांश (Vaccines Ledger)
-          </h3>
+          <div className="border-b pb-3 flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 text-base">
+              <TrendingUp size={20} className="text-indigo-600" />
+              खोप प्राप्ति तथा उपयोग सारांश (Vaccines Ledger)
+            </h3>
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-black font-nepali">
+              {summaryMonth === 'all' ? 'सबै महिना' : summaryMonth}
+            </span>
+          </div>
           <div className="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b">
@@ -604,10 +686,15 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
 
         {/* Supplies Balance Ledger */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 border-b pb-3 text-base">
-            <Package size={20} className="text-indigo-600" />
-            खोपजन्य सामग्री मौज्दात सारांश (Supplies Summary)
-          </h3>
+          <div className="border-b pb-3 flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2 text-base">
+              <Package size={20} className="text-indigo-600" />
+              खोपजन्य सामग्री मौज्दात सारांश (Supplies Summary)
+            </h3>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-black font-nepali">
+              {summaryMonth === 'all' ? 'सबै महिना' : summaryMonth}
+            </span>
+          </div>
           <div className="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b">
@@ -645,7 +732,8 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       </div>
 
       {/* Grid for Form and History */}
-      <div className="grid lg:grid-cols-3 gap-8">
+      {!showSettings && (
+        <div className="grid lg:grid-cols-3 gap-8">
         
         {/* Record Entry Form */}
         <div id="monthly-receipt-form" className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
@@ -977,6 +1065,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
         </div>
 
       </div>
+      )}
     </div>
   );
 };
