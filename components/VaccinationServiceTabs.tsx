@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2 } from 'lucide-react';
+import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2, Layers } from 'lucide-react';
 import { GarbhawatiPatient, ChildImmunizationRecord } from '../types/healthTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { GarbhawatiTDRegistration } from './GarbhawatiTDRegistration';
 import { ChildImmunizationRegistration, NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
+import { VaccineInventoryMonthly } from './VaccineInventoryMonthly';
 
 interface VaccinationServiceTabsProps {
   currentFiscalYear: string;
@@ -18,6 +19,7 @@ interface VaccinationServiceTabsProps {
   onAddBachhaImmunizationRecord: (record: ChildImmunizationRecord) => void;
   onUpdateBachhaImmunizationRecord: (record: ChildImmunizationRecord) => void;
   onDeleteBachhaImmunizationRecord: (recordId: string) => void;
+  activeOrgName?: string;
 }
 
 export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
@@ -32,8 +34,9 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
   onAddBachhaImmunizationRecord,
   onUpdateBachhaImmunizationRecord,
   onDeleteBachhaImmunizationRecord,
+  activeOrgName,
 }) => {
-  const [activeTab, setActiveTab] = useState<'child' | 'maternal'>('child');
+  const [activeTab, setActiveTab] = useState<'child' | 'maternal' | 'inventory'>('child');
   const [showSettings, setShowSettings] = useState(false);
   const [newCenter, setNewCenter] = useState('');
 
@@ -84,10 +87,10 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+          <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner flex-wrap">
             <button
               onClick={() => setActiveTab('child')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'child' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'
               }`}
             >
@@ -95,11 +98,19 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('maternal')}
-              className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 activeTab === 'maternal' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'
               }`}
             >
               <Droplets size={18} /> गर्भवती महिला TD
+            </button>
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'inventory' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              <Layers size={18} /> मासिक खोप/सामग्री प्राप्ति
             </button>
           </div>
           
@@ -275,13 +286,21 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
             onDeleteRecord={onDeleteBachhaImmunizationRecord}
             onUpdateGeneralSettings={onUpdateGeneralSettings}
           />
-        ) : (
+        ) : activeTab === 'maternal' ? (
           <GarbhawatiTDRegistration
             currentFiscalYear={currentFiscalYear}
             patients={garbhawatiPatients}
             onAddPatient={onAddGarbhawatiPatient}
             onUpdatePatient={onUpdateGarbhawatiPatient}
             onDeletePatient={onDeleteGarbhawatiPatient}
+          />
+        ) : (
+          <VaccineInventoryMonthly
+            currentFiscalYear={currentFiscalYear}
+            activeOrgName={activeOrgName || ""}
+            generalSettings={generalSettings}
+            bachhaImmunizationRecords={bachhaImmunizationRecords}
+            garbhawatiPatients={garbhawatiPatients}
           />
         )}
       </div>
