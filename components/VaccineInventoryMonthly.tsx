@@ -951,8 +951,8 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
           ) : (
             <div className="space-y-3 overflow-y-auto max-h-[420px] pr-1">
               {NEPALI_MONTHS.filter(m => filterMonth === 'all' || filterMonth === m).map(m => {
-                const rec = monthlyRecords[m];
-                if (!rec) return null;
+                const monthRecord = monthlyRecords[m];
+                if (!monthRecord) return null;
                 
                 let receivedVal = 0;
                 let expendedVal = 0;
@@ -960,11 +960,6 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
                 let type: 'vax' | 'sup' = 'vax';
 
                 if (filterItem === 'all') {
-                  receivedVal = Object.values(rec.vaccines || {}).reduce((a: any, b: any) => a + b, 0) as number;
-                  expendedVal = Object.values(rec.vaccineExpenses || {}).reduce((a: any, b: any) => a + b, 0) as number;
-                  const totalSupRec = Object.values(rec.supplies || {}).reduce((a: any, b: any) => a + b, 0) as number;
-                  const totalSupExp = Object.values(rec.supplyExpenses || {}).reduce((a: any, b: any) => a + b, 0) as number;
-                  
                   return (
                     <div key={m} className="bg-slate-50 p-4 rounded-xl border border-slate-100 hover:border-indigo-100 transition-all space-y-2">
                       <div className="flex justify-between items-center">
@@ -987,34 +982,48 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
                         </div>
                       </div>
                       
-                      <div className="space-y-2 text-[11px] font-nepali text-slate-500">
-                        {/* Vaccines Summary row */}
-                        <div className="bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
-                          <span className="font-bold text-slate-600">कुल खोप मात्रा:</span>
-                          <span className="font-bold text-slate-700">
-                            प्राप्त: <span className="text-indigo-600 font-mono">{toNepaliDigits(receivedVal)}</span> | खर्च: <span className="text-rose-500 font-mono">{toNepaliDigits(expendedVal)}</span>
-                          </span>
-                        </div>
-                        {/* Supplies Summary row */}
-                        <div className="bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
-                          <span className="font-bold text-slate-600">कुल सामग्री परिमाण:</span>
-                          <span className="font-bold text-slate-700">
-                            प्राप्त: <span className="text-emerald-600 font-mono">{toNepaliDigits(totalSupRec)}</span> | खर्च: <span className="text-rose-500 font-mono">{toNepaliDigits(totalSupExp)}</span>
-                          </span>
-                        </div>
+                      <div className="space-y-1.5 text-[11px] font-nepali text-slate-500 max-h-[200px] overflow-y-auto pr-1">
+                        {/* Vaccines Summary */}
+                        {VACCINE_ITEMS.map(v => {
+                           const vRec = monthRecord.vaccines?.[v.name] || 0;
+                           const vExp = monthRecord.vaccineExpenses?.[v.name] || 0;
+                           if (vRec === 0 && vExp === 0) return null;
+                           return (
+                             <div key={v.id} className="bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
+                                <span className="font-bold text-slate-600">{v.label}:</span>
+                                <span className="font-bold text-slate-700">
+                                  प्राप्त: <span className="text-indigo-600 font-mono">{toNepaliDigits(vRec)}</span> | खर्च: <span className="text-rose-500 font-mono">{toNepaliDigits(vExp)}</span>
+                                </span>
+                             </div>
+                           );
+                        })}
+                        {/* Supplies Summary */}
+                        {SUPPLY_ITEMS.map(s => {
+                           const sRec = monthRecord.supplies?.[s.name] || 0;
+                           const sExp = monthRecord.supplyExpenses?.[s.name] || 0;
+                           if (sRec === 0 && sExp === 0) return null;
+                           return (
+                             <div key={s.id} className="bg-white p-2 rounded-lg border border-slate-100 flex justify-between items-center">
+                                <span className="font-bold text-slate-600">{s.label}:</span>
+                                <span className="font-bold text-slate-700">
+                                  प्राप्त: <span className="text-emerald-600 font-mono">{toNepaliDigits(sRec)}</span> | खर्च: <span className="text-rose-500 font-mono">{toNepaliDigits(sExp)}</span>
+                                </span>
+                             </div>
+                           );
+                        })}
                       </div>
                     </div>
                   );
                 } else if (filterItem.startsWith('v_')) {
                   const name = filterItem.substring(2);
-                  receivedVal = rec.vaccines?.[name] || 0;
-                  expendedVal = rec.vaccineExpenses?.[name] || 0;
+                  receivedVal = monthRecord.vaccines?.[name] || 0;
+                  expendedVal = monthRecord.vaccineExpenses?.[name] || 0;
                   label = VACCINE_ITEMS.find(item => item.name === name)?.label || name;
                   type = 'vax';
                 } else if (filterItem.startsWith('s_')) {
                   const name = filterItem.substring(2);
-                  receivedVal = rec.supplies?.[name] || 0;
-                  expendedVal = rec.supplyExpenses?.[name] || 0;
+                  receivedVal = monthRecord.supplies?.[name] || 0;
+                  expendedVal = monthRecord.supplyExpenses?.[name] || 0;
                   label = SUPPLY_ITEMS.find(item => item.name === name)?.label || name;
                   type = 'sup';
                 }
