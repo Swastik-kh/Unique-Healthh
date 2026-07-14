@@ -540,7 +540,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
 
                 <div className="grid grid-cols-3 gap-8 mt-12">
                   <div className="text-left">
-                    <div className="border-b border-dashed border-black mb-2 w-full text-center font-bold">{selectedEntry.employeeName}</div>
+                    <div className="border-b border-dashed border-black mb-2 w-full text-left font-bold">{selectedEntry.employeeName}</div>
                     <div className="font-bold text-sm">भ्रमण गर्ने कर्मचारी</div>
                     <div className="mt-1 text-xs">मिति :- {toNepaliDigits(selectedEntry.date)}</div>
                   </div>
@@ -550,7 +550,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                     <div className="mt-1 text-xs">मिति :- ....................</div>
                   </div>
                   <div className="text-right">
-                    <div className="border-b border-dashed border-black mb-2 w-full text-center font-bold">
+                    <div className="border-b border-dashed border-black mb-2 w-full text-right font-bold">
                       {selectedEntry.status === 'Approved' ? selectedEntry.approvedBy : '....................'}
                     </div>
                     <div className="font-bold text-sm">भ्रमण स्वीकृत गर्ने पदाधिकारी</div>
