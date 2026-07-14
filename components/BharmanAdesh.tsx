@@ -47,6 +47,10 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
     return users.filter(u => u.organizationName === currentUser.organizationName);
   }, [users, currentUser]);
 
+  const defaultAdmin = useMemo(() => {
+    return officeUsers.find(u => u.role === 'ADMIN');
+  }, [officeUsers]);
+
   const getInitialFormData = (): Omit<BharmanAdeshEntry, 'id' | 'fiscalYear'> => {
     let today = '';
     try {
@@ -71,7 +75,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
       ksNo: currentUser?.id || '',
       employeeName: currentUser?.fullName || '',
       designation: currentUser?.designation || '',
-      office: 'आधारभूत नगर अस्पताल बेल्टार',
+      office: generalSettings.orgNameNepali || 'आधारभूत नगर अस्पताल बेल्टार',
       destination: '',
       purpose: '',
       fromDate: today,
@@ -81,6 +85,9 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
       dailyAllowance: '',
       miscExpense: '',
       otherOrders: '',
+      status: 'Pending',
+      approvedBy: defaultAdmin?.fullName || '',
+      approverDesignation: defaultAdmin?.designation || '',
     };
   };
 
@@ -97,6 +104,24 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
     setIsFormOpen(false);
     setFormData(getInitialFormData());
     alert('भ्रमण आदेश सफलतापूर्वक सुरक्षित गरियो!');
+  };
+
+  const handleStatusUpdate = (entry: BharmanAdeshEntry, newStatus: 'Approved' | 'Rejected', reason?: string) => {
+    let today = '';
+    try {
+      today = new NepaliDate().format('YYYY-MM-DD');
+    } catch (e) {}
+
+    const updatedEntry: BharmanAdeshEntry = {
+      ...entry,
+      status: newStatus,
+      approvalDate: today,
+      rejectionReason: reason,
+      approvedBy: currentUser?.fullName || entry.approvedBy,
+      approverDesignation: currentUser?.designation || entry.approverDesignation
+    };
+    onSaveEntry(updatedEntry);
+    alert(`भ्रमण आदेश ${newStatus === 'Approved' ? 'स्वीकृत' : 'अस्वीकृत'} गरियो!`);
   };
 
   const printRef = useRef<HTMLDivElement>(null);
@@ -163,7 +188,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                 <th className="p-3">मिति</th>
                 <th className="p-3">कर्मचारीको नाम</th>
                 <th className="p-3">भ्रमण गर्ने स्थान</th>
-                <th className="p-3">उद्देश्य</th>
+                <th className="p-3">अवस्था</th>
                 <th className="p-3 text-right">कार्य</th>
               </tr>
             </thead>
@@ -174,9 +199,40 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                   <td className="p-3">{entry.date}</td>
                   <td className="p-3 font-medium">{entry.employeeName}</td>
                   <td className="p-3">{entry.destination}</td>
-                  <td className="p-3">{entry.purpose}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      entry.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
+                      entry.status === 'Rejected' ? 'bg-rose-100 text-rose-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {entry.status === 'Approved' ? 'स्वीकृत' : entry.status === 'Rejected' ? 'अस्वीकृत' : 'पेन्डिङ'}
+                    </span>
+                  </td>
                   <td className="p-3 text-right">
                     <div className="flex justify-end gap-2">
+                      {entry.status === 'Pending' && (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'APPROVAL') && (
+                        <>
+                          <button 
+                            onClick={() => handleStatusUpdate(entry, 'Approved')}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="स्वीकृत गर्नुहोस्"
+                          >
+                            <Save size={18} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const reason = window.prompt('अस्वीकृत गर्नुको कारण लेख्नुहोस्:');
+                              if (reason !== null) {
+                                handleStatusUpdate(entry, 'Rejected', reason);
+                              }
+                            }}
+                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="अस्वीकृत गर्नुहोस्"
+                          >
+                            <X size={18} />
+                          </button>
+                        </>
+                      )}
                       <button 
                         onClick={() => setSelectedEntry(entry)}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -203,7 +259,7 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
               ))}
               {entriesForYear.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-slate-500 italic">कुनै भ्रमण आदेश भेटिएन।</td>
+                  <td colSpan={6} className="p-8 text-center text-slate-500 italic">कुनै भ्रमण आदेश भेटिएन।</td>
                 </tr>
               )}
             </tbody>
@@ -349,6 +405,40 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                 />
               </div>
 
+              <div className="md:col-span-2 border-t border-slate-200 pt-4 mt-2">
+                <h4 className="font-bold text-slate-700 mb-4">स्वीकृति विवरण</h4>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-bold text-slate-700">भ्रमण स्वीकृत गर्ने पदाधिकारी</label>
+                    <select
+                      value={formData.approvedBy}
+                      onChange={e => {
+                        const selectedName = e.target.value;
+                        const selectedUser = officeUsers.find(u => u.fullName === selectedName);
+                        setFormData({ 
+                          ...formData, 
+                          approvedBy: selectedName,
+                          approverDesignation: selectedUser?.designation || ''
+                        });
+                      }}
+                      className="w-full p-2.5 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all"
+                      required
+                    >
+                      <option value="">छान्नुहोस्</option>
+                      {officeUsers.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN' || u.role === 'APPROVAL').map(u => (
+                        <option key={u.id} value={u.fullName}>{u.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Input
+                    label="पदाधिकारीको पद"
+                    value={formData.approverDesignation || ''}
+                    onChange={e => setFormData({ ...formData, approverDesignation: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
               <div className="md:col-span-2 flex justify-end gap-3 pt-6 border-t border-slate-100">
                 <button
                   type="button"
@@ -450,9 +540,9 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
 
                 <div className="grid grid-cols-3 gap-8 mt-12">
                   <div className="text-left">
-                    <div className="border-b border-dashed border-black mb-2 w-full"></div>
+                    <div className="border-b border-dashed border-black mb-2 w-full text-center font-bold">{selectedEntry.employeeName}</div>
                     <div className="font-bold text-sm">भ्रमण गर्ने कर्मचारी</div>
-                    <div className="mt-1 text-xs">मिति :- ....................</div>
+                    <div className="mt-1 text-xs">मिति :- {toNepaliDigits(selectedEntry.date)}</div>
                   </div>
                   <div className="text-center">
                     <div className="border-b border-dashed border-black mb-2 w-full"></div>
@@ -460,9 +550,15 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                     <div className="mt-1 text-xs">मिति :- ....................</div>
                   </div>
                   <div className="text-right">
-                    <div className="border-b border-dashed border-black mb-2 w-full"></div>
+                    <div className="border-b border-dashed border-black mb-2 w-full text-center font-bold">
+                      {selectedEntry.status === 'Approved' ? selectedEntry.approvedBy : '....................'}
+                    </div>
                     <div className="font-bold text-sm">भ्रमण स्वीकृत गर्ने पदाधिकारी</div>
-                    <div className="mt-1 text-xs">मिति :- ....................</div>
+                    <div className="text-xs">{selectedEntry.status === 'Approved' ? selectedEntry.approverDesignation : '....................'}</div>
+                    <div className="mt-1 text-xs">मिति :- {selectedEntry.status === 'Approved' ? toNepaliDigits(selectedEntry.approvalDate || '') : '....................'}</div>
+                    {selectedEntry.status === 'Rejected' && (
+                      <div className="text-red-600 text-xs mt-1 font-bold">अस्वीकृत (कारण: {selectedEntry.rejectionReason})</div>
+                    )}
                   </div>
                 </div>
 

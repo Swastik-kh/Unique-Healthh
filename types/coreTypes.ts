@@ -239,6 +239,11 @@ export interface BharmanAdeshEntry {
   miscExpense: string;
   otherOrders: string;
   fiscalYear: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  approvedBy?: string;
+  approverDesignation?: string;
+  approvalDate?: string;
+  rejectionReason?: string;
 }
 
 export interface GarbhawotiRecord {
