@@ -501,6 +501,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteSentLetter = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`sentLetters/${id}`));
+    } catch (error) {
+      alert("पठाइएको पत्र हटाउन सकिएन।");
+    }
+  };
+
   const handleMarkReceivedLetterAsRead = async (id: string) => {
     if (!currentUser) return;
     try {
@@ -1744,6 +1753,7 @@ const App: React.FC = () => {
     receivedLetters={receivedLetters}
     onSendLetter={handleSendLetter}
     onDeleteReceivedLetter={handleDeleteReceivedLetter}
+    onDeleteSentLetter={handleDeleteSentLetter}
     onMarkReceivedLetterAsRead={handleMarkReceivedLetterAsRead}
     bharmanAdeshEntries={bharmanAdeshEntries}
     onSaveBharmanAdesh={handleSaveBharmanAdesh}

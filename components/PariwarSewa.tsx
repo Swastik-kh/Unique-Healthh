@@ -68,12 +68,18 @@ export const PariwarSewa: React.FC<PariwarSewaProps> = ({
     }
   };
 
-  const filteredPatients = serviceSeekers.filter(p => 
-    p.name.toLowerCase().includes(patientSearchInput.toLowerCase()) ||
-    (p.uniquePatientId && p.uniquePatientId.toLowerCase().includes(patientSearchInput.toLowerCase())) ||
-    (p.registrationNumber && p.registrationNumber.toLowerCase().includes(patientSearchInput.toLowerCase())) ||
-    (p.phone && p.phone.includes(patientSearchInput))
-  ).slice(0, 10); // Limit to 10 for performance
+  const filteredPatients = serviceSeekers.filter(p => {
+    const name = p.name || '';
+    const search = (patientSearchInput || '').toLowerCase();
+    const uniqueId = p.uniquePatientId || '';
+    const regNo = p.registrationNumber || '';
+    const phone = p.phone || '';
+
+    return name.toLowerCase().includes(search) ||
+           uniqueId.toLowerCase().includes(search) ||
+           regNo.toLowerCase().includes(search) ||
+           phone.includes(patientSearchInput || '');
+  }).slice(0, 10); // Limit to 10 for performance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

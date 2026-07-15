@@ -212,7 +212,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     leaveBalances = [], onSaveLeaveBalance: rawOnSaveLeaveBalance,
     dartaEntries = [], onSaveDarta: rawOnSaveDarta, onDeleteDarta: rawOnDeleteDarta,
     chalaniEntries = [], onSaveChalani: rawOnSaveChalani, onDeleteChalani: rawOnDeleteChalani,
-    sentLetters = [], receivedLetters = [], onSendLetter: rawOnSendLetter, onDeleteReceivedLetter: rawOnDeleteReceivedLetter, onMarkReceivedLetterAsRead,
+    sentLetters = [], receivedLetters = [], onSendLetter: rawOnSendLetter, onDeleteReceivedLetter: rawOnDeleteReceivedLetter, onDeleteSentLetter: rawOnDeleteSentLetter, onMarkReceivedLetterAsRead,
     bharmanAdeshEntries = [], onSaveBharmanAdesh: rawOnSaveBharmanAdesh, onDeleteBharmanAdesh: rawOnDeleteBharmanAdesh,
     garbhawotiRecords = [], onSaveGarbhawotiRecord: rawOnSaveGarbhawotiRecord, onDeleteGarbhawotiRecord: rawOnDeleteGarbhawotiRecord,
     prasutiRecords = [], onSavePrasutiRecord: rawOnSavePrasutiRecord, onDeletePrasutiRecord: rawOnDeletePrasutiRecord,
@@ -358,6 +358,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const onDeleteDarta = (...args: any[]) => checkDeletePermission() && rawOnDeleteDarta?.(...args);
   const onSaveChalani = (...args: any[]) => checkEditPermission() && rawOnSaveChalani?.(...args);
   const onDeleteChalani = (...args: any[]) => checkDeletePermission() && rawOnDeleteChalani?.(...args);
+  const onDeleteSentLetter = (...args: any[]) => checkDeletePermission() && rawOnDeleteSentLetter?.(...args);
   const onSendLetter = (...args: any[]) => checkEditPermission() && rawOnSendLetter?.(...args);
   const onDeleteReceivedLetter = (...args: any[]) => checkDeletePermission() && rawOnDeleteReceivedLetter?.(...args);
   const onSaveBharmanAdesh = (...args: any[]) => checkEditPermission() && rawOnSaveBharmanAdesh?.(...args);
@@ -1474,6 +1475,19 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                               >
                                 <Printer size={16} />
                               </button>
+                              {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                                <button 
+                                  onClick={() => {
+                                    if (window.confirm('के तपाईं यो पठाइएको पत्र हटाउन चाहनुहुन्छ?')) {
+                                      onDeleteSentLetter(s.id);
+                                    }
+                                  }}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
                           </td>
                         </tr>
                       ))}
