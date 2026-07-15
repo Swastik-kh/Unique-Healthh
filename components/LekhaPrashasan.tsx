@@ -122,7 +122,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   }
 
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
-  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   const [txnItems, setTxnItems] = useState<{
     remarks: string, 
@@ -381,7 +381,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         const amountWithoutVAT = amount - vatAmount;
         const amountWithVAT = amount;
         
-        const tdsAmount = item.applyTds ? amount * 0.015 : 0;
+        const tdsAmount = item.applyTds ? (isVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
         const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
         const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
 
@@ -421,7 +421,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const amountWithVAT = amount;
       
       const applyTds = formData.get('applyTds') === 'on';
-      const tdsAmount = applyTds ? amount * 0.015 : 0;
+      const tdsAmount = applyTds ? (isVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
       const applySasukar = formData.get('applySasukar') === 'on';
       const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
       const applyTax15 = formData.get('applyTax15') === 'on';
