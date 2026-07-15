@@ -124,8 +124,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
-  const [txnItems, setTxnItems] = useState<{remarks: string, amount: number, programId?: string, partyName?: string}[]>([{remarks: '', amount: 0}]);
+  const [txnItems, setTxnItems] = useState<{
+    remarks: string, 
+    amount: number, 
+    programId?: string, 
+    partyName?: string,
+    isVatBill?: boolean,
+    applyTds?: boolean,
+    applySasukar?: boolean,
+    applyTax15?: boolean
+  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
+  const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
 
   const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
@@ -342,15 +352,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         if (item.amount <= 0) return;
 
         const amount = Number(item.amount);
-        const vatTaxableAmount = isVatBill ? amount / 1.13 : 0; // Rough estimate or we could add field per item
+        const isVatBill = !!item.isVatBill;
+        const vatTaxableAmount = isVatBill ? amount / 1.13 : 0;
         const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
         const amountWithoutVAT = amount - vatAmount;
         const amountWithVAT = amount;
         
-        const applyTds = formData.get('applyTds') === 'on';
-        const tdsAmount = applyTds ? amount * 0.015 : 0;
-        const applySasukar = formData.get('applySasukar') === 'on';
-        const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+        const tdsAmount = item.applyTds ? amount * 0.015 : 0;
+        const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
+        const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
 
         onSaveTransaction({
           dateBs: txnFormDate,
@@ -363,6 +373,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           amountWithVAT,
           tdsAmount,
           sasukarAmount,
+          tax15Amount,
           amount,
           remarks: item.remarks,
           partyName: item.partyName || (formData.get('partyName') as string) || undefined,
@@ -370,6 +381,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           referenceNo,
           programId: item.programId || (formData.get('programId') as string) || undefined,
           paymentMethod: txnPaymentMethod,
+          checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
         });
       });
     } else {
@@ -379,10 +391,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
       const amountWithoutVAT = amount - vatAmount;
       const amountWithVAT = amount;
+      
       const applyTds = formData.get('applyTds') === 'on';
       const tdsAmount = applyTds ? amount * 0.015 : 0;
       const applySasukar = formData.get('applySasukar') === 'on';
       const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+      const applyTax15 = formData.get('applyTax15') === 'on';
+      const tax15Amount = applyTax15 ? amountWithoutVAT * 0.15 : 0;
 
       onSaveTransaction({
         ...editingItem,
@@ -396,6 +411,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         amountWithVAT,
         tdsAmount,
         sasukarAmount,
+        tax15Amount,
         amount,
         remarks: formData.get('remarks') as string,
         partyName: formData.get('partyName') as string || undefined,
@@ -404,12 +420,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         incomeSource: incomeSource || undefined,
         programId: formData.get('programId') as string || undefined,
         paymentMethod: txnPaymentMethod,
+        checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
       });
     }
 
     setShowForm(false);
     setEditingItem(null);
-    setTxnItems([{remarks: '', amount: 0}]);
+    setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
+    setTxnCheckNo('');
   };
 
   const handlePartySave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -1211,7 +1229,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           <div style="flex: 1; border-right: 1px solid black;"></div>
                           <div style="flex: 1.5; border-right: 1px solid black;"></div>
                           <div style="flex: 1; border-right: 1px solid black;"></div>
-                          <div style="flex: 1.5;"></div>
+                          <div style="flex: 1.5; font-size: 10px; text-align: center;">
+                            ${voucher.paymentMethod === 'Bank' ? `बैंक${voucher.checkNo ? `<br>(${voucher.checkNo})` : ''}` : 'नगद'}
+                          </div>
                        </div>
                     </td>
                     <td class="text-right">${toNepaliNumber(e.debit ? e.debit.toLocaleString() : '')}</td>
@@ -2904,6 +2924,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           ]} 
                           required
                         />
+                        {txnPaymentMethod === 'Bank' && (
+                          <Input 
+                            label="चेक नं. (Check No)" 
+                            value={txnCheckNo} 
+                            onChange={(e) => setTxnCheckNo(e.target.value)} 
+                            required 
+                          />
+                        )}
                         <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category || 'General'} options={[
                           {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
                           {label: 'ल्याब (Lab Service)', value: 'Lab'},
@@ -3026,13 +3054,67 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                     />
                                   </div>
                                 </div>
+                                <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!item.isVatBill}
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].isVatBill = e.target.checked;
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="rounded text-rose-600 focus:ring-rose-500" 
+                                      />
+                                      <label className="text-[9px] font-black text-slate-700 uppercase">VAT बिल</label>
+                                   </div>
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!item.applyTds}
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].applyTds = e.target.checked;
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="rounded text-rose-600 focus:ring-rose-500" 
+                                      />
+                                      <label className="text-[9px] font-black text-rose-600 uppercase">१.५% TDS</label>
+                                   </div>
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!item.applySasukar}
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].applySasukar = e.target.checked;
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="rounded text-rose-600 focus:ring-rose-500" 
+                                      />
+                                      <label className="text-[9px] font-black text-slate-700 uppercase">१% सा.सु कर</label>
+                                   </div>
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!item.applyTax15}
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].applyTax15 = e.target.checked;
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="rounded text-rose-600 focus:ring-rose-500" 
+                                      />
+                                      <label className="text-[9px] font-black text-slate-700 uppercase">१५% कर</label>
+                                   </div>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-3 gap-4 mt-2">
+                      <div className="grid grid-cols-4 gap-4 mt-2">
                         <div className="flex items-center gap-2">
                             <input 
                               type="checkbox" 
@@ -3054,6 +3136,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <div className="flex items-center gap-2">
                             <input type="checkbox" name="applySasukar" id="applySasukar" className="rounded text-rose-600 focus:ring-rose-500" />
                             <label htmlFor="applySasukar" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर?</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" name="applyTax15" id="applyTax15" className="rounded text-rose-600 focus:ring-rose-500" />
+                            <label htmlFor="applyTax15" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१५% कर?</label>
                         </div>
                       </div>
 

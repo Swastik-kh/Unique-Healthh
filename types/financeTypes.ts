@@ -40,7 +40,9 @@ export interface FinancialTransaction {
   partyName?: string;
   tdsAmount?: number;
   sasukarAmount?: number;
+  tax15Amount?: number;
   paymentMethod?: 'Bank' | 'Cash';
+  checkNo?: string;
 }
 
 export interface PartyPaymentRecord {
@@ -92,6 +94,8 @@ export interface GoswaraVoucher {
   totalAmount: number;
   fiscalYear: string;
   remarks?: string;
+  paymentMethod?: 'Bank' | 'Cash';
+  checkNo?: string;
 }
 
 export interface JournalEntry {

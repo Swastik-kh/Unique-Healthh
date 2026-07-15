@@ -1206,9 +1206,10 @@ const App: React.FC = () => {
                     activityName: progName,
                     debit: transaction.amountWithVAT || transaction.amount || 0 
                   });
-                  entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) });
+                  entries.push({ accountName: `बैंक/नगद (${transaction.paymentMethod === 'Bank' ? `Bank${transaction.checkNo ? ` Check: ${transaction.checkNo}` : ''}` : 'Cash'})`, credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) - (transaction.tax15Amount || 0) });
                   if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
                   if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
+                  if (transaction.tax15Amount > 0) entries.push({ accountName: '१५% कर (15% Tax) Payable', credit: transaction.tax15Amount });
               } else {
                   // Income
                   entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', debit: transaction.amount || 0 });
@@ -1226,7 +1227,9 @@ const App: React.FC = () => {
                   entries,
                   totalAmount: transaction.amountWithVAT || transaction.amount || 0,
                   fiscalYear: transaction.fiscalYear,
-                  remarks: transaction.remarks
+                  remarks: transaction.remarks,
+                  paymentMethod: transaction.paymentMethod,
+                  checkNo: transaction.checkNo
               };
               await set(getOrgRef(`goswaraVouchers/${voucher.id}`), cleanObject({ ...voucher }));
           }
