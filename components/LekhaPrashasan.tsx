@@ -404,7 +404,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           referenceNo,
           programId: item.programId || (formData.get('programId') as string) || undefined,
           paymentMethod: txnPaymentMethod,
-          checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
+          checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
           needsBharpai: item.needsBharpai,
           bharpaiUnitType: item.bharpaiUnitType || 'days',
           bharpaiDays: item.bharpaiDays,
@@ -448,7 +448,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         incomeSource: incomeSource || undefined,
         programId: formData.get('programId') as string || undefined,
         paymentMethod: txnPaymentMethod,
-        checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
+        checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
         needsBharpai: editNeedsBharpai,
         bharpaiUnitType: editBharpaiUnitType || 'days',
         bharpaiDays: Number(editBharpaiDays || 0),
@@ -459,6 +459,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
     setShowForm(false);
     setEditingItem(null);
+    setTxnType('Expense');
+    setTxnPaymentMethod('Cash');
     setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
     setTxnCheckNo('');
     setEditTxnAmount('');
@@ -1412,7 +1414,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <title>भर्पाई - ${txn.remarks}</title>
           <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 portrait; margin: 15mm; }
+            @page { size: A4 ${printOrientation}; margin: 15mm; }
             body { font-family: 'Mukta', sans-serif; margin: 0; padding: 10px; font-size: 15px; color: #1e293b; }
             .print-header { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 15px; }
             .logo-img { width: 85px; height: auto; position: absolute; left: 0; top: 0; }
@@ -1507,6 +1509,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     if (type === 'transaction') {
       setTxnFormDate(item.dateBs);
       setTxnRefNo(item.referenceNo);
+      setTxnType(item.type || 'Expense');
+      setTxnPaymentMethod(item.paymentMethod || 'Cash');
+      setTxnCheckNo(item.checkNo || '');
       setEditTxnAmount(item.amount || '');
       setEditBharpaiDays(item.bharpaiDays || '');
       setEditBharpaiRate(item.bharpaiRate || '');
@@ -2786,6 +2791,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                  else if (activeTab === 'vendors') setFormType('party');
                                  else if (activeTab === 'transactions') {
                                    setFormType('transaction');
+                                   setTxnType(item.type || 'Expense');
+                                   setTxnPaymentMethod(item.paymentMethod || 'Cash');
+                                   setTxnCheckNo(item.checkNo || '');
                                    setTxnIsVatBill(!!item.isVatBill);
                                    setTxnVatTaxableAmount(item.vatTaxableAmount !== undefined && item.vatTaxableAmount !== null ? item.vatTaxableAmount : '');
                                    setEditNeedsBharpai(!!item.needsBharpai);
@@ -2907,6 +2915,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   else if (activeTab === 'transactions') {
                     setFormType('transaction');
                     setTxnFormDate(today);
+                    setTxnType('Expense');
+                    setTxnPaymentMethod('Cash');
+                    setTxnCheckNo('');
                     setTxnRefNo(generateReferenceNo());
                     setTxnIsVatBill(false);
                     setTxnVatTaxableAmount('');
@@ -3149,7 +3160,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           ]} 
                           required
                         />
-                        {txnPaymentMethod === 'Bank' && (
+                        {txnPaymentMethod === 'Bank' && txnType !== 'Income' && (
                           <Input 
                             label="चेक नं. (Check No)" 
                             value={txnCheckNo} 
