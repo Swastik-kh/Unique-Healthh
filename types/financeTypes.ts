@@ -50,6 +50,7 @@ export interface FinancialTransaction {
   paymentMethod?: 'Bank' | 'Cash';
   checkNo?: string;
   needsBharpai?: boolean;
+  bharpaiUnitType?: 'days' | 'qty';
   bharpaiDays?: number;
   bharpaiRate?: number;
   bharpaiPersons?: BharpaiPerson[];

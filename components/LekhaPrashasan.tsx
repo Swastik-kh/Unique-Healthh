@@ -134,15 +134,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     applySasukar?: boolean,
     applyTax15?: boolean,
     needsBharpai?: boolean,
+    bharpaiUnitType?: 'days' | 'qty',
     bharpaiDays?: number,
     bharpaiRate?: number,
     bharpaiPersons?: { name: string; days: number; rate: number }[]
-  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
+  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiUnitType: 'days', bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
   const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
   const [editNeedsBharpai, setEditNeedsBharpai] = useState<boolean>(false);
+  const [editBharpaiUnitType, setEditBharpaiUnitType] = useState<'days' | 'qty'>('days');
   const [editBharpaiPersons, setEditBharpaiPersons] = useState<{ name: string; days: number; rate: number }[]>([]);
+  const [editTxnAmount, setEditTxnAmount] = useState<number | ''>('');
+  const [editBharpaiDays, setEditBharpaiDays] = useState<number | ''>('');
+  const [editBharpaiRate, setEditBharpaiRate] = useState<number | ''>('');
 
   const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
   const [bankStatementBalance, setBankStatementBalance] = useState<number>(0);
@@ -173,6 +178,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       setPaymentApplySasukar(false);
     }
   }, [paymentSelectedTransaction, transactions]);
+
+  useEffect(() => {
+    if (editNeedsBharpai) {
+      if (editBharpaiPersons && editBharpaiPersons.length > 0) {
+        const total = editBharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+        setEditTxnAmount(total || '');
+      } else {
+        const total = Number(editBharpaiDays || 0) * Number(editBharpaiRate || 0);
+        setEditTxnAmount(total || '');
+      }
+    }
+  }, [editNeedsBharpai, editBharpaiDays, editBharpaiRate, editBharpaiPersons]);
 
   // Derived State
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -389,6 +406,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           paymentMethod: txnPaymentMethod,
           checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
           needsBharpai: item.needsBharpai,
+          bharpaiUnitType: item.bharpaiUnitType || 'days',
           bharpaiDays: item.bharpaiDays,
           bharpaiRate: item.bharpaiRate,
           bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
@@ -396,7 +414,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       });
     } else {
       // Single transaction (Income or Edit)
-      const amount = Number(formData.get('amount'));
+      const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
       const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
       const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
       const amountWithoutVAT = amount - vatAmount;
@@ -432,9 +450,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         paymentMethod: txnPaymentMethod,
         checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
         needsBharpai: editNeedsBharpai,
-        bharpaiDays: Number(formData.get('bharpaiDays') || 0),
-        bharpaiRate: Number(formData.get('bharpaiRate') || 0),
-        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(formData.get('bharpaiDays') || 1), rate: Number(formData.get('bharpaiRate') || amount || 0) }]) : undefined
+        bharpaiUnitType: editBharpaiUnitType || 'days',
+        bharpaiDays: Number(editBharpaiDays || 0),
+        bharpaiRate: Number(editBharpaiRate || 0),
+        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined
       });
     }
 
@@ -442,6 +461,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setEditingItem(null);
     setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
     setTxnCheckNo('');
+    setEditTxnAmount('');
+    setEditBharpaiDays('');
+    setEditBharpaiRate('');
+    setEditNeedsBharpai(false);
+    setEditBharpaiUnitType('days');
+    setEditBharpaiPersons([]);
   };
 
   const handlePartySave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -1322,6 +1347,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const printWin = window.open('', '', 'width=1000,height=800');
     if (!printWin) return;
 
+    const unitLabel = txn.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन';
     const program = programs.find(p => p.id === txn.programId);
     
     // Determine the list of persons
@@ -1434,7 +1460,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <tr>
                 <th style="width: 50px;">क्र.स.</th>
                 <th>नाम थर</th>
-                <th style="width: 80px;">दिन</th>
+                <th style="width: 80px;">${unitLabel}</th>
                 <th style="width: 100px;">दर</th>
                 <th style="width: 120px;">जम्मा</th>
                 <th style="width: 200px;">करकट्टी विवरण</th>
@@ -1481,6 +1507,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     if (type === 'transaction') {
       setTxnFormDate(item.dateBs);
       setTxnRefNo(item.referenceNo);
+      setEditTxnAmount(item.amount || '');
+      setEditBharpaiDays(item.bharpaiDays || '');
+      setEditBharpaiRate(item.bharpaiRate || '');
+      setEditNeedsBharpai(!!item.needsBharpai);
+      setEditBharpaiUnitType(item.bharpaiUnitType || 'days');
+      setEditBharpaiPersons(item.bharpaiPersons || []);
     }
     if (type === 'payment') {
       setPaymentSelectedProgram(item.programId || '');
@@ -2757,7 +2789,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    setTxnIsVatBill(!!item.isVatBill);
                                    setTxnVatTaxableAmount(item.vatTaxableAmount !== undefined && item.vatTaxableAmount !== null ? item.vatTaxableAmount : '');
                                    setEditNeedsBharpai(!!item.needsBharpai);
+                                   setEditBharpaiUnitType(item.bharpaiUnitType || 'days');
                                    setEditBharpaiPersons(item.bharpaiPersons || []);
+                                   setEditTxnAmount(item.amount || '');
+                                   setEditBharpaiDays(item.bharpaiDays || '');
+                                   setEditBharpaiRate(item.bharpaiRate || '');
                                  }
                                  else if (activeTab === 'payments') {
                                    setFormType('payment');
@@ -2875,7 +2911,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     setTxnIsVatBill(false);
                     setTxnVatTaxableAmount('');
                     setEditNeedsBharpai(false);
+                    setEditBharpaiUnitType('days');
                     setEditBharpaiPersons([]);
+                    setEditTxnAmount('');
+                    setEditBharpaiDays('');
+                    setEditBharpaiRate('');
                     setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
                   } else if (activeTab === 'payments') {
                     setFormType('payment');
@@ -3127,7 +3167,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
                       {txnType === 'Income' || editingItem ? (
                         <>
-                          <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount || editingItem?.amountWithVAT} required />
+                          <Input 
+                            label="रकम (Amount)" 
+                            name="amount" 
+                            type="number" 
+                            value={editTxnAmount} 
+                            onChange={(e) => setEditTxnAmount(e.target.value === '' ? '' : Number(e.target.value))} 
+                            required 
+                          />
                           <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
                           {txnType === 'Income' && (
                              <Select 
@@ -3299,6 +3346,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                         onChange={(e) => {
                                           const newItems = [...txnItems];
                                           newItems[index].needsBharpai = e.target.checked;
+                                           if (e.target.checked) {
+                                             if (item.bharpaiPersons && item.bharpaiPersons.length > 0) {
+                                               newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                             } else {
+                                               newItems[index].amount = Number(item.bharpaiDays || 0) * Number(item.bharpaiRate || 0);
+                                             }
+                                           }
                                           setTxnItems(newItems);
                                         }}
                                         className="rounded text-primary-600 focus:ring-primary-500" 
@@ -3308,19 +3362,65 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                 </div>
                                 {item.needsBharpai && (
                                   <div className="pt-2 border-t border-slate-100 space-y-3">
+                                    <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/60">
+                                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">भर्पाई प्रकार (Unit Type)</span>
+                                      <div className="flex gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newItems = [...txnItems];
+                                            newItems[index].bharpaiUnitType = 'days';
+                                            setTxnItems(newItems);
+                                          }}
+                                          className={`px-2.5 py-0.5 text-[9px] font-black rounded-md border transition-all ${
+                                            (item.bharpaiUnitType || 'days') === 'days'
+                                              ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                                          }`}
+                                        >
+                                          दिन (Days)
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newItems = [...txnItems];
+                                            newItems[index].bharpaiUnitType = 'qty';
+                                            setTxnItems(newItems);
+                                          }}
+                                          className={`px-2.5 py-0.5 text-[9px] font-black rounded-md border transition-all ${
+                                            item.bharpaiUnitType === 'qty'
+                                              ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                                          }`}
+                                        >
+                                          संख्या (Qty)
+                                        </button>
+                                      </div>
+                                    </div>
+
                                     <div className="grid grid-cols-2 gap-3">
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                                          {item.bharpaiUnitType === 'qty' ? 'संख्या (Qty)' : 'दिन (Days)'}
+                                        </label>
                                         <input 
                                           type="number" 
                                           value={item.bharpaiDays || ''} 
                                           onChange={(e) => {
                                             const newItems = [...txnItems];
-                                            newItems[index].bharpaiDays = Number(e.target.value);
+                                            const val = Number(e.target.value);
+                                            newItems[index].bharpaiDays = val;
+                                            if (item.needsBharpai) {
+                                              if (item.bharpaiPersons && item.bharpaiPersons.length > 0) {
+                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                              } else {
+                                                newItems[index].amount = val * Number(item.bharpaiRate || 0);
+                                              }
+                                            }
                                             setTxnItems(newItems);
                                           }}
                                           className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
-                                          placeholder="दिन"
+                                          placeholder={item.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                         />
                                       </div>
                                       <div className="space-y-1">
@@ -3330,7 +3430,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                           value={item.bharpaiRate || ''} 
                                           onChange={(e) => {
                                             const newItems = [...txnItems];
-                                            newItems[index].bharpaiRate = Number(e.target.value);
+                                            const val = Number(e.target.value);
+                                            newItems[index].bharpaiRate = val;
+                                            if (item.needsBharpai) {
+                                              if (item.bharpaiPersons && item.bharpaiPersons.length > 0) {
+                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                              } else {
+                                                newItems[index].amount = Number(item.bharpaiDays || 0) * val;
+                                              }
+                                            }
                                             setTxnItems(newItems);
                                           }}
                                           className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
@@ -3347,7 +3455,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                           onClick={() => {
                                             const newItems = [...txnItems];
                                             const currentPersons = item.bharpaiPersons || [];
-                                            newItems[index].bharpaiPersons = [...currentPersons, { name: '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || 0 }];
+                                            const updatedPersons = [...currentPersons, { name: '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || 0 }];
+                                            newItems[index].bharpaiPersons = updatedPersons;
+                                            if (item.needsBharpai) {
+                                              newItems[index].amount = updatedPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                            }
                                             setTxnItems(newItems);
                                           }}
                                           className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-[9px] font-black uppercase"
@@ -3385,13 +3497,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                                   persons[pIdx].days = Number(e.target.value);
                                                   newItems[index].bharpaiPersons = persons;
                                                   
-                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
-                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  if (item.needsBharpai) {
+                                                    const totalAmount = persons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                    newItems[index].amount = totalAmount;
+                                                  }
                                                   
                                                   setTxnItems(newItems);
                                                 }}
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
-                                                placeholder="दिन"
+                                                placeholder={item.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                                 required
                                               />
                                             </div>
@@ -3405,8 +3519,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                                   persons[pIdx].rate = Number(e.target.value);
                                                   newItems[index].bharpaiPersons = persons;
                                                   
-                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
-                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  if (item.needsBharpai) {
+                                                    const totalAmount = persons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                    newItems[index].amount = totalAmount;
+                                                  }
                                                   
                                                   setTxnItems(newItems);
                                                 }}
@@ -3423,8 +3539,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                                   const persons = (item.bharpaiPersons || []).filter((_, i) => i !== pIdx);
                                                   newItems[index].bharpaiPersons = persons;
                                                   
-                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
-                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  if (item.needsBharpai) {
+                                                    if (persons.length > 0) {
+                                                      newItems[index].amount = persons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                    } else {
+                                                      newItems[index].amount = Number(item.bharpaiDays || 0) * Number(item.bharpaiRate || 0);
+                                                    }
+                                                  }
                                                   
                                                   setTxnItems(newItems);
                                                 }}
@@ -3490,13 +3611,45 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
                       {editNeedsBharpai && (
                         <div className="space-y-3 mt-4">
+                          <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60">
+                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">भर्पाई प्रकार (Unit Type)</span>
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setEditBharpaiUnitType('days')}
+                                className={`px-3 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                                  editBharpaiUnitType === 'days'
+                                    ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                दिन (Days)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditBharpaiUnitType('qty')}
+                                className={`px-3 py-1 text-[10px] font-black rounded-lg border transition-all ${
+                                  editBharpaiUnitType === 'qty'
+                                    ? 'bg-primary-600 border-primary-600 text-white shadow-sm'
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                संख्या (Qty)
+                              </button>
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                                  {editBharpaiUnitType === 'qty' ? 'संख्या (Qty)' : 'दिन (Days)'}
+                                </label>
                                 <input 
                                   type="number" 
                                   name="bharpaiDays" 
-                                  defaultValue={editingItem?.bharpaiDays || ''} 
+                                  value={editBharpaiDays} 
+                                  onChange={(e) => setEditBharpaiDays(e.target.value === '' ? '' : Number(e.target.value))}
+                                  placeholder={editBharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
                                 />
                             </div>
@@ -3505,7 +3658,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                 <input 
                                   type="number" 
                                   name="bharpaiRate" 
-                                  defaultValue={editingItem?.bharpaiRate || ''} 
+                                  value={editBharpaiRate} 
+                                  onChange={(e) => setEditBharpaiRate(e.target.value === '' ? '' : Number(e.target.value))}
                                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
                                 />
                             </div>
@@ -3552,7 +3706,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                         setEditBharpaiPersons(updated);
                                       }}
                                       className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
-                                      placeholder="दिन"
+                                      placeholder={editBharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                       required
                                     />
                                   </div>
