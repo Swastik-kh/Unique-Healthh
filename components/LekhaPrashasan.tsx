@@ -3307,34 +3307,138 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    </div>
                                 </div>
                                 {item.needsBharpai && (
-                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
-                                      <input 
-                                        type="number" 
-                                        value={item.bharpaiDays || ''} 
-                                        onChange={(e) => {
-                                          const newItems = [...txnItems];
-                                          newItems[index].bharpaiDays = Number(e.target.value);
-                                          setTxnItems(newItems);
-                                        }}
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
-                                        placeholder="दिन"
-                                      />
+                                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
+                                        <input 
+                                          type="number" 
+                                          value={item.bharpaiDays || ''} 
+                                          onChange={(e) => {
+                                            const newItems = [...txnItems];
+                                            newItems[index].bharpaiDays = Number(e.target.value);
+                                            setTxnItems(newItems);
+                                          }}
+                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                          placeholder="दिन"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
+                                        <input 
+                                          type="number" 
+                                          value={item.bharpaiRate || ''} 
+                                          onChange={(e) => {
+                                            const newItems = [...txnItems];
+                                            newItems[index].bharpaiRate = Number(e.target.value);
+                                            setTxnItems(newItems);
+                                          }}
+                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                          placeholder="दर"
+                                        />
+                                      </div>
                                     </div>
-                                    <div className="space-y-1">
-                                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
-                                      <input 
-                                        type="number" 
-                                        value={item.bharpaiRate || ''} 
-                                        onChange={(e) => {
-                                          const newItems = [...txnItems];
-                                          newItems[index].bharpaiRate = Number(e.target.value);
-                                          setTxnItems(newItems);
-                                        }}
-                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
-                                        placeholder="दर"
-                                      />
+
+                                    <div className="bg-slate-100/50 p-2.5 rounded-xl border border-slate-200/60 space-y-2">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">बहु-व्यक्ति विवरण (Multiple Persons)</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newItems = [...txnItems];
+                                            const currentPersons = item.bharpaiPersons || [];
+                                            newItems[index].bharpaiPersons = [...currentPersons, { name: '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || 0 }];
+                                            setTxnItems(newItems);
+                                          }}
+                                          className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-[9px] font-black uppercase"
+                                        >
+                                          <Plus size={10} /> थप्नुहोस् (Add Person)
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-1.5">
+                                        {(item.bharpaiPersons || []).map((person, pIdx) => (
+                                          <div key={pIdx} className="grid grid-cols-12 gap-1.5 items-center bg-white p-1.5 rounded-lg border border-slate-200 relative group">
+                                            <div className="col-span-5">
+                                              <input 
+                                                type="text" 
+                                                value={person.name} 
+                                                onChange={(e) => {
+                                                  const newItems = [...txnItems];
+                                                  const persons = [...(item.bharpaiPersons || [])];
+                                                  persons[pIdx].name = e.target.value;
+                                                  newItems[index].bharpaiPersons = persons;
+                                                  setTxnItems(newItems);
+                                                }}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
+                                                placeholder="नाम थर"
+                                                required
+                                              />
+                                            </div>
+                                            <div className="col-span-3">
+                                              <input 
+                                                type="number" 
+                                                value={person.days || ''} 
+                                                onChange={(e) => {
+                                                  const newItems = [...txnItems];
+                                                  const persons = [...(item.bharpaiPersons || [])];
+                                                  persons[pIdx].days = Number(e.target.value);
+                                                  newItems[index].bharpaiPersons = persons;
+                                                  
+                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
+                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  
+                                                  setTxnItems(newItems);
+                                                }}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
+                                                placeholder="दिन"
+                                                required
+                                              />
+                                            </div>
+                                            <div className="col-span-3">
+                                              <input 
+                                                type="number" 
+                                                value={person.rate || ''} 
+                                                onChange={(e) => {
+                                                  const newItems = [...txnItems];
+                                                  const persons = [...(item.bharpaiPersons || [])];
+                                                  persons[pIdx].rate = Number(e.target.value);
+                                                  newItems[index].bharpaiPersons = persons;
+                                                  
+                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
+                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  
+                                                  setTxnItems(newItems);
+                                                }}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
+                                                placeholder="दर"
+                                                required
+                                              />
+                                            </div>
+                                            <div className="col-span-1 text-center">
+                                              <button 
+                                                type="button" 
+                                                onClick={() => {
+                                                  const newItems = [...txnItems];
+                                                  const persons = (item.bharpaiPersons || []).filter((_, i) => i !== pIdx);
+                                                  newItems[index].bharpaiPersons = persons;
+                                                  
+                                                  const totalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0);
+                                                  if (totalAmount > 0) newItems[index].amount = totalAmount;
+                                                  
+                                                  setTxnItems(newItems);
+                                                }}
+                                                className="text-rose-500 hover:text-rose-600"
+                                              >
+                                                <Trash2 size={10} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {(item.bharpaiPersons || []).length === 0 && (
+                                          <p className="text-[9px] text-slate-400 italic text-center py-0.5">कुनै व्यक्ति थपिएको छैन। स्वतः मुख्य विवरण प्रयोग हुनेछ।</p>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 )}
