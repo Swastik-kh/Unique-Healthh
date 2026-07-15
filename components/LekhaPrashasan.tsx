@@ -135,11 +135,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     applyTax15?: boolean,
     needsBharpai?: boolean,
     bharpaiDays?: number,
-    bharpaiRate?: number
-  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0}]);
+    bharpaiRate?: number,
+    bharpaiPersons?: { name: string; days: number; rate: number }[]
+  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
   const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
+  const [editNeedsBharpai, setEditNeedsBharpai] = useState<boolean>(false);
+  const [editBharpaiPersons, setEditBharpaiPersons] = useState<{ name: string; days: number; rate: number }[]>([]);
 
   const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
   const [bankStatementBalance, setBankStatementBalance] = useState<number>(0);
@@ -388,6 +391,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           needsBharpai: item.needsBharpai,
           bharpaiDays: item.bharpaiDays,
           bharpaiRate: item.bharpaiRate,
+          bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
         });
       });
     } else {
@@ -427,9 +431,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         programId: formData.get('programId') as string || undefined,
         paymentMethod: txnPaymentMethod,
         checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
-        needsBharpai: formData.get('needsBharpai') === 'on',
+        needsBharpai: editNeedsBharpai,
         bharpaiDays: Number(formData.get('bharpaiDays') || 0),
         bharpaiRate: Number(formData.get('bharpaiRate') || 0),
+        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(formData.get('bharpaiDays') || 1), rate: Number(formData.get('bharpaiRate') || amount || 0) }]) : undefined
       });
     }
 
@@ -1318,35 +1323,112 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     if (!printWin) return;
 
     const program = programs.find(p => p.id === txn.programId);
-    const netAmount = (txn.amountWithVAT || txn.amount || 0) - (txn.tdsAmount || 0) - (txn.sasukarAmount || 0) - (txn.tax15Amount || 0);
-    const totalTax = (txn.tdsAmount || 0) + (txn.sasukarAmount || 0) + (txn.tax15Amount || 0);
+    
+    // Determine the list of persons
+    const persons = txn.bharpaiPersons && txn.bharpaiPersons.length > 0
+      ? txn.bharpaiPersons
+      : [{
+          name: txn.partyName || txn.remarks || '....................',
+          days: txn.bharpaiDays || 1,
+          rate: txn.bharpaiRate || txn.amount || 0
+        }];
+
+    // Calculate total base amount from persons
+    const txnTotalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0) || (txn.amountWithVAT || txn.amount || 0);
+
+    let rowsHtml = '';
+    let grandTotal = 0;
+    let grandTotalTax = 0;
+    let grandNetAmount = 0;
+
+    persons.forEach((person, idx) => {
+      const personTotal = person.days * person.rate;
+      const ratio = txnTotalAmount > 0 ? (personTotal / txnTotalAmount) : (1 / persons.length);
+
+      // Proportional taxes
+      const personTds = (txn.tdsAmount && txn.tdsAmount > 0) ? Math.round((txn.tdsAmount || 0) * ratio) : 0;
+      const personSasukar = (txn.sasukarAmount && txn.sasukarAmount > 0) ? Math.round((txn.sasukarAmount || 0) * ratio) : 0;
+      const personTax15 = (txn.tax15Amount && txn.tax15Amount > 0) ? Math.round((txn.tax15Amount || 0) * ratio) : 0;
+      const personTax = personTds + personSasukar + personTax15;
+      const personNet = personTotal - personTax;
+
+      grandTotal += personTotal;
+      grandTotalTax += personTax;
+      grandNetAmount += personNet;
+
+      // Construct tax breakdown text
+      const taxParts: string[] = [];
+      if (personTds > 0) taxParts.push(`TDS (१.५%): ${toNepaliNumber(personTds.toLocaleString())}`);
+      if (personSasukar > 0) taxParts.push(`सा.सु. कर (१%): ${toNepaliNumber(personSasukar.toLocaleString())}`);
+      if (personTax15 > 0) taxParts.push(`कर (१५%): ${toNepaliNumber(personTax15.toLocaleString())}`);
+      
+      const taxBreakdown = taxParts.length > 0 
+        ? `${toNepaliNumber(personTax.toLocaleString())}<br><span style="font-size: 11px; color: #475569;">(${taxParts.join(', ')})</span>`
+        : 'रू ०';
+
+      rowsHtml += `
+        <tr>
+          <td>${toNepaliNumber(idx + 1)}</td>
+          <td class="text-left font-bold">${person.name || '....................'}</td>
+          <td>${toNepaliNumber(person.days || '१')}</td>
+          <td>${toNepaliNumber((person.rate || 0).toLocaleString())}</td>
+          <td>${toNepaliNumber(personTotal.toLocaleString())}</td>
+          <td>${taxBreakdown}</td>
+          <td class="font-bold">${toNepaliNumber(personNet.toLocaleString())}</td>
+          <td></td>
+        </tr>
+      `;
+    });
 
     const content = `
       <html>
         <head>
-          <title>भर्पाई - ${txn.partyName || txn.remarks}</title>
+          <title>भर्पाई - ${txn.remarks}</title>
           <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 landscape; margin: 10mm; }
-            body { font-family: 'Mukta', sans-serif; margin: 0; padding: 20px; font-size: 16px; }
-            .header { text-align: center; margin-bottom: 20px; }
-            .header h2 { margin: 0; font-size: 22px; font-weight: 700; }
-            .header h3 { margin: 5px 0; font-size: 18px; font-weight: 600; }
-            .date { text-align: right; margin-bottom: 10px; font-weight: 600; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid black; padding: 10px; text-align: center; }
-            th { background: #f2f2f2; font-weight: 700; }
-            .footer { margin-top: 40px; display: flex; justify-content: flex-end; }
+            @page { size: A4 portrait; margin: 15mm; }
+            body { font-family: 'Mukta', sans-serif; margin: 0; padding: 10px; font-size: 15px; color: #1e293b; }
+            .print-header { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px; border-bottom: 2px solid #ef4444; padding-bottom: 15px; }
+            .logo-img { width: 85px; height: auto; position: absolute; left: 0; top: 0; }
+            .header-info { text-align: center; width: 100%; padding-left: 95px; padding-right: 95px; }
+            .header-info h1 { color: #e11d48; margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; }
+            .header-info h2 { margin: 3px 0 0 0; font-size: 15px; font-weight: 600; color: #475569; }
+            .header-info h3 { margin: 2px 0 0 0; font-size: 13px; font-weight: 500; color: #475569; }
+            .header-info h4 { margin: 2px 0 0 0; font-size: 13px; font-weight: 500; color: #64748b; }
+            .bharpai-title { text-align: center; margin: 20px 0 15px 0; }
+            .bharpai-title h2 { margin: 0; font-size: 20px; font-weight: 800; border-bottom: 2px double #334155; display: inline-block; padding-bottom: 4px; }
+            .bharpai-meta { font-size: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; font-weight: 600; background: #f8fafc; padding: 8px 12px; rounded: 8px; border: 1px solid #e2e8f0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            th, td { border: 1px solid #475569; padding: 8px; text-align: center; }
+            th { background: #f1f5f9; font-weight: 700; font-size: 14px; }
+            td { font-size: 14px; }
+            .footer-signatures { margin-top: 60px; display: flex; justify-content: space-between; font-weight: 700; padding: 0 10px; }
+            .sig-box { text-align: center; border-top: 1px dashed #475569; width: 180px; padding-top: 5px; }
             .text-left { text-align: left; }
             .font-bold { font-weight: 700; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h2>${program?.name || 'कार्यक्रमको नाम उल्लेख नभएको'}</h2>
-            <h3>कार्यक्रममा प्रशिक्षकले बुझेको भत्ताको भर्पाई</h3>
+          <div class="print-header">
+            <img class="logo-img" src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" referrerPolicy="no-referrer">
+            <div class="header-info">
+              <h1>${generalSettings.orgNameNepali}</h1>
+              <h2>${generalSettings.subTitleNepali || ''}</h2>
+              <h3>${generalSettings.subTitleNepali2 || ''}</h3>
+              <h4>${generalSettings.subTitleNepali3 || ''}</h4>
+              <div style="font-size: 13px; font-weight: bold; color: #64748b; margin-top: 2px;">${generalSettings.address || ''}</div>
+            </div>
           </div>
-          <div class="date">मिति : ${toNepaliNumber(txn.dateBs)}</div>
+
+          <div class="bharpai-title">
+            <h2>भर्पाई (Receipt)</h2>
+          </div>
+
+          <div class="bharpai-meta">
+            <div>खर्च विवरण (शीर्षक): ${txn.remarks}</div>
+            <div>मिति : ${toNepaliNumber(txn.dateBs)}</div>
+          </div>
+
           <table>
             <thead>
               <tr>
@@ -1355,33 +1437,31 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <th style="width: 80px;">दिन</th>
                 <th style="width: 100px;">दर</th>
                 <th style="width: 120px;">जम्मा</th>
-                <th style="width: 120px;">करकट्टी</th>
-                <th style="width: 150px;">बुझिलिएको जम्मा रकम</th>
-                <th style="width: 180px;">हस्ताक्षर</th>
+                <th style="width: 200px;">करकट्टी विवरण</th>
+                <th style="width: 150px;">बुझिलिएको खुद रकम</th>
+                <th style="width: 150px;">हस्ताक्षर</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>१</td>
-                <td class="text-left font-bold">${txn.partyName || '....................'}</td>
-                <td>${toNepaliNumber(txn.bharpaiDays || '१')}</td>
-                <td>${toNepaliNumber((txn.bharpaiRate || (txn.amountWithVAT || txn.amount || 0)).toLocaleString())}</td>
-                <td>${toNepaliNumber((txn.amountWithVAT || txn.amount || 0).toLocaleString())}</td>
-                <td>${toNepaliNumber(totalTax.toLocaleString())}</td>
-                <td class="font-bold">${toNepaliNumber(netAmount.toLocaleString())}</td>
-                <td></td>
-              </tr>
-              <tr class="font-bold">
-                <td colspan="4">जम्मा</td>
-                <td>${toNepaliNumber((txn.amountWithVAT || txn.amount || 0).toLocaleString())}</td>
-                <td>${toNepaliNumber(totalTax.toLocaleString())}</td>
-                <td>${toNepaliNumber(netAmount.toLocaleString())}</td>
+              ${rowsHtml}
+              <tr class="font-bold" style="background-color: #f1f5f9;">
+                <td colspan="4">जम्मा (Grand Total)</td>
+                <td>${toNepaliNumber(grandTotal.toLocaleString())}</td>
+                <td>${toNepaliNumber(grandTotalTax.toLocaleString())}</td>
+                <td style="color: #e11d48;">${toNepaliNumber(grandNetAmount.toLocaleString())}</td>
                 <td></td>
               </tr>
             </tbody>
           </table>
-          <div style="margin-top: 30px; font-style: italic; font-size: 14px;">
-            कैफियत: ${txn.remarks}
+
+          <div style="margin-top: 30px; font-size: 13px; color: #64748b; line-height: 1.5; background: #fafafa; padding: 10px; border-radius: 6px; border: 1px solid #f0f0f0;">
+            <strong>कैफियत:</strong> ${txn.remarks || 'N/A'}
+          </div>
+
+          <div class="footer-signatures">
+            <div class="sig-box">पेश गर्ने</div>
+            <div class="sig-box">जाँच गर्ने</div>
+            <div class="sig-box">स्वीकृत गर्ने</div>
           </div>
         </body>
       </html>
@@ -2676,6 +2756,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    setFormType('transaction');
                                    setTxnIsVatBill(!!item.isVatBill);
                                    setTxnVatTaxableAmount(item.vatTaxableAmount !== undefined && item.vatTaxableAmount !== null ? item.vatTaxableAmount : '');
+                                   setEditNeedsBharpai(!!item.needsBharpai);
+                                   setEditBharpaiPersons(item.bharpaiPersons || []);
                                  }
                                  else if (activeTab === 'payments') {
                                    setFormType('payment');
@@ -2708,13 +2790,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    </button>
                                  ) : null;
                              })()}
-                             {activeTab === 'transactions' && item.needsBharpai && (
+                             {item.needsBharpai && (
                                <button 
                                  onClick={() => handlePrintBharpai(item)}
-                                 title="भर्पाई प्रिन्ट (Print Bharpai)"
+                                 title="Print Bharpai"
                                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                                >
-                                  <FileText size={16} />
+                                 <FileText size={16} />
                                </button>
                              )}
                              <button 
@@ -2792,6 +2874,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                     setTxnRefNo(generateReferenceNo());
                     setTxnIsVatBill(false);
                     setTxnVatTaxableAmount('');
+                    setEditNeedsBharpai(false);
+                    setEditBharpaiPersons([]);
+                    setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
                   } else if (activeTab === 'payments') {
                     setFormType('payment');
                     setPaymentSelectedProgram('');
@@ -3287,25 +3372,120 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <label htmlFor="applyTax15" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१५% कर?</label>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="checkbox" name="needsBharpai" id="needsBharpai" className="rounded text-primary-600 focus:ring-primary-500" />
+                            <input 
+                              type="checkbox" 
+                              name="needsBharpai" 
+                              id="needsBharpai" 
+                              checked={editNeedsBharpai}
+                              onChange={(e) => setEditNeedsBharpai(e.target.checked)}
+                              className="rounded text-primary-600 focus:ring-primary-500" 
+                            />
                             <label htmlFor="needsBharpai" className="text-[10px] font-black text-primary-700 uppercase tracking-widest">भर्पाई?</label>
                         </div>
                       </div>
 
-                      {txnType === 'Income' || editingItem ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-4 mt-4">
+                      {editNeedsBharpai && (
+                        <div className="space-y-3 mt-4">
+                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
-                                <input type="number" name="bharpaiDays" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                                <input 
+                                  type="number" 
+                                  name="bharpaiDays" 
+                                  defaultValue={editingItem?.bharpaiDays || ''} 
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
+                                />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
-                                <input type="number" name="bharpaiRate" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                                <input 
+                                  type="number" 
+                                  name="bharpaiRate" 
+                                  defaultValue={editingItem?.bharpaiRate || ''} 
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
+                                />
                             </div>
                           </div>
-                        </>
-                      ) : null}
+
+                          <div className="bg-slate-100/50 p-3 rounded-2xl border border-slate-200/60 space-y-2.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">बहु-व्यक्ति विवरण (Multiple Persons)</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditBharpaiPersons([...editBharpaiPersons, { name: '', days: editingItem?.bharpaiDays || 1, rate: editingItem?.bharpaiRate || 0 }]);
+                                }}
+                                className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-[10px] font-black uppercase"
+                              >
+                                <Plus size={12} /> थप्नुहोस् (Add Person)
+                              </button>
+                            </div>
+
+                            <div className="space-y-2">
+                              {editBharpaiPersons.map((person, pIdx) => (
+                                <div key={pIdx} className="grid grid-cols-12 gap-2 items-center bg-white p-2 rounded-xl border border-slate-200 relative group">
+                                  <div className="col-span-5">
+                                    <input 
+                                      type="text" 
+                                      value={person.name} 
+                                      onChange={(e) => {
+                                        const updated = [...editBharpaiPersons];
+                                        updated[pIdx].name = e.target.value;
+                                        setEditBharpaiPersons(updated);
+                                      }}
+                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
+                                      placeholder="नाम थर"
+                                      required
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <input 
+                                      type="number" 
+                                      value={person.days || ''} 
+                                      onChange={(e) => {
+                                        const updated = [...editBharpaiPersons];
+                                        updated[pIdx].days = Number(e.target.value);
+                                        setEditBharpaiPersons(updated);
+                                      }}
+                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
+                                      placeholder="दिन"
+                                      required
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <input 
+                                      type="number" 
+                                      value={person.rate || ''} 
+                                      onChange={(e) => {
+                                        const updated = [...editBharpaiPersons];
+                                        updated[pIdx].rate = Number(e.target.value);
+                                        setEditBharpaiPersons(updated);
+                                      }}
+                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
+                                      placeholder="दर"
+                                      required
+                                    />
+                                  </div>
+                                  <div className="col-span-1 text-center">
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setEditBharpaiPersons(editBharpaiPersons.filter((_, i) => i !== pIdx));
+                                      }}
+                                      className="text-rose-500 hover:text-rose-600"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                              {editBharpaiPersons.length === 0 && (
+                                <p className="text-[10px] text-slate-400 italic text-center py-1">कुनै व्यक्ति थपिएको छैन। स्वतः मुख्य विवरण प्रयोग हुनेछ।</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {txnIsVatBill && (
                         <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 space-y-2 mt-2">

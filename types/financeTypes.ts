@@ -20,6 +20,12 @@ export interface ListedParty {
   totalPaidAmount: number;
 }
 
+export interface BharpaiPerson {
+  name: string;
+  days: number;
+  rate: number;
+}
+
 export interface FinancialTransaction {
   id: string;
   dateBs: string;
@@ -46,6 +52,7 @@ export interface FinancialTransaction {
   needsBharpai?: boolean;
   bharpaiDays?: number;
   bharpaiRate?: number;
+  bharpaiPersons?: BharpaiPerson[];
 }
 
 export interface PartyPaymentRecord {
