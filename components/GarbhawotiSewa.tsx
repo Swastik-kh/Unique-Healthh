@@ -111,7 +111,25 @@ export const GarbhawotiSewa: React.FC<GarbhawotiSewaProps> = ({ records = [], se
   };
 
   const handleDateChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      
+      // Auto-calculate EDD when LMP is changed
+      if (name === 'lmp' && value) {
+        try {
+          const lmpDate = new NepaliDate(value);
+          // Convert to JS Date, add 280 days (standard pregnancy duration), then convert back to Nepali Date
+          const lmpJsDate = lmpDate.toJsDate();
+          const eddJsDate = new Date(lmpJsDate.getTime() + (280 * 24 * 60 * 60 * 1000));
+          const eddNepaliDate = new NepaliDate(eddJsDate);
+          newData.edd = eddNepaliDate.format('YYYY-MM-DD');
+        } catch (error) {
+          console.error('Error calculating EDD:', error);
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
