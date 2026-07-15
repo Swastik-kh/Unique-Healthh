@@ -132,8 +132,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     isVatBill?: boolean,
     applyTds?: boolean,
     applySasukar?: boolean,
-    applyTax15?: boolean
-  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
+    applyTax15?: boolean,
+    needsBharpai?: boolean,
+    bharpaiDays?: number,
+    bharpaiRate?: number
+  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiDays: 0, bharpaiRate: 0}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
   const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
@@ -382,6 +385,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           programId: item.programId || (formData.get('programId') as string) || undefined,
           paymentMethod: txnPaymentMethod,
           checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
+          needsBharpai: item.needsBharpai,
+          bharpaiDays: item.bharpaiDays,
+          bharpaiRate: item.bharpaiRate,
         });
       });
     } else {
@@ -421,6 +427,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         programId: formData.get('programId') as string || undefined,
         paymentMethod: txnPaymentMethod,
         checkNo: txnPaymentMethod === 'Bank' ? txnCheckNo : undefined,
+        needsBharpai: formData.get('needsBharpai') === 'on',
+        bharpaiDays: Number(formData.get('bharpaiDays') || 0),
+        bharpaiRate: Number(formData.get('bharpaiRate') || 0),
       });
     }
 
@@ -1296,6 +1305,88 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         </body>
       </html>
     `;
+    printWin.document.write(content);
+    printWin.document.close();
+    setTimeout(() => {
+        printWin.focus();
+        printWin.print();
+    }, 500);
+  };
+
+  const handlePrintBharpai = (txn: FinancialTransaction) => {
+    const printWin = window.open('', '', 'width=1000,height=800');
+    if (!printWin) return;
+
+    const program = programs.find(p => p.id === txn.programId);
+    const netAmount = (txn.amountWithVAT || txn.amount || 0) - (txn.tdsAmount || 0) - (txn.sasukarAmount || 0) - (txn.tax15Amount || 0);
+    const totalTax = (txn.tdsAmount || 0) + (txn.sasukarAmount || 0) + (txn.tax15Amount || 0);
+
+    const content = `
+      <html>
+        <head>
+          <title>भर्पाई - ${txn.partyName || txn.remarks}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+          <style>
+            @page { size: A4 landscape; margin: 10mm; }
+            body { font-family: 'Mukta', sans-serif; margin: 0; padding: 20px; font-size: 16px; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .header h2 { margin: 0; font-size: 22px; font-weight: 700; }
+            .header h3 { margin: 5px 0; font-size: 18px; font-weight: 600; }
+            .date { text-align: right; margin-bottom: 10px; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid black; padding: 10px; text-align: center; }
+            th { background: #f2f2f2; font-weight: 700; }
+            .footer { margin-top: 40px; display: flex; justify-content: flex-end; }
+            .text-left { text-align: left; }
+            .font-bold { font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>${program?.name || 'कार्यक्रमको नाम उल्लेख नभएको'}</h2>
+            <h3>कार्यक्रममा प्रशिक्षकले बुझेको भत्ताको भर्पाई</h3>
+          </div>
+          <div class="date">मिति : ${toNepaliNumber(txn.dateBs)}</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50px;">क्र.स.</th>
+                <th>नाम थर</th>
+                <th style="width: 80px;">दिन</th>
+                <th style="width: 100px;">दर</th>
+                <th style="width: 120px;">जम्मा</th>
+                <th style="width: 120px;">करकट्टी</th>
+                <th style="width: 150px;">बुझिलिएको जम्मा रकम</th>
+                <th style="width: 180px;">हस्ताक्षर</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>१</td>
+                <td class="text-left font-bold">${txn.partyName || '....................'}</td>
+                <td>${toNepaliNumber(txn.bharpaiDays || '१')}</td>
+                <td>${toNepaliNumber((txn.bharpaiRate || (txn.amountWithVAT || txn.amount || 0)).toLocaleString())}</td>
+                <td>${toNepaliNumber((txn.amountWithVAT || txn.amount || 0).toLocaleString())}</td>
+                <td>${toNepaliNumber(totalTax.toLocaleString())}</td>
+                <td class="font-bold">${toNepaliNumber(netAmount.toLocaleString())}</td>
+                <td></td>
+              </tr>
+              <tr class="font-bold">
+                <td colspan="4">जम्मा</td>
+                <td>${toNepaliNumber((txn.amountWithVAT || txn.amount || 0).toLocaleString())}</td>
+                <td>${toNepaliNumber(totalTax.toLocaleString())}</td>
+                <td>${toNepaliNumber(netAmount.toLocaleString())}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top: 30px; font-style: italic; font-size: 14px;">
+            कैफियत: ${txn.remarks}
+          </div>
+        </body>
+      </html>
+    `;
+
     printWin.document.write(content);
     printWin.document.close();
     setTimeout(() => {
@@ -2617,6 +2708,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    </button>
                                  ) : null;
                              })()}
+                             {activeTab === 'transactions' && item.needsBharpai && (
+                               <button 
+                                 onClick={() => handlePrintBharpai(item)}
+                                 title="भर्पाई प्रिन्ट (Print Bharpai)"
+                                 className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                               >
+                                  <FileText size={16} />
+                               </button>
+                             )}
                              <button 
                                onClick={() => {
                                  if (confirm('तपाईं यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
@@ -3107,14 +3207,59 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                       />
                                       <label className="text-[9px] font-black text-slate-700 uppercase">१५% कर</label>
                                    </div>
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={!!item.needsBharpai}
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].needsBharpai = e.target.checked;
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="rounded text-primary-600 focus:ring-primary-500" 
+                                      />
+                                      <label className="text-[9px] font-black text-primary-700 uppercase">भर्पाई चाहिने?</label>
+                                   </div>
                                 </div>
+                                {item.needsBharpai && (
+                                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
+                                      <input 
+                                        type="number" 
+                                        value={item.bharpaiDays || ''} 
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].bharpaiDays = Number(e.target.value);
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                        placeholder="दिन"
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
+                                      <input 
+                                        type="number" 
+                                        value={item.bharpaiRate || ''} 
+                                        onChange={(e) => {
+                                          const newItems = [...txnItems];
+                                          newItems[index].bharpaiRate = Number(e.target.value);
+                                          setTxnItems(newItems);
+                                        }}
+                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                        placeholder="दर"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-4 gap-4 mt-2">
+                      <div className="grid grid-cols-5 gap-4 mt-2">
                         <div className="flex items-center gap-2">
                             <input 
                               type="checkbox" 
@@ -3141,7 +3286,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <input type="checkbox" name="applyTax15" id="applyTax15" className="rounded text-rose-600 focus:ring-rose-500" />
                             <label htmlFor="applyTax15" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१५% कर?</label>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" name="needsBharpai" id="needsBharpai" className="rounded text-primary-600 focus:ring-primary-500" />
+                            <label htmlFor="needsBharpai" className="text-[10px] font-black text-primary-700 uppercase tracking-widest">भर्पाई?</label>
+                        </div>
                       </div>
+
+                      {txnType === 'Income' || editingItem ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दिन (Days)</label>
+                                <input type="number" name="bharpaiDays" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
+                                <input type="number" name="bharpaiRate" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
 
                       {txnIsVatBill && (
                         <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 space-y-2 mt-2">

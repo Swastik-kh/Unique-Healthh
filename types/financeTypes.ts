@@ -43,6 +43,9 @@ export interface FinancialTransaction {
   tax15Amount?: number;
   paymentMethod?: 'Bank' | 'Cash';
   checkNo?: string;
+  needsBharpai?: boolean;
+  bharpaiDays?: number;
+  bharpaiRate?: number;
 }
 
 export interface PartyPaymentRecord {
