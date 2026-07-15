@@ -1195,30 +1195,50 @@ const App: React.FC = () => {
           const cleanedTransaction = cleanObject({ ...transaction, id });
           await set(getOrgRef(`financialTransactions/${id}`), cleanedTransaction);
 
-          // Create Goswara Voucher if it's an expense or income transaction
-          if (transaction.type === 'Expense' || transaction.type === 'Income') {
-              const entries: JournalEntry[] = [];
-              const progName = financialPrograms.find(p => p.id === transaction.programId)?.name || '';
+            // Create Goswara Voucher if it's an expense or income transaction
+            if (transaction.type === 'Expense' || transaction.type === 'Income') {
+                const entries: JournalEntry[] = [];
+                
+                if (transaction.type === 'Expense') {
+                    if (transaction.items && transaction.items.length > 0) {
+                        // Multi-item expense
+                        transaction.items.forEach((item: any) => {
+                            const progName = financialPrograms.find(p => p.id === (item.programId || transaction.programId))?.name || '';
+                            entries.push({ 
+                                accountName: `${item.remarks}${item.partyName ? ` (${item.partyName})` : ''}`, 
+                                activityName: progName,
+                                debit: item.amountWithVAT || item.amount || 0 
+                            });
+                        });
+                    } else {
+                        // Single item expense
+                        const progName = financialPrograms.find(p => p.id === transaction.programId)?.name || '';
+                        entries.push({ 
+                            accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
+                            activityName: progName,
+                            debit: transaction.amountWithVAT || transaction.amount || 0 
+                        });
+                    }
 
-              if (transaction.type === 'Expense') {
-                  entries.push({ 
-                    accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
-                    activityName: progName,
-                    debit: transaction.amountWithVAT || transaction.amount || 0 
-                  });
-                  entries.push({ accountName: `बैंक/नगद (${transaction.paymentMethod === 'Bank' ? `Bank${transaction.checkNo ? ` Check: ${transaction.checkNo}` : ''}` : 'Cash'})`, credit: (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) - (transaction.tax15Amount || 0) });
-                  if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
-                  if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
-                  if (transaction.tax15Amount > 0) entries.push({ accountName: '१५% कर (15% Tax) Payable', credit: transaction.tax15Amount });
-              } else {
-                  // Income
-                  entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', debit: transaction.amount || 0 });
-                  entries.push({ 
-                    accountName: `${transaction.remarks}`, 
-                    activityName: progName,
-                    credit: transaction.amount || 0 
-                  });
-              }
+                    const netCashAmount = (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) - (transaction.tax15Amount || 0);
+                    entries.push({ 
+                        accountName: `बैंक/नगद (${transaction.paymentMethod === 'Bank' ? `Bank${transaction.checkNo ? ` Check: ${transaction.checkNo}` : ''}` : 'Cash'})`, 
+                        credit: netCashAmount 
+                    });
+
+                    if (transaction.tdsAmount > 0) entries.push({ accountName: 'TDS Payable', credit: transaction.tdsAmount });
+                    if (transaction.sasukarAmount > 0) entries.push({ accountName: 'सा.सु कर (Sasukar) Payable', credit: transaction.sasukarAmount });
+                    if (transaction.tax15Amount > 0) entries.push({ accountName: '१५% कर (15% Tax) Payable', credit: transaction.tax15Amount });
+                } else {
+                    // Income
+                    const progName = financialPrograms.find(p => p.id === transaction.programId)?.name || '';
+                    entries.push({ accountName: 'बैंक/नगद (Bank/Cash)', debit: transaction.amount || 0 });
+                    entries.push({ 
+                        accountName: `${transaction.remarks}`, 
+                        activityName: progName,
+                        credit: transaction.amount || 0 
+                    });
+                }
 
               const voucher: GoswaraVoucher = {
                   id: `GV-${id}`,

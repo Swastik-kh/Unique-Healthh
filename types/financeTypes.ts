@@ -54,6 +54,19 @@ export interface FinancialTransaction {
   bharpaiDays?: number;
   bharpaiRate?: number;
   bharpaiPersons?: BharpaiPerson[];
+  items?: {
+    remarks: string;
+    amount: number;
+    amountWithVAT?: number;
+    amountWithoutVAT?: number;
+    vatTaxableAmount?: number;
+    isVatBill?: boolean;
+    tdsAmount?: number;
+    sasukarAmount?: number;
+    tax15Amount?: number;
+    partyName?: string;
+    programId?: string;
+  }[];
 }
 
 export interface PartyPaymentRecord {

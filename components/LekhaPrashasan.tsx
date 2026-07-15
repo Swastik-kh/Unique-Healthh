@@ -371,19 +371,58 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
     // If type is Expense, use txnItems
     if (type === 'Expense' && !editingItem) {
-      txnItems.forEach(item => {
-        if (item.amount <= 0) return;
+      if (txnItems.length > 1) {
+        // Multi-item transaction
+        const aggregatedItems: any[] = [];
+        let totalAmount = 0;
+        let totalAmountWithVAT = 0;
+        let totalAmountWithoutVAT = 0;
+        let totalVatTaxableAmount = 0;
+        let totalTdsAmount = 0;
+        let totalSasukarAmount = 0;
+        let totalTax15Amount = 0;
+        let isVatBill = false;
 
-        const amount = Number(item.amount);
-        const isVatBill = !!item.isVatBill;
-        const vatTaxableAmount = isVatBill ? amount / 1.13 : 0;
-        const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
-        const amountWithoutVAT = amount - vatAmount;
-        const amountWithVAT = amount;
-        
-        const tdsAmount = item.applyTds ? (isVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
-        const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
-        const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
+        txnItems.forEach(item => {
+          if (item.amount <= 0) return;
+
+          const amount = Number(item.amount);
+          const itemIsVatBill = !!item.isVatBill;
+          if (itemIsVatBill) isVatBill = true;
+          
+          const vatTaxableAmount = itemIsVatBill ? amount / 1.13 : 0;
+          const vatAmount = itemIsVatBill ? vatTaxableAmount * 0.13 : 0;
+          const amountWithoutVAT = amount - vatAmount;
+          const amountWithVAT = amount;
+          
+          const tdsAmount = item.applyTds ? (itemIsVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
+          const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
+          const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
+
+          totalAmount += amount;
+          totalAmountWithVAT += amountWithVAT;
+          totalAmountWithoutVAT += amountWithoutVAT;
+          totalVatTaxableAmount += vatTaxableAmount;
+          totalTdsAmount += tdsAmount;
+          totalSasukarAmount += sasukarAmount;
+          totalTax15Amount += tax15Amount;
+
+          aggregatedItems.push({
+            remarks: item.remarks,
+            amount,
+            amountWithVAT,
+            amountWithoutVAT,
+            vatTaxableAmount,
+            isVatBill: itemIsVatBill,
+            tdsAmount,
+            sasukarAmount,
+            tax15Amount,
+            partyName: item.partyName || (formData.get('partyName') as string) || undefined,
+            programId: item.programId || (formData.get('programId') as string) || undefined,
+          });
+        });
+
+        if (aggregatedItems.length === 0) return;
 
         onSaveTransaction({
           dateBs: txnFormDate,
@@ -391,27 +430,66 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           category,
           type,
           isVatBill,
-          vatTaxableAmount,
-          amountWithoutVAT,
-          amountWithVAT,
-          tdsAmount,
-          sasukarAmount,
-          tax15Amount,
-          amount,
-          remarks: item.remarks,
-          partyName: item.partyName || (formData.get('partyName') as string) || undefined,
+          vatTaxableAmount: totalVatTaxableAmount,
+          amountWithoutVAT: totalAmountWithoutVAT,
+          amountWithVAT: totalAmountWithVAT,
+          tdsAmount: totalTdsAmount,
+          sasukarAmount: totalSasukarAmount,
+          tax15Amount: totalTax15Amount,
+          amount: totalAmount,
+          remarks: aggregatedItems[0].remarks + (aggregatedItems.length > 1 ? ` र अन्य ${aggregatedItems.length - 1} खर्चहरू` : ''),
+          partyName: formData.get('partyName') as string || undefined,
           fiscalYear: currentFiscalYear,
           referenceNo,
-          programId: item.programId || (formData.get('programId') as string) || undefined,
+          programId: aggregatedItems[0].programId,
           paymentMethod: txnPaymentMethod,
           checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
-          needsBharpai: item.needsBharpai,
-          bharpaiUnitType: item.bharpaiUnitType || 'days',
-          bharpaiDays: item.bharpaiDays,
-          bharpaiRate: item.bharpaiRate,
-          bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
+          items: aggregatedItems
         });
-      });
+      } else {
+        // Single item
+        txnItems.forEach(item => {
+          if (item.amount <= 0) return;
+
+          const amount = Number(item.amount);
+          const isVatBill = !!item.isVatBill;
+          const vatTaxableAmount = isVatBill ? amount / 1.13 : 0;
+          const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
+          const amountWithoutVAT = amount - vatAmount;
+          const amountWithVAT = amount;
+          
+          const tdsAmount = item.applyTds ? (isVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
+          const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
+          const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
+
+          onSaveTransaction({
+            dateBs: txnFormDate,
+            dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+            category,
+            type,
+            isVatBill,
+            vatTaxableAmount,
+            amountWithoutVAT,
+            amountWithVAT,
+            tdsAmount,
+            sasukarAmount,
+            tax15Amount,
+            amount,
+            remarks: item.remarks,
+            partyName: item.partyName || (formData.get('partyName') as string) || undefined,
+            fiscalYear: currentFiscalYear,
+            referenceNo,
+            programId: item.programId || (formData.get('programId') as string) || undefined,
+            paymentMethod: txnPaymentMethod,
+            checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
+            needsBharpai: item.needsBharpai,
+            bharpaiUnitType: item.bharpaiUnitType || 'days',
+            bharpaiDays: item.bharpaiDays,
+            bharpaiRate: item.bharpaiRate,
+            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
+          });
+        });
+      }
     } else {
       // Single transaction (Income or Edit)
       const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
@@ -605,28 +683,38 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     
     if (num === 0) return 'शून्य';
     
+    // Handle paisa separately
+    const mainPart = Math.floor(num);
+    const paisaPart = Math.round((num - mainPart) * 100);
+
     function convert(n: number) {
+      n = Math.floor(n);
       let word = '';
       if (n >= 100) {
         word += nepaliNumbers[Math.floor(n / 100)] + ' सय ';
         n %= 100;
       }
-      if (n > 0) word += nepaliNumbers[n] + ' ';
+      if (n > 0) word += nepaliNumbers[Math.floor(n)] + ' ';
       return word;
     }
     
     let result = '';
-    const crore = Math.floor(num / 10000000);
-    num %= 10000000;
-    const lakh = Math.floor(num / 100000);
-    num %= 100000;
-    const thousand = Math.floor(num / 1000);
-    num %= 1000;
+    let tempNum = mainPart;
+    const crore = Math.floor(tempNum / 10000000);
+    tempNum %= 10000000;
+    const lakh = Math.floor(tempNum / 100000);
+    tempNum %= 100000;
+    const thousand = Math.floor(tempNum / 1000);
+    tempNum %= 1000;
     
     if (crore > 0) result += convert(crore) + 'करोड ';
     if (lakh > 0) result += convert(lakh) + 'लाख ';
     if (thousand > 0) result += convert(thousand) + 'हजार ';
-    if (num > 0) result += convert(num);
+    if (tempNum > 0) result += convert(tempNum);
+    
+    if (paisaPart > 0) {
+      result = result.trim() + ' र ' + nepaliNumbers[paisaPart] + ' पैसा';
+    }
     
     return result.trim();
   };
