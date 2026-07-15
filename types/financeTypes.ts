@@ -40,6 +40,7 @@ export interface FinancialTransaction {
   partyName?: string;
   tdsAmount?: number;
   sasukarAmount?: number;
+  paymentMethod?: 'Bank' | 'Cash';
 }
 
 export interface PartyPaymentRecord {

@@ -124,6 +124,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('portrait');
 
+  const [txnItems, setTxnItems] = useState<{remarks: string, amount: number, programId?: string, partyName?: string}[]>([{remarks: '', amount: 0}]);
+  const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
+  const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
+
   const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
   const [bankStatementBalance, setBankStatementBalance] = useState<number>(0);
 
@@ -326,39 +330,86 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const amount = Number(formData.get('amount'));
+    const type = formData.get('type') as any;
+    const category = formData.get('category') as any;
+    const incomeSource = formData.get('incomeSource') as any;
+    const referenceNo = (formData.get('referenceNo') as string) || txnRefNo;
     const isVatBill = txnIsVatBill;
-    const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
-    const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
-    const amountWithoutVAT = amount - vatAmount;
-    const amountWithVAT = amount;
-    const applyTds = formData.get('applyTds') === 'on';
-    const tdsAmount = applyTds ? amount * 0.015 : 0;
-    const applySasukar = formData.get('applySasukar') === 'on';
-    const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
 
-    onSaveTransaction({
-      ...editingItem,
-      dateBs: txnFormDate,
-      dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
-      category: formData.get('category') as any,
-      type: formData.get('type') as any,
-      isVatBill,
-      vatTaxableAmount,
-      amountWithoutVAT,
-      amountWithVAT,
-      tdsAmount,
-      sasukarAmount,
-      amount,
-      remarks: formData.get('remarks') as string,
-      partyName: formData.get('partyName') as string || undefined,
-      fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
-      referenceNo: (formData.get('referenceNo') as string) || txnRefNo,
-      incomeSource: formData.get('incomeSource') as any || undefined,
-      programId: formData.get('programId') as string || undefined,
-    });
+    // If type is Expense, use txnItems
+    if (type === 'Expense' && !editingItem) {
+      txnItems.forEach(item => {
+        if (item.amount <= 0) return;
+
+        const amount = Number(item.amount);
+        const vatTaxableAmount = isVatBill ? amount / 1.13 : 0; // Rough estimate or we could add field per item
+        const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
+        const amountWithoutVAT = amount - vatAmount;
+        const amountWithVAT = amount;
+        
+        const applyTds = formData.get('applyTds') === 'on';
+        const tdsAmount = applyTds ? amount * 0.015 : 0;
+        const applySasukar = formData.get('applySasukar') === 'on';
+        const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+
+        onSaveTransaction({
+          dateBs: txnFormDate,
+          dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+          category,
+          type,
+          isVatBill,
+          vatTaxableAmount,
+          amountWithoutVAT,
+          amountWithVAT,
+          tdsAmount,
+          sasukarAmount,
+          amount,
+          remarks: item.remarks,
+          partyName: item.partyName || (formData.get('partyName') as string) || undefined,
+          fiscalYear: currentFiscalYear,
+          referenceNo,
+          programId: item.programId || (formData.get('programId') as string) || undefined,
+          paymentMethod: txnPaymentMethod,
+        });
+      });
+    } else {
+      // Single transaction (Income or Edit)
+      const amount = Number(formData.get('amount'));
+      const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
+      const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
+      const amountWithoutVAT = amount - vatAmount;
+      const amountWithVAT = amount;
+      const applyTds = formData.get('applyTds') === 'on';
+      const tdsAmount = applyTds ? amount * 0.015 : 0;
+      const applySasukar = formData.get('applySasukar') === 'on';
+      const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+
+      onSaveTransaction({
+        ...editingItem,
+        dateBs: txnFormDate,
+        dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+        category,
+        type,
+        isVatBill,
+        vatTaxableAmount,
+        amountWithoutVAT,
+        amountWithVAT,
+        tdsAmount,
+        sasukarAmount,
+        amount,
+        remarks: formData.get('remarks') as string,
+        partyName: formData.get('partyName') as string || undefined,
+        fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
+        referenceNo,
+        incomeSource: incomeSource || undefined,
+        programId: formData.get('programId') as string || undefined,
+        paymentMethod: txnPaymentMethod,
+      });
+    }
+
     setShowForm(false);
     setEditingItem(null);
+    setTxnItems([{remarks: '', amount: 0}]);
   };
 
   const handlePartySave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -2455,6 +2506,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${item.type === 'Income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{item.type}</span>
+                            {item.paymentMethod && (
+                              <div className="mt-1 text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                {item.paymentMethod === 'Bank' ? '🏦 Bank' : '💵 Cash'}
+                              </div>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-right font-black font-mono text-sm">
                              {item.isVatBill && (
@@ -2826,8 +2882,158 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             onChange={(val) => setTxnFormDate(val)}
                           />
                         </div>
-                        <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount || editingItem?.amountWithVAT} required />
-                        <div className="flex items-center gap-2 mt-6">
+                        <Select 
+                          label="प्रकार (Type)" 
+                          name="type" 
+                          value={txnType} 
+                          onChange={(e) => setTxnType(e.target.value as any)}
+                          options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} 
+                          required 
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <Select 
+                          label="भुक्तानी विधि (Payment Method)" 
+                          name="paymentMethod" 
+                          value={txnPaymentMethod}
+                          onChange={(e) => setTxnPaymentMethod(e.target.value as any)}
+                          options={[
+                            {label: 'नगद (Cash)', value: 'Cash'},
+                            {label: 'बैंक (Bank)', value: 'Bank'}
+                          ]} 
+                          required
+                        />
+                        <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category || 'General'} options={[
+                          {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
+                          {label: 'ल्याब (Lab Service)', value: 'Lab'},
+                          {label: 'साधारण (General)', value: 'General'},
+                          {label: 'कार्यक्रम भुक्तानी (Program Payment)', value: 'Program Payment'}
+                        ]} required />
+                      </div>
+
+                      {txnType === 'Income' || editingItem ? (
+                        <>
+                          <Input label="रकम (Amount)" name="amount" type="number" defaultValue={editingItem?.amount || editingItem?.amountWithVAT} required />
+                          <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
+                          {txnType === 'Income' && (
+                             <Select 
+                              label="आम्दानीको श्रोत (Income Source)" 
+                              name="incomeSource" 
+                              defaultValue={editingItem?.incomeSource}
+                              options={[
+                                {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
+                                {label: 'वडा (Wada)', value: 'Wada'},
+                                {label: 'आन्तरिक (Internal)', value: 'Internal'},
+                                {label: 'अन्य (Other)', value: 'Other'}
+                              ]} 
+                            />
+                          )}
+                           <Select 
+                            label="कार्यक्रम/बजेट उप-शीर्षक (Program/Budget)" 
+                            name="programId" 
+                            defaultValue={editingItem?.programId}
+                            options={[...programs].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }))} 
+                          />
+                        </>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">खर्च विवरणहरू (Expense Items)</label>
+                            <button 
+                              type="button" 
+                              onClick={() => setTxnItems([...txnItems, {remarks: '', amount: 0}])}
+                              className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs font-bold"
+                            >
+                              <Plus size={14} /> थप्नुहोस् (Add)
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {txnItems.map((item, index) => (
+                              <div key={index} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative group">
+                                {txnItems.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setTxnItems(txnItems.filter((_, i) => i !== index))}
+                                    className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                )}
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">विवरण (Remarks)</label>
+                                    <input 
+                                      type="text" 
+                                      value={item.remarks} 
+                                      onChange={(e) => {
+                                        const newItems = [...txnItems];
+                                        newItems[index].remarks = e.target.value;
+                                        setTxnItems(newItems);
+                                      }}
+                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                      placeholder="खर्चको विवरण"
+                                      required
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">रकम (Amount)</label>
+                                    <input 
+                                      type="number" 
+                                      value={item.amount || ''} 
+                                      onChange={(e) => {
+                                        const newItems = [...txnItems];
+                                        newItems[index].amount = Number(e.target.value);
+                                        setTxnItems(newItems);
+                                      }}
+                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                      placeholder="रकम"
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">कार्यक्रम (Program)</label>
+                                    <select 
+                                      value={item.programId || ''} 
+                                      onChange={(e) => {
+                                        const newItems = [...txnItems];
+                                        newItems[index].programId = e.target.value;
+                                        setTxnItems(newItems);
+                                      }}
+                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                    >
+                                      <option value="">कार्यक्रम छान्नुहोस्</option>
+                                      {[...programs].sort((a, b) => a.name.localeCompare(b.name)).map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">पार्टीको नाम (Party)</label>
+                                    <input 
+                                      type="text" 
+                                      value={item.partyName || ''} 
+                                      onChange={(e) => {
+                                        const newItems = [...txnItems];
+                                        newItems[index].partyName = e.target.value;
+                                        setTxnItems(newItems);
+                                      }}
+                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                      placeholder="फर्म वा व्यक्तिको नाम"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-3 gap-4 mt-2">
+                        <div className="flex items-center gap-2">
                             <input 
                               type="checkbox" 
                               name="isVatBill" 
@@ -2839,15 +3045,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                               }}
                               className="rounded text-rose-600 focus:ring-rose-500" 
                             />
-                            <label htmlFor="isVatBill" className="text-xs font-black text-slate-700 uppercase tracking-widest">VAT बिल हो? (Is VAT Bill?)</label>
+                            <label htmlFor="isVatBill" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">VAT बिल हो?</label>
                         </div>
-                        <div className="flex items-center gap-2 mt-6">
+                        <div className="flex items-center gap-2">
                             <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
-                            <label htmlFor="applyTds" className="text-xs font-black text-rose-600 uppercase tracking-widest">१.५% TDS काट्ने? (Deduct 1.5% TDS?)</label>
+                            <label htmlFor="applyTds" className="text-[10px] font-black text-rose-600 uppercase tracking-widest">१.५% TDS?</label>
                         </div>
-                        <div className="flex items-center gap-2 mt-6">
+                        <div className="flex items-center gap-2">
                             <input type="checkbox" name="applySasukar" id="applySasukar" className="rounded text-rose-600 focus:ring-rose-500" />
-                            <label htmlFor="applySasukar" className="text-xs font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर काट्ने? (Deduct 1% SASUKAR?)</label>
+                            <label htmlFor="applySasukar" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर?</label>
                         </div>
                       </div>
 
@@ -2872,37 +3078,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           )}
                         </div>
                       )}
-                      <div className="grid grid-cols-2 gap-4">
-                        <Select label="प्रकार (Type)" name="type" defaultValue={editingItem?.type} options={[{label: 'आम्दानी (Income)', value: 'Income'}, {label: 'खर्च (Expense)', value: 'Expense'}]} required />
-                        <Select label="वर्ग (Category)" name="category" defaultValue={editingItem?.category} options={[
-                          {label: 'एम्बुलेन्स (Ambulance)', value: 'Ambulance'},
-                          {label: 'ल्याब (Lab Service)', value: 'Lab'},
-                          {label: 'साधारण (General)', value: 'General'},
-                          {label: 'कार्यक्रम भुक्तानी (Program Payment)', value: 'Program Payment'}
-                        ]} required />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Select 
-                          label="आम्दानीको श्रोत (Income Source)" 
-                          name="incomeSource" 
-                          defaultValue={editingItem?.incomeSource}
-                          options={[
-                            {label: 'नगरपालिका (Nagarpalika)', value: 'Nagarpalika'},
-                            {label: 'वडा (Wada)', value: 'Wada'},
-                            {label: 'आन्तरिक (Internal)', value: 'Internal'},
-                            {label: 'अन्य (Other)', value: 'Other'}
-                          ]} 
-                        />
-                         <Select 
-                          label="खर्च विवरण/कार्यक्रम (Budget/Program)" 
-                          name="programId" 
-                          defaultValue={editingItem?.programId}
-                          options={[...programs].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }))} 
-                        />
-                      </div>
-                      <Input label="फर्म/पार्टीको नाम (Form/Party Name)" name="partyName" defaultValue={editingItem?.partyName} placeholder="खर्च हुने फर्म वा व्यक्तिको नाम" />
                       <Input label="सन्दर्भ नं. (Reference No)" name="referenceNo" defaultValue={txnRefNo} required />
-                      <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
                     </>
                   )}
 
