@@ -66,6 +66,11 @@ export interface FinancialTransaction {
     tax15Amount?: number;
     partyName?: string;
     programId?: string;
+    needsBharpai?: boolean;
+    bharpaiUnitType?: 'days' | 'qty';
+    bharpaiDays?: number;
+    bharpaiRate?: number;
+    bharpaiPersons?: BharpaiPerson[];
   }[];
 }
 

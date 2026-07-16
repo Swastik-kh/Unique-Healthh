@@ -420,6 +420,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             tax15Amount,
             partyName: item.partyName || (formData.get('partyName') as string) || undefined,
             programId: item.programId || (formData.get('programId') as string) || undefined,
+            needsBharpai: item.needsBharpai,
+            bharpaiUnitType: item.bharpaiUnitType || 'days',
+            bharpaiDays: item.bharpaiDays,
+            bharpaiRate: item.bharpaiRate,
+            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || (formData.get('partyName') as string) || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
           });
         });
 
@@ -1434,38 +1439,41 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     }, 500);
   };
 
-  const handlePrintBharpai = (txn: FinancialTransaction) => {
+  const handlePrintBharpai = (txn: FinancialTransaction, itemIndex?: number) => {
     const printWin = window.open('', '', 'width=1000,height=800');
     if (!printWin) return;
 
-    const unitLabel = txn.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन';
-    const program = programs.find(p => p.id === txn.programId);
+    const source = (itemIndex !== undefined && txn.items && txn.items[itemIndex]) ? txn.items[itemIndex] : txn;
+    
+    const unitLabel = source.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन';
+    const programId = source.programId || txn.programId;
+    const program = programs.find(p => p.id === programId);
     
     // Determine the list of persons
-    const persons = txn.bharpaiPersons && txn.bharpaiPersons.length > 0
-      ? txn.bharpaiPersons
+    const persons = source.bharpaiPersons && source.bharpaiPersons.length > 0
+      ? source.bharpaiPersons
       : [{
-          name: txn.partyName || txn.remarks || '....................',
-          days: txn.bharpaiDays || 1,
-          rate: txn.bharpaiRate || txn.amount || 0
+          name: source.partyName || source.remarks || '....................',
+          days: source.bharpaiDays || 1,
+          rate: source.bharpaiRate || source.amount || 0
         }];
 
     // Calculate total base amount from persons
-    const txnTotalAmount = persons.reduce((sum, p) => sum + (p.days * p.rate), 0) || (txn.amountWithVAT || txn.amount || 0);
+    const txnTotalAmount = persons.reduce((sum: number, p: any) => sum + (p.days * p.rate), 0) || (source.amountWithVAT || source.amount || 0);
 
     let rowsHtml = '';
     let grandTotal = 0;
     let grandTotalTax = 0;
     let grandNetAmount = 0;
 
-    persons.forEach((person, idx) => {
+    persons.forEach((person: any, idx: number) => {
       const personTotal = person.days * person.rate;
       const ratio = txnTotalAmount > 0 ? (personTotal / txnTotalAmount) : (1 / persons.length);
 
       // Proportional taxes
-      const personTds = (txn.tdsAmount && txn.tdsAmount > 0) ? Math.round((txn.tdsAmount || 0) * ratio) : 0;
-      const personSasukar = (txn.sasukarAmount && txn.sasukarAmount > 0) ? Math.round((txn.sasukarAmount || 0) * ratio) : 0;
-      const personTax15 = (txn.tax15Amount && txn.tax15Amount > 0) ? Math.round((txn.tax15Amount || 0) * ratio) : 0;
+      const personTds = (source.tdsAmount && source.tdsAmount > 0) ? Math.round((source.tdsAmount || 0) * ratio) : 0;
+      const personSasukar = (source.sasukarAmount && source.sasukarAmount > 0) ? Math.round((source.sasukarAmount || 0) * ratio) : 0;
+      const personTax15 = (source.tax15Amount && source.tax15Amount > 0) ? Math.round((source.tax15Amount || 0) * ratio) : 0;
       const personTax = personTds + personSasukar + personTax15;
       const personNet = personTotal - personTax;
 
@@ -1500,7 +1508,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const content = `
       <html>
         <head>
-          <title>भर्पाई - ${txn.remarks}</title>
+          <title>भर्पाई - ${source.remarks}</title>
           <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
             @page { size: A4 ${printOrientation}; margin: 15mm; }
@@ -1542,7 +1550,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </div>
 
           <div class="bharpai-meta">
-            <div>खर्च विवरण (शीर्षक): ${txn.remarks}</div>
+            <div>खर्च विवरण (शीर्षक): ${source.remarks}</div>
             <div>मिति : ${toNepaliNumber(txn.dateBs)}</div>
           </div>
 
@@ -2931,6 +2939,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                >
                                  <FileText size={16} />
                                </button>
+                             )}
+                             {item.items && item.items.some((it: any) => it.needsBharpai) && (
+                               <div className="flex flex-col gap-1">
+                                 {item.items.map((it: any, idx: number) => it.needsBharpai ? (
+                                   <button 
+                                     key={idx}
+                                     onClick={() => handlePrintBharpai(item, idx)}
+                                     title={`Print Bharpai for ${it.remarks}`}
+                                     className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black text-emerald-600 hover:bg-emerald-50 border border-emerald-100 rounded transition-colors uppercase whitespace-nowrap"
+                                   >
+                                     <FileText size={10} /> भर्पाई-{idx + 1}
+                                   </button>
+                                 ) : null)}
+                               </div>
                              )}
                              <button 
                                onClick={() => {
