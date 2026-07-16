@@ -3302,7 +3302,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">खर्च विवरणहरू (Expense Items)</label>
                             <button 
                               type="button" 
-                              onClick={() => setTxnItems([...txnItems, {remarks: '', amount: 0}])}
+                              onClick={() => {
+                                setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}, ...txnItems]);
+                                alert('नयाँ विवरण थपियो!');
+                              }}
                               className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-xs font-bold"
                             >
                               <Plus size={14} /> थप्नुहोस् (Add)
@@ -3573,12 +3576,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                           onClick={() => {
                                             const newItems = [...txnItems];
                                             const currentPersons = item.bharpaiPersons || [];
-                                            const updatedPersons = [...currentPersons, { name: '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || 0 }];
+                                            const updatedPersons = [{ name: '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || 0 }, ...currentPersons];
                                             newItems[index].bharpaiPersons = updatedPersons;
                                             if (item.needsBharpai) {
                                               newItems[index].amount = updatedPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
                                             }
                                             setTxnItems(newItems);
+                                            alert('नयाँ व्यक्ति थपियो!');
                                           }}
                                           className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-[9px] font-black uppercase"
                                         >
@@ -3793,7 +3797,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setEditBharpaiPersons([...editBharpaiPersons, { name: '', days: editingItem?.bharpaiDays || 1, rate: editingItem?.bharpaiRate || 0 }]);
+                                  setEditBharpaiPersons([{ name: '', days: editingItem?.bharpaiDays || 1, rate: editingItem?.bharpaiRate || 0 }, ...editBharpaiPersons]);
+                                  alert('नयाँ व्यक्ति थपियो!');
                                 }}
                                 className="text-primary-600 hover:text-primary-700 flex items-center gap-1 text-[10px] font-black uppercase"
                               >
