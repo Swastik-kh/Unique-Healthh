@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { 
   DndContext, 
-  closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  DragOverlay
 } from '@dnd-kit/core';
+import {
+  restrictToVerticalAxis
+} from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
@@ -107,7 +111,11 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -205,8 +213,9 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
         <DndContext 
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
+          modifiers={[restrictToVerticalAxis]}
         >
           {renderSortableItems(config)}
         </DndContext>

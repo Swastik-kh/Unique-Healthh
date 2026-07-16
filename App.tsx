@@ -29,7 +29,7 @@ const INITIAL_SETTINGS: OrganizationSettings = {
     website: 'www.smartinventory.com',
     panNo: 'XXXXXXXXX',
     defaultVatRate: '13',
-    activeFiscalYear: '2082/083',
+    activeFiscalYear: '2083/084',
     enableEnglishDate: 'no',
     logoUrl: '',
     allServiceOptions: AVAILABLE_SERVICES,
@@ -57,7 +57,7 @@ const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_ADMIN]); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeOrgName, setActiveOrgName] = useState<string>('');
-  const [currentFiscalYear, setCurrentFiscalYear] = useState<string>('2082/083');
+  const [currentFiscalYear, setCurrentFiscalYear] = useState<string>('2083/084');
   const [generalSettings, setGeneralSettings] = useState<OrganizationSettings>(INITIAL_SETTINGS);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -1922,7 +1922,7 @@ const App: React.FC = () => {
                 <LoginForm 
                     users={allUsers} 
                     onLoginSuccess={handleLoginSuccess} 
-                    initialFiscalYear={'2082/083'} 
+                    initialFiscalYear={'2083/084'} 
                 />
               </div>
               <div className="bg-slate-50 p-5 text-center border-t border-slate-100 flex items-center justify-center gap-3">

@@ -19,7 +19,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, initialFiscalYear }) => {
   const [formData, setFormData] = useState<LoginFormData>({
-    fiscalYear: initialFiscalYear || '2082/083',
+    fiscalYear: initialFiscalYear || '2083/084',
     username: '',
     password: '',
   });

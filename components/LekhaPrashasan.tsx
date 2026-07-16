@@ -370,9 +370,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const referenceNo = (formData.get('referenceNo') as string) || txnRefNo;
     const isVatBill = txnIsVatBill;
 
-    // If type is Expense, use txnItems
-    if (type === 'Expense' && !editingItem) {
-      if (txnItems.length > 1) {
+    // If type is Expense, handle multi-item or single-item based on txnItems length
+    if (type === 'Expense') {
+      if (txnItems.length > 1 || (editingItem && editingItem.items && editingItem.items.length > 1)) {
         // Multi-item transaction
         const aggregatedItems: any[] = [];
         let totalAmount = 0;
@@ -431,8 +431,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         if (aggregatedItems.length === 0) return;
 
         onSaveTransaction({
+          ...editingItem,
           dateBs: txnFormDate,
-          dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
+          dateAd: editingItem?.dateAd || new NepaliDate(txnFormDate).toJsDate().toISOString(),
           category,
           type,
           isVatBill,
@@ -443,17 +444,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           sasukarAmount: totalSasukarAmount,
           tax15Amount: totalTax15Amount,
           amount: totalAmount,
-          remarks: aggregatedItems[0].remarks + (aggregatedItems.length > 1 ? ` र अन्य ${aggregatedItems.length - 1} खर्चहरू` : ''),
+          remarks: editingItem?.remarks && !editingItem.items ? editingItem.remarks : (aggregatedItems[0].remarks + (aggregatedItems.length > 1 ? ` र अन्य ${aggregatedItems.length - 1} खर्चहरू` : '')),
           partyName: formData.get('partyName') as string || undefined,
-          fiscalYear: currentFiscalYear,
+          fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
           referenceNo,
           programId: aggregatedItems[0].programId,
           paymentMethod: txnPaymentMethod,
           checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
           items: aggregatedItems
         });
-      } else {
-        // Single item
+      } else if (!editingItem) {
+        // New Single item
         txnItems.forEach(item => {
           if (item.amount <= 0) return;
 
@@ -495,9 +496,53 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
           });
         });
+      } else {
+        // Editing a single item transaction
+        const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
+        const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
+        const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
+        const amountWithoutVAT = amount - vatAmount;
+        const amountWithVAT = amount;
+        
+        const applyTds = formData.get('applyTds') === 'on';
+        const tdsAmount = applyTds ? (isVatBill ? vatTaxableAmount * 0.015 : amount * 0.015) : 0;
+        const applySasukar = formData.get('applySasukar') === 'on';
+        const sasukarAmount = applySasukar ? amountWithoutVAT * 0.01 : 0;
+        const applyTax15 = formData.get('applyTax15') === 'on';
+        const tax15Amount = applyTax15 ? amountWithoutVAT * 0.15 : 0;
+
+        onSaveTransaction({
+          ...editingItem,
+          dateBs: txnFormDate,
+          dateAd: editingItem?.dateAd || new NepaliDate(txnFormDate).toJsDate().toISOString(),
+          category,
+          type,
+          isVatBill,
+          vatTaxableAmount,
+          amountWithoutVAT,
+          amountWithVAT,
+          tdsAmount,
+          sasukarAmount,
+          tax15Amount,
+          amount,
+          remarks: formData.get('remarks') as string,
+          partyName: formData.get('partyName') as string || undefined,
+          fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
+          referenceNo,
+          incomeSource: incomeSource || undefined,
+          programId: formData.get('programId') as string || undefined,
+          paymentMethod: txnPaymentMethod,
+          checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
+          needsBharpai: editNeedsBharpai,
+          bharpaiUnitType: editBharpaiUnitType || 'days',
+          bharpaiDays: Number(editBharpaiDays || 0),
+          bharpaiRate: Number(editBharpaiRate || 0),
+          bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined,
+          items: undefined // Ensure multi-item is removed if saved as single
+        });
       }
     } else {
-      // Single transaction (Income or Edit)
+      // Income transaction (always single)
       const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
       const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
       const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
@@ -2899,6 +2944,27 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    setEditTxnAmount(item.amount || '');
                                    setEditBharpaiDays(item.bharpaiDays || '');
                                    setEditBharpaiRate(item.bharpaiRate || '');
+
+                                   if (item.items && item.items.length > 0) {
+                                     setTxnItems(item.items.map((it: any) => ({
+                                       remarks: it.remarks,
+                                       amount: it.amount,
+                                       programId: it.programId,
+                                       partyName: it.partyName,
+                                       isVatBill: it.isVatBill,
+                                       vatTaxableAmount: it.vatTaxableAmount,
+                                       applyTds: !!(it.tdsAmount && it.tdsAmount > 0),
+                                       applySasukar: !!(it.sasukarAmount && it.sasukarAmount > 0),
+                                       applyTax15: !!(it.tax15Amount && it.tax15Amount > 0),
+                                       needsBharpai: it.needsBharpai,
+                                       bharpaiUnitType: it.bharpaiUnitType,
+                                       bharpaiDays: it.bharpaiDays,
+                                       bharpaiRate: it.bharpaiRate,
+                                       bharpaiPersons: it.bharpaiPersons || []
+                                     })));
+                                   } else {
+                                     setTxnItems([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false}]);
+                                   }
                                  }
                                  else if (activeTab === 'payments') {
                                    setFormType('payment');
@@ -3287,7 +3353,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         ]} required />
                       </div>
 
-                      {txnType === 'Income' || editingItem ? (
+                      {txnType === 'Income' || (editingItem && (!editingItem.items || editingItem.items.length <= 1)) ? (
                         <>
                           <Input 
                             label="रकम (Amount)" 
@@ -3713,51 +3779,53 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         </div>
                       )}
 
-                      <div className="grid grid-cols-5 gap-4 mt-2">
-                        <div className="flex items-center gap-2">
-                            <input 
-                              type="checkbox" 
-                              name="isVatBill" 
-                              id="isVatBill" 
-                              checked={txnIsVatBill}
-                              onChange={(e) => {
-                                setTxnIsVatBill(e.target.checked);
-                                if (e.target.checked && editTxnAmount) {
-                                  setTxnVatTaxableAmount(Number((Number(editTxnAmount) / 1.13).toFixed(2)));
-                                } else if (!e.target.checked) {
-                                  setTxnVatTaxableAmount('');
-                                }
-                              }}
-                              className="rounded text-rose-600 focus:ring-rose-500" 
-                            />
-                            <label htmlFor="isVatBill" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">VAT बिल हो?</label>
+                      {txnType === 'Expense' && txnItems.length <= 1 && (
+                        <div className="grid grid-cols-5 gap-4 mt-2">
+                          <div className="flex items-center gap-2">
+                              <input 
+                                type="checkbox" 
+                                name="isVatBill" 
+                                id="isVatBill" 
+                                checked={txnIsVatBill}
+                                onChange={(e) => {
+                                  setTxnIsVatBill(e.target.checked);
+                                  if (e.target.checked && editTxnAmount) {
+                                    setTxnVatTaxableAmount(Number((Number(editTxnAmount) / 1.13).toFixed(2)));
+                                  } else if (!e.target.checked) {
+                                    setTxnVatTaxableAmount('');
+                                  }
+                                }}
+                                className="rounded text-rose-600 focus:ring-rose-500" 
+                              />
+                              <label htmlFor="isVatBill" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">VAT बिल हो?</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
+                              <label htmlFor="applyTds" className="text-[10px] font-black text-rose-600 uppercase tracking-widest">१.५% TDS?</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <input type="checkbox" name="applySasukar" id="applySasukar" className="rounded text-rose-600 focus:ring-rose-500" />
+                              <label htmlFor="applySasukar" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर?</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <input type="checkbox" name="applyTax15" id="applyTax15" className="rounded text-rose-600 focus:ring-rose-500" />
+                              <label htmlFor="applyTax15" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१५% कर?</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <input 
+                                type="checkbox" 
+                                name="needsBharpai" 
+                                id="needsBharpai" 
+                                checked={editNeedsBharpai}
+                                onChange={(e) => setEditNeedsBharpai(e.target.checked)}
+                                className="rounded text-primary-600 focus:ring-primary-500" 
+                              />
+                              <label htmlFor="needsBharpai" className="text-[10px] font-black text-primary-700 uppercase tracking-widest">भर्पाई?</label>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" name="applyTds" id="applyTds" className="rounded text-rose-600 focus:ring-rose-500" />
-                            <label htmlFor="applyTds" className="text-[10px] font-black text-rose-600 uppercase tracking-widest">१.५% TDS?</label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" name="applySasukar" id="applySasukar" className="rounded text-rose-600 focus:ring-rose-500" />
-                            <label htmlFor="applySasukar" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१% सा.सु कर?</label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" name="applyTax15" id="applyTax15" className="rounded text-rose-600 focus:ring-rose-500" />
-                            <label htmlFor="applyTax15" className="text-[10px] font-black text-slate-700 uppercase tracking-widest">१५% कर?</label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input 
-                              type="checkbox" 
-                              name="needsBharpai" 
-                              id="needsBharpai" 
-                              checked={editNeedsBharpai}
-                              onChange={(e) => setEditNeedsBharpai(e.target.checked)}
-                              className="rounded text-primary-600 focus:ring-primary-500" 
-                            />
-                            <label htmlFor="needsBharpai" className="text-[10px] font-black text-primary-700 uppercase tracking-widest">भर्पाई?</label>
-                        </div>
-                      </div>
+                      )}
 
-                      {editNeedsBharpai && (
+                      {txnType === 'Expense' && txnItems.length <= 1 && editNeedsBharpai && (
                         <div className="space-y-3 mt-4">
                           <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-2xl border border-slate-200/60">
                             <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">भर्पाई प्रकार (Unit Type)</span>
