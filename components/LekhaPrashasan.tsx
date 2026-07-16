@@ -4,13 +4,13 @@ import {
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
   Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download,
-  ClipboardList, Building2, Eye, Book, FileText, CheckSquare, BarChart
+  ClipboardList, Building2, Eye, Book, FileText, CheckSquare
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { 
-  BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher, JournalEntry, BudgetHead, ChartOfAccount, AdvanceRecord, AuditLog } from '../types/financeTypes';
+import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher, JournalEntry } from '../types/financeTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -29,10 +29,6 @@ interface LekhaPrashasanProps {
   vouchers: GoswaraVoucher[];
   paymentRequests: PaymentRequest[];
   allowances: AllowanceRecord[];
-  budgetHeads: BudgetHead[];
-  coa: ChartOfAccount[];
-  advances: AdvanceRecord[];
-  auditLogs: AuditLog[];
   onSaveProgram: (program: any) => void;
   onDeleteProgram: (id: string) => void;
   onSaveParty: (party: any) => void;
@@ -47,11 +43,6 @@ interface LekhaPrashasanProps {
   onDeleteAllowance: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
   onDeletePayment: (id: string, amount: number, partyId: string, programId: string) => void;
-  onSaveVoucher: (voucher: any) => void;
-  onSaveBudgetHead: (head: any) => void;
-  onSaveCOA: (account: any) => void;
-  onSaveAdvance: (advance: any) => void;
-  onSaveAuditLog: (log: any) => void;
   generalSettings: OrganizationSettings;
   currentFiscalYear: string;
   isAdmin: boolean;
@@ -65,10 +56,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   vouchers = [],
   paymentRequests = [],
   allowances = [],
-  budgetHeads = [],
-  coa = [],
-  advances = [],
-  auditLogs = [],
   onSaveProgram,
   onDeleteProgram,
   onSaveParty,
@@ -83,25 +70,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   onDeleteAllowance,
   onDeleteTransaction,
   onDeletePayment,
-  onSaveVoucher,
-  onSaveBudgetHead,
-  onSaveCOA,
-  onSaveAdvance,
-  onSaveAuditLog,
   generalSettings,
   currentFiscalYear,
   isAdmin
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'fiscal_year' | 'coa' | 'budget' | 'programs' | 'income' | 'expense' | 
-    'payment_request' | 'bill_reg' | 'vendors' | 'allowance' | 'advance' | 'advance_settlement' | 
-    'approval_workflow' | 'payment' | 'cheque' | 'e_payment' | 'cash_book' | 'bank_book' | 
-    'petty_cash' | 'reconciliation' | 'journal_voucher' | 'general_ledger' | 'trial_balance' | 
-    'balance_sheet' | 'income_expenditure' | 'budget_vs_actual' | 'program_report' | 
-    'vendor_ledger' | 'employee_ledger' | 'fixed_assets' | 'depreciation' | 'audit_log' | 
-    'docs' | 'backup'
-  >('dashboard');
-  const [activeCategory, setActiveCategory] = useState<'admin' | 'transactions' | 'accounts' | 'reports' | 'other' | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports' | 'journal_voucher' | 'bank_cash_book' | 'kharcha_fatbari' | 'bank_reconciliation'>('dashboard');
   const [selectedMonth, setSelectedMonth] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -317,7 +290,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handleProgramSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const programData = {
+    onSaveProgram({
       ...editingItem,
       name: formData.get('name') as string,
       source: formData.get('source') as any,
@@ -325,9 +298,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       createdAt: editingItem?.createdAt || today,
       spentAmount: editingItem?.spentAmount || 0
-    };
-    onSaveProgram(programData);
-    logAction(editingItem ? 'UPDATE' : 'CREATE', 'Programs', programData, editingItem);
+    });
     setShowForm(false);
     setEditingItem(null);
   };
@@ -388,63 +359,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setShowForm(false);
     setEditingItem(null);
     setIsOtherProgramSelected(false);
-  };
-
-  const logAction = (action: 'CREATE' | 'UPDATE' | 'DELETE', module: string, newValue: any, oldValue?: any) => {
-    onSaveAuditLog({
-      userId: 'Admin', 
-      userName: 'Admin User',
-      action,
-      module,
-      timestamp: Date.now(),
-      oldValue: oldValue ? JSON.stringify(oldValue) : undefined,
-      newValue: JSON.stringify(newValue),
-      reason: 'User Action'
-    });
-  };
-
-  const generateAutoVoucher = (txn: any) => {
-    const entries: JournalEntry[] = [];
-    const total = txn.amountWithVAT || txn.amount;
-    
-    if (txn.type === 'Income') {
-      entries.push({
-        accountName: txn.paymentMethod === 'Bank' ? 'बैंक खाता (Bank Account)' : 'नगद खाता (Cash Account)',
-        debit: total
-      });
-      entries.push({
-        accountName: txn.category || 'आम्दानी शीर्षक (Revenue Head)',
-        credit: total
-      });
-    } else if (txn.type === 'Expense') {
-      entries.push({
-        accountName: txn.remarks || 'खर्च शीर्षक (Expense Head)',
-        debit: total
-      });
-      
-      if (txn.tdsAmount) {
-        entries.push({
-          accountName: 'TDS भुक्तानी दायित्व (TDS Payable)',
-          credit: txn.tdsAmount
-        });
-      }
-      
-      entries.push({
-        accountName: txn.paymentMethod === 'Bank' ? 'बैंक खाता (Bank Account)' : 'नगद खाता (Cash Account)',
-        credit: total - (txn.tdsAmount || 0)
-      });
-    }
-    
-    return {
-      dateBs: txn.dateBs,
-      transactionId: txn.id || txn.referenceNo,
-      entries,
-      totalAmount: total,
-      fiscalYear: txn.fiscalYear,
-      remarks: txn.remarks,
-      paymentMethod: txn.paymentMethod,
-      checkNo: txn.checkNo
-    };
   };
 
   const handleTransactionSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -516,7 +430,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
         if (aggregatedItems.length === 0) return;
 
-        const txnData = {
+        onSaveTransaction({
           dateBs: txnFormDate,
           dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
           category,
@@ -536,12 +450,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           programId: aggregatedItems[0].programId,
           paymentMethod: txnPaymentMethod,
           checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
-          items: aggregatedItems,
-          status: 'Paid'
-        };
-
-        onSaveTransaction(txnData);
-        onSaveVoucher(generateAutoVoucher({ ...txnData, id: referenceNo }));
+          items: aggregatedItems
+        });
       } else {
         // Single item
         txnItems.forEach(item => {
@@ -558,7 +468,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           const sasukarAmount = item.applySasukar ? amountWithoutVAT * 0.01 : 0;
           const tax15Amount = item.applyTax15 ? amountWithoutVAT * 0.15 : 0;
 
-          const singleTxnData = {
+          onSaveTransaction({
             dateBs: txnFormDate,
             dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
             category,
@@ -582,11 +492,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             bharpaiUnitType: item.bharpaiUnitType || 'days',
             bharpaiDays: item.bharpaiDays,
             bharpaiRate: item.bharpaiRate,
-            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined,
-            status: 'Paid'
-          };
-          onSaveTransaction(singleTxnData);
-          onSaveVoucher(generateAutoVoucher({ ...singleTxnData, id: referenceNo }));
+            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
+          });
         });
       }
     } else {
@@ -604,7 +511,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       const applyTax15 = formData.get('applyTax15') === 'on';
       const tax15Amount = applyTax15 ? amountWithoutVAT * 0.15 : 0;
 
-      const singleTxnData = {
+      onSaveTransaction({
         ...editingItem,
         dateBs: txnFormDate,
         dateAd: new NepaliDate(txnFormDate).toJsDate().toISOString(),
@@ -621,7 +528,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         remarks: formData.get('remarks') as string,
         partyName: formData.get('partyName') as string || undefined,
         fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
-        referenceNo: editingItem?.referenceNo || referenceNo,
+        referenceNo,
         incomeSource: incomeSource || undefined,
         programId: formData.get('programId') as string || undefined,
         paymentMethod: txnPaymentMethod,
@@ -630,12 +537,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         bharpaiUnitType: editBharpaiUnitType || 'days',
         bharpaiDays: Number(editBharpaiDays || 0),
         bharpaiRate: Number(editBharpaiRate || 0),
-        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined,
-        status: editingItem?.status || 'Paid'
-      };
-
-      onSaveTransaction(singleTxnData);
-      onSaveVoucher(generateAutoVoucher({ ...singleTxnData, id: singleTxnData.id || referenceNo }));
+        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined
+      });
     }
 
     setShowForm(false);
@@ -1719,208 +1622,107 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setShowForm(true);
   };
 
-  const renderDashboard = () => {
-    const todayIncome = transactions.filter(t => t.dateBs === today && t.type === 'Income').reduce((sum, t) => sum + (t.amount || 0), 0);
-    const todayExpense = transactions.filter(t => t.dateBs === today && t.type === 'Expense').reduce((sum, t) => sum + (t.amount || 0), 0);
-    const totalBudget = programs.reduce((sum, p) => sum + (p.totalBudget || 0), 0);
-    const spentBudget = programs.reduce((sum, p) => sum + (p.spentAmount || 0), 0);
-    const remainingBudget = totalBudget - spentBudget;
-    const utilizationPercent = totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
-
-    const pendingRequests = paymentRequests.filter(r => r.status === 'Submitted').length;
-    const pendingAllowances = allowances.filter(a => !a.isPaid).length;
-    const pendingVouchers = vouchers.filter(v => !v.id.includes('JV')).length; 
-
-    const mainMetrics = [
-      { label: 'आजको आम्दानी', value: `रू ${todayIncome.toLocaleString()}`, icon: ArrowDownCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-      { label: 'आजको खर्च', value: `रू ${todayExpense.toLocaleString()}`, icon: ArrowUpCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
-      { label: 'बैंक मौज्दात', value: `रू ${stats.balance.toLocaleString()}`, icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50' },
-      { label: 'कुल बजेट', value: `रू ${totalBudget.toLocaleString()}`, icon: DollarSign, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-      { label: 'बजेट बाँकी', value: `रू ${remainingBudget.toLocaleString()}`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
-      { label: 'बजेट उपयोग %', value: `${utilizationPercent.toFixed(1)}%`, icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50' },
-    ];
-
-    const alerts = [
-      { label: 'Pending Requests', count: pendingRequests, color: 'bg-orange-500' },
-      { label: 'Pending Allowances', count: pendingAllowances, color: 'bg-rose-500' },
-      { label: 'Pending Vouchers', count: pendingVouchers, color: 'bg-blue-500' },
-      { label: 'Advance Due', count: 0, color: 'bg-amber-500' },
-    ];
-
-    return (
-      <div className="space-y-8 animate-in fade-in duration-500">
-        {/* Main Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {mainMetrics.map((m, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className={`${m.bg} p-6 rounded-3xl border border-white/50 shadow-xl shadow-slate-100 relative overflow-hidden group`}
-            >
-              <div className="relative z-10">
-                <m.icon className={`${m.color} mb-3 group-hover:scale-110 transition-transform`} size={24} />
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 font-nepali">{m.label}</p>
-                <p className={`text-xl font-black ${m.color}`}>{m.value}</p>
-              </div>
-              <m.icon className="absolute -right-4 -bottom-4 opacity-5 scale-150" size={80} />
-            </motion.div>
-          ))}
+  const renderDashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+              <TrendingUp size={24} />
+            </div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Income</span>
+          </div>
+          <h2 className="text-3xl font-black text-slate-800 font-mono">रू {stats.income.toLocaleString()}</h2>
+          <p className="text-xs text-emerald-600 font-bold mt-2 font-nepali">चालु आर्थिक वर्षको कुल आम्दानी</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Charts & Trends */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800 font-nepali">वित्तीय प्रवाह (Financial Flow)</h3>
-                  <p className="text-sm text-slate-500 font-medium">Monthly revenue vs expenditure</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                    <span className="text-xs font-bold text-slate-600">आम्दानी</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                    <span className="text-xs font-bold text-slate-600">खर्च</span>
-                  </div>
-                </div>
-              </div>
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsBarChart data={budgetPatternData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="fy" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
-                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} />
-                    <Bar dataKey="budget" fill="#10b981" radius={[8, 8, 0, 0]} barSize={40} />
-                  </RechartsBarChart>
-                </ResponsiveContainer>
-              </div>
+        <div className="bg-white p-6 rounded-2xl border border-rose-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+              <TrendingDown size={24} />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100">
-                <h3 className="text-lg font-black text-slate-800 font-nepali mb-6">हालैका कारोबारहरू (Recent Transactions)</h3>
-                <div className="space-y-4">
-                  {transactions.slice(0, 5).map((t, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${t.type === 'Income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                          {t.type === 'Income' ? <ArrowDownCircle size={16} /> : <ArrowUpCircle size={16} />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-700 truncate w-32 font-nepali">{t.remarks}</p>
-                          <p className="text-[10px] text-slate-400 font-bold">{t.dateBs}</p>
-                        </div>
-                      </div>
-                      <p className={`text-sm font-black ${t.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {t.type === 'Income' ? '+' : '-'} रू {t.amount.toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100">
-                <h3 className="text-lg font-black text-slate-800 font-nepali mb-6">आन्तरिक सूचना (Internal Alerts)</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {alerts.map((a, i) => (
-                    <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1 font-nepali">{a.label}</p>
-                      <p className={`text-2xl font-black ${a.count > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{a.count}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Expense</span>
           </div>
+          <h2 className="text-3xl font-black text-slate-800 font-mono">रू {stats.expense.toLocaleString()}</h2>
+          <p className="text-xs text-rose-600 font-bold mt-2 font-nepali">चालु आर्थिक वर्षको कुल खर्च</p>
+        </div>
 
-          {/* Sidebar Metrics */}
-          <div className="space-y-8">
-            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-3xl text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
-              <div className="relative z-10">
-                <p className="text-xs font-black text-indigo-100 uppercase tracking-widest mb-4 font-nepali">बजेट उपयोगिता (Budget Utilization)</p>
-                <div className="flex items-end gap-2 mb-4">
-                  <p className="text-4xl font-black">{utilizationPercent.toFixed(1)}%</p>
-                  <p className="text-xs font-bold text-indigo-200 mb-2">of total budget</p>
+        <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+              <Calculator size={24} />
+            </div>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Balance</span>
+          </div>
+          <h2 className={`text-3xl font-black font-mono ${stats.balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+            रू {stats.balance.toLocaleString()}
+          </h2>
+          <p className="text-xs text-blue-600 font-bold mt-2 font-nepali">मौज्दात रकम</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <Briefcase size={18} className="text-primary-600" />
+              <span className="font-nepali">बजेट कार्यक्रमहरू</span>
+            </h3>
+            <button onClick={() => { setActiveTab('programs'); setSearchTerm(''); }} className="text-xs text-primary-600 font-bold hover:underline">View All</button>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {programs.slice(0, 5).map(p => (
+              <div key={p.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                <div>
+                  <p className="font-bold text-slate-700 font-nepali">{p.name}</p>
+                  <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">{p.fiscalYear}</p>
                 </div>
-                <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden mb-6">
-                  <div className="h-full bg-white transition-all duration-1000" style={{ width: `${utilizationPercent}%` }}></div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-slate-800">रू {p.totalBudget.toLocaleString()}</p>
+                  <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden">
+                    <div 
+                      className="h-full bg-primary-500" 
+                      style={{ width: `${Math.min((p.spentAmount / p.totalBudget) * 100, 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+              </div>
+            ))}
+            {programs.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कार्यक्रम रेकर्ड गरिएको छैन।</div>}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <CreditCard size={18} className="text-rose-600" />
+              <span className="font-nepali">हालैका कारोबारहरू</span>
+            </h3>
+            <button onClick={() => { setActiveTab('transactions'); setSearchTerm(''); }} className="text-xs text-rose-600 font-bold hover:underline">View All</button>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {transactions.slice(0, 5).map(t => (
+              <div key={t.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${t.type === 'Income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {t.type === 'Income' ? <ArrowUpCircle size={16} /> : <ArrowDownCircle size={16} />}
+                  </div>
                   <div>
-                    <p className="text-[10px] font-bold text-indigo-200 uppercase font-nepali">खर्च (Spent)</p>
-                    <p className="font-black">रू {(spentBudget / 1000000).toFixed(2)}M</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold text-indigo-200 uppercase font-nepali">कुल (Total)</p>
-                    <p className="font-black">रू {(totalBudget / 1000000).toFixed(2)}M</p>
+                    <p className="text-sm font-bold text-slate-700 font-nepali line-clamp-1">{t.remarks}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{t.dateBs}</p>
                   </div>
                 </div>
+                <p className={`text-sm font-black ${t.type === 'Income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {t.type === 'Income' ? '+' : '-'} रू {t.amount}
+                </p>
               </div>
-              <DollarSign className="absolute -right-4 -bottom-4 opacity-10 scale-150" size={120} />
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-100">
-              <h3 className="text-lg font-black text-slate-800 font-nepali mb-6">Cash Flow Summary</h3>
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-10 bg-emerald-500 rounded-full"></div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400 uppercase font-nepali">आम्दानी (Revenue)</p>
-                      <p className="font-black text-slate-700">रू {stats.income.toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <TrendingUp className="text-emerald-500" size={24} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-10 bg-rose-500 rounded-full"></div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400 uppercase font-nepali">खर्च (Expenditure)</p>
-                      <p className="font-black text-slate-700">रू {stats.expense.toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <TrendingDown className="text-rose-500" size={24} />
-                </div>
-                <div className="pt-6 border-t">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-black text-slate-800 uppercase font-nepali">खुद मौज्दात (Net Balance)</p>
-                    <p className={`text-xl font-black ${stats.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      रू {stats.balance.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-xl shadow-slate-200">
-              <h3 className="text-lg font-black font-nepali mb-6 flex items-center gap-2">
-                <ClipboardList className="text-rose-500" size={20} />
-                Audit Trail Summary
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-                  <span className="text-xs font-bold text-slate-400 font-nepali">कुल रेकर्ड (Total Logs)</span>
-                  <span className="font-black">1,284</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
-                  <span className="text-xs font-bold text-slate-400 font-nepali">महत्वपूर्ण अलर्ट (Critical Alerts)</span>
-                  <span className="font-black text-rose-500">2</span>
-                </div>
-                <button className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-black transition-all font-nepali">पुरा विवरण हेर्नुहोस् (VIEW FULL AUDIT LOG)</button>
-              </div>
-            </div>
+            ))}
+            {transactions.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कारोबार रेकर्ड गरिएको छैन।</div>}
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderReports = () => {
     const allRecords = [
@@ -2150,7 +1952,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </h3>
               <div className="h-[300px] w-full min-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
-                  <RechartsBarChart data={budgetPatternData}>
+                  <BarChart data={budgetPatternData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
                       dataKey="fy" 
@@ -2174,7 +1976,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       radius={[6, 6, 0, 0]} 
                       barSize={60}
                     />
-                  </RechartsBarChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -2723,132 +2525,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     );
   };
 
-  const renderFiscalYear = () => (
-    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
-      <Calendar className="mx-auto text-primary-600 mb-4" size={48} />
-      <h3 className="text-xl font-black text-slate-800 font-nepali mb-2">आर्थिक वर्ष व्यवस्थापन (Fiscal Year Management)</h3>
-      <p className="text-slate-500 mb-6 font-nepali">हालको आर्थिक वर्ष: <span className="font-black text-primary-600">{currentFiscalYear}</span></p>
-      <button className="bg-primary-600 text-white px-8 py-3 rounded-xl font-black hover:bg-primary-700 transition-all font-nepali">नयाँ आर्थिक वर्ष सुरु गर्नुहोस्</button>
-    </div>
-  );
-
-  const renderCOA = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
-          <h3 className="text-xl font-black text-slate-800 font-nepali">खाताको रूपरेखा (Chart of Accounts)</h3>
-          <p className="text-sm text-slate-500 font-nepali">बजेट तथा लेखा शीर्षकहरूको पूर्ण सूची</p>
-        </div>
-        <button className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all shadow-lg shadow-primary-100 font-nepali">
-          <Plus size={20} /> नयाँ शीर्षक थप्नुहोस्
-        </button>
-      </div>
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">कोड</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">नाम (नेपाली)</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">Type</th>
-              <th className="px-6 py-4 text-right font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">मौज्दात</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 font-nepali">
-            {coa.map(item => (
-              <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 font-mono font-bold text-primary-600">{item.code}</td>
-                <td className="px-6 py-4 font-black text-slate-700">{item.nameNep}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${item.type === 'Asset' ? 'bg-blue-100 text-blue-600' : item.type === 'Expense' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>{item.type}</span>
-                </td>
-                <td className="px-6 py-4 text-right font-black text-slate-800">रू {item.currentBalance.toLocaleString()}</td>
-              </tr>
-            ))}
-            {coa.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali">कुनै खाता शीर्षक भेटिएन।</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderAdvance = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
-          <h3 className="text-xl font-black text-slate-800 font-nepali">पेश्की व्यवस्थापन (Advance Management)</h3>
-          <p className="text-sm text-slate-500 font-nepali">कर्मचारी तथा पदाधिकारीहरूको पेश्की विवरण</p>
-        </div>
-        <button className="bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary-700 transition-all shadow-lg shadow-primary-100 font-nepali">
-          <Plus size={20} /> नयाँ पेश्की थप्नुहोस्
-        </button>
-      </div>
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">मिति</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">कर्मचारीको नाम</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">प्रयोजन</th>
-              <th className="px-6 py-4 text-right font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">रकम</th>
-              <th className="px-6 py-4 text-center font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">अवस्था</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 font-nepali">
-            {advances.map(item => (
-              <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-xs font-bold text-slate-400">{item.dateBs}</td>
-                <td className="px-6 py-4 font-black text-slate-700">{item.employeeName}</td>
-                <td className="px-6 py-4 text-slate-500">{item.purpose}</td>
-                <td className="px-6 py-4 text-right font-black text-slate-800">रू {item.amount.toLocaleString()}</td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${item.status === 'Settled' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{item.status}</span>
-                </td>
-              </tr>
-            ))}
-            {advances.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic font-nepali">कुनै पेश्की रेकर्ड भेटिएन।</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderAuditLog = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
-          <h3 className="text-xl font-black text-slate-800 font-nepali">Audit Trail</h3>
-          <p className="text-sm text-slate-500 font-nepali">सिस्टममा भएका सम्पूर्ण परिवर्तनहरूको विवरण</p>
-        </div>
-      </div>
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">समय</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">User</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">Module</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">Action</th>
-              <th className="px-6 py-4 text-left font-black text-slate-500 uppercase tracking-widest text-[10px] font-nepali">Reason</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 font-nepali">
-            {auditLogs.slice(0, 100).map(log => (
-              <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-xs font-bold text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
-                <td className="px-6 py-4 font-black text-slate-700">{log.userName}</td>
-                <td className="px-6 py-4 font-bold text-primary-600">{log.module}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${log.action === 'CREATE' ? 'bg-emerald-100 text-emerald-600' : log.action === 'DELETE' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>{log.action}</span>
-                </td>
-                <td className="px-6 py-4 text-slate-500 text-xs">{log.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
   const renderJournalVouchers = () => (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -2895,12 +2571,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const renderTable = () => {
     if (activeTab === 'dashboard') return renderDashboard();
-    if (activeTab === 'fiscal_year') return renderFiscalYear();
-    if (activeTab === 'coa') return renderCOA();
-    if (activeTab === 'journal_voucher') return renderJournalVouchers();
-    if (activeTab === 'advance_management') return renderAdvance();
-    if (activeTab === 'audit_trail') return renderAuditLog();
     if (activeTab === 'reports') return renderReports();
+    if (activeTab === 'journal_voucher') return renderJournalVouchers();
     if (activeTab === 'bank_cash_book') return renderBankCashBook();
     if (activeTab === 'bank_reconciliation') return renderBankReconciliation();
     if (activeTab === 'kharcha_fatbari') return renderKharchaFatbari();
@@ -3411,27 +3083,6 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </div>
         </div>
 
-        {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {[
-            { id: 'all', name: 'सबै (All)', icon: LayoutDashboard },
-            { id: 'admin', name: 'प्रशासन (Admin)', icon: Building2 },
-            { id: 'transactions', name: 'कारोबार (Txns)', icon: CreditCard },
-            { id: 'accounts', name: 'लेखा खाता (Accounts)', icon: Book },
-            { id: 'reports', name: 'प्रतिवेदन (Reports)', icon: FileText },
-            { id: 'other', name: 'अन्य (Other)', icon: CheckSquare },
-          ].map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeCategory === cat.id ? 'bg-primary-600 text-white shadow-lg shadow-primary-100' : 'bg-white text-slate-600 border border-slate-200 hover:border-primary-200'}`}
-            >
-              <cat.icon size={16} />
-              <span className="font-nepali">{cat.name}</span>
-            </button>
-          ))}
-        </div>
-
         {/* Search & Tabs */}
         <div className="flex flex-col md:flex-row gap-6 mb-8">
           <div 
@@ -3439,42 +3090,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             className="flex-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex overflow-x-auto no-scrollbar scroll-smooth"
           >
             {[
-              { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} />, category: 'all' },
-              { id: 'fiscal_year', label: 'Fiscal Year', icon: <Calendar size={18} />, category: 'admin' },
-              { id: 'coa', label: 'COA', icon: <Calculator size={18} />, category: 'admin' },
-              { id: 'budget', label: 'Budget', icon: <DollarSign size={18} />, category: 'admin' },
-              { id: 'programs', label: 'Programs', icon: <Briefcase size={18} />, category: 'admin' },
-              { id: 'income', label: 'Income', icon: <ArrowDownCircle size={18} />, category: 'transactions' },
-              { id: 'expense', label: 'Expense', icon: <ArrowUpCircle size={18} />, category: 'transactions' },
-              { id: 'payment_request', label: 'Pay Request', icon: <ClipboardList size={18} />, category: 'transactions' },
-              { id: 'bill_reg', label: 'Bill Reg', icon: <FileText size={18} />, category: 'transactions' },
-              { id: 'vendors', label: 'Vendors', icon: <Users size={18} />, category: 'admin' },
-              { id: 'allowance', label: 'Allowance', icon: <DollarSign size={18} />, category: 'transactions' },
-              { id: 'advance', label: 'Advance', icon: <ArrowUpCircle size={18} />, category: 'transactions' },
-              { id: 'advance_settlement', label: 'Settlement', icon: <CheckSquare size={18} />, category: 'transactions' },
-              { id: 'approval_workflow', label: 'Workflow', icon: <CheckSquare size={18} />, category: 'transactions' },
-              { id: 'payment', label: 'Payment', icon: <CreditCard size={18} />, category: 'transactions' },
-              { id: 'cheque', label: 'Cheque', icon: <Printer size={18} />, category: 'transactions' },
-              { id: 'e_payment', label: 'E-Pay', icon: <ExternalLink size={18} />, category: 'transactions' },
-              { id: 'cash_book', label: 'Cash Book', icon: <Book size={18} />, category: 'accounts' },
-              { id: 'bank_book', label: 'Bank Book', icon: <Building2 size={18} />, category: 'accounts' },
-              { id: 'petty_cash', label: 'Petty Cash', icon: <DollarSign size={18} />, category: 'accounts' },
-              { id: 'reconciliation', label: 'Recon', icon: <Search size={18} />, category: 'other' },
-              { id: 'journal_voucher', label: 'Voucher', icon: <FileText size={18} />, category: 'accounts' },
-              { id: 'general_ledger', label: 'Ledger', icon: <Book size={18} />, category: 'accounts' },
-              { id: 'trial_balance', label: 'Trial', icon: <BarChart size={18} />, category: 'reports' },
-              { id: 'balance_sheet', label: 'B/S', icon: <TrendingUp size={18} />, category: 'reports' },
-              { id: 'income_expenditure', label: 'I&E', icon: <TrendingDown size={18} />, category: 'reports' },
-              { id: 'budget_vs_actual', label: 'Budget/Act', icon: <Filter size={18} />, category: 'reports' },
-              { id: 'program_report', label: 'Prog Rep', icon: <Briefcase size={18} />, category: 'reports' },
-              { id: 'vendor_ledger', label: 'Vendor Led', icon: <Users size={18} />, category: 'accounts' },
-              { id: 'employee_ledger', label: 'Emp Led', icon: <Users size={18} />, category: 'accounts' },
-              { id: 'fixed_assets', label: 'Assets', icon: <Building2 size={18} />, category: 'admin' },
-              { id: 'depreciation', label: 'Depr', icon: <TrendingDown size={18} />, category: 'admin' },
-              { id: 'audit_log', label: 'Audit', icon: <ClipboardList size={18} />, category: 'reports' },
-              { id: 'docs', label: 'Docs', icon: <FileText size={18} />, category: 'other' },
-              { id: 'backup', label: 'Backup', icon: <Save size={18} />, category: 'other' },
-            ].filter(t => activeCategory === 'all' || t.category === activeCategory || t.id === 'dashboard').map(tab => (
+              { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+              { id: 'payment_requests', label: 'Payment (भुक्तानी माग)', icon: <ClipboardList size={18} /> },
+              { id: 'allowances', label: 'Allowance (भत्ता रेकर्ड)', icon: <Briefcase size={18} /> },
+              { id: 'programs', label: 'Programs (बजेट)', icon: <Briefcase size={18} /> },
+              { id: 'transactions', label: 'Revenue (आम्दानी/खर्च)', icon: <TrendingUp size={18} /> },
+              { id: 'vendors', label: 'Parties (फर्म/भुक्तानी)', icon: <Users size={18} /> },
+              { id: 'payments', label: 'Payments (भुक्तानी)', icon: <CreditCard size={18} /> },
+              { id: 'bank_cash_book', label: 'CashBook (बैंक नगदी किताब)', icon: <Book size={18} /> },
+              { id: 'bank_reconciliation', label: 'Reconciliation (हिसाब मिलान)', icon: <CheckSquare size={18} /> },
+              { id: 'kharcha_fatbari', label: 'Fatbari (खर्चको फाँटबारी)', icon: <FileText size={18} /> },
+              { id: 'journal_voucher', label: 'Journal (गोश्वारा भौचर)', icon: <ClipboardList size={18} /> },
+              { id: 'reports', label: 'Reports', icon: <Calendar size={18} /> }
+            ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id as any); window.scrollTo(0, 0); }}
@@ -3485,7 +3113,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 }`}
               >
                 {tab.icon}
-                <span className="font-nepali">{tab.label}</span>
+                <span className="font-nepali">{tab.label.split(' ')[1] || tab.label}</span>
+                <span className="hidden md:inline opacity-60 text-[10px] ml-1 uppercase">{tab.label.split(' ')[0]}</span>
               </button>
             ))}
           </div>

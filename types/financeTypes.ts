@@ -3,57 +3,11 @@ import { Timestamp } from 'firebase/firestore';
 export interface FinancialProgram {
   id: string;
   name: string;
+  source?: 'Nagarpalika' | 'Wada' | 'Internal' | 'Other';
   totalBudget: number;
   spentAmount: number;
   fiscalYear: string;
-  source: 'Internal' | 'Nagarpalika' | 'Wada' | 'Province' | 'Federal';
   createdAt: string;
-}
-
-export interface BudgetHead {
-  id: string;
-  code: string;
-  nameNep: string;
-  nameEng: string;
-  totalBudget: number;
-  spentAmount: number;
-  remainingBudget: number;
-  fiscalYear: string;
-}
-
-export interface ChartOfAccount {
-  id: string;
-  code: string;
-  nameNep: string;
-  nameEng: string;
-  parentCode?: string;
-  type: 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
-  openingBalance: number;
-  currentBalance: number;
-}
-
-export interface AdvanceRecord {
-  id: string;
-  employeeId?: string;
-  employeeName: string;
-  amount: number;
-  purpose: string;
-  dateBs: string;
-  status: 'Pending' | 'Settled' | 'Partially Settled';
-  settledAmount: number;
-  fiscalYear: string;
-}
-
-export interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN';
-  module: string;
-  timestamp: number;
-  oldValue?: string; // JSON string
-  newValue?: string; // JSON string
-  reason?: string;
 }
 
 export interface ListedParty {
@@ -76,9 +30,8 @@ export interface FinancialTransaction {
   id: string;
   dateBs: string;
   dateAd: string;
-  category: 'Ambulance' | 'Lab' | 'General' | 'Program Payment' | 'Advance' | 'Salary' | 'Administrative';
-  type: 'Income' | 'Expense' | 'Transfer';
-  status: 'Draft' | 'Submitted' | 'Verified' | 'Approved' | 'Paid';
+  category: 'Ambulance' | 'Lab' | 'General' | 'Program Payment';
+  type: 'Income' | 'Expense';
   incomeSource?: 'Nagarpalika' | 'Wada' | 'Internal' | 'Other';
   amountWithoutVAT?: number;
   amountWithVAT?: number;
@@ -88,25 +41,19 @@ export interface FinancialTransaction {
   remarks: string;
   partyId?: string;
   programId?: string;
-  budgetHeadId?: string;
   fiscalYear: string;
   referenceNo?: string;
   partyName?: string;
   tdsAmount?: number;
   sasukarAmount?: number;
   tax15Amount?: number;
-  paymentMethod?: 'Bank' | 'Cash' | 'E-Payment';
+  paymentMethod?: 'Bank' | 'Cash';
   checkNo?: string;
   needsBharpai?: boolean;
   bharpaiUnitType?: 'days' | 'qty';
   bharpaiDays?: number;
   bharpaiRate?: number;
   bharpaiPersons?: BharpaiPerson[];
-  voucherId?: string;
-  verifiedBy?: string;
-  approvedBy?: string;
-  paidBy?: string;
-  attachments?: string[];
   items?: {
     remarks: string;
     amount: number;
@@ -119,7 +66,6 @@ export interface FinancialTransaction {
     tax15Amount?: number;
     partyName?: string;
     programId?: string;
-    budgetHeadId?: string;
     needsBharpai?: boolean;
     bharpaiUnitType?: 'days' | 'qty';
     bharpaiDays?: number;
