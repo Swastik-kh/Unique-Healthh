@@ -17,10 +17,12 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'menu'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'menu'>(
+    (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') ? 'general' : 'menu'
+  );
 
-  // Security Guard: Admin and Super Admin only
-  const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN';
+  // Security Guard: Admin, Super Admin, or users explicitly granted Menu Management Access
+  const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || !!currentUser.canManageMenu;
 
   useEffect(() => {
       setLocalSettings(settings);
@@ -108,13 +110,15 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
         </div>
         
         <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button 
-              onClick={() => setActiveTab('general')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Sliders size={14} /> सामान्य (General)
-            </button>
-            {currentUser.role === 'SUPER_ADMIN' && (
+            {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+              <button 
+                onClick={() => setActiveTab('general')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <Sliders size={14} /> सामान्य (General)
+              </button>
+            )}
+            {(currentUser.role === 'SUPER_ADMIN' || !!currentUser.canManageMenu) && (
               <button 
                 onClick={() => setActiveTab('menu')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}

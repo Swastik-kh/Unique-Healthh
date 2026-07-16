@@ -51,6 +51,7 @@ export interface User {
   canDeleteBilling?: boolean;
   canEditBilling?: boolean;
   canDeleteAmbulance?: boolean;
+  canManageMenu?: boolean;
   editAccessMenus?: string[];
   deleteAccessMenus?: string[];
 }

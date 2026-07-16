@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
-import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 
@@ -221,6 +221,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canDeleteBilling: boolean;
     canEditBilling: boolean;
     canDeleteAmbulance: boolean;
+    canManageMenu: boolean;
     parentId?: string;
   }>({
     id: '',
@@ -239,6 +240,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canDeleteBilling: false,
     canEditBilling: false,
     canDeleteAmbulance: false,
+    canManageMenu: false,
     parentId: currentUser.id
   });
 
@@ -293,6 +295,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         canDeleteBilling: false,
         canEditBilling: false,
         canDeleteAmbulance: false,
+        canManageMenu: false,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -315,6 +318,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           canDeleteBilling: user.canDeleteBilling ?? false,
           canEditBilling: user.canEditBilling ?? false,
           canDeleteAmbulance: user.canDeleteAmbulance ?? false,
+          canManageMenu: user.canManageMenu ?? false,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -550,6 +554,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         canDeleteBilling: formData.canDeleteBilling,
         canEditBilling: formData.canEditBilling,
         canDeleteAmbulance: formData.canDeleteAmbulance,
+        canManageMenu: formData.canManageMenu,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -746,6 +751,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteAmbulance ? 'bg-rose-600' : 'bg-slate-300'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteAmbulance ? 'left-7' : 'left-1'}`}></div>
+                </button>
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-sky-50 border border-sky-100 rounded-xl mt-2">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-sky-600 shadow-sm">
+                        <Sliders size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">मेनु व्यवस्थापन अधिकार (Menu Management Access)</p>
+                        <p className="text-xs text-slate-500">यो अनुमति भएको प्रयोगकर्ताले मेनुको क्रम परिवर्तन (Drag and Drop) र मिलाउन पाउनेछन्।</p>
+                    </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, canManageMenu: !prev.canManageMenu }))}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canManageMenu ? 'bg-sky-600' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canManageMenu ? 'left-7' : 'left-1'}`}></div>
                 </button>
             </div>
 

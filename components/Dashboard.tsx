@@ -691,6 +691,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     if (!currentUser) return false;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
     if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN', 'HEALTH_SECTION'].includes(currentUser.role)) return false;
+    if (menuId === 'general_setting' && currentUser.canManageMenu) return true;
     if (currentUser.role === 'SUPER_ADMIN') return true;
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
