@@ -117,39 +117,31 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleDragEnd = (event: DragEndEvent, parentId?: string, subParentId?: string) => {
+  const updateConfigRecursively = (items: MenuConfigItem[], activeId: string, overId: string): MenuConfigItem[] => {
+    const oldIndex = items.findIndex(m => m.id === activeId);
+    if (oldIndex !== -1) {
+      const newIndex = items.findIndex(m => m.id === overId);
+      if (newIndex !== -1) {
+        return arrayMove(items, oldIndex, newIndex);
+      }
+    }
+
+    return items.map(item => {
+      if (item.subItems && item.subItems.length > 0) {
+        return {
+          ...item,
+          subItems: updateConfigRecursively(item.subItems, activeId, overId)
+        };
+      }
+      return item;
+    });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     
     if (active.id !== over?.id) {
-      setConfig((prev) => {
-        const newConfig = JSON.parse(JSON.stringify(prev)) as MenuConfigItem[];
-        
-        if (subParentId && parentId) {
-          // Reordering level 3 items
-          const parent = newConfig.find(m => m.id === parentId);
-          const subParent = parent?.subItems?.find(m => m.id === subParentId);
-          if (subParent?.subItems) {
-            const oldIndex = subParent.subItems.findIndex(m => m.id === active.id);
-            const newIndex = subParent.subItems.findIndex(m => m.id === over?.id);
-            subParent.subItems = arrayMove(subParent.subItems, oldIndex, newIndex);
-          }
-        } else if (parentId) {
-          // Reordering level 2 items
-          const parent = newConfig.find(m => m.id === parentId);
-          if (parent?.subItems) {
-            const oldIndex = parent.subItems.findIndex(m => m.id === active.id);
-            const newIndex = parent.subItems.findIndex(m => m.id === over?.id);
-            parent.subItems = arrayMove(parent.subItems, oldIndex, newIndex);
-          }
-        } else {
-          // Reordering level 1 items
-          const oldIndex = newConfig.findIndex(m => m.id === active.id);
-          const newIndex = newConfig.findIndex(m => m.id === over?.id);
-          return arrayMove(newConfig, oldIndex, newIndex);
-        }
-        
-        return newConfig;
-      });
+      setConfig((prev) => updateConfigRecursively(prev, active.id as string, over?.id as string));
     }
   };
 
@@ -164,12 +156,12 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
     return undefined;
   };
 
-  const renderSortableItems = (items: MenuConfigItem[], parentId?: string, subParentId?: string) => {
+  const renderSortableItems = (items: MenuConfigItem[]) => {
     return (
       <DndContext 
         sensors={sensors}
         collisionDetection={closestCenter}
-        onDragEnd={(e) => handleDragEnd(e, parentId, subParentId)}
+        onDragEnd={handleDragEnd}
       >
         <SortableContext 
           items={items.map(i => i.id)}
@@ -190,7 +182,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
                 onToggle={() => toggleExpand(itemConfig.id)}
               >
                 {itemConfig.subItems && itemConfig.subItems.length > 0 && 
-                  renderSortableItems(itemConfig.subItems, parentId || itemConfig.id, parentId ? itemConfig.id : undefined)
+                  renderSortableItems(itemConfig.subItems)
                 }
               </SortableItem>
             );
