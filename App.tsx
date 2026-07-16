@@ -133,11 +133,18 @@ const App: React.FC = () => {
     await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
   };
 
-  const cleanObject = (obj: any) => {
+  const cleanObject = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') {
+      if (typeof obj === 'number' && isNaN(obj)) return 0;
+      return obj;
+    }
+    if (Array.isArray(obj)) return obj.map(cleanObject).filter(v => v !== undefined);
+    
     const clean: any = {};
     Object.keys(obj).forEach(key => {
-      if (obj[key] !== undefined) {
-        clean[key] = obj[key];
+      const val = cleanObject(obj[key]);
+      if (val !== undefined) {
+        clean[key] = val;
       }
     });
     return clean;
@@ -1201,6 +1208,7 @@ const App: React.FC = () => {
       if (!currentUser) return;
       try {
           const id = transaction.id || push(getOrgRef('financialTransactions')).key;
+          if (!id) throw new Error("Could not generate transaction ID");
           const cleanedTransaction = cleanObject({ ...transaction, id });
           await set(getOrgRef(`financialTransactions/${id}`), cleanedTransaction);
 
@@ -1294,6 +1302,7 @@ const App: React.FC = () => {
               await set(getOrgRef(`goswaraVouchers/${voucher.id}`), cleanObject({ ...voucher }));
           }
       } catch (error) {
+          console.error("Error saving financial transaction:", error);
           alert("कारोबार र भौचर सुरक्षित गर्न सकिएन।");
       }
   };
