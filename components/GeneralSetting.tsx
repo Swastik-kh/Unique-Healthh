@@ -87,7 +87,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   };
 
   const handleSaveMenuConfig = (config: MenuConfigItem[]) => {
-    onUpdateSettings({ ...localSettings, menuConfig: config });
+    const updatedSettings = { ...localSettings, menuConfig: config };
+    setLocalSettings(updatedSettings);
+    onUpdateSettings(updatedSettings);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
@@ -112,12 +114,14 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
             >
               <Sliders size={14} /> सामान्य (General)
             </button>
-            <button 
-              onClick={() => setActiveTab('menu')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <GripVertical size={14} /> मेनु (Menu)
-            </button>
+            {currentUser.role === 'SUPER_ADMIN' && (
+              <button 
+                onClick={() => setActiveTab('menu')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <GripVertical size={14} /> मेनु (Menu)
+              </button>
+            )}
         </div>
       </div>
 

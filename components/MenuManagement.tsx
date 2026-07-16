@@ -16,7 +16,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import { GripVertical, ChevronDown, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { ALL_MENU_ITEMS, MenuItem } from '../src/constants/menuItems';
 import { MenuConfigItem } from '../types/coreTypes';
 
@@ -91,7 +91,7 @@ interface MenuManagementProps {
 export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, onSave }) => {
   const [config, setConfig] = useState<MenuConfigItem[]>(() => {
     if (currentConfig && currentConfig.length > 0) {
-      return currentConfig;
+      return JSON.parse(JSON.stringify(currentConfig));
     }
     // Default config from ALL_MENU_ITEMS
     return ALL_MENU_ITEMS.map(item => ({
@@ -103,6 +103,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
     }));
   });
 
+  const [isSaving, setIsSaving] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   const sensors = useSensors(
@@ -199,6 +200,12 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
     );
   };
 
+  const handleSave = () => {
+    setIsSaving(true);
+    onSave(config);
+    setTimeout(() => setIsSaving(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-start gap-3">
@@ -215,10 +222,19 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
 
       <div className="flex justify-end gap-3 pt-4 border-t">
         <button 
-          onClick={() => onSave(config)}
-          className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold shadow-sm hover:bg-slate-900 transition-all"
+          onClick={handleSave}
+          disabled={isSaving}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all ${
+            isSaving 
+            ? 'bg-green-600 text-white cursor-default' 
+            : 'bg-slate-800 text-white hover:bg-slate-900 active:scale-95'
+          }`}
         >
-          क्रम सुरक्षित गर्नुहोस् (Save Order)
+          {isSaving ? (
+            <><CheckCircle2 size={18} /> सुरक्षित भयो (Saved)</>
+          ) : (
+            'क्रम सुरक्षित गर्नुहोस् (Save Order)'
+          )}
         </button>
       </div>
     </div>
