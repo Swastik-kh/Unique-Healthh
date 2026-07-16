@@ -130,6 +130,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     programId?: string, 
     partyName?: string,
     isVatBill?: boolean,
+    vatTaxableAmount?: number,
     applyTds?: boolean,
     applySasukar?: boolean,
     applyTax15?: boolean,
@@ -138,7 +139,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     bharpaiDays?: number,
     bharpaiRate?: number,
     bharpaiPersons?: { name: string; days: number; rate: number }[]
-  }[]>([{remarks: '', amount: 0, isVatBill: false, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiUnitType: 'days', bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
+  }[]>([{remarks: '', amount: 0, isVatBill: false, vatTaxableAmount: 0, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiUnitType: 'days', bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
   const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
@@ -390,7 +391,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           const itemIsVatBill = !!item.isVatBill;
           if (itemIsVatBill) isVatBill = true;
           
-          const vatTaxableAmount = itemIsVatBill ? amount / 1.13 : 0;
+          const vatTaxableAmount = itemIsVatBill ? (item.vatTaxableAmount || amount / 1.13) : 0;
           const vatAmount = itemIsVatBill ? vatTaxableAmount * 0.13 : 0;
           const amountWithoutVAT = amount - vatAmount;
           const amountWithVAT = amount;
@@ -453,7 +454,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
           const amount = Number(item.amount);
           const isVatBill = !!item.isVatBill;
-          const vatTaxableAmount = isVatBill ? amount / 1.13 : 0;
+          const vatTaxableAmount = isVatBill ? (item.vatTaxableAmount || amount / 1.13) : 0;
           const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
           const amountWithoutVAT = amount - vatAmount;
           const amountWithVAT = amount;
@@ -3385,7 +3386,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                     />
                                   </div>
                                 </div>
-                                <div className="grid grid-cols-4 gap-2 pt-2 border-t border-slate-100">
+                                <div className="grid grid-cols-5 gap-2 pt-2 border-t border-slate-100">
                                    <div className="flex items-center gap-1.5">
                                       <input 
                                         type="checkbox" 
@@ -3393,12 +3394,30 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                         onChange={(e) => {
                                           const newItems = [...txnItems];
                                           newItems[index].isVatBill = e.target.checked;
+                                          if (e.target.checked && item.amount > 0) {
+                                            newItems[index].vatTaxableAmount = Number((item.amount / 1.13).toFixed(2));
+                                          }
                                           setTxnItems(newItems);
                                         }}
                                         className="rounded text-rose-600 focus:ring-rose-500" 
                                       />
                                       <label className="text-[9px] font-black text-slate-700 uppercase">VAT बिल</label>
                                    </div>
+                                   {item.isVatBill && (
+                                     <div className="col-span-1 space-y-1">
+                                       <input 
+                                         type="number" 
+                                         value={item.vatTaxableAmount || ''} 
+                                         onChange={(e) => {
+                                           const newItems = [...txnItems];
+                                           newItems[index].vatTaxableAmount = Number(e.target.value);
+                                           setTxnItems(newItems);
+                                         }}
+                                         className="w-full bg-white border border-rose-200 rounded-lg px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-rose-500"
+                                         placeholder="Taxable Amt"
+                                       />
+                                     </div>
+                                   )}
                                    <div className="flex items-center gap-1.5">
                                       <input 
                                         type="checkbox" 
@@ -3677,7 +3696,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                               checked={txnIsVatBill}
                               onChange={(e) => {
                                 setTxnIsVatBill(e.target.checked);
-                                if (!e.target.checked) setTxnVatTaxableAmount('');
+                                if (e.target.checked && editTxnAmount) {
+                                  setTxnVatTaxableAmount(Number((Number(editTxnAmount) / 1.13).toFixed(2)));
+                                } else if (!e.target.checked) {
+                                  setTxnVatTaxableAmount('');
+                                }
                               }}
                               className="rounded text-rose-600 focus:ring-rose-500" 
                             />

@@ -1213,20 +1213,51 @@ const App: React.FC = () => {
                         // Multi-item expense
                         transaction.items.forEach((item: any) => {
                             const progName = financialPrograms.find(p => p.id === (item.programId || transaction.programId))?.name || '';
-                            entries.push({ 
-                                accountName: `${item.remarks}${item.partyName ? ` (${item.partyName})` : ''}`, 
-                                activityName: progName,
-                                debit: item.amountWithVAT || item.amount || 0 
-                            });
+                            if (item.isVatBill) {
+                                // Split VAT
+                                const taxable = item.vatTaxableAmount || (item.amount / 1.13);
+                                const vat = item.amount - taxable;
+                                entries.push({ 
+                                    accountName: `${item.remarks}${item.partyName ? ` (${item.partyName})` : ''}`, 
+                                    activityName: progName,
+                                    debit: Number(taxable.toFixed(2))
+                                });
+                                entries.push({ 
+                                    accountName: `VAT (१३%) - ${item.remarks}`, 
+                                    activityName: progName,
+                                    debit: Number(vat.toFixed(2))
+                                });
+                            } else {
+                                entries.push({ 
+                                    accountName: `${item.remarks}${item.partyName ? ` (${item.partyName})` : ''}`, 
+                                    activityName: progName,
+                                    debit: item.amountWithVAT || item.amount || 0 
+                                });
+                            }
                         });
                     } else {
                         // Single item expense
                         const progName = financialPrograms.find(p => p.id === transaction.programId)?.name || '';
-                        entries.push({ 
-                            accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
-                            activityName: progName,
-                            debit: transaction.amountWithVAT || transaction.amount || 0 
-                        });
+                        if (transaction.isVatBill) {
+                            const taxable = transaction.vatTaxableAmount || (transaction.amount / 1.13);
+                            const vat = transaction.amount - taxable;
+                            entries.push({ 
+                                accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
+                                activityName: progName,
+                                debit: Number(taxable.toFixed(2))
+                            });
+                            entries.push({ 
+                                accountName: `VAT (१३%) - ${transaction.remarks}`, 
+                                activityName: progName,
+                                debit: Number(vat.toFixed(2))
+                            });
+                        } else {
+                            entries.push({ 
+                                accountName: `${transaction.remarks}${transaction.partyName ? ` (${transaction.partyName})` : ''}`, 
+                                activityName: progName,
+                                debit: transaction.amountWithVAT || transaction.amount || 0 
+                            });
+                        }
                     }
 
                     const netCashAmount = (transaction.amountWithVAT || transaction.amount || 0) - (transaction.tdsAmount || 0) - (transaction.sasukarAmount || 0) - (transaction.tax15Amount || 0);
