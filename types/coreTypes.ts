@@ -125,6 +125,12 @@ export interface OrganizationSettings {
   hibRemoteUser?: string;
   hibPartnerId?: string;
   hibLocationId?: string;
+  menuConfig?: MenuConfigItem[];
+}
+
+export interface MenuConfigItem {
+  id: string;
+  subItems?: MenuConfigItem[];
 }
 
 export interface SubscriptionRequest {

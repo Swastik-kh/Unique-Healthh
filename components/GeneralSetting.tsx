@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
-import { OrganizationSettings, User as UserType } from '../types/coreTypes'; // Changed import
+import { OrganizationSettings, User as UserType, MenuConfigItem } from '../types/coreTypes'; // Changed import
+import { MenuManagement } from './MenuManagement';
 
 interface GeneralSettingProps {
     currentUser: UserType;
@@ -16,6 +17,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
+  const [activeTab, setActiveTab] = useState<'general' | 'menu'>('general');
 
   // Security Guard: Admin and Super Admin only
   const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN';
@@ -84,19 +86,43 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     }
   };
 
+  const handleSaveMenuConfig = (config: MenuConfigItem[]) => {
+    onUpdateSettings({ ...localSettings, menuConfig: config });
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 3000);
+  };
+
   const serviceOptions = localSettings.allServiceOptions || AVAILABLE_SERVICES;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-        <div className="bg-slate-800 p-2 rounded-lg text-white"><Building2 size={24} /></div>
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 font-nepali">सामान्य सेटिङ (General Settings)</h2>
-          <p className="text-sm text-slate-500">संस्थाको विवरण र प्रणाली कन्फिगरेसन व्यवस्थापन गर्नुहोस्</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-800 p-2 rounded-lg text-white"><Building2 size={24} /></div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 font-nepali">सेटिङ (Settings)</h2>
+            <p className="text-sm text-slate-500">संस्था र प्रणाली कन्फिगरेसन व्यवस्थापन गर्नुहोस्</p>
+          </div>
+        </div>
+        
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button 
+              onClick={() => setActiveTab('general')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'general' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Sliders size={14} /> सामान्य (General)
+            </button>
+            <button 
+              onClick={() => setActiveTab('menu')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'menu' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <GripVertical size={14} /> मेनु (Menu)
+            </button>
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {activeTab === 'general' ? (
+        <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Building2 size={18} className="text-primary-600"/>संस्थाको विवरण</h3>
@@ -437,6 +463,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
               <button type="button" onClick={handleReset} className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-medium hover:bg-red-50"><RotateCcw size={18} />रिसेट (Reset)</button></div><p className="text-xs text-center text-slate-400 mt-4">Last updated: {new Date().toLocaleDateString()}</p></div>
         </div>
       </form>
+      ) : (
+        <MenuManagement currentConfig={localSettings.menuConfig} onSave={handleSaveMenuConfig} />
+      )}
     </div>
   );
 };
