@@ -158,37 +158,31 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
 
   const renderSortableItems = (items: MenuConfigItem[]) => {
     return (
-      <DndContext 
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
+      <SortableContext 
+        items={items.map(i => i.id)}
+        strategy={verticalListSortingStrategy}
       >
-        <SortableContext 
-          items={items.map(i => i.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {items.map((itemConfig) => {
-            const menuItem = findMenuItem(itemConfig.id, ALL_MENU_ITEMS);
-            if (!menuItem) return null;
+        {items.map((itemConfig) => {
+          const menuItem = findMenuItem(itemConfig.id, ALL_MENU_ITEMS);
+          if (!menuItem) return null;
 
-            return (
-              <SortableItem 
-                key={itemConfig.id} 
-                id={itemConfig.id} 
-                label={menuItem.label} 
-                icon={menuItem.icon}
-                hasSubItems={itemConfig.subItems && itemConfig.subItems.length > 0}
-                isExpanded={expandedItems[itemConfig.id]}
-                onToggle={() => toggleExpand(itemConfig.id)}
-              >
-                {itemConfig.subItems && itemConfig.subItems.length > 0 && 
-                  renderSortableItems(itemConfig.subItems)
-                }
-              </SortableItem>
-            );
-          })}
-        </SortableContext>
-      </DndContext>
+          return (
+            <SortableItem 
+              key={itemConfig.id} 
+              id={itemConfig.id} 
+              label={menuItem.label} 
+              icon={menuItem.icon}
+              hasSubItems={itemConfig.subItems && itemConfig.subItems.length > 0}
+              isExpanded={expandedItems[itemConfig.id]}
+              onToggle={() => toggleExpand(itemConfig.id)}
+            >
+              {itemConfig.subItems && itemConfig.subItems.length > 0 && 
+                renderSortableItems(itemConfig.subItems)
+              }
+            </SortableItem>
+          );
+        })}
+      </SortableContext>
     );
   };
 
@@ -209,7 +203,13 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
       </div>
 
       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-        {renderSortableItems(config)}
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {renderSortableItems(config)}
+        </DndContext>
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">
