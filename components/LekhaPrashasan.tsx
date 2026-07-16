@@ -235,8 +235,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     switch (activeTab) {
       case 'programs': return programs.filter(p => p.name.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
       case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
-      case 'transactions': return transactions.filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear);
-      case 'payments': return payments.filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
+      case 'transactions': return [...transactions].filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+      case 'payments': return [...payments].filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
       case 'payment_requests': {
         return paymentRequests
           .filter(p => 
@@ -740,7 +740,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         totalPaid: totalPaidForTxn,
         balance: balance
       };
-    }).filter(p => p.balance > 0);
+    }).filter(p => p.balance > 0).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
   }, [activeTab, paymentSubTab, transactions, payments]);
 
   const handlePrintPendingPayments = () => {
@@ -1701,7 +1701,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <button onClick={() => { setActiveTab('transactions'); setSearchTerm(''); }} className="text-xs text-rose-600 font-bold hover:underline">View All</button>
           </div>
           <div className="divide-y divide-slate-50">
-            {transactions.slice(0, 5).map(t => (
+            {[...transactions].sort((a, b) => b.dateBs.localeCompare(a.dateBs)).slice(0, 5).map(t => (
               <div key={t.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${t.type === 'Income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -2540,7 +2540,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
              </tr>
            </thead>
            <tbody>
-             {vouchers.map(v => (
+             {[...vouchers].sort((a, b) => b.dateBs.localeCompare(a.dateBs)).map(v => (
                <tr key={v.id} className="border-b">
                   <td className="px-6 py-4 font-nepali">{toNepaliNumber(v.dateBs)}</td>
                   <td className="px-6 py-4 font-mono text-xs font-nepali">{toNepaliNumber(v.id)}</td>
