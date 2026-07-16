@@ -87,6 +87,7 @@ export interface PartyPaymentRecord {
   fiscalYear: string;
   paymentMethod: string;
   remarks: string;
+  isPeski?: boolean;
 }
 
 export interface PaymentRequest {

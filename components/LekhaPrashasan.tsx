@@ -89,6 +89,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [paymentSelectedTransaction, setPaymentSelectedTransaction] = useState('');
   const [paymentApplyTds, setPaymentApplyTds] = useState(false);
   const [paymentApplySasukar, setPaymentApplySasukar] = useState(false);
+  const [paymentIsPeski, setPaymentIsPeski] = useState(false);
   const [isManualParty, setIsManualParty] = useState(false);
   
   // Date Filters for Reports
@@ -284,6 +285,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     setPaymentSelectedTransaction('');
     setPaymentApplyTds(false);
     setPaymentApplySasukar(false);
+    setPaymentIsPeski(false);
   };
 
   // Handle Saves
@@ -638,6 +640,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       amount,
       tdsAmount,
       sasukarAmount,
+      isPeski: paymentIsPeski,
       dateBs: txnFormDate,
       fiscalYear: currentFiscalYear,
       paymentMethod: formData.get('method') as string,
@@ -1125,6 +1128,19 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </tr>
             `).join('')}
           </tbody>
+          <tfoot>
+            <tr style="background: #f9f9f9; font-weight: bold;">
+              <td colspan="3">जम्मा (Total Amount)</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.budget, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.release, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.prevExp, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.thisMonthExp, 0).toLocaleString()}</td>
+              <td class="text-right font-bold">${data.reduce((sum, i) => sum + i.totalExp, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.peski, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.netExp, 0).toLocaleString()}</td>
+              <td class="text-right">${data.reduce((sum, i) => sum + i.balance, 0).toLocaleString()}</td>
+            </tr>
+          </tfoot>
         </table>
       </body>
     </html>`;
@@ -1137,12 +1153,17 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const renderKharchaFatbari = () => {
     const monthIndex = selectedMonth === 'All' ? -1 : nepaliMonths.indexOf(selectedMonth);
     
+    // Parse current month BS for partitioning when selectedMonth is "All"
+    const todayParts = today.split(/[-/]/);
+    const currentMonthNum = todayParts.length >= 2 ? parseInt(todayParts[1]) : 1;
+    const currentMonthIdx = currentMonthNum - 1;
+
     const fatbariData = programs.map(program => {
       const allProgramPayments = payments.filter(p => p.programId === program.id);
       
       let prevMonthExp = 0;
       let thisMonthExp = 0;
-      let totalExp = 0;
+      let peski = 0;
 
       allProgramPayments.forEach(p => {
         const parts = p.dateBs.split(/[-/]/);
@@ -1150,8 +1171,18 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         const pMonthNum = parseInt(parts[1]);
         const pMonthIdx = pMonthNum - 1;
 
+        // Calculate peski (advance) up to the selected month / all months
+        const isBeforeOrEqual = selectedMonth === 'All' || pMonthIdx <= monthIndex;
+        if (p.isPeski && isBeforeOrEqual) {
+          peski += p.amount;
+        }
+
         if (selectedMonth === 'All') {
-          thisMonthExp += p.amount;
+          if (pMonthIdx < currentMonthIdx) {
+            prevMonthExp += p.amount;
+          } else {
+            thisMonthExp += p.amount; // current & future months
+          }
         } else {
           if (pMonthIdx < monthIndex) {
             prevMonthExp += p.amount;
@@ -1161,13 +1192,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         }
       });
 
-      totalExp = prevMonthExp + thisMonthExp;
+      const totalExp = prevMonthExp + thisMonthExp;
       
       // Release is usually equal to budget in many simple setups, but let's assume we can fetch it from transactions if needed.
       // For now, let's treat budget as final budget and release as budget.
-      const budget = program.budget || 0;
+      const budget = program.totalBudget || 0;
       const release = budget; // Simplified
-      const peski = 0; // Simplified
       const netExp = totalExp - peski;
       const balance = budget - totalExp;
 
@@ -1260,7 +1290,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                   <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.prevExp, 0).toLocaleString()}</td>
                   <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.thisMonthExp, 0).toLocaleString()}</td>
                   <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.totalExp, 0).toLocaleString()}</td>
-                  <td className="px-2 py-3 text-right">0</td>
+                  <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.peski, 0).toLocaleString()}</td>
                   <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.netExp, 0).toLocaleString()}</td>
                   <td className="px-2 py-3 text-right">{fatbariData.reduce((sum, i) => sum + i.balance, 0).toLocaleString()}</td>
                 </tr>
@@ -2972,6 +3002,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    setPaymentSelectedTransaction(item.transactionId || '');
                                    setPaymentApplyTds(!!(item.tdsAmount && item.tdsAmount > 0));
                                    setPaymentApplySasukar(!!(item.sasukarAmount && item.sasukarAmount > 0));
+                                   setPaymentIsPeski(!!item.isPeski);
                                  }
                                  
                                  setTxnFormDate(item.dateBs);
@@ -4047,7 +4078,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       )}
                       <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
                       
-                      <div className="flex gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex flex-wrap gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input 
                             type="checkbox" 
@@ -4067,6 +4098,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             className="rounded border-slate-300 text-primary-600" 
                           />
                           <span className="text-sm font-bold text-slate-700">सा.सु. कर काट्ने? (1%)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            name="isPeski" 
+                            checked={paymentIsPeski}
+                            onChange={(e) => setPaymentIsPeski(e.target.checked)}
+                            className="rounded border-slate-300 text-primary-600" 
+                          />
+                          <span className="text-sm font-bold text-slate-700">पेश्की भुक्तानी हो? (Advance?)</span>
                         </label>
                       </div>
 
