@@ -59,6 +59,48 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     return undefined;
   };
 
+  const fiscalYearRange = useMemo(() => {
+    if (!currentFiscalYear) return { min: undefined, max: undefined };
+    const parts = currentFiscalYear.split(/[-/]/);
+    if (parts.length >= 1) {
+      const startYear = parseInt(parts[0].trim(), 10);
+      if (!isNaN(startYear)) {
+        const endYear = startYear + 1;
+        return {
+          min: `${startYear}-04-01`,
+          max: `${endYear}-03-32`
+        };
+      }
+    }
+    return { min: undefined, max: undefined };
+  }, [currentFiscalYear]);
+
+  const getInitialMitiValue = () => {
+    const todayStr = new NepaliDate().format('YYYY-MM-DD');
+    if (!currentFiscalYear) return todayStr;
+    const parts = currentFiscalYear.split(/[-/]/);
+    if (parts.length >= 1) {
+      const startYear = parseInt(parts[0].trim(), 10);
+      if (!isNaN(startYear)) {
+        const endYear = startYear + 1;
+        const minDate = `${startYear}-04-01`;
+        const maxDate = `${endYear}-03-32`;
+        if (todayStr < minDate || todayStr > maxDate) {
+          return minDate;
+        }
+      }
+    }
+    return todayStr;
+  };
+
+  const currentYearRecords = useMemo(() => {
+    return (records || []).filter(r => r.fiscalYear === currentFiscalYear);
+  }, [records, currentFiscalYear]);
+
+  const currentYearExpenseRecords = useMemo(() => {
+    return (expenseRecords || []).filter(e => e.fiscalYear === currentFiscalYear);
+  }, [expenseRecords, currentFiscalYear]);
+
   const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
@@ -80,8 +122,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
-  const [expenseFormData, setExpenseFormData] = useState<Partial<AmbulanceExpenseRecord>>({
-    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+  const [expenseFormData, setExpenseFormData] = useState<Partial<AmbulanceExpenseRecord>>(() => ({
+    dateBs: getInitialMitiValue(),
     expenseCategory: 'fuel',
     amount: 0,
     fuelLiters: undefined,
@@ -90,10 +132,10 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     paidTo: '',
     driverName: generalSettings?.ambulanceDriverName || '',
     remarks: ''
-  });
+  }));
 
-  const [formData, setFormData] = useState<Partial<AmbulanceRecord>>({
-    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+  const [formData, setFormData] = useState<Partial<AmbulanceRecord>>(() => ({
+    dateBs: getInitialMitiValue(),
     patientName: '',
     age: '',
     address: '',
@@ -108,7 +150,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     amountCharged: 0,
     receivedAmount: 0,
     remarks: ''
-  });
+  }));
 
   const handlePatientSelect = (patient: ServiceSeekerRecord) => {
     setFormData(prev => ({
@@ -147,7 +189,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     const record: AmbulanceRecord = {
       id: editingRecord?.id || `AMB-${Date.now()}`,
       fiscalYear: currentFiscalYear,
-      dateBs: formData.dateBs || new NepaliDate().format('YYYY-MM-DD'),
+      dateBs: formData.dateBs || getInitialMitiValue(),
       serviceSeekerId: formData.serviceSeekerId,
       patientName: formData.patientName || '',
       age: formData.age || '',
@@ -170,7 +212,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setEditingRecord(null);
     setPatientSearchInput('');
     setFormData({
-      dateBs: new NepaliDate().format('YYYY-MM-DD'),
+      dateBs: getInitialMitiValue(),
       patientName: '',
       age: '',
       address: '',
@@ -205,7 +247,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     const expRecord: AmbulanceExpenseRecord = {
       id: editingExpense?.id || `AMB-EXP-${Date.now()}`,
       fiscalYear: currentFiscalYear,
-      dateBs: expenseFormData.dateBs || new NepaliDate().format('YYYY-MM-DD'),
+      dateBs: expenseFormData.dateBs || getInitialMitiValue(),
       expenseCategory: expenseFormData.expenseCategory || 'fuel',
       amount: Number(expenseFormData.amount) || 0,
       fuelLiters: expenseFormData.fuelLiters !== undefined ? Number(expenseFormData.fuelLiters) : undefined,
@@ -222,7 +264,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsExpenseFormOpen(false);
     setEditingExpense(null);
     setExpenseFormData({
-      dateBs: new NepaliDate().format('YYYY-MM-DD'),
+      dateBs: getInitialMitiValue(),
       expenseCategory: 'fuel',
       amount: 0,
       fuelLiters: undefined,
@@ -240,7 +282,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsExpenseFormOpen(true);
   };
 
-  const filteredExpenseRecords = (expenseRecords || []).filter(e => {
+  const filteredExpenseRecords = (currentYearExpenseRecords || []).filter(e => {
     if (!e) return false;
     const query = (expenseSearchTerm || '').toLowerCase();
     return (
@@ -252,7 +294,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     );
   });
 
-  const filteredRecords = (records || []).filter(r => {
+  const filteredRecords = (currentYearRecords || []).filter(r => {
     if (!r) return false;
     const query = (searchTerm || '').toLowerCase();
     return (
@@ -281,17 +323,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   ], []);
 
   const uniqueLogBookDrivers = useMemo(() => {
-    const drivers = records.map(r => r.driverName).filter(Boolean);
+    const drivers = currentYearRecords.map(r => r.driverName).filter(Boolean);
     return Array.from(new Set(drivers));
-  }, [records]);
+  }, [currentYearRecords]);
 
   const uniqueLogBookVehicles = useMemo(() => {
-    const vehicles = records.map(r => r.ambulanceNo).filter(Boolean);
+    const vehicles = currentYearRecords.map(r => r.ambulanceNo).filter(Boolean);
     return Array.from(new Set(vehicles));
-  }, [records]);
+  }, [currentYearRecords]);
 
   const filteredLogBookRecords = useMemo(() => {
-    return (records || []).filter(r => {
+    return (currentYearRecords || []).filter(r => {
       if (!r) return false;
       // 1. General Search
       const searchLower = (searchTerm || '').toLowerCase();
@@ -324,7 +366,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
       return matchesSearch && matchesMonth && matchesDriver && matchesVehicle;
     });
-  }, [records, searchTerm, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter]);
+  }, [currentYearRecords, searchTerm, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter]);
 
   const monthlyFuelSummary = useMemo(() => {
     // Initialize standard 12 months sum
@@ -334,7 +376,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     });
 
     // Sum fuel expenses with filters
-    (expenseRecords || []).forEach(record => {
+    (currentYearExpenseRecords || []).forEach(record => {
       if (record.expenseCategory === 'fuel') {
         // Vehicle Filter compatibility
         if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
@@ -373,7 +415,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       liters: monthlyData[m.id].liters,
       cost: monthlyData[m.id].cost
     })).filter(item => item.liters > 0 || item.cost > 0); // Only show months with data
-  }, [expenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
+  }, [currentYearExpenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
   const totalDrivenDistance = useMemo(() => {
     return filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
@@ -381,7 +423,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const totalFuelLiters = useMemo(() => {
     let liters = 0;
-    (expenseRecords || []).forEach(record => {
+    (currentYearExpenseRecords || []).forEach(record => {
       if (record.expenseCategory === 'fuel' && record.fuelLiters) {
         // Vehicle Filter compatibility
         if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
@@ -406,7 +448,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       }
     });
     return liters;
-  }, [expenseRecords, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
+  }, [currentYearExpenseRecords, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
   const averageMileage = useMemo(() => {
     return totalFuelLiters > 0 ? (totalDrivenDistance / totalFuelLiters) : 0;
@@ -566,7 +608,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   const defaultAmbNo = generalSettings?.ambulanceNo || '';
                   const lastOdo = getLastOdometerForAmbulance(defaultAmbNo);
                   setFormData({
-                    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+                    dateBs: getInitialMitiValue(),
                     patientName: '',
                     age: '',
                     address: '',
@@ -595,7 +637,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 onClick={() => {
                   setEditingExpense(null);
                   setExpenseFormData({
-                    dateBs: new NepaliDate().format('YYYY-MM-DD'),
+                    dateBs: getInitialMitiValue(),
                     expenseCategory: 'fuel',
                     amount: 0,
                     fuelLiters: undefined,
@@ -649,6 +691,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     value={formData.dateBs || ''}
                     onChange={(val) => setFormData(prev => ({ ...prev, dateBs: val }))}
                     disabled={isEditingAndNonAdmin}
+                    minDate={fiscalYearRange.min}
+                    maxDate={fiscalYearRange.max}
                   />
                 </div>
 
@@ -1025,6 +1069,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     required
                     value={expenseFormData.dateBs || ''}
                     onChange={(val) => setExpenseFormData(prev => ({ ...prev, dateBs: val }))}
+                    minDate={fiscalYearRange.min}
+                    maxDate={fiscalYearRange.max}
                   />
                 </div>
 
@@ -1167,7 +1213,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
               <p className="text-lg font-extrabold text-rose-950 mt-1 font-mono">
-                रु. {records.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
+                रु. {currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-rose-600 shadow-sm">
@@ -1179,7 +1225,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-emerald-800">कुल प्राप्त भएको (Received)</p>
               <p className="text-lg font-extrabold text-emerald-950 mt-1 font-mono">
-                रु. {records.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
+                रु. {currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
@@ -1191,7 +1237,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-amber-800">बाँकी बक्यौता (Total Due)</p>
               <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">
-                रु. {(records.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - records.reduce((sum, r) => sum + (r.receivedAmount || 0), 0)).toLocaleString()}
+                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0)).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm">
@@ -1203,7 +1249,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-indigo-800">कूल एम्बुलेन्स खर्च (Total Expense)</p>
               <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">
-                रु. {(expenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                रु. {(currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
