@@ -77,7 +77,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         subItems: [
           { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> },
           { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> },
-          { id: 'report_microplanning', label: 'खोप कार्यक्रमको माइक्रोप्लानिङ', icon: <Calendar size={16} /> }
+          { id: 'report_microplanning', label: 'खोप माइक्रोप्लानिङ', icon: <Calendar size={16} /> }
         ]
       }
     ] 
@@ -114,7 +114,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         icon: <Baby size={16} />,
         subItems: [
            { id: 'report_khop', label: 'खोप रिपोर्ट (Main)', icon: <Baby size={16} /> },
-           { id: 'report_microplanning', label: 'Microplanning', icon: <Calendar size={16} /> }
+           { id: 'report_microplanning', label: 'खोप माइक्रोप्लानिङ', icon: <Calendar size={16} /> }
         ]
       },
       { id: 'report_rabies', label: 'रेबिज़ रिपोर्ट', icon: <Syringe size={16} /> },
