@@ -1832,6 +1832,12 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const reportExpense = reportData.filter(t => t.type === 'Expense').reduce((s, t) => s + ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)), 0);
     const closingBalance = openingBalance + reportIncome - reportExpense;
 
+    const prevFyOpeningBalance = allRecords
+      .filter(t => t.fiscalYear < reportFilter.fiscalYear)
+      .reduce((s, t) => 
+        s + (t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : -((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0))), 
+      0);
+
     const handlePrint = () => {
       const printWin = window.open('', '', 'width=900,height=600');
       if (!printWin) return;
@@ -1874,16 +1880,24 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               <tr><th>मिति (गते)</th><th>विवरण</th><th>आम्दानी</th><th>खर्च</th></tr>
             </thead>
             <tbody>
+              <tr>
+                <td class="text-center">-</td>
+                <td><strong>ओपनिङ बैंक मौज्दात (गत आ.व. को बैंक मौज्दात)</strong></td>
+                <td class="text-right">${prevFyOpeningBalance.toLocaleString()}</td>
+                <td class="text-right">-</td>
+              </tr>
               ${reportData.map(t => {
                 const parts = t.dateBs.split(/[-/]/);
                 const displayDate = reportFilter.type === 'Monthly' ? (parts[2] || t.dateBs) : t.dateBs;
-                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${t.type === 'Income' ? t.amount.toLocaleString() : '-'}</td><td class="text-right">${t.type === 'Expense' ? t.amount.toLocaleString() : '-'}</td></tr>`
+                const recordIncomeVal = t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : 0;
+                const recordExpenseVal = t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)) : 0;
+                return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${recordIncomeVal > 0 ? recordIncomeVal.toLocaleString() : '-'}</td><td class="text-right">${recordExpenseVal > 0 ? recordExpenseVal.toLocaleString() : '-'}</td></tr>`
               }).join('')}
             </tbody>
             <tfoot>
               <tr style="font-weight: bold;">
                 <td colspan="2" style="text-align: right;">Total</td>
-                <td class="text-right">${reportIncome.toLocaleString()}</td>
+                <td class="text-right">${(reportIncome + prevFyOpeningBalance).toLocaleString()}</td>
                 <td class="text-right">${reportExpense.toLocaleString()}</td>
               </tr>
             </tfoot>
@@ -1891,7 +1905,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <div class="summary">
             <div class="box">
               <p>मौज्दात रकम</p>
-              <h3>रू ${stats.balance.toLocaleString()}</h3>
+              <h3>रू ${closingBalance.toLocaleString()}</h3>
             </div>
             <div class="box">
               <p>भुक्तानी गर्न बाँकी</p>
@@ -1912,18 +1926,26 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
       const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
 
-      const data = reportData.map(t => ({
-        'मिति': t.dateBs,
-        'विवरण': `${getProgramName(t.programId)} (${t.remarks || ''})`,
-        'आम्दानी': t.type === 'Income' ? t.amount : 0,
-        'खर्च': t.type === 'Expense' ? t.amount : 0
-      }));
+      const data = [
+        {
+          'मिति': '-',
+          'विवरण': 'ओपनिङ बैंक मौज्दात (गत आ.व. को बैंक मौज्दात)',
+          'आम्दानी': prevFyOpeningBalance,
+          'खर्च': 0
+        },
+        ...reportData.map(t => ({
+          'मिति': t.dateBs,
+          'विवरण': `${getProgramName(t.programId)} (${t.remarks || ''})`,
+          'आम्दानी': t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : 0,
+          'खर्च': t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)) : 0
+        }))
+      ];
 
       // Add totals
       data.push({
         'मिति': 'जम्मा (Total)',
         'विवरण': '',
-        'आम्दानी': reportIncome,
+        'आम्दानी': reportIncome + prevFyOpeningBalance,
         'खर्च': reportExpense
       });
 
@@ -2001,19 +2023,30 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {reportData.map((t, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs">{t.dateBs}</td>
-                  <td className="px-4 py-3 font-nepali font-bold text-slate-700">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
-                  <td className="px-4 py-3 text-right text-emerald-600 font-black">{t.type === 'Income' ? (t.amountWithVAT || t.amount || 0).toLocaleString() : '-'}</td>
-                  <td className="px-4 py-3 text-right text-rose-600 font-black">{t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)).toLocaleString() : '-'}</td>
-                </tr>
-              ))}
+              {/* Opening Bank Balance row */}
+              <tr className="bg-emerald-50/50 hover:bg-emerald-50 transition-colors font-bold">
+                <td className="px-4 py-3 font-mono text-xs">-</td>
+                <td className="px-4 py-3 font-nepali text-emerald-800">ओपनिङ बैंक मौज्दात (गत आ.व. को बैंक मौज्दात)</td>
+                <td className="px-4 py-3 text-right text-emerald-600 font-black">रू {prevFyOpeningBalance.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right text-slate-400 font-black">-</td>
+              </tr>
+              {reportData.map((t, idx) => {
+                const recordIncomeVal = t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : 0;
+                const recordExpenseVal = t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)) : 0;
+                return (
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs">{t.dateBs}</td>
+                    <td className="px-4 py-3 font-nepali font-bold text-slate-700">{programs.find(p => p.id === t.programId)?.name || '-'} {t.remarks}</td>
+                    <td className="px-4 py-3 text-right text-emerald-600 font-black">{recordIncomeVal > 0 ? recordIncomeVal.toLocaleString() : '-'}</td>
+                    <td className="px-4 py-3 text-right text-rose-600 font-black">{recordExpenseVal > 0 ? recordExpenseVal.toLocaleString() : '-'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-slate-100 font-black">
                 <td colSpan={2} className="px-4 py-3 text-right">Total</td>
-                <td className="px-4 py-3 text-right text-emerald-700">रू {reportIncome.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right text-emerald-700">रू {(reportIncome + prevFyOpeningBalance).toLocaleString()}</td>
                 <td className="px-4 py-3 text-right text-rose-700">रू {reportExpense.toLocaleString()}</td>
               </tr>
             </tfoot>
@@ -2060,7 +2093,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 border-t pt-6">
              <div className="bg-blue-50 p-4 rounded-xl">
                <p className="text-xs font-black text-blue-400 uppercase">मौज्दात रकम (Available Fund)</p>
-               <p className="text-2xl font-black text-blue-700">रू {stats.balance.toLocaleString()}</p>
+               <p className="text-2xl font-black text-blue-700">रू {closingBalance.toLocaleString()}</p>
              </div>
              <div className="bg-rose-50 p-4 rounded-xl">
                <p className="text-xs font-black text-rose-400 uppercase">भुक्तानी गर्न बाँकी (Pending Payments)</p>
