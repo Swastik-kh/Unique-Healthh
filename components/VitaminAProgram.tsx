@@ -122,11 +122,20 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
     const [allRecords, setAllRecords] = useState<VitaminADistributionRecord[]>([]);
     const [reportRound, setReportRound] = useState<'1st' | '2nd'>('1st');
     const [filterFchvId, setFilterFchvId] = useState<string>('all');
+    const [reportPreparerId, setReportPreparerId] = useState<string>('');
 
     const [receivedVitaminA, setReceivedVitaminA] = useState<number | ''>('');
     const [spentVitaminA, setSpentVitaminA] = useState<number | ''>('');
     const [receivedAlbendazole, setReceivedAlbendazole] = useState<number | ''>('');
     const [spentAlbendazole, setSpentAlbendazole] = useState<number | ''>('');
+
+    useEffect(() => {
+        if (generalSettings?.vitaminAReportPreparerUserId) {
+            setReportPreparerId(generalSettings.vitaminAReportPreparerUserId);
+        } else if (currentUser?.id) {
+            setReportPreparerId(currentUser.id);
+        }
+    }, [generalSettings, currentUser]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -803,6 +812,28 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                                 <option value="2nd">२nd राउन्ड प्रतिवेदन</option>
                             </select>
                         </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-nepali">तयार गर्ने:</span>
+                            <select 
+                                value={reportPreparerId} 
+                                onChange={(e) => setReportPreparerId(e.target.value)} 
+                                className="border p-2 rounded text-sm bg-white font-nepali max-w-[200px]"
+                            >
+                                {(() => {
+                                    const filtered = allUsers.filter(u => u.organizationName === currentUser?.organizationName || u.organizationName === activeOrgName);
+                                    const list = filtered.length > 0 ? [...filtered] : [...allUsers];
+                                    // Make sure current user is in the list
+                                    if (currentUser && !list.some(u => u.id === currentUser.id)) {
+                                        list.push(currentUser);
+                                    }
+                                    return list.map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.fullName || u.name || u.email}
+                                        </option>
+                                    ));
+                                })()}
+                            </select>
+                        </div>
                         <button 
                             onClick={() => window.print()} 
                             className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 text-sm hover:bg-slate-900 transition-colors"
@@ -1182,21 +1213,16 @@ export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgNam
                     {/* Signature Block */}
                     <div className="mt-16 border-t border-slate-200 pt-8 print:border-slate-800">
                         {(() => {
-                            const orgUsers = allUsers.filter(u => u.organizationName === currentUser?.organizationName);
+                            // Preparer is the assigned user
+                            const preparer = allUsers.find(u => u.id === reportPreparerId) || 
+                                             allUsers.find(u => u.id === generalSettings?.vitaminAReportPreparerUserId) || 
+                                             currentUser;
                             
-                            // Preparer from settings
-                            const preparerId = generalSettings?.vitaminAReportPreparerUserId;
-                            const preparer = allUsers.find(u => u.id === preparerId) || currentUser;
-                            
-                            // Certifier: If specific certifier is selected in settings, use that.
-                            // If preparer is an admin/super_admin, default certifier to the preparer.
-                            // Otherwise, fallback to finding an admin or first user.
-                            const certifierId = generalSettings?.vitaminAReportCertifierUserId;
-                            const isPreparerAdmin = preparer?.role === 'ADMIN' || preparer?.role === 'SUPER_ADMIN';
-                            const certifier = allUsers.find(u => u.id === certifierId) || 
-                                              (isPreparerAdmin ? preparer : null) ||
-                                              orgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || 
-                                              orgUsers[0] || 
+                            // Certifier is the admin user of the assigned preparer's organization
+                            const preparerOrgUsers = allUsers.filter(u => u.organizationName === preparer?.organizationName);
+                            const certifier = preparerOrgUsers.find(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN') || 
+                                              preparerOrgUsers.find(u => u.role === 'HEALTH_SECTION') || 
+                                              preparerOrgUsers[0] || 
                                               currentUser;
                             
                             const nepDate = new NepaliDate();
