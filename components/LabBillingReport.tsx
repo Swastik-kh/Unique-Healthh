@@ -753,7 +753,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const filteredItemsForExportList = selectedCategory === 'All'
           ? r.items
           : r.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
-        const services = selectedService !== 'All' ? selectedService : (filteredItemsForExportList?.map(i => i.serviceName).join(', ') || '-');
+        const services = selectedService !== 'All' ? selectedService : (() => {
+          if (!filteredItemsForExportList || filteredItemsForExportList.length === 0) return '-';
+          const mappedNames = filteredItemsForExportList.map(item => {
+            const nameLower = (item.serviceName || '').trim().toLowerCase();
+            const parentName = testSubRelations.parentOfService.get(nameLower);
+            return parentName || item.serviceName;
+          });
+          const uniqueNames = Array.from(new Set(mappedNames));
+          return uniqueNames.join(', ');
+        })();
         const referrerVal = r.referredBy;
         const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
         const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');
@@ -1298,7 +1307,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       : record.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
                     const servicesList = selectedService !== 'All' 
                       ? selectedService 
-                      : (filteredItemsForList?.map((item) => item.serviceName).join(', ') || '-');
+                      : (() => {
+                          if (!filteredItemsForList || filteredItemsForList.length === 0) return '-';
+                          const mappedNames = filteredItemsForList.map(item => {
+                            const nameLower = (item.serviceName || '').trim().toLowerCase();
+                            const parentName = testSubRelations.parentOfService.get(nameLower);
+                            return parentName || item.serviceName;
+                          });
+                          const uniqueNames = Array.from(new Set(mappedNames));
+                          return uniqueNames.join(', ');
+                        })();
                     const referrerVal = record.referredBy;
                     const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
                     const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');

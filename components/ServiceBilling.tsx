@@ -315,46 +315,45 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     // Find service in settings to check for sub-tests
     const service = serviceItems.find(s => s.serviceName.toLowerCase() === newItem.serviceName.toLowerCase());
     
-    if (service && service.subTests && service.subTests.length > 0) {
-      const itemsToAdd: BillingItem[] = [];
-      
-      service.subTests.forEach((subTest, subIndex) => {
-        const subItemName = subTest.testName;
-        
-        // Check for duplicates in current bill
-        const isAlreadyInBill = billingItems.some(item => item.serviceName.toLowerCase() === subItemName.toLowerCase());
-        if (isAlreadyInBill) return;
-
-        // Check if already billed in previous records
-        const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
-          b.serviceSeekerId === currentPatient.id && 
-          b.items.some(i => i.serviceName.toLowerCase() === subItemName.toLowerCase())
-        ) : false;
-        if (isAlreadyBilled) return;
-
-        const item: BillingItem = {
-          id: Date.now().toString() + '-' + subIndex + '-' + Math.random().toString(36).substr(2, 5),
-          serviceName: subItemName,
-          price: subTest.price || 0,
-          quantity: 1,
-          total: (subTest.price || 0) * 1,
-          itemCode: getHibCodeForService(subItemName),
-          remarks: newItem.remarks || undefined,
-          category: service.category
-        };
-        itemsToAdd.push(item);
-      });
-
-      if (itemsToAdd.length > 0) {
-        setBillingItems([...billingItems, ...itemsToAdd]);
-        setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
-      } else {
-        alert('यी उप-परीक्षणहरू पहिले नै बिलमा थपिसकिएका छन्।');
+    if (service) {
+      // Check for duplicates in current bill
+      const isAlreadyInBill = billingItems.some(item => item.serviceName.toLowerCase() === service.serviceName.toLowerCase());
+      if (isAlreadyInBill) {
+        alert('यो सेवा पहिले नै बिलमा थपिसकिएको छ।');
+        return;
       }
+
+      // Check if already billed in previous records
+      const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+        b.serviceSeekerId === currentPatient.id && 
+        b.items.some(i => i.serviceName.toLowerCase() === service.serviceName.toLowerCase())
+      ) : false;
+      if (isAlreadyBilled) {
+        if (!window.confirm('यो सेवा पहिले नै बिलिङ भइसकेको देखिन्छ। के तपाईं फेरि थप्न चाहनुहुन्छ?')) {
+          return;
+        }
+      }
+
+      const price = parseFloat(newItem.price) || service.rate || service.subTests?.reduce((sum, st) => sum + (st.price || 0), 0) || 0;
+      const quantity = parseInt(newItem.quantity) || 1;
+
+      const item: BillingItem = {
+        id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
+        serviceName: service.serviceName,
+        price: price,
+        quantity: quantity,
+        total: price * quantity,
+        itemCode: getHibCodeForService(service.serviceName),
+        remarks: newItem.remarks || undefined,
+        category: service.category
+      };
+
+      setBillingItems([...billingItems, item]);
+      setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
       return;
     }
 
-    // Normal add logic if not a main service with sub-tests
+    // Normal add logic if not a main service (e.g., custom typed or standalone sub-test)
     if (!newItem.price) return;
     const price = parseFloat(newItem.price);
     const quantity = parseInt(newItem.quantity);
@@ -379,15 +378,13 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       }
     }
 
-    let itemCategory: string | undefined = service?.category;
-    if (!itemCategory) {
-      for (const s of serviceItems) {
-        if (s.subTests) {
-          const st = s.subTests.find(st => st.testName.toLowerCase() === newItem.serviceName.toLowerCase());
-          if (st) {
-            itemCategory = s.category;
-            break;
-          }
+    let itemCategory: string | undefined = undefined;
+    for (const s of serviceItems) {
+      if (s.subTests) {
+        const st = s.subTests.find(st => st.testName.toLowerCase() === newItem.serviceName.toLowerCase());
+        if (st) {
+          itemCategory = s.category;
+          break;
         }
       }
     }
@@ -419,33 +416,30 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       const service = serviceItems.find(s => s.serviceName === name) || 
                       serviceItems.find(s => s.serviceName.toLowerCase() === name.toLowerCase());
       
-      if (service && service.subTests && service.subTests.length > 0) {
-        // Add sub-tests as individual items
-        service.subTests.forEach((subTest, subIndex) => {
-          const subItemName = subTest.testName; // Changed from `${service.serviceName} - ${subTest.testName}`
-          
-          // Check if already in current billingItems
-          const isAlreadyInBill = billingItems.some(item => item.serviceName.toLowerCase() === subItemName.toLowerCase());
-          if (isAlreadyInBill) return;
+      if (service) {
+        // Check if already in current billingItems
+        const isAlreadyInBill = billingItems.some(item => item.serviceName.toLowerCase() === service.serviceName.toLowerCase());
+        if (isAlreadyInBill) return;
 
-          // Check if already billed in previous records
-          const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
-            b.serviceSeekerId === currentPatient.id && 
-            b.items.some(i => i.serviceName.toLowerCase() === subItemName.toLowerCase())
-          ) : false;
-          if (isAlreadyBilled) return;
-          
-          const item: BillingItem = {
-            id: Date.now().toString() + '-' + index + '-' + subIndex + '-' + Math.random().toString(36).substr(2, 5),
-            serviceName: subItemName,
-            price: subTest.price || 0,
-            quantity: 1,
-            total: (subTest.price || 0) * 1,
-            itemCode: getHibCodeForService(subItemName),
-            category: service.category
-          };
-          itemsToAdd.push(item);
-        });
+        // Check if already billed in previous records
+        const isAlreadyBilled = currentPatient ? billingRecords.some(b => 
+          b.serviceSeekerId === currentPatient.id && 
+          b.items.some(i => i.serviceName.toLowerCase() === service.serviceName.toLowerCase())
+        ) : false;
+        if (isAlreadyBilled) return;
+
+        const price = service.rate || service.subTests?.reduce((sum, st) => sum + (st.price || 0), 0) || 0;
+        
+        const item: BillingItem = {
+          id: Date.now().toString() + '-' + index + '-' + Math.random().toString(36).substr(2, 5),
+          serviceName: service.serviceName,
+          price: price,
+          quantity: 1,
+          total: price * 1,
+          itemCode: getHibCodeForService(service.serviceName),
+          category: service.category
+        };
+        itemsToAdd.push(item);
       } else {
         // Check if already in current billingItems
         const isAlreadyInBill = billingItems.some(item => item.serviceName.toLowerCase() === name.toLowerCase());
@@ -467,10 +461,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             }
         }
 
-        const price = foundSubTest ? (foundSubTest.price || 0) : (service ? service.rate : 0);
+        const price = foundSubTest ? (foundSubTest.price || 0) : 0;
         
-        let itemCategory: string | undefined = service?.category;
-        if (!itemCategory && foundSubTest) {
+        let itemCategory: string | undefined = undefined;
+        if (foundSubTest) {
           for (const s of serviceItems) {
             if (s.subTests?.some(st => st.testName === name || st.testName.toLowerCase() === name.toLowerCase())) {
               itemCategory = s.category;
