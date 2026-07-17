@@ -266,6 +266,7 @@ export interface AmbulanceRecord {
   serviceSeekerId?: string;
   patientName: string;
   age?: string;
+  billNo?: string;
   address?: string;
   phone?: string;
   driverName: string;

@@ -830,11 +830,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           return;
         }
 
-        const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
+        const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "बिल नम्बर (Bill No.)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
         
         const rows = filteredAmbulanceRecords.map((r, idx) => {
           const serial = (idx + 1).toString();
           const patient = r.patientName || '-';
+          const billNo = r.billNo || '-';
           const ambNo = r.ambulanceNo || '-';
           const driver = r.driverName || '-';
           const date = r.dateBs || '-';
@@ -849,7 +850,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           const baseRemarks = r.remarks || '';
           const remarksCombined = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
           
-          return [serial, patient, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
+          return [serial, patient, billNo, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
         });
 
         const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -1484,6 +1485,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
                     सेवाग्राहीको नामथर
                   </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-24">
+                    बिल नं.
+                  </th>
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">
                     एम्बुलेन्स नं / चालक
                   </th>
@@ -1509,6 +1513,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   filteredAmbulanceRecords.map((record, index) => {
                     const sNoStr = formatNumberValue(index + 1);
                     const clientName = record.patientName || '-';
+                    const displayBillNo = record.billNo ? (useNepaliNumerals ? toNepaliDigits(record.billNo) : record.billNo) : '-';
                     const driverDetail = `${record.ambulanceNo || '-'} / ${record.driverName || '-'}`;
                     const displayDate = formatRawDateToNepaliUi(record.dateBs);
                     const odoText = (record.startOdometer !== undefined && record.endOdometer !== undefined)
@@ -1531,6 +1536,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         </td>
                         <td className="border border-slate-950 p-2 font-medium">
                           {clientName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-bold font-mono">
+                          {displayBillNo}
                         </td>
                         <td className="border border-slate-950 p-2 text-center font-medium">
                           {driverDetail}
@@ -1555,14 +1563,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                    <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
                       चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।
                     </td>
                   </tr>
                 )}
                 {/* Grand Total Row */}
                 <tr className="bg-slate-50 font-bold">
-                  <td colSpan={5} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा रकम (Grand Total):
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">

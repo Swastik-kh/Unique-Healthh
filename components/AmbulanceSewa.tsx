@@ -138,6 +138,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     dateBs: getInitialMitiValue(),
     patientName: '',
     age: '',
+    billNo: '',
     address: '',
     phone: '',
     driverName: '',
@@ -193,6 +194,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       serviceSeekerId: formData.serviceSeekerId,
       patientName: formData.patientName || '',
       age: formData.age || '',
+      billNo: formData.billNo || '',
       address: formData.address || '',
       phone: formData.phone || '',
       driverName: formData.driverName || '',
@@ -215,6 +217,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       dateBs: getInitialMitiValue(),
       patientName: '',
       age: '',
+      billNo: '',
       address: '',
       phone: '',
       driverName: '',
@@ -611,6 +614,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     dateBs: getInitialMitiValue(),
                     patientName: '',
                     age: '',
+                    billNo: '',
                     address: '',
                     phone: '',
                     driverName: generalSettings?.ambulanceDriverName || '',
@@ -745,14 +749,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   )}
                 </div>
 
-                {/* Patient Age */}
+                {/* Bill No */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 font-nepali">उमेर (Age)</label>
+                  <label className="text-xs font-bold text-slate-600 font-nepali">बिल नम्बर (Bill No.)</label>
                   <input
                     type="text"
-                    placeholder="जस्तै: 32 Years / 15 Months"
-                    value={formData.age || ''}
-                    onChange={e => setFormData({...formData, age: e.target.value})}
+                    placeholder="बिल नम्बर प्रविष्ट गर्नुहोस्"
+                    value={formData.billNo || ''}
+                    onChange={e => setFormData({...formData, billNo: e.target.value})}
                     disabled={isEditingAndNonAdmin}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
@@ -1314,7 +1318,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           <td className="p-4">
                             <p className="font-bold text-slate-800 text-sm">{record.patientName}</p>
                             <p className="text-xs text-slate-400">
-                              {[record.age && `उमेर: ${record.age}`, record.phone && `फोन: ${record.phone}`].filter(Boolean).join(' • ')}
+                              {[record.billNo && `बिल नं: ${record.billNo}`, record.phone && `फोन: ${record.phone}`].filter(Boolean).join(' • ')}
                             </p>
                           </td>
                           <td className="p-4">
@@ -1852,7 +1856,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         <td className="p-1 border-r-2 border-slate-900 font-semibold font-nepali">{record.ambulanceNo}</td>
                         <td className="p-1 border-r-2 border-slate-900">
                           <p className="font-bold text-slate-950 text-[10px]">{record.patientName}</p>
-                          {record.phone && <p className="text-[9px] text-slate-500 print:hidden">संपर्क: {toNepaliDigits(record.phone)}</p>}
+                          {(record.billNo || record.phone) && (
+                            <p className="text-[9px] text-slate-500 font-nepali">
+                              {[record.billNo && `बिल नं: ${toNepaliDigits(record.billNo)}`, record.phone && `संपर्क: ${toNepaliDigits(record.phone)}`].filter(Boolean).join(' • ')}
+                            </p>
+                          )}
                         </td>
                         <td className="p-1 border-r-2 border-slate-900">
                           <span className="font-medium text-amber-800">{record.startLocation}</span> ➔ <span className="font-medium text-teal-800">{record.destination}</span>
