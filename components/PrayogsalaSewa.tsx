@@ -45,6 +45,8 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
   const [activeTab, setActiveTab] = useState<'sample' | 'result'>('sample');
   const [viewMode, setViewMode] = useState<'search' | 'dashboard'>('dashboard');
   const [activeSubMenu, setActiveSubMenu] = useState<'collection' | 'entry'>('collection');
+  const [pendingSamplesQuery, setPendingSamplesQuery] = useState('');
+  const [pendingResultsQuery, setPendingResultsQuery] = useState('');
 
   const todayNepaliDate = useMemo(() => new NepaliDate().format('YYYY-MM-DD'), []);
 
@@ -624,6 +626,29 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
     return { pendingSamples, pendingResults };
   }, [billingRecords, serviceSeekerRecords, labReports, serviceItems]);
 
+  const filteredPendingSamples = useMemo(() => {
+    const query = pendingSamplesQuery.toLowerCase().trim();
+    if (!query) return globalPendingTasks.pendingSamples;
+    return globalPendingTasks.pendingSamples.filter(t => 
+      (t.patientName || '').toLowerCase().includes(query) ||
+      (t.patientPID || '').toLowerCase().includes(query) ||
+      (t.invoiceNumber || '').toLowerCase().includes(query) ||
+      (t.testName || '').toLowerCase().includes(query)
+    );
+  }, [globalPendingTasks.pendingSamples, pendingSamplesQuery]);
+
+  const filteredPendingResults = useMemo(() => {
+    const query = pendingResultsQuery.toLowerCase().trim();
+    if (!query) return globalPendingTasks.pendingResults;
+    return globalPendingTasks.pendingResults.filter(t => 
+      (t.patientName || '').toLowerCase().includes(query) ||
+      (t.patientPID || '').toLowerCase().includes(query) ||
+      (t.invoiceNumber || '').toLowerCase().includes(query) ||
+      (t.barcodeId || '').toLowerCase().includes(query) ||
+      (t.testName || '').toLowerCase().includes(query)
+    );
+  }, [globalPendingTasks.pendingResults, pendingResultsQuery]);
+
   const handleSelectPatientFromDashboard = (patientId: string) => {
     const patient = serviceSeekerRecords.find(p => p.id === patientId);
     if (patient) {
@@ -736,18 +761,31 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
           </form>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-blue-800 flex items-center gap-2">
                   <Beaker size={18} /> Pending Samples
                 </h3>
                 <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                  {globalPendingTasks.pendingSamples.length}
+                  {filteredPendingSamples.length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {globalPendingTasks.pendingSamples.length > 0 ? (
-                  globalPendingTasks.pendingSamples.map((task, idx) => (
+              
+              {/* Search input for Pending Samples */}
+              <div className="mb-3 relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={pendingSamplesQuery}
+                  onChange={(e) => setPendingSamplesQuery(e.target.value)}
+                  placeholder="खोज्नुहोस् (नाम, PID, वा इनभ्वाइस न.)..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar flex-1">
+                {filteredPendingSamples.length > 0 ? (
+                  filteredPendingSamples.map((task, idx) => (
                     <div 
                       key={idx} 
                       onClick={() => handleSelectPatientFromDashboard(task.patientId)}
@@ -764,23 +802,38 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                     </div>
                   ))
                 ) : (
-                  <p className="text-center py-8 text-slate-400 italic text-sm">No pending samples</p>
+                  <p className="text-center py-8 text-slate-400 italic text-sm">
+                    {pendingSamplesQuery ? 'खोजिएको नमुना फेला परेन' : 'No pending samples'}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="bg-green-50/50 p-4 rounded-xl border border-green-100">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-green-50/50 p-4 rounded-xl border border-green-100 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-green-800 flex items-center gap-2">
                   <Activity size={18} /> Pending Results
                 </h3>
                 <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                  {globalPendingTasks.pendingResults.length}
+                  {filteredPendingResults.length}
                 </span>
               </div>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {globalPendingTasks.pendingResults.length > 0 ? (
-                  globalPendingTasks.pendingResults.map((task, idx) => (
+
+              {/* Search input for Pending Results */}
+              <div className="mb-3 relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={pendingResultsQuery}
+                  onChange={(e) => setPendingResultsQuery(e.target.value)}
+                  placeholder="खोज्नुहोस् (नाम, PID, वा बारकोड)..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar flex-1">
+                {filteredPendingResults.length > 0 ? (
+                  filteredPendingResults.map((task, idx) => (
                     <div 
                       key={idx} 
                       onClick={() => handleSelectPatientFromDashboard(task.patientId)}
@@ -797,7 +850,9 @@ export const PrayogsalaSewa: React.FC<PrayogsalaSewaProps> = ({
                     </div>
                   ))
                 ) : (
-                  <p className="text-center py-8 text-slate-400 italic text-sm">No pending results</p>
+                  <p className="text-center py-8 text-slate-400 italic text-sm">
+                    {pendingResultsQuery ? 'खोजिएको नतिजा फेला परेन' : 'No pending results'}
+                  </p>
                 )}
               </div>
             </div>

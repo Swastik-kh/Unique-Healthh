@@ -100,6 +100,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [allBillsSearch, setAllBillsSearch] = useState('');
 
+  const fyBillingRecords = useMemo(() => {
+    return billingRecords.filter(b => b.fiscalYear === currentFiscalYear);
+  }, [billingRecords, currentFiscalYear]);
+
   // Direct Billing State
   const [isDirectBilling, setIsDirectBilling] = useState(false);
   const [editingDirectBillId, setEditingDirectBillId] = useState<string | null>(null);
@@ -1038,8 +1042,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
   const patientBills = useMemo(() => {
     if (!currentPatient) return [];
-    return billingRecords.filter(b => b.serviceSeekerId === currentPatient.id).sort((a, b) => b.id.localeCompare(a.id));
-  }, [billingRecords, currentPatient]);
+    return fyBillingRecords.filter(b => b.serviceSeekerId === currentPatient.id).sort((a, b) => b.id.localeCompare(a.id));
+  }, [fyBillingRecords, currentPatient]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -1196,7 +1200,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     हालसालैका प्रत्यक्ष बिलहरू (Recent Direct Bills)
                   </h3>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    {billingRecords
+                    {fyBillingRecords
                       .filter(b => b.isDirectBilling || b.serviceSeekerId?.startsWith('DIR-') || b.invoiceNumber?.startsWith('DB-'))
                       .sort((a, b) => b.id.localeCompare(a.id))
                       .slice(0, 5)
@@ -1239,7 +1243,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                           </div>
                         </div>
                       ))}
-                    {billingRecords.filter(b => b.isDirectBilling || b.serviceSeekerId?.startsWith('DIR-') || b.invoiceNumber?.startsWith('DB-')).length === 0 && (
+                    {fyBillingRecords.filter(b => b.isDirectBilling || b.serviceSeekerId?.startsWith('DIR-') || b.invoiceNumber?.startsWith('DB-')).length === 0 && (
                       <p className="text-slate-400 text-sm italic text-center py-4">कुनै प्रत्यक्ष बिल भेटिएन</p>
                     )}
                   </div>
@@ -2022,12 +2026,12 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               <p className="text-xs text-slate-500 mt-0.5">नयाँ काटिएका प्रत्यक्ष र नियमित बिलहरूको विवरण र रिप्रिन्ट गर्ने सुविधा।</p>
             </div>
             <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full font-mono font-bold shrink-0">
-              Total Bills: {billingRecords.length}
+              Total Bills: {fyBillingRecords.length}
             </span>
           </div>
 
           <div className="overflow-x-auto font-nepali">
-            {billingRecords.length > 0 ? (
+            {fyBillingRecords.length > 0 ? (
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-700 font-bold">
                   <tr>
@@ -2041,7 +2045,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {[...billingRecords]
+                  {[...fyBillingRecords]
                     .sort((a, b) => b.id.localeCompare(a.id))
                     .slice(0, 15)
                     .map((bill) => {
@@ -2307,7 +2311,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           />
         </div>
         <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {billingRecords
+            {fyBillingRecords
               ?.filter(b => 
                 (b.invoiceNumber || '').toLowerCase().includes(allBillsSearch.toLowerCase()) || 
                 (b.patientName || '').toLowerCase().includes(allBillsSearch.toLowerCase())
