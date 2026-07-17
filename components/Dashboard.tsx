@@ -751,10 +751,27 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         return cfgList.map(cfg => {
           const base = getBaseItem(cfg.id, ALL_MENU_ITEMS);
           if (!base) return null;
+          
+          let reconstructedSubItems: MenuItem[] | undefined = undefined;
           if (cfg.subItems) {
-            base.subItems = reconstruct(cfg.subItems);
+            reconstructedSubItems = reconstruct(cfg.subItems);
           }
-          return base;
+          
+          // If the base item has sub-items, but they aren't fully represented in the config,
+          // we should preserve or append the missing sub-items so that updates are automatically shown.
+          if (base.subItems && base.subItems.length > 0) {
+            reconstructedSubItems = reconstructedSubItems || [];
+            base.subItems.forEach(baseSub => {
+              if (!reconstructedSubItems?.some(rsi => rsi.id === baseSub.id)) {
+                reconstructedSubItems!.push({ ...baseSub });
+              }
+            });
+          }
+          
+          return {
+            ...base,
+            subItems: reconstructedSubItems && reconstructedSubItems.length > 0 ? reconstructedSubItems : undefined
+          };
         }).filter(Boolean) as MenuItem[];
       };
       

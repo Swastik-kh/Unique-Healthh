@@ -94,17 +94,36 @@ interface MenuManagementProps {
 
 export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, onSave }) => {
   const [config, setConfig] = useState<MenuConfigItem[]>(() => {
+    let loadedConfig: MenuConfigItem[] = [];
     if (currentConfig && currentConfig.length > 0) {
-      return JSON.parse(JSON.stringify(currentConfig));
+      loadedConfig = JSON.parse(JSON.stringify(currentConfig));
+    } else {
+      loadedConfig = ALL_MENU_ITEMS.map(item => ({
+        id: item.id,
+        subItems: item.subItems?.map(sub => ({
+          id: sub.id,
+          subItems: sub.subItems?.map(child => ({ id: child.id }))
+        }))
+      }));
     }
-    // Default config from ALL_MENU_ITEMS
-    return ALL_MENU_ITEMS.map(item => ({
-      id: item.id,
-      subItems: item.subItems?.map(sub => ({
-        id: sub.id,
-        subItems: sub.subItems?.map(child => ({ id: child.id }))
-      }))
-    }));
+
+    // Ensure any newly added nested items in ALL_MENU_ITEMS are also present in loadedConfig
+    const syncWithBase = (cfgList: MenuConfigItem[], baseItems: MenuItem[]): MenuConfigItem[] => {
+      const updatedList = [...cfgList];
+      baseItems.forEach(base => {
+        let existing = updatedList.find(c => c.id === base.id);
+        if (!existing) {
+          existing = { id: base.id };
+          updatedList.push(existing);
+        }
+        if (base.subItems && base.subItems.length > 0) {
+          existing.subItems = syncWithBase(existing.subItems || [], base.subItems);
+        }
+      });
+      return updatedList;
+    };
+
+    return syncWithBase(loadedConfig, ALL_MENU_ITEMS);
   });
 
   const [isSaving, setIsSaving] = useState(false);

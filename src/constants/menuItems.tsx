@@ -76,7 +76,8 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         icon: <Activity size={16} />,
         subItems: [
           { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> },
-          { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> }
+          { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> },
+          { id: 'report_microplanning', label: 'खोप कार्यक्रमको माइक्रोप्लानिङ', icon: <Calendar size={16} /> }
         ]
       }
     ] 
