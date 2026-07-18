@@ -1746,7 +1746,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <button onClick={() => { setActiveTab('programs'); setSearchTerm(''); }} className="text-xs text-primary-600 font-bold hover:underline">View All</button>
           </div>
           <div className="divide-y divide-slate-50">
-            {programs.slice(0, 5).map(p => (
+            {programs.filter(p => p.fiscalYear === currentFiscalYear).slice(0, 5).map(p => (
               <div key={p.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
                 <div>
                   <p className="font-bold text-slate-700 font-nepali">{p.name}</p>
@@ -1763,7 +1763,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </div>
               </div>
             ))}
-            {programs.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कार्यक्रम रेकर्ड गरिएको छैन।</div>}
+            {programs.filter(p => p.fiscalYear === currentFiscalYear).length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कार्यक्रम रेकर्ड गरिएको छैन।</div>}
           </div>
         </div>
 
@@ -1776,7 +1776,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             <button onClick={() => { setActiveTab('transactions'); setSearchTerm(''); }} className="text-xs text-rose-600 font-bold hover:underline">View All</button>
           </div>
           <div className="divide-y divide-slate-50">
-            {[...transactions].sort((a, b) => b.dateBs.localeCompare(a.dateBs)).slice(0, 5).map(t => (
+            {[...transactions].filter(t => t.fiscalYear === currentFiscalYear).sort((a, b) => b.dateBs.localeCompare(a.dateBs)).slice(0, 5).map(t => (
               <div key={t.id} className="p-4 flex justify-between items-center hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${t.type === 'Income' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
@@ -1792,7 +1792,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 </p>
               </div>
             ))}
-            {transactions.length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कारोबार रेकर्ड गरिएको छैन।</div>}
+            {transactions.filter(t => t.fiscalYear === currentFiscalYear).length === 0 && <div className="p-8 text-center text-slate-400 font-nepali italic">कुनै कारोबार रेकर्ड गरिएको छैन।</div>}
           </div>
         </div>
       </div>
