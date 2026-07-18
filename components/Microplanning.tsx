@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db, safeEncodeKey, safeDecodeKey } from '../firebase';
 import { ref, get, set } from 'firebase/database';
 import { Save, Printer, ClipboardList, Settings, ShieldAlert, CheckCircle2 } from 'lucide-react';
@@ -96,6 +96,23 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'targets' | 'report' | 'annual' | 'report3' | 'report4' | 'report5' | 'report6'>('report');
   
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        container.scrollLeft += e.deltaY;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
+
   // Compile list of available organizations (sansthas)
   const sansthaList = useMemo(() => {
     const list = (allUsers || [])
@@ -1613,7 +1630,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
           </div>
           
           {/* Scrollable menu bar */}
-          <div className="flex overflow-x-auto gap-2 pb-1 max-w-full flex-nowrap scrollbar-thin scrollbar-thumb-slate-200" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div ref={scrollContainerRef} className="flex overflow-x-auto gap-2 pb-1 max-w-full flex-nowrap scrollbar-thin scrollbar-thumb-slate-200" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${activeTab === 'report' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`} onClick={() => setActiveTab('report')}>
               <ClipboardList size={14} /> Raw Data HF level (फार्म नं. १)
             </button>
