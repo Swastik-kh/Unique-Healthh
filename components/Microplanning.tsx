@@ -95,6 +95,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
   currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'targets' | 'report' | 'annual' | 'report3' | 'report4' | 'report5' | 'report6'>('report');
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -183,9 +184,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 3. Targets loading (with fallback to legacy global path if not found)
-        let snapshot = await get(ref(db, `${pathPrefix}/targets/${currentFiscalYear.replace('/', '_')}`));
+        let snapshot = await get(ref(db, `${pathPrefix}/targets/${selectedFiscalYear.replace('/', '_')}`));
         if (!snapshot.exists()) {
-          snapshot = await get(ref(db, `microplanning/targets/${currentFiscalYear.replace('/', '_')}`));
+          snapshot = await get(ref(db, `microplanning/targets/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (snapshot.exists()) {
           setTargets(snapshot.val());
@@ -203,9 +204,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 4. Center targets loading
-        let centerSnapshot = await get(ref(db, `${pathPrefix}/center_targets/${currentFiscalYear.replace('/', '_')}`));
+        let centerSnapshot = await get(ref(db, `${pathPrefix}/center_targets/${selectedFiscalYear.replace('/', '_')}`));
         if (!centerSnapshot.exists()) {
-          centerSnapshot = await get(ref(db, `microplanning/center_targets/${currentFiscalYear.replace('/', '_')}`));
+          centerSnapshot = await get(ref(db, `microplanning/center_targets/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (centerSnapshot.exists()) {
           setCenterTargets(centerSnapshot.val());
@@ -214,9 +215,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 5. Form 3 loading
-        let form3Snapshot = await get(ref(db, `${pathPrefix}/form3/${currentFiscalYear.replace('/', '_')}`));
+        let form3Snapshot = await get(ref(db, `${pathPrefix}/form3/${selectedFiscalYear.replace('/', '_')}`));
         if (!form3Snapshot.exists()) {
-          form3Snapshot = await get(ref(db, `microplanning/form3/${currentFiscalYear.replace('/', '_')}`));
+          form3Snapshot = await get(ref(db, `microplanning/form3/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (form3Snapshot.exists()) {
           setForm3Data(form3Snapshot.val());
@@ -225,9 +226,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 6. Form 4 loading
-        let form4Snapshot = await get(ref(db, `${pathPrefix}/form4/${currentFiscalYear.replace('/', '_')}`));
+        let form4Snapshot = await get(ref(db, `${pathPrefix}/form4/${selectedFiscalYear.replace('/', '_')}`));
         if (!form4Snapshot.exists()) {
-          form4Snapshot = await get(ref(db, `microplanning/form4/${currentFiscalYear.replace('/', '_')}`));
+          form4Snapshot = await get(ref(db, `microplanning/form4/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (form4Snapshot.exists()) {
           setForm4Data(form4Snapshot.val());
@@ -236,9 +237,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 7. Form 5 loading
-        let form5Snapshot = await get(ref(db, `${pathPrefix}/form5/${currentFiscalYear.replace('/', '_')}`));
+        let form5Snapshot = await get(ref(db, `${pathPrefix}/form5/${selectedFiscalYear.replace('/', '_')}`));
         if (!form5Snapshot.exists()) {
-          form5Snapshot = await get(ref(db, `microplanning/form5/${currentFiscalYear.replace('/', '_')}`));
+          form5Snapshot = await get(ref(db, `microplanning/form5/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (form5Snapshot.exists()) {
           setForm5Data(form5Snapshot.val());
@@ -247,9 +248,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
         }
 
         // 8. Form 6 loading
-        let form6Snapshot = await get(ref(db, `${pathPrefix}/form6/${currentFiscalYear.replace('/', '_')}`));
+        let form6Snapshot = await get(ref(db, `${pathPrefix}/form6/${selectedFiscalYear.replace('/', '_')}`));
         if (!form6Snapshot.exists()) {
-          form6Snapshot = await get(ref(db, `microplanning/form6/${currentFiscalYear.replace('/', '_')}`));
+          form6Snapshot = await get(ref(db, `microplanning/form6/${selectedFiscalYear.replace('/', '_')}`));
         }
         if (form6Snapshot.exists()) {
           setForm6Data(form6Snapshot.val());
@@ -262,14 +263,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       setLoading(false);
     };
     fetchData();
-  }, [currentFiscalYear, generalSettings, selectedSanstha, bachhaRecords, maternalRecords, currentUser]);
+  }, [selectedFiscalYear, generalSettings, selectedSanstha, bachhaRecords, maternalRecords, currentUser]);
 
   const handleSave = async () => {
     try {
       const safeSansthaKey = safeEncodeKey(selectedSanstha);
       const pathPrefix = `microplanning/${safeSansthaKey}`;
-      await set(ref(db, `${pathPrefix}/targets/${currentFiscalYear.replace('/', '_')}`), targets);
-      await set(ref(db, `${pathPrefix}/center_targets/${currentFiscalYear.replace('/', '_')}`), centerTargets);
+      await set(ref(db, `${pathPrefix}/targets/${selectedFiscalYear.replace('/', '_')}`), targets);
+      await set(ref(db, `${pathPrefix}/center_targets/${selectedFiscalYear.replace('/', '_')}`), centerTargets);
       alert('लक्ष्य विवरण सुरक्षित गरियो!');
       setIsSetupModalOpen(false);
     } catch (err) {
@@ -282,7 +283,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     try {
       const safeSansthaKey = safeEncodeKey(selectedSanstha);
       const pathPrefix = `microplanning/${safeSansthaKey}`;
-      await set(ref(db, `${pathPrefix}/form3/${currentFiscalYear.replace('/', '_')}`), form3Data);
+      await set(ref(db, `${pathPrefix}/form3/${selectedFiscalYear.replace('/', '_')}`), form3Data);
       alert('फारम नं. ३ को डाटा सफलतापूर्वक सुरक्षित गरियो!');
       setIsEditMode(false);
     } catch (err) {
@@ -296,7 +297,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     try {
       const safeSansthaKey = safeEncodeKey(selectedSanstha);
       const pathPrefix = `microplanning/${safeSansthaKey}`;
-      await set(ref(db, `${pathPrefix}/form4/${currentFiscalYear.replace('/', '_')}`), form4Data);
+      await set(ref(db, `${pathPrefix}/form4/${selectedFiscalYear.replace('/', '_')}`), form4Data);
       alert('फारम नं. ४ को डाटा सफलतापूर्वक सुरक्षित गरियो!');
       setIsEditMode(false);
     } catch (err) {
@@ -310,7 +311,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     try {
       const safeSansthaKey = safeEncodeKey(selectedSanstha);
       const pathPrefix = `microplanning/${safeSansthaKey}`;
-      await set(ref(db, `${pathPrefix}/form5/${currentFiscalYear.replace('/', '_')}`), form5Data);
+      await set(ref(db, `${pathPrefix}/form5/${selectedFiscalYear.replace('/', '_')}`), form5Data);
       alert('फारम नं. ५ को डाटा सफलतापूर्वक सुरक्षित गरियो!');
       setIsEditMode(false);
     } catch (err) {
@@ -324,7 +325,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     try {
       const safeSansthaKey = safeEncodeKey(selectedSanstha);
       const pathPrefix = `microplanning/${safeSansthaKey}`;
-      await set(ref(db, `${pathPrefix}/form6/${currentFiscalYear.replace('/', '_')}`), form6Data);
+      await set(ref(db, `${pathPrefix}/form6/${selectedFiscalYear.replace('/', '_')}`), form6Data);
       alert('फारम नं. ६ को डाटा सफलतापूर्वक सुरक्षित गरियो!');
       setIsEditMode(false);
     } catch (err) {
@@ -392,7 +393,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
     // Process Child Immunizations
     localBachhaRecords
-      .filter(r => r.fiscalYear === currentFiscalYear)
+      .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
         const gender = (record.gender || '').toLowerCase();
         record.vaccines?.forEach((v: any) => {
@@ -452,7 +453,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
     // Process Maternal TD
     localMaternalRecords
-      .filter(r => r.fiscalYear === currentFiscalYear)
+      .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
         if (record.td1DateBs) {
           const m = record.td1DateBs.split('-')[1];
@@ -469,7 +470,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       });
 
     return data;
-  }, [localBachhaRecords, localMaternalRecords, currentFiscalYear, targets]);
+  }, [localBachhaRecords, localMaternalRecords, selectedFiscalYear, targets]);
 
   // Compute Grand Totals
   const grandTotals = useMemo(() => {
@@ -564,7 +565,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
     // Process Child Immunizations
     localBachhaRecords
-      .filter(r => r.fiscalYear === currentFiscalYear)
+      .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
         const cName = record.vaccinationCenter || centersList[0] || 'मुख्य अस्पताल';
         if (!data[cName]) {
@@ -633,7 +634,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
     // Process Maternal TD
     localMaternalRecords
-      .filter(r => r.fiscalYear === currentFiscalYear)
+      .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
         const cName = record.vaccinationCenter || centersList[0] || 'मुख्य अस्पताल';
         if (!data[cName]) {
@@ -653,7 +654,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       });
 
     return data;
-  }, [localBachhaRecords, localMaternalRecords, currentFiscalYear, centersList, centerTargets]);
+  }, [localBachhaRecords, localMaternalRecords, selectedFiscalYear, centersList, centerTargets]);
 
   // Compute Center-level Grand Totals
   const sessionGrandTotals = useMemo(() => {
@@ -1167,7 +1168,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
   // Form 5 dynamic 3 fiscal years resolver
   const threeYears = useMemo(() => {
-    const clean = currentFiscalYear.replace('_', '/');
+    const clean = selectedFiscalYear.replace('_', '/');
     const parts = clean.split('/');
     if (parts.length >= 2) {
       const y3Start = parseInt(parts[0].replace(/[^0-9]/g, ''), 10);
@@ -1193,7 +1194,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       y2: '2081/82',
       y3: '2082/83'
     };
-  }, [currentFiscalYear]);
+  }, [selectedFiscalYear]);
 
   // Form 5 3-year calculated/dynamic values
   const form5CalculatedData = useMemo(() => {
@@ -1628,6 +1629,22 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Fiscal Year Selector */}
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">आर्थिक वर्ष:</span>
+            <select
+              value={selectedFiscalYear}
+              onChange={(e) => {
+                setSelectedFiscalYear(e.target.value);
+              }}
+              className="border border-slate-200 px-3 py-1.5 rounded-lg text-xs bg-slate-50 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer min-w-[100px]"
+            >
+              {Array.from(new Set(bachhaRecords.map(r => r.fiscalYear).concat([currentFiscalYear, '2079/80', '2080/81', '2081/82', '2082/83', '2083/84']))).sort().reverse().map(fy => (
+                <option key={fy} value={fy}>{fy}</option>
+              ))}
+            </select>
+          </div>
           
           {/* Scrollable menu bar */}
           <div ref={scrollContainerRef} className="flex overflow-x-auto gap-2 pb-1 max-w-full flex-nowrap scrollbar-thin scrollbar-thumb-slate-200" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -1702,7 +1719,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
                 <Settings size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-800">लक्ष्य जनसंख्या सेटअप - {selectedSanstha} (आ.व. {currentFiscalYear})</h2>
+                <h2 className="text-lg font-bold text-slate-800">लक्ष्य जनसंख्या सेटअप - {selectedSanstha} (आ.व. {selectedFiscalYear})</h2>
                 <p className="text-xs text-slate-500">मासिक रिपोर्ट फार्म १ को गणक गणनाका लागि लक्ष्य जनसंख्या र वडा विवरण प्रविष्ट गर्नुहोस्।</p>
               </div>
             </div>
@@ -1807,14 +1824,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
             {/* Form Header */}
             <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
               <div className="w-1/4 text-[10px] font-bold text-slate-700">
-                <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                 <p className="mt-1">स्थानीय तह : <span className="underline text-slate-900">{targets.local_level || 'चौदण्डीगढी न.पा.'}</span></p>
               </div>
               <div className="w-2/4 text-center">
                 <h1 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
                   स्वास्थ्य संस्था स्तरीय मासिक खोप प्रगति विवरण र वार्षिक प्रगति तथा ड्रपआउट अवस्थाको विश्लेषण (Raw Data HF level)
                 </h1>
-                <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{currentFiscalYear}</span></p>
+                <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{selectedFiscalYear}</span></p>
               </div>
               <div className="w-1/4 text-right text-[10px] font-bold text-slate-700">
                 <p>फार्म नं. १</p>
@@ -2092,14 +2109,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
             {/* Form Header */}
             <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
               <div className="w-1/4 text-[10px] font-bold text-slate-700">
-                <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                 <p className="mt-1">स्थानीय तह : <span className="underline text-slate-900">{targets.local_level || 'चौदण्डीगढी न.पा.'}</span></p>
               </div>
               <div className="w-2/4 text-center">
                 <h1 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
                   स्वास्थ्य संस्था खोपकेन्द्र स्तरीय प्रगति विवरण (Raw Data session Level)
                 </h1>
-                <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{currentFiscalYear}</span></p>
+                <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{selectedFiscalYear}</span></p>
               </div>
               <div className="w-1/4 text-right text-[10px] font-bold text-slate-700">
                 <p>फार्म नं. २</p>
@@ -2375,14 +2392,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
               {/* Report Header */}
               <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
                 <div className="w-1/4 text-[10px] font-bold text-slate-700">
-                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                   <p className="mt-1">स्थानीय तह : <span className="underline text-slate-900">{targets.local_level || 'चौदण्डीगढी न.पा.'}</span></p>
                 </div>
                 <div className="w-2/4 text-center">
                   <h1 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
                     मासिक खोप तथा खोप सामाग्री प्राप्त, खर्च र खेर जानेदर विवरण (Vaccine rcv & expnd.)
                   </h1>
-                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{currentFiscalYear}</span></p>
+                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{selectedFiscalYear}</span></p>
                 </div>
                 <div className="w-1/4 text-right text-[10px] font-bold text-slate-700">
                   <p>फार्म नं. ३</p>
@@ -2668,14 +2685,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
               {/* Form 4 Header */}
               <div className="flex justify-between items-start pb-2 mb-3">
                 <div className="w-1/3 text-[10px] font-bold text-slate-700 space-y-1">
-                  <p>स्वास्थ्य संस्था : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                  <p>स्वास्थ्य संस्था : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                 </div>
                 <div className="w-1/3 text-center space-y-1">
                   <p className="text-[11px] font-bold text-slate-700">वडा.नं. <span className="underline text-slate-900">{toNepaliNumber(targets.ward_no || '०९')}</span></p>
                 </div>
                 <div className="w-1/3 text-right text-[10px] font-bold text-slate-700 space-y-1">
                   <p>फारम नं. ४</p>
-                  <p className="mt-1">आ.व. <span className="underline text-slate-900 font-bold">{toNepaliNumber(currentFiscalYear)}</span></p>
+                  <p className="mt-1">आ.व. <span className="underline text-slate-900 font-bold">{toNepaliNumber(selectedFiscalYear)}</span></p>
                 </div>
               </div>
 
@@ -3032,14 +3049,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
               {/* Form Header */}
               <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
                 <div className="w-1/4 text-[10px] font-bold text-slate-700">
-                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                   <p className="mt-1">स्थानीय तह : <span className="underline text-slate-900">{targets.local_level || 'चौदण्डीगढी न.पा.'}</span></p>
                 </div>
                 <div className="w-2/4 text-center">
                   <h1 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
                     स्वास्थ्य संस्था स्तरीय विगत ३ वर्षको खोपको प्रगति र सरदर प्रगति विवरण (Raw Data 3 years HF level)
                   </h1>
-                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{currentFiscalYear}</span></p>
+                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{selectedFiscalYear}</span></p>
                 </div>
                 <div className="w-1/4 text-right text-[10px] font-bold text-slate-700">
                   <p className="font-extrabold text-[11px]">फारम नं. ५</p>
@@ -3216,14 +3233,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
               {/* Form Header */}
               <div className="flex justify-between items-start border-b border-slate-900 pb-2 mb-3">
                 <div className="w-1/4 text-[10px] font-bold text-slate-700">
-                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{generalSettings?.orgNameNepali || 'स्वास्थ्य चौकी हडिया'}</span></p>
+                  <p>स्वास्थ्य संस्थाको नाम : <span className="underline text-slate-900 font-bold">{selectedSanstha}</span></p>
                   <p className="mt-1">स्थानीय तह : <span className="underline text-slate-900">{targets.local_level || 'चौदण्डीगढी न.पा.'}</span></p>
                 </div>
                 <div className="w-2/4 text-center">
                   <h1 className="text-sm md:text-base font-bold text-slate-900 leading-tight">
                     नियमित खोप सेवाका लागि वडा/स्वास्थ्य संस्था तहको खोप तथा खोप सामाग्रीको मासिक/वार्षिक अनुमानित योजना फारम
                   </h1>
-                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{currentFiscalYear}</span></p>
+                  <p className="text-xs font-bold text-slate-700 mt-1">आर्थिक वर्ष : <span className="underline">{selectedFiscalYear}</span></p>
                 </div>
                 <div className="w-1/4 text-right text-[10px] font-bold text-slate-700">
                   <p className="font-extrabold text-[11px]">फारम नं. ६</p>
