@@ -738,7 +738,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Raw Data HF level (फारम नं. १)</title>
+        <title>Raw Data HF level - ${selectedSanstha} (फारम नं. १)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -807,7 +807,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Raw Data session Level</title>
+        <title>Raw Data session Level - ${selectedSanstha} (फारम नं. २)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -1391,7 +1391,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Vaccine Receive & Expenditure (फारम नं. ३)</title>
+        <title>Vaccine Receive & Expenditure - ${selectedSanstha} (फारम नं. ३)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -1451,7 +1451,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>खोप कार्यक्रमको प्रगति तथा ड्रप आउट दर विवरण (फारम नं. ४)</title>
+        <title>खोप कार्यक्रमको प्रगति तथा ड्रप आउट दर विवरण - ${selectedSanstha} (फारम नं. ४)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -1511,7 +1511,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>स्वास्थ्य संस्था स्तरीय ३ वर्षको खोपको प्रगति र सरदर प्रगति (फारम नं. ५)</title>
+        <title>स्वास्थ्य संस्था स्तरीय ३ वर्षको खोपको प्रगति र सरदर प्रगति - ${selectedSanstha} (फारम नं. ५)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>
@@ -1571,7 +1571,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       <!DOCTYPE html>
       <html>
       <head>
-        <title>खोप तथा खोप सामाग्रीको मासिक/वार्षिक अनुमानित योजना फारम (फारम नं. ६)</title>
+        <title>खोप तथा खोप सामाग्रीको मासिक/वार्षिक अनुमानित योजना - ${selectedSanstha} (फारम नं. ६)</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         <style>

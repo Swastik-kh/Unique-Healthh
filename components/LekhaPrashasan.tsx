@@ -3445,7 +3445,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                             label="कार्यक्रम/बजेट उप-शीर्षक (Program/Budget)" 
                             name="programId" 
                             defaultValue={editingItem?.programId}
-                            options={[...programs].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }))} 
+                            options={[...programs].filter(p => p.fiscalYear === currentFiscalYear).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ label: p.name, value: p.id }))} 
                           />
                         </>
                       ) : (
@@ -4164,7 +4164,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         required 
                         onChange={(e) => setIsOtherProgramSelected(e.target.value === 'other')}
                         options={[
-                          ...programs.map(p => ({ label: p.name, value: p.id })),
+                          ...programs.filter(p => p.fiscalYear === currentFiscalYear).map(p => ({ label: p.name, value: p.id })),
                           { label: 'अन्य (Other)', value: 'other' }
                         ]} 
                       />
@@ -4198,7 +4198,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         required 
                         onChange={(e) => setIsOtherProgramSelected(e.target.value === 'other')}
                         options={[
-                          ...programs.map(p => ({ label: p.name, value: p.id })),
+                          ...programs.filter(p => p.fiscalYear === currentFiscalYear).map(p => ({ label: p.name, value: p.id })),
                           { label: 'अन्य (Other)', value: 'other' }
                         ]} 
                       />

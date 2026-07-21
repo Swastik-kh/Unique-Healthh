@@ -35,24 +35,25 @@ const jatCodeOptions: Option[] = [
 ];
 
 export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
-    { name: 'BCG (जन्ममा)', relativeDays: 0, base: 'dob' },
-    { name: 'DPT-HepB-Hib-1 (६ हप्ता)', relativeDays: 42, base: 'dob' },
-    { name: 'OPV-1 (६ हप्ता)', relativeDays: 42, base: 'dob' },
-    { name: 'PCV-1 (६ हप्ता)', relativeDays: 42, base: 'dob' },
-    { name: 'Rota-1 (६ हप्ता)', relativeDays: 42, base: 'dob' },
-    { name: 'DPT-HepB-Hib-2 (१० हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-1 (६ हप्ता)' },
-    { name: 'OPV-2 (१० हप्ता)', relativeDays: 28, base: 'OPV-1 (६ हप्ता)' },
-    { name: 'Rota-2 (१० हप्ता)', relativeDays: 28, base: 'Rota-1 (६ हप्ता)' },
-    { name: 'PCV-2 (१० हप्ता)', relativeDays: 28, base: 'PCV-1 (६ हप्ता)' },
-    { name: 'FIPV (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)' },
-    { name: 'DPT-HepB-Hib-3 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)' },
-    { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (१० हप्ता)' },
-    { name: 'MR-1 (९ महिना)', relativeDays: 270, base: 'dob' },
-    { name: 'JE (१२ महिना)', relativeDays: 360, base: 'dob' }, 
-    { name: 'PCV-3 (९ महिना)', relativeDays: 270, base: 'dob' }, 
-    { name: 'MR-2 (१५ महिना)', relativeDays: 450, base: 'dob' },
-    { name: 'Typhoid (१५ महिना)', relativeDays: 450, base: 'dob' },
-    { name: 'HPV (१४ वर्ष)', relativeDays: 5110, base: 'dob', femaleOnly: true }, 
+    { name: 'BCG (जन्ममा)', relativeDays: 0, base: 'dob', cluster: 'जन्ममा' },
+    { name: 'DPT-HepB-Hib-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
+    { name: 'OPV-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
+    { name: 'PCV-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
+    { name: 'Rota-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
+    { name: 'DPT-HepB-Hib-2 (१० हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-1 (६ हप्ता)', cluster: '१० हप्ता' },
+    { name: 'OPV-2 (१० हप्ता)', relativeDays: 28, base: 'OPV-1 (६ हप्ता)', cluster: '१० हप्ता' },
+    { name: 'Rota-2 (१० हप्ता)', relativeDays: 28, base: 'Rota-1 (६ हप्ता)', cluster: '१० हप्ता' },
+    { name: 'PCV-2 (१० हप्ता)', relativeDays: 28, base: 'PCV-1 (६ हप्ता)', cluster: '१० हप्ता' },
+    { name: 'FIPV-1 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)', cluster: '१४ हप्ता' },
+    { name: 'DPT-HepB-Hib-3 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)', cluster: '१४ हप्ता' },
+    { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (१० हप्ता)', cluster: '१४ हप्ता' },
+    { name: 'MR-1 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' },
+    { name: 'PCV-3 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' }, 
+    { name: 'FIPV-2 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' }, 
+    { name: 'JE (१२ महिना)', relativeDays: 360, base: 'dob', cluster: '१२ महिना' }, 
+    { name: 'MR-2 (१५ महिना)', relativeDays: 450, base: 'dob', cluster: '१५ महिना' },
+    { name: 'Typhoid (१५ महिना)', relativeDays: 450, base: 'dob', cluster: '१५ महिना' },
+    { name: 'HPV (१४ वर्ष)', relativeDays: 5110, base: 'dob', femaleOnly: true, cluster: '१४ वर्ष' }, 
 ];
 
 const parseDateLocal = (dateStr: string) => {
@@ -123,6 +124,7 @@ const getInitialVaccineSchedule = (dobAd: string, gender: string): ChildImmuniza
 
       return {
         name: vaccine.name,
+        cluster: vaccine.cluster,
         scheduledDateAd: scheduledDateAdString,
         scheduledDateBs: scheduledDateBs,
         givenDateAd: null, 
@@ -235,21 +237,32 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 return true;
             });
 
+            const existingVaccines = formData.vaccines || [];
             const newSchedule: ChildImmunizationVaccine[] = filteredTemplate.map(vaccine => {
+                const existing = existingVaccines.find(v => v.name === vaccine.name);
+                
+                if (existing && existing.status === 'Given') {
+                    return {
+                        ...existing,
+                        cluster: vaccine.cluster
+                    };
+                }
+
                 const { bs: scheduledDateBs, ad: scheduledDateAdString } = calculateImmunizationDate(
                     formData.dobAd,
                     vaccine.relativeDays,
                     vaccine.base,
-                    []
+                    existingVaccines
                 );
 
                 return {
                     name: vaccine.name,
+                    cluster: vaccine.cluster,
                     scheduledDateAd: scheduledDateAdString,
                     scheduledDateBs: scheduledDateBs,
-                    givenDateAd: null, 
-                    givenDateBs: null, 
-                    status: 'Pending',
+                    givenDateAd: existing ? existing.givenDateAd : null, 
+                    givenDateBs: existing ? existing.givenDateBs : null, 
+                    status: existing ? existing.status : 'Pending',
                 } as ChildImmunizationVaccine;
             });
             setFormData(prev => ({ ...prev, vaccines: newSchedule }));
@@ -301,7 +314,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         const existingVaccineInMap = updatedVaccinesMap.get(templateVaccine.name);
 
         if (existingVaccineInMap && existingVaccineInMap.status === 'Given') {
-            finalVaccinesOrdered.push(existingVaccineInMap);
+            finalVaccinesOrdered.push({
+                ...existingVaccineInMap,
+                cluster: templateVaccine.cluster || existingVaccineInMap.cluster,
+            });
         } else {
             const { bs: newScheduledDateBs, ad: newScheduledDateAd } = calculateImmunizationDate(
                 childDobAd,
@@ -313,6 +329,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             if (existingVaccineInMap) {
                 finalVaccinesOrdered.push({
                     ...existingVaccineInMap,
+                    cluster: templateVaccine.cluster,
                     scheduledDateAd: newScheduledDateAd,
                     scheduledDateBs: newScheduledDateBs,
                 });
@@ -320,6 +337,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 // This branch handles cases where a vaccine is in the template but not in existing vaccines
                 finalVaccinesOrdered.push({
                     name: templateVaccine.name,
+                    cluster: templateVaccine.cluster,
                     scheduledDateAd: newScheduledDateAd,
                     scheduledDateBs: newScheduledDateBs,
                     givenDateAd: null, givenDateBs: null,
@@ -595,99 +613,113 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 नयाँ बच्चा दर्ता गर्दा वा सम्पादन गर्दा, तलका खोपहरूको स्थिति 'लगाएको' (Given) वा 'बाँकी' (Pending) सेट गर्न सक्नुहुन्छ। 'लगाएको' छान्दा खोप लगाएको वास्तविक मिति भर्नुहोस्।
               </p>
               
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(formData.vaccines || []).map((v, idx) => {
-                  const isGiven = v.status === 'Given';
-                  const originalRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
-                  const isAlreadySavedAsGiven = !!(originalRecord && (originalRecord.vaccines || []).some(origV => origV.name === v.name && origV.status === 'Given'));
+              <div className="space-y-6">
+                {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
+                  const vaccinesInCluster = (formData.vaccines || []).filter(v => v.cluster === clusterName);
+                  if (vaccinesInCluster.length === 0) return null;
+                  
                   return (
-                    <div 
-                      key={idx} 
-                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
-                        isGiven 
-                          ? 'bg-green-50/70 border-green-200 shadow-sm' 
-                          : 'bg-white border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start gap-1 mb-2">
-                          <span className="font-bold text-xs text-slate-800 font-nepali">{v.name}</span>
-                          <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">सिफारिस: {v.scheduledDateBs}</span>
-                        </div>
-                        
-                        <div className="mt-2.5 flex items-center gap-2">
-                          {/* Status selector buttons */}
-                          <button
-                            type="button"
-                            disabled={isAlreadySavedAsGiven}
-                            onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Pending', '')}
-                            className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
-                              isAlreadySavedAsGiven
-                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
-                                : !isGiven 
-                                  ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-xs' 
-                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            लगाउन बाँकी
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isAlreadySavedAsGiven}
-                            onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Given', v.givenDateBs || v.scheduledDateBs || getTodayBs())}
-                            className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
-                              isAlreadySavedAsGiven
-                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
-                                : isGiven 
-                                  ? 'bg-green-600 text-white border-green-600 shadow-sm' 
-                                  : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            लगाएको (Given)
-                          </button>
-                        </div>
+                    <div key={clusterName} className="space-y-3">
+                      <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">{clusterName}</span>
                       </div>
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {vaccinesInCluster.map((v) => {
+                          const idx = (formData.vaccines || []).findIndex(origV => origV.name === v.name);
+                          const isGiven = v.status === 'Given';
+                          const originalRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
+                          const isAlreadySavedAsGiven = !!(originalRecord && (originalRecord.vaccines || []).some(origV => origV.name === v.name && origV.status === 'Given'));
+                          return (
+                            <div 
+                              key={v.name} 
+                              className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                                isGiven 
+                                  ? 'bg-green-50/70 border-green-200 shadow-sm' 
+                                  : 'bg-white border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              <div>
+                                <div className="flex justify-between items-start gap-1 mb-2">
+                                  <span className="font-bold text-xs text-slate-800 font-nepali">{v.name}</span>
+                                  <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">सिफारिस: {v.scheduledDateBs}</span>
+                                </div>
+                                
+                                <div className="mt-2.5 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={isAlreadySavedAsGiven}
+                                    onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Pending', '')}
+                                    className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                      isAlreadySavedAsGiven
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                                        : !isGiven 
+                                          ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-xs' 
+                                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    लगाउन बाँकी
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isAlreadySavedAsGiven}
+                                    onClick={() => !isAlreadySavedAsGiven && handleFormVaccineChange(v.name, 'Given', v.givenDateBs || v.scheduledDateBs || getTodayBs())}
+                                    className={`flex-1 py-1 px-2.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                      isAlreadySavedAsGiven
+                                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                                        : isGiven 
+                                          ? 'bg-green-600 text-white border-green-600 shadow-sm' 
+                                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    लगाएको (Given)
+                                  </button>
+                                </div>
+                              </div>
 
-                      {isGiven && (
-                        <div className="mt-3.5 pt-3 border-t border-dashed border-green-200 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                          <label className="text-[10px] font-bold text-slate-500 font-nepali flex items-center justify-between">
-                            <span>लगाएको वास्तविक मिति:</span>
-                            {isAlreadySavedAsGiven && <span className="text-red-500 font-bold text-[8px] bg-red-50 border border-red-100 px-1 py-0.5 rounded">परिमार्जन गर्न नमिल्ने</span>}
-                          </label>
-                          <div className="flex gap-1.5 items-center">
-                            <div className="flex-1">
-                              <NepaliDatePicker
-                                label=""
-                                value={v.givenDateBs || ''}
-                                onChange={(val) => handleFormVaccineChange(v.name, 'Given', val)}
-                                disabled={isAlreadySavedAsGiven}
-                                hideIcon={true}
-                                inputClassName="h-8 py-1 text-xs font-mono font-bold"
-                              />
+                              {isGiven && (
+                                <div className="mt-3.5 pt-3 border-t border-dashed border-green-200 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <label className="text-[10px] font-bold text-slate-500 font-nepali flex items-center justify-between">
+                                    <span>लगाएको वास्तविक मिति:</span>
+                                    {isAlreadySavedAsGiven && <span className="text-red-500 font-bold text-[8px] bg-red-50 border border-red-100 px-1 py-0.5 rounded">परिमार्जन गर्न नमिल्ने</span>}
+                                  </label>
+                                  <div className="flex gap-1.5 items-center">
+                                    <div className="flex-1">
+                                      <NepaliDatePicker
+                                        label=""
+                                        value={v.givenDateBs || ''}
+                                        onChange={(val) => handleFormVaccineChange(v.name, 'Given', val)}
+                                        disabled={isAlreadySavedAsGiven}
+                                        hideIcon={true}
+                                        inputClassName="h-8 py-1 text-xs font-mono font-bold"
+                                      />
+                                    </div>
+                                    {!isAlreadySavedAsGiven && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleFormVaccineChange(v.name, 'Given', getTodayBs())}
+                                          className="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-[10px] font-bold rounded border border-green-200 transition-colors shrink-0 h-8 flex items-center justify-center"
+                                          title="आजको मिति सेट गर्नुहोस्"
+                                        >
+                                          आज
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleFormVaccineChange(v.name, 'Given', v.scheduledDateBs || '')}
+                                          className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 transition-colors shrink-0 h-8 flex items-center justify-center"
+                                          title="निर्धारित मिति सेट गर्नुहोस्"
+                                        >
+                                          सिफारिस
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            {!isAlreadySavedAsGiven && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleFormVaccineChange(v.name, 'Given', getTodayBs())}
-                                  className="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 text-[10px] font-bold rounded border border-green-200 transition-colors shrink-0 h-8 flex items-center justify-center"
-                                  title="आजको मिति सेट गर्नुहोस्"
-                                >
-                                  आज
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleFormVaccineChange(v.name, 'Given', v.scheduledDateBs || '')}
-                                  className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 transition-colors shrink-0 h-8 flex items-center justify-center"
-                                  title="निर्धारित मिति सेट गर्नुहोस्"
-                                >
-                                  सिफारिस
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
@@ -737,27 +769,39 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-2">
-                        {(record.vaccines || []).map((v, idx) => {
-                            const isGiven = v.status === 'Given';
-                            return (
-                              <div 
-                                  key={idx} 
-                                  onClick={() => {
-                                      if (isGiven) return; // Locked! Feri edit garna namilos
-                                      setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
-                                  }}
-                                  className={`group relative px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center min-w-[80px] transition-all
-                                      ${isGiven ? 'bg-green-100 text-green-800 border-green-300 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
-                                  title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
-                              >
-                                  <span className="mb-0.5">{v.name}</span>
-                                  <div className="flex flex-col text-[8px] font-normal leading-tight">
-                                      <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={8}/> {v.scheduledDateBs}</span>
-                                      {v.givenDateBs && <span className="flex items-center gap-0.5 text-green-700 font-bold"><CheckCircle2 size={8}/> {v.givenDateBs}</span>}
-                                  </div>
+                    <div className="flex flex-col gap-3">
+                        {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
+                          const vaccinesInCluster = (record.vaccines || []).filter(v => v.cluster === clusterName);
+                          if (vaccinesInCluster.length === 0) return null;
+                          return (
+                            <div key={clusterName} className="flex flex-col gap-1">
+                              <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-50 w-fit px-1 rounded">{clusterName}</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {vaccinesInCluster.map((v) => {
+                                    const idx = (record.vaccines || []).findIndex(origV => origV.name === v.name);
+                                    const isGiven = v.status === 'Given';
+                                    return (
+                                      <div 
+                                          key={v.name} 
+                                          onClick={() => {
+                                              if (isGiven) return; 
+                                              setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
+                                          }}
+                                          className={`group relative px-2 py-1 rounded text-[9px] font-bold border flex flex-col items-center min-w-[70px] transition-all
+                                              ${isGiven ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
+                                          title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
+                                      >
+                                          <span className="mb-0.5 text-center leading-tight">{v.name}</span>
+                                          <div className="flex flex-col text-[7px] font-normal leading-tight">
+                                              <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
+                                              {v.givenDateBs && <span className="flex items-center gap-0.5 text-green-700 font-bold"><CheckCircle2 size={7}/> {v.givenDateBs}</span>}
+                                          </div>
+                                      </div>
+                                    );
+                                })}
                               </div>
-                            );
+                            </div>
+                          );
                         })}
                     </div>
                   </td>

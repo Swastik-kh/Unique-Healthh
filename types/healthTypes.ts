@@ -135,6 +135,7 @@ export interface GarbhawatiPatient {
 
 export interface ChildImmunizationVaccine {
   name: string;
+  cluster?: string;
   scheduledDateBs: string;
   scheduledDateAd: string;
   givenDateBs?: string | null;
