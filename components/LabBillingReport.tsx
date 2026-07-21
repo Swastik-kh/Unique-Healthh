@@ -104,7 +104,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   }, [curNepaliDate]);
 
   // Filters state
-  const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance'>('Sewa');
+  const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance' | 'Protsahan'>('Sewa');
   const [ambulanceReportType, setAmbulanceReportType] = useState<'income' | 'expense'>('income');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
@@ -115,6 +115,52 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedReferredBy, setSelectedReferredBy] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
+
+  // Protsahan settings
+  const [labIncentivePercent, setLabIncentivePercent] = useState<number>(() => {
+    const saved = localStorage.getItem('protsahan_lab_incentive_percent');
+    return saved ? Number(saved) : 10;
+  });
+  const [referrerSharePercent, setReferrerSharePercent] = useState<number>(() => {
+    const saved = localStorage.getItem('protsahan_referrer_share_percent');
+    return saved ? Number(saved) : 40;
+  });
+  const [labStaffSharePercent, setLabStaffSharePercent] = useState<number>(() => {
+    const saved = localStorage.getItem('protsahan_lab_staff_share_percent');
+    return saved ? Number(saved) : 40;
+  });
+  const [helperSharePercent, setHelperSharePercent] = useState<number>(() => {
+    const saved = localStorage.getItem('protsahan_helper_share_percent');
+    return saved ? Number(saved) : 20;
+  });
+
+  const [isSettingsEditing, setIsSettingsEditing] = useState<boolean>(false);
+  const [tempSettings, setTempSettings] = useState({
+    labIncentivePercent: 10,
+    referrerSharePercent: 40,
+    labStaffSharePercent: 40,
+    helperSharePercent: 20
+  });
+
+  const handleSaveProtsahanSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    const sum = tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent;
+    if (sum !== 100) {
+      alert("प्रोत्साहनका बाँडफाँड प्रतिशतहरूको जोड १००% हुनुपर्दछ। (Total share allocation must sum to exactly 100%)");
+      return;
+    }
+    setLabIncentivePercent(tempSettings.labIncentivePercent);
+    setReferrerSharePercent(tempSettings.referrerSharePercent);
+    setLabStaffSharePercent(tempSettings.labStaffSharePercent);
+    setHelperSharePercent(tempSettings.helperSharePercent);
+
+    localStorage.setItem('protsahan_lab_incentive_percent', String(tempSettings.labIncentivePercent));
+    localStorage.setItem('protsahan_referrer_share_percent', String(tempSettings.referrerSharePercent));
+    localStorage.setItem('protsahan_lab_staff_share_percent', String(tempSettings.labStaffSharePercent));
+    localStorage.setItem('protsahan_helper_share_percent', String(tempSettings.helperSharePercent));
+
+    setIsSettingsEditing(false);
+  };
 
   const preparerName = useMemo(() => {
       let userId: string | undefined;
@@ -198,9 +244,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return [...billingRecords, ...virtualRecords];
   }, [billingRecords, serviceSeekerRecords, currentFiscalYear]);
 
-  const hasSourceAccess = (source: 'Sewa' | 'Ambulance') => {
+  const hasSourceAccess = (source: 'Sewa' | 'Ambulance' | 'Protsahan') => {
     if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
+    if (source === 'Protsahan') {
+      return currentUser.allowedMenus?.includes('report_billing_sewa') || false;
+    }
     const key = source === 'Sewa' ? 'report_billing_sewa' : 'report_billing_ambulance';
     return currentUser.allowedMenus?.includes(key) || false;
   };
@@ -218,7 +267,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   React.useEffect(() => {
     if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
       if (!hasSourceAccess(reportSource)) {
-        const sources: ('Sewa' | 'Ambulance')[] = ['Sewa', 'Ambulance'];
+        const sources: ('Sewa' | 'Ambulance' | 'Protsahan')[] = ['Sewa', 'Ambulance', 'Protsahan'];
         const firstAllowed = sources.find(s => hasSourceAccess(s));
         if (firstAllowed) {
           setReportSource(firstAllowed);
@@ -470,7 +519,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
     const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
     
-    if (reportSource === 'Sewa') {
+    if (reportSource === 'Protsahan') {
+      return `आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`;
+    } else if (reportSource === 'Sewa') {
       return `आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`;
     } else {
       let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
@@ -497,7 +548,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
     const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
     
-    if (reportSource === 'Sewa') {
+    if (reportSource === 'Protsahan') {
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`);
+    } else if (reportSource === 'Sewa') {
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`);
     } else {
       let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
@@ -738,8 +791,109 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
   }, [filteredAmbulanceRecords]);
 
+  // Protsahan Report Data calculations
+  const protsahanReportData = useMemo(() => {
+    return filteredRecords.map(record => {
+      let grossLabAmount = 0;
+      record.items?.forEach(item => {
+        if (item.isRefunded) return;
+        const cat = getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category);
+        if (cat === 'Lab') {
+          grossLabAmount += item.total || 0;
+        }
+      });
+
+      const billSubTotal = record.subTotal || 1;
+      const billDiscount = record.discount || 0;
+      const proRatedDiscount = (grossLabAmount / billSubTotal) * billDiscount;
+      const netLabAmount = Math.max(0, grossLabAmount - proRatedDiscount);
+
+      const totalIncentive = netLabAmount * (labIncentivePercent / 100);
+      const referrerShare = totalIncentive * (referrerSharePercent / 100);
+      const labStaffShare = totalIncentive * (labStaffSharePercent / 100);
+      const helperShare = totalIncentive * (helperSharePercent / 100);
+
+      const referrerVal = record.referredBy;
+      const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
+      const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');
+
+      return {
+        record,
+        grossLabAmount,
+        proRatedDiscount,
+        netLabAmount,
+        totalIncentive,
+        referrerName,
+        referrerShare,
+        labStaffShare,
+        helperShare,
+        hasReferrer: !!referrerVal && referrerVal !== 'All' && referrerVal !== '-'
+      };
+    }).filter(d => d.grossLabAmount > 0); // Only keep records that have lab services
+  }, [filteredRecords, labIncentivePercent, referrerSharePercent, labStaffSharePercent, helperSharePercent, users, getServiceCategory]);
+
+  const protsahanByReferrer = useMemo(() => {
+    const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number }>();
+    protsahanReportData.forEach(item => {
+      const key = item.record.referredBy && item.record.referredBy !== 'All' && item.record.referredBy !== '-' ? item.referrerName : 'स्वतन्त्र (Self / direct)';
+      const existing = map.get(key) || { netLabAmount: 0, totalIncentive: 0, referrerShare: 0 };
+      map.set(key, {
+        netLabAmount: existing.netLabAmount + item.netLabAmount,
+        totalIncentive: existing.totalIncentive + item.totalIncentive,
+        referrerShare: existing.referrerShare + item.referrerShare
+      });
+    });
+    return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
+  }, [protsahanReportData]);
+
   // Export to CSV function
   const handleExportCSV = () => {
+    if (reportSource === 'Protsahan') {
+      if (protsahanReportData.length === 0) {
+        alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+        return;
+      }
+
+      const headers = [
+        "सि.न. (S.N.)", 
+        "सेवाग्राहीको नामथर (Seeker Name)", 
+        "विल नं. (Bill No.)", 
+        "मिति (Date)", 
+        "ल्याब खुद रकम (Lab Net Amount)", 
+        "कुल प्रोत्साहन (Total Incentive)", 
+        "सिफारिस गर्ने (Referred By)", 
+        "सिफारिसकर्ता हिस्सा (Referrer Share)", 
+        "प्रयोगशालाकर्मी हिस्सा (Lab Staff Share)", 
+        "सहयोगी हिस्सा (Helper Share)"
+      ];
+
+      const rows = protsahanReportData.map((r, idx) => {
+        const serial = (idx + 1).toString();
+        const patient = r.record.patientName || '-';
+        const billNo = (r.record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
+        const date = r.record.billDate || '-';
+        const netAmt = r.netLabAmount.toFixed(2);
+        const totalInc = r.totalIncentive.toFixed(2);
+        const referrer = r.referrerName;
+        const refShare = r.referrerShare.toFixed(2);
+        const staffShare = r.labStaffShare.toFixed(2);
+        const helperShare = r.helperShare.toFixed(2);
+
+        return [serial, patient, billNo, date, netAmt, totalInc, referrer, refShare, staffShare, helperShare];
+      });
+
+      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Lab_Incentive_Protsahan_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (reportSource === 'Sewa') {
       if (filteredRecords.length === 0) {
         alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
@@ -964,6 +1118,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             >
               {hasSourceAccess('Sewa') && <option value="Sewa">सेवा बिलिङ (Sewa Billing)</option>}
               {hasSourceAccess('Ambulance') && <option value="Ambulance">एम्बुलेन्स सेवा (Ambulance Sewa)</option>}
+              {hasSourceAccess('Sewa') && <option value="Protsahan">प्रयोगशाला प्रोत्साहन (Protsahan Report)</option>}
             </select>
             <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
           </div>
@@ -1044,7 +1199,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
 
-        {reportSource === 'Sewa' ? (
+        {(reportSource === 'Sewa' || reportSource === 'Protsahan') ? (
           <>
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5">बिलिङ वर्ग (Billing Category)</label>
@@ -1066,12 +1221,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               <label className="block text-xs font-bold text-slate-600 mb-1.5">सेवा प्रकार (Service Category)</label>
               <div className="relative">
                 <select
-                  value={selectedCategory}
+                  value={reportSource === 'Protsahan' ? 'Lab' : selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
                     setSelectedService('All'); // Reset specific service filter when category changes
                   }}
-                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                  disabled={reportSource === 'Protsahan'}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   <option value="All">सबै सेवा प्रकार (All Categories)</option>
                   <option value="Lab">ल्याब (Lab Investigation)</option>
@@ -1094,9 +1250,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               <label className="block text-xs font-bold text-slate-600 mb-1.5">विशेष सेवा/टेस्ट (Specific Service/Test)</label>
               <div className="relative">
                 <select
-                  value={selectedService}
+                  value={reportSource === 'Protsahan' ? 'All' : selectedService}
                   onChange={(e) => setSelectedService(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                  disabled={reportSource === 'Protsahan'}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   <option value="All">सबै सेवा/टेस्टहरू (All Services/Tests)</option>
                   {testSubRelations.mainServices.length > 0 && (
@@ -1152,74 +1309,199 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </>
         ) : null}
 
-        <div className={reportSource === 'Sewa' ? 'col-span-1' : 'col-span-1 sm:col-span-2'}>
+        <div className={(reportSource === 'Sewa' || reportSource === 'Protsahan') ? 'col-span-1' : 'col-span-1 sm:col-span-2'}>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">खोज्नुहोस् (Search Name/Details)</label>
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={reportSource === 'Sewa' ? "नाम, विल नम्बर वा टेस्ट" : (ambulanceReportType === 'expense' ? "श्रेणी, विवरण, भुक्तानी प्राप्त गर्ने वा चालक" : "नाम, चालक, नम्बर वा गन्तव्य")}
+              placeholder={reportSource === 'Sewa' ? "नाम, विल नम्बर वा टेस्ट" : reportSource === 'Protsahan' ? "बिरामीको नाम वा बिल नम्बर" : (ambulanceReportType === 'expense' ? "श्रेणी, विवरण, भुक्तानी प्राप्त गर्ने वा चालक" : "नाम, चालक, नम्बर वा गन्तव्य")}
               className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none pl-9"
             />
             <Search className="absolute left-2.5 top-3.5 text-slate-400" size={14} />
           </div>
         </div>
-
-        <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 2xl:col-span-8 grid grid-cols-1 gap-2 border-t border-slate-200/80 pt-3.5 mt-2">
-          <label className="block text-xs font-bold text-slate-600">रिपोर्टको मुख्य शीर्षक शब्द परिवर्तन वा संशोधन (Report Form Custom Headline Wordings)</label>
-          <input
-            type="text"
-            value={reportTitleCustom}
-            onChange={(e) => setReportTitleCustom(e.target.value)}
-            className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl outline-none font-medium focus:ring-2 focus:ring-emerald-500"
-            placeholder="उदा: आ.व. ०८२।८३ चैत्र महिनाको आय विवरण"
-          />
-        </div>
       </div>
+
+      {reportSource === 'Protsahan' && (
+        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 print:hidden">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 font-nepali flex items-center gap-2">
+                प्रोत्साहन दर र बाँडफाँड सेटिङहरू (Incentive Distribution Settings)
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                ल्याब सेवाको बिल रकमको आधारमा कुल प्रोत्साहन र त्यसको बाँडफाँडको प्रतिशत यहाँ निर्धारण गर्नुहोस्।
+              </p>
+            </div>
+            {!isSettingsEditing && (
+              <button
+                onClick={() => {
+                  setTempSettings({
+                    labIncentivePercent,
+                    referrerSharePercent,
+                    labStaffSharePercent,
+                    helperSharePercent
+                  });
+                  setIsSettingsEditing(true);
+                }}
+                className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all"
+              >
+                दर परिमार्जन गर्नुहोस् (Edit Settings)
+              </button>
+            )}
+          </div>
+
+          {isSettingsEditing ? (
+            <form onSubmit={handleSaveProtsahanSettings} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-4 rounded-xl border border-slate-200">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">कुल प्रोत्साहन दर % (Total Incentive %):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={tempSettings.labIncentivePercent}
+                  onChange={(e) => setTempSettings({ ...tempSettings, labIncentivePercent: Number(e.target.value) })}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">सिफारिस हिस्सा % (Referrer %):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={tempSettings.referrerSharePercent}
+                  onChange={(e) => setTempSettings({ ...tempSettings, referrerSharePercent: Number(e.target.value) })}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">ल्याबकर्मी हिस्सा % (Lab Staff %):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={tempSettings.labStaffSharePercent}
+                  onChange={(e) => setTempSettings({ ...tempSettings, labStaffSharePercent: Number(e.target.value) })}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">सहयोगी हिस्सा % (Helper %):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={tempSettings.helperSharePercent}
+                  onChange={(e) => setTempSettings({ ...tempSettings, helperSharePercent: Number(e.target.value) })}
+                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-4 flex justify-between items-center border-t border-slate-100 pt-3 mt-1">
+                <span className="text-xs text-slate-500">
+                  बाँडफाँडहरूको जोड: <strong className={Math.abs((tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent) - 100) < 0.01 ? "text-emerald-600" : "text-rose-600"}>
+                    {(tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent).toFixed(1)}%
+                  </strong> (१००% हुनुपर्छ)
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsEditing(false)}
+                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    रद्द (Cancel)
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all"
+                  >
+                    बचत गर्नुहोस् (Save)
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl text-center">
+                <span className="block text-[10px] text-emerald-800 font-bold tracking-wider uppercase font-nepali">कुल प्रोत्साहन दर (Total Incentive)</span>
+                <span className="block text-xl font-extrabold text-emerald-700 font-mono mt-1">{toNepaliDigits(labIncentivePercent)}%</span>
+                <span className="text-[10px] text-slate-500 font-nepali">ल्याब बिलको रकम</span>
+              </div>
+              <div className="bg-sky-50/50 border border-sky-100 p-3 rounded-xl text-center">
+                <span className="block text-[10px] text-sky-800 font-bold tracking-wider uppercase font-nepali">सिफारिस हिस्सा (Referrer)</span>
+                <span className="block text-xl font-extrabold text-sky-700 font-mono mt-1">{toNepaliDigits(referrerSharePercent)}%</span>
+                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
+              </div>
+              <div className="bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl text-center">
+                <span className="block text-[10px] text-indigo-800 font-bold tracking-wider uppercase font-nepali">ल्याबकर्मी हिस्सा (Lab Staff)</span>
+                <span className="block text-xl font-extrabold text-indigo-700 font-mono mt-1">{toNepaliDigits(labStaffSharePercent)}%</span>
+                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
+              </div>
+              <div className="bg-purple-50/50 border border-purple-100 p-3 rounded-xl text-center">
+                <span className="block text-[10px] text-purple-800 font-bold tracking-wider uppercase font-nepali">सहयोगी/सफाईकर्मी हिस्सा (Helper)</span>
+                <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">{toNepaliDigits(helperSharePercent)}%</span>
+                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Summary Panel - Hide on print */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
-        <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-            {reportSource === 'Sewa' ? 'जम्मा बिल संख्या (Total Invoices)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रेकर्ड संख्या (Total Expenses)' : 'जम्मा यात्रा संख्या (Total Trips)')}
-          </p>
-          <p className="text-2xl font-black mt-1 text-slate-800">
-            {formatNumberValue(reportSource === 'Sewa' ? filteredRecords.length : (ambulanceReportType === 'expense' ? filteredAmbulanceExpenses.length : filteredAmbulanceRecords.length))}
-          </p>
-        </div>
-
-        <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-            {reportSource === 'Sewa' ? 'जम्मा संकलित रकम (Total Collected)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रकम (Total Expenses)' : 'प्राप्त रकम (Total Received Amount)')}
-          </p>
-          <p className="text-2xl font-black mt-1 text-emerald-600">
-            रु. {formatNumberValue(totalAmountSum.toFixed(2))}
-          </p>
-        </div>
-
-        {reportSource === 'Sewa' ? (
-          <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">बिल श्रेणी (Category Filters)</p>
-            <p className="text-lg font-bold mt-1 text-slate-700">
-              {billingType === 'All' ? 'सबै बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
-            </p>
-          </div>
-        ) : (
+      {reportSource !== 'Protsahan' && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden mb-6">
           <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
-              {ambulanceReportType === 'expense' ? 'औसत प्रति खर्च (Avg Expense)' : 'कुल चार्ज्ड रकम (Total Charged Amount)'}
+              {reportSource === 'Sewa' ? 'जम्मा बिल संख्या (Total Invoices)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रेकर्ड संख्या (Total Expenses)' : 'जम्मा यात्रा संख्या (Total Trips)')}
             </p>
-            <p className="text-2xl font-black mt-1 text-amber-600">
-              {ambulanceReportType === 'expense' ? (
-                `रु. ${formatNumberValue((filteredAmbulanceExpenses.length > 0 ? (totalAmountSum / filteredAmbulanceExpenses.length) : 0).toFixed(2))}`
-              ) : (
-                `रु. ${formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}`
-              )}
+            <p className="text-2xl font-black mt-1 text-slate-800">
+              {formatNumberValue(reportSource === 'Sewa' ? filteredRecords.length : (ambulanceReportType === 'expense' ? filteredAmbulanceExpenses.length : filteredAmbulanceRecords.length))}
             </p>
           </div>
-        )}
-      </div>
+
+          <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+              {reportSource === 'Sewa' ? 'जम्मा संकलित रकम (Total Collected)' : (ambulanceReportType === 'expense' ? 'जम्मा खर्च रकम (Total Expenses)' : 'प्राप्त रकम (Total Received Amount)')}
+            </p>
+            <p className="text-2xl font-black mt-1 text-emerald-600">
+              रु. {formatNumberValue(totalAmountSum.toFixed(2))}
+            </p>
+          </div>
+
+          {reportSource === 'Sewa' ? (
+            <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">बिल श्रेणी (Category Filters)</p>
+              <p className="text-lg font-bold mt-1 text-slate-700">
+                {billingType === 'All' ? 'सबै बिलिङ' : billingType === 'Direct' ? 'प्रत्यक्ष बिल मात्र' : 'नियमित बिल मात्र'}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm">
+              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                {ambulanceReportType === 'expense' ? 'औसत प्रति खर्च (Avg Expense)' : 'कुल चार्ज्ड रकम (Total Charged Amount)'}
+              </p>
+              <p className="text-2xl font-black mt-1 text-amber-600">
+                {ambulanceReportType === 'expense' ? (
+                  `रु. ${formatNumberValue((filteredAmbulanceExpenses.length > 0 ? (totalAmountSum / filteredAmbulanceExpenses.length) : 0).toFixed(2))}`
+                ) : (
+                  `रु. ${formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}`
+                )}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Printable Sheet */}
       <div className="bg-white p-6 md:p-12 border border-slate-200 rounded-3xl shadow-xs print:shadow-none print:border-none print:p-0">
@@ -1259,7 +1541,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
           
           <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
-            {reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
+            {reportSource === 'Protsahan' ? 'प्रयोगशाला (ल्याब) सेवा प्रोत्साहन विवरण' : reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
             {activeReportTitle}
@@ -1268,7 +1550,168 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
         {/* Report Spreadsheet Table */}
         <div className="overflow-x-auto">
-          {reportSource === 'Sewa' ? (
+          {reportSource === 'Protsahan' ? (
+            <div className="space-y-8">
+              {/* Protsahan Overview Panel inside the printable area */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 print:grid-cols-5 print:gap-2">
+                <div className="bg-slate-50 border border-slate-300 p-3 rounded-xl text-center">
+                  <span className="block text-[10px] text-slate-700 font-bold tracking-wide uppercase font-nepali">कुल ल्याब खुद बिक्री</span>
+                  <span className="block text-sm font-black text-slate-800 font-mono mt-0.5">
+                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.netLabAmount, 0).toFixed(2))}
+                  </span>
+                </div>
+                <div className="bg-emerald-50/50 border border-emerald-200 p-3 rounded-xl text-center">
+                  <span className="block text-[10px] text-emerald-800 font-bold tracking-wide uppercase font-nepali">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</span>
+                  <span className="block text-sm font-black text-emerald-700 font-mono mt-0.5">
+                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
+                  </span>
+                </div>
+                <div className="bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
+                  <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">सिफारिस हिस्सा ({toNepaliDigits(referrerSharePercent)}%)</span>
+                  <span className="block text-sm font-black text-sky-700 font-mono mt-0.5">
+                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.referrerShare, 0).toFixed(2))}
+                  </span>
+                </div>
+                <div className="bg-indigo-50/50 border border-indigo-200 p-3 rounded-xl text-center">
+                  <span className="block text-[10px] text-indigo-800 font-bold tracking-wide uppercase font-nepali">ल्याबकर्मी हिस्सा ({toNepaliDigits(labStaffSharePercent)}%)</span>
+                  <span className="block text-sm font-black text-indigo-700 font-mono mt-0.5">
+                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.labStaffShare, 0).toFixed(2))}
+                  </span>
+                </div>
+                <div className="bg-purple-50/50 border border-purple-200 p-3 rounded-xl text-center">
+                  <span className="block text-[10px] text-purple-800 font-bold tracking-wide uppercase font-nepali">सहयोगी हिस्सा ({toNepaliDigits(helperSharePercent)}%)</span>
+                  <span className="block text-sm font-black text-purple-700 font-mono mt-0.5">
+                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.helperShare, 0).toFixed(2))}
+                  </span>
+                </div>
+              </div>
+
+              {/* 1. Referrer-wise Incentive Allocation Summary */}
+              <div className="mb-6">
+                <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali mb-2">
+                  १. सिफारिसकर्ता अनुसारको प्रोत्साहन बाँडफाँड सारांश (Referrer-wise Incentive Allocation Summary)
+                </h3>
+                <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
+                      <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">सिफारिसकर्ताको नाम (Referrer Name)</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">खुद ल्याब रकम</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">जम्मा प्रोत्साहन</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">सिफारिस हिस्सा ({toNepaliDigits(referrerSharePercent)}%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {protsahanByReferrer.length > 0 ? (
+                      protsahanByReferrer.map((item, index) => (
+                        <tr key={index} className="hover:bg-slate-50/50">
+                          <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(index + 1)}</td>
+                          <td className="border border-slate-950 p-2 font-semibold text-slate-800">{item.name}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-medium">Rs. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">Rs. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-bold text-sky-700">Rs. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                          प्रोत्साहन गणनाको लागि कुनै रेकर्ड फेला परेन।
+                        </td>
+                      </tr>
+                    )}
+                    {protsahanByReferrer.length > 0 && (
+                      <tr className="bg-slate-50 font-bold">
+                        <td colSpan={2} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">कुल जम्मा (Total Sum):</td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-800">
+                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-sky-800">
+                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 2. Detailed Incentive Calculation Log */}
+              <div>
+                <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali mb-2">
+                  २. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण (Detailed Incentive Calculation Log)
+                </h3>
+                <table className="w-full border-collapse border-2 border-slate-950 text-xs text-slate-900">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
+                      <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[120px]">बिरामीको नाम</th>
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-20">विल नं.</th>
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-20">मिति</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">ल्याब खुद रकम</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</th>
+                      <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[110px]">सिफारिसकर्ता</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">सिफारिस ({toNepaliDigits(referrerSharePercent)}%)</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">ल्याबकर्मी ({toNepaliDigits(labStaffSharePercent)}%)</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">सहयोगी ({toNepaliDigits(helperSharePercent)}%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {protsahanReportData.length > 0 ? (
+                      protsahanReportData.map((item, index) => {
+                        const cleanBillNo = (item.record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
+                        const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
+                        const displayDate = formatRawDateToNepaliUi(item.record.billDate);
+
+                        return (
+                          <tr key={item.record.id} className="hover:bg-slate-50/50">
+                            <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(index + 1)}</td>
+                            <td className="border border-slate-950 p-2 font-medium">{item.record.patientName || '-'}</td>
+                            <td className="border border-slate-950 p-2 text-center font-mono">{displayBillNo}</td>
+                            <td className="border border-slate-950 p-2 text-center">{displayDate}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium">Rs. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">Rs. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-slate-800">{item.referrerName}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-sky-700">Rs. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-indigo-700">Rs. {toNepaliDigits(item.labStaffShare.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-purple-700">Rs. {toNepaliDigits(item.helperShare.toFixed(2))}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={10} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                          प्रोत्साहन गणनाको लागि कुनै विस्तृत रेकर्ड फेला परेन।
+                        </td>
+                      </tr>
+                    )}
+                    {protsahanReportData.length > 0 && (
+                      <tr className="bg-slate-50 font-bold">
+                        <td colSpan={4} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">कुल जम्मा (Total Sum):</td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-800">
+                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5"></td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-sky-800">
+                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-indigo-800">
+                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.labStaffShare, 0).toFixed(2))}
+                        </td>
+                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-purple-800">
+                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.helperShare, 0).toFixed(2))}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : reportSource === 'Sewa' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
                 <tr className="bg-slate-50">
