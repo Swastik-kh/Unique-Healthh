@@ -363,6 +363,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     let totalAmt = 0;
 
     record.items?.forEach((item) => {
+      if (item.isRefunded) {
+        return;
+      }
       const itemLower = (item.serviceName || '').toLowerCase().trim();
 
       // 1. Category Filter check

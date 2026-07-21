@@ -490,6 +490,10 @@ export interface BillingItem {
   itemCode?: string;
   remarks?: string; // Added optional remarks field for tests
   category?: string; // Original category of the service from settings
+  isRefunded?: boolean;
+  refundedQty?: number;
+  refundRemarks?: string;
+  refundDateBs?: string;
 }
 
 export interface BillingRecord {
@@ -512,6 +516,10 @@ export interface BillingRecord {
   claimStatus?: 'Draft' | 'Submitted' | 'Verified' | 'Error'; // Claim adjudication state
   isDirectBilling?: boolean; // Flag to identify direct billing records
   referredBy?: string; // Recommended/referred by user (ID or name)
+  refundedAmount?: number;
+  refundStatus?: 'Refunded' | 'Partially_Refunded';
+  refundRemarks?: string;
+  refundDateBs?: string;
 }
 
 export interface SubTest {

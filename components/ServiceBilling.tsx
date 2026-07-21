@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X, Edit } from 'lucide-react';
+import { Search, FileText, User, Calendar, Activity, AlertCircle, Plus, Trash2, Printer, Save, CreditCard, Banknote, History, CheckCircle2, Baby, Siren, Code, X, Edit, RotateCcw } from 'lucide-react';
 import { ServiceSeekerRecord, OPDRecord, BillingRecord, BillingItem, ServiceItem, CBIMNCIRecord, EmergencyRecord, User as AppUser, OrganizationSettings } from '../types/coreTypes';
 import { Input } from './Input';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -100,9 +100,37 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [allBillsSearch, setAllBillsSearch] = useState('');
 
+  // Refund states
+  const [refundingBill, setRefundingBill] = useState<BillingRecord | null>(null);
+  const [refundRemarks, setRefundRemarks] = useState('');
+  const [selectedRefundItems, setSelectedRefundItems] = useState<Record<string, boolean>>({}); // itemId -> boolean
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const fyBillingRecords = useMemo(() => {
     return billingRecords.filter(b => b.fiscalYear === currentFiscalYear);
   }, [billingRecords, currentFiscalYear]);
+
+  const refundCalculations = useMemo(() => {
+    if (!refundingBill) return { subTotal: 0, discount: 0, grandTotal: 0 };
+    let selectedSubTotal = 0;
+    refundingBill.items.forEach(item => {
+      if (selectedRefundItems[item.id] && !item.isRefunded) {
+        selectedSubTotal += item.total || 0;
+      }
+    });
+
+    const previousSubTotal = refundingBill.subTotal || 1;
+    const previousDiscount = refundingBill.discount || 0;
+    const ratio = selectedSubTotal / previousSubTotal;
+    const proRatedDiscount = previousDiscount * ratio;
+    const netRefundAmount = selectedSubTotal - proRatedDiscount;
+
+    return {
+      subTotal: selectedSubTotal,
+      discount: proRatedDiscount,
+      grandTotal: netRefundAmount
+    };
+  }, [refundingBill, selectedRefundItems]);
 
   const fiscalYearRange = useMemo(() => {
     if (!currentFiscalYear) return { min: undefined, max: undefined };
@@ -227,6 +255,90 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     setPrevMiti(bill.billDate || '');
     setPrevIsDirect(true);
     setDirectReferredBy(bill.referredBy || '');
+  };
+
+  const handleRefundClick = (bill: BillingRecord) => {
+    const isUserAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    if (!isUserAdmin) {
+      alert("रकम फिर्ता गर्ने अधिकार एडमिनलाई मात्र छ (Access denied: Admin only).");
+      return;
+    }
+    setRefundingBill(bill);
+    setRefundRemarks('');
+    const initialSelected: Record<string, boolean> = {};
+    bill.items.forEach(item => {
+      initialSelected[item.id] = false;
+    });
+    setSelectedRefundItems(initialSelected);
+  };
+
+  const handleToggleRefundItem = (itemId: string) => {
+    setSelectedRefundItems(prev => ({
+      ...prev,
+      [itemId]: !prev[itemId]
+    }));
+  };
+
+  const handleProcessRefund = () => {
+    if (!refundingBill) return;
+
+    const isUserAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    if (!isUserAdmin) {
+      alert("रकम फिर्ता गर्ने अधिकार एडमिनलाई मात्र छ (Access denied: Admin only).");
+      return;
+    }
+
+    const selectedItemIds = Object.keys(selectedRefundItems).filter(id => selectedRefundItems[id]);
+    if (selectedItemIds.length === 0) {
+      alert("कृपया फिर्ता गर्न कम्तीमा एउटा सेवा छनोट गर्नुहोस्।");
+      return;
+    }
+
+    const updatedBill = JSON.parse(JSON.stringify(refundingBill)) as BillingRecord;
+
+    let totalOfRefundedItems = 0;
+    updatedBill.items.forEach(item => {
+      if (selectedRefundItems[item.id] && !item.isRefunded) {
+        item.isRefunded = true;
+        item.refundRemarks = refundRemarks || "रकम फिर्ता (Refunded)";
+        item.refundDateBs = new NepaliDate().format('YYYY-MM-DD');
+        totalOfRefundedItems += item.total || 0;
+      }
+    });
+
+    if (totalOfRefundedItems === 0) {
+      alert("छानिएका सेवाहरू पहिले नै फिर्ता भइसकेका छन्।");
+      return;
+    }
+
+    const previousSubTotal = refundingBill.subTotal || 1;
+    const previousDiscount = refundingBill.discount || 0;
+    const previousGrandTotal = refundingBill.grandTotal || 0;
+
+    const ratio = totalOfRefundedItems / previousSubTotal;
+    const discountToReduce = previousDiscount * ratio;
+    const netRefundAmount = totalOfRefundedItems - discountToReduce;
+
+    const newSubTotal = Math.max(0, previousSubTotal - totalOfRefundedItems);
+    const newDiscount = Math.max(0, previousDiscount - discountToReduce);
+    const newGrandTotal = Math.max(0, previousGrandTotal - netRefundAmount);
+
+    updatedBill.subTotal = newSubTotal;
+    updatedBill.discount = newDiscount;
+    updatedBill.grandTotal = newGrandTotal;
+    updatedBill.refundedAmount = (refundingBill.refundedAmount || 0) + netRefundAmount;
+
+    const allItemsRefunded = updatedBill.items.every(item => item.isRefunded);
+    updatedBill.refundStatus = allItemsRefunded ? 'Refunded' : 'Partially_Refunded';
+    updatedBill.refundRemarks = refundRemarks || updatedBill.refundRemarks || "Refunded";
+    updatedBill.refundDateBs = new NepaliDate().format('YYYY-MM-DD');
+
+    onSaveRecord(updatedBill);
+
+    setSuccessMessage(`बिल नम्बर ${refundingBill.invoiceNumber} को जम्मा रु. ${netRefundAmount.toFixed(2)} रकम सफलतापूर्वक फिर्ता गरियो।`);
+    setTimeout(() => setSuccessMessage(null), 5000);
+
+    setRefundingBill(null);
   };
 
   const handleStartDirectBilling = () => {
@@ -1081,6 +1193,18 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      {successMessage && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="text-emerald-600 animate-pulse" size={18} />
+            <span className="font-bold text-sm font-nepali">{successMessage}</span>
+          </div>
+          <button onClick={() => setSuccessMessage(null)} className="text-emerald-500 hover:text-emerald-700">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Search Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 font-nepali mb-4 flex items-center gap-2">
@@ -2101,7 +2225,21 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               {isDirect ? 'प्रत्यक्ष (Direct)' : 'नियमित (Regular)'}
                             </span>
                           </td>
-                          <td className="p-3 font-medium text-slate-700">{bill.patientName}</td>
+                          <td className="p-3 font-medium text-slate-700">
+                            <div className="flex items-center flex-wrap gap-1">
+                              <span>{bill.patientName}</span>
+                              {bill.refundStatus === 'Refunded' && (
+                                <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-1.5 py-0.5 rounded border border-rose-200">
+                                  फिर्ता (Refunded)
+                                </span>
+                              )}
+                              {bill.refundStatus === 'Partially_Refunded' && (
+                                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded border border-amber-200">
+                                  आंशिक फिर्ता
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-3 text-slate-600 font-medium">
                             {bill.referredBy ? (
                               <span className="bg-emerald-50 text-emerald-800 border border-emerald-100 px-2 py-0.5 rounded text-xs font-semibold">
@@ -2111,11 +2249,18 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               <span className="text-slate-400 italic text-xs">-</span>
                             )}
                           </td>
-                          <td className="p-3 text-right font-mono font-bold text-slate-900">Rs. {bill.grandTotal?.toFixed(2)}</td>
-                          <td className="p-3 text-center flex items-center justify-center gap-2">
+                          <td className="p-3 text-right">
+                            <span className="font-mono font-bold text-slate-900 block">Rs. {bill.grandTotal?.toFixed(2)}</span>
+                            {bill.refundedAmount && bill.refundedAmount > 0 && (
+                              <span className="text-[10px] text-rose-500 font-bold block">
+                                (- Rs. {bill.refundedAmount.toFixed(2)} फिर्ता)
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center flex items-center justify-center gap-1.5 flex-wrap">
                             <button
                               onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
-                              className="px-3 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg text-xs font-semibold transition-all duration-150"
+                              className="px-2.5 py-1 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg text-xs font-semibold transition-all duration-150"
                             >
                               Reprint
                             </button>
@@ -2124,10 +2269,27 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               currentUser?.canEditBilling === true) && (
                               <button
                                 onClick={() => handleEditDirectBill(bill)}
-                                className="px-3 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
+                                className="px-2.5 py-1 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
                               >
                                 <Edit size={12} />
                                 Edit
+                              </button>
+                            )}
+                            {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                              <button
+                                onClick={() => handleRefundClick(bill)}
+                                disabled={bill.refundStatus === 'Refunded'}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1 ${
+                                  bill.refundStatus === 'Refunded'
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    : bill.refundStatus === 'Partially_Refunded'
+                                    ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100'
+                                    : 'bg-teal-50 text-teal-600 hover:bg-teal-100 border border-teal-100'
+                                }`}
+                                title={bill.refundStatus === 'Refunded' ? "पूर्ण रूपमा फिर्ता भैसकेको (Fully Refunded)" : "रकम फिर्ता (Refund)"}
+                              >
+                                <RotateCcw size={12} />
+                                Refund
                               </button>
                             )}
                             {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canDeleteBilling !== false) || currentUser?.canDeleteBilling === true) ? (
@@ -2137,7 +2299,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                                     onDeleteRecord(bill.id);
                                   }
                                 }}
-                                className="px-3 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
+                                className="px-2.5 py-1 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-all duration-150 inline-flex items-center gap-1"
                               >
                                 <Trash2 size={12} />
                                 Delete
@@ -2146,7 +2308,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                               <button
                                 disabled
                                 title="मेटाउन अनुमति छैन (No deletion access)"
-                                className="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed inline-flex items-center gap-1"
+                                className="px-2.5 py-1 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold cursor-not-allowed inline-flex items-center gap-1"
                               >
                                 <Trash2 size={12} className="opacity-50" />
                                 Delete
@@ -2243,26 +2405,44 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               </tr>
             </thead>
             <tbody>
-              {currentBill?.items.map((item, idx) => (
-                <tr key={idx} className="border-b border-slate-200">
-                  <td className="py-2">{idx + 1}</td>
-                  <td className="py-2">{item.serviceName}</td>
-                  <td className="py-2 text-right">{item.price.toFixed(2)}</td>
-                  <td className="py-2 text-center">{item.quantity}</td>
-                  <td className="py-2 text-right">{item.total.toFixed(2)}</td>
-                  <td className="py-2 text-left px-2 text-xs italic">{item.remarks || '-'}</td>
-                </tr>
-              ))}
+              {currentBill?.items.map((item, idx) => {
+                const isItemRefunded = !!item.isRefunded;
+                return (
+                  <tr key={idx} className={`border-b border-slate-200 ${isItemRefunded ? 'bg-red-50/50 text-slate-400 line-through' : ''}`}>
+                    <td className="py-2">{idx + 1}</td>
+                    <td className="py-2">
+                      {item.serviceName}
+                      {isItemRefunded && (
+                        <span className="ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded no-line-through inline-block">
+                          (FIRTTA / REFUNDED)
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">{item.price.toFixed(2)}</td>
+                    <td className="py-2 text-center">{item.quantity}</td>
+                    <td className="py-2 text-right">{item.total.toFixed(2)}</td>
+                    <td className="py-2 text-left px-2 text-xs italic">
+                      {item.isRefunded ? (item.remarks || 'Refunded') : (item.remarks || '-')}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
           {/* Totals */}
           <div className="flex justify-between items-start mb-8 gap-4">
-            <div className="w-1/2 text-sm">
+            <div className="w-1/2 text-sm space-y-2">
               {currentBill?.remarks && (
                 <div className="p-2.5 bg-slate-50 border border-slate-200 rounded text-xs select-none">
                   <p className="font-bold text-slate-700">Remarks / कैफियत:</p>
                   <p className="text-slate-600 mt-0.5 whitespace-pre-wrap">{currentBill.remarks}</p>
+                </div>
+              )}
+              {currentBill?.refundRemarks && (
+                <div className="p-2.5 bg-red-50 border border-red-200 text-red-800 rounded text-xs select-none">
+                  <p className="font-bold">Refund Remarks / कैफियत:</p>
+                  <p className="mt-0.5 whitespace-pre-wrap">{currentBill.refundRemarks}</p>
                 </div>
               )}
             </div>
@@ -2275,9 +2455,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 <span>Discount:</span>
                 <span>Rs. {currentBill?.discount.toFixed(2)}</span>
               </div>
+              {currentBill?.refundedAmount && currentBill.refundedAmount > 0 && (
+                <div className="flex justify-between text-red-600 font-medium">
+                  <span>Refunded Amount:</span>
+                  <span>- Rs. {currentBill.refundedAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-slate-800 pt-2 text-lg font-bold">
                 <span>Grand Total:</span>
-                <span>Rs. {currentBill?.grandTotal.toFixed(2)}</span>
+                <span className="font-mono">Rs. {currentBill?.grandTotal.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -2357,11 +2543,23 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               .map(bill => (
                 <div key={bill.id} className="flex justify-between items-center p-2.5 hover:bg-slate-50 border-b border-slate-100 text-sm">
                   <div className="flex-1 min-w-0 pr-2">
-                    <p className="font-semibold text-slate-800 truncate">{bill.patientName || 'प्रत्यक्ष/नाम छैन'}</p>
+                    <p className="font-semibold text-slate-800 truncate flex items-center gap-1">
+                      <span>{bill.patientName || 'प्रत्यक्ष/नाम छैन'}</span>
+                      {bill.refundStatus && (
+                        <span className={`text-[9px] font-bold px-1 rounded ${bill.refundStatus === 'Refunded' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {bill.refundStatus === 'Refunded' ? 'Refunded' : 'Partial'}
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-slate-500 font-nepali truncate">{bill.invoiceNumber} | {toNepaliDigits(bill.billDate)}</p>
                   </div>
                   <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                    <p className="font-bold text-slate-700 font-mono">Rs. {bill.grandTotal}</p>
+                    <p className="font-bold text-slate-700 font-mono">
+                      Rs. {bill.grandTotal}
+                      {bill.refundedAmount && bill.refundedAmount > 0 && (
+                        <span className="text-[10px] text-rose-500 block">(-Rs.{bill.refundedAmount.toFixed(0)})</span>
+                      )}
+                    </p>
                     <div className="flex gap-2">
                         <button 
                             onClick={() => { setCurrentBill(bill); setTimeout(handlePrint, 100); }}
@@ -2369,14 +2567,23 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                         >
                             Reprint
                         </button>
-                        {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canEditBilling !== false) || currentUser?.canEditBilling === true) && (
-                            <button 
-                                onClick={() => handleEditDirectBill(bill)}
-                                className="text-xs text-yellow-600 hover:underline"
-                            >
-                                Edit
-                            </button>
-                        )}
+                         {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canEditBilling !== false) || currentUser?.canEditBilling === true) && (
+                              <button 
+                                  onClick={() => handleEditDirectBill(bill)}
+                                  className="text-xs text-yellow-600 hover:underline"
+                              >
+                                  Edit
+                              </button>
+                         )}
+                         {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN') && (
+                              <button 
+                                  onClick={() => handleRefundClick(bill)}
+                                  disabled={bill.refundStatus === 'Refunded'}
+                                  className={`text-xs hover:underline ${bill.refundStatus === 'Refunded' ? 'text-slate-400 cursor-not-allowed' : 'text-teal-600 font-semibold'}`}
+                              >
+                                  Refund
+                              </button>
+                         )}
                         {(currentUser?.role === 'SUPER_ADMIN' || (currentUser?.role === 'ADMIN' && currentUser?.canDeleteBilling !== false) || currentUser?.canDeleteBilling === true) && (
                             <button 
                                 onClick={() => {
@@ -2395,6 +2602,174 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               ))}
         </div>
       </div>
+
+      {/* Refund Request Modal */}
+      {refundingBill && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+                  <RotateCcw size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base font-nepali">रकम फिर्ता फारम (Refund Request Form)</h3>
+                  <p className="text-xs text-slate-500 font-mono">Invoice: {refundingBill.invoiceNumber} | Patient: {refundingBill.patientName}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setRefundingBill(null)}
+                className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <p className="text-slate-500">बिल मिति (Bill Date):</p>
+                  <p className="font-semibold text-slate-700 font-nepali">{toNepaliDigits(refundingBill.billDate)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">भुक्तानी मोड (Payment Mode):</p>
+                  <p className="font-semibold text-slate-700">{refundingBill.paymentMode}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">मूल जम्मा रकम (Original Total):</p>
+                  <p className="font-bold text-slate-800 font-mono">Rs. {refundingBill.grandTotal?.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">छुट (Discount):</p>
+                  <p className="font-semibold text-slate-700 font-mono">Rs. {refundingBill.discount?.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-slate-800 text-sm mb-2 font-nepali">फिर्ता गरिने सेवाहरू छनोट गर्नुहोस् (Select Services to Refund):</h4>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold">
+                      <tr>
+                        <th className="p-3 text-center w-12">S.N.</th>
+                        <th className="p-3">सेवाको नाम (Service Name)</th>
+                        <th className="p-3 text-right">दर (Price)</th>
+                        <th className="p-3 text-center">Qty</th>
+                        <th className="p-3 text-right">जम्मा (Total)</th>
+                        <th className="p-3 text-center w-24">स्थिति (Status)</th>
+                        <th className="p-3 text-center w-16">छनोट</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {refundingBill.items.map((item, idx) => {
+                        const isItemAlreadyRefunded = !!item.isRefunded;
+                        const isChecked = !!selectedRefundItems[item.id];
+                        return (
+                          <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${isItemAlreadyRefunded ? 'bg-rose-50/40 text-slate-400' : ''}`}>
+                            <td className="p-3 text-center">{idx + 1}</td>
+                            <td className="p-3 font-medium">
+                              <span className={isItemAlreadyRefunded ? 'line-through text-slate-400' : 'text-slate-800'}>
+                                {item.serviceName}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-mono">Rs. {item.price.toFixed(2)}</td>
+                            <td className="p-3 text-center font-mono">{item.quantity}</td>
+                            <td className="p-3 text-right font-mono">Rs. {item.total.toFixed(2)}</td>
+                            <td className="p-3 text-center">
+                              {isItemAlreadyRefunded ? (
+                                <span className="inline-flex px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-bold rounded">
+                                  Refunded
+                                </span>
+                              ) : (
+                                <span className="inline-flex px-1.5 py-0.5 bg-green-100 text-green-800 text-[9px] font-bold rounded">
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {!isItemAlreadyRefunded ? (
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleToggleRefundItem(item.id)}
+                                  className="w-4.5 h-4.5 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-pointer"
+                                />
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  disabled
+                                  checked
+                                  className="w-4.5 h-4.5 text-slate-300 border-slate-200 rounded cursor-not-allowed opacity-40"
+                                />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Refund Calculations Summary */}
+              {refundCalculations.subTotal > 0 && (
+                <div className="bg-teal-50/50 border border-teal-100 p-4 rounded-xl space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span>छानिएका सेवाहरूको उप-जम्मा (Selected Services Total):</span>
+                    <span className="font-mono">Rs. {refundCalculations.subTotal.toFixed(2)}</span>
+                  </div>
+                  {refundCalculations.discount > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>छुट कट्टी समायोजन (Pro-rated Discount adjustment):</span>
+                      <span className="font-mono text-rose-600">- Rs. {refundCalculations.discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-teal-900 border-t border-teal-100 pt-2">
+                    <span className="font-nepali">फिर्ता गरिने खुद रकम (Net Refund Amount to Return):</span>
+                    <span className="font-mono text-base text-teal-700">Rs. {refundCalculations.grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Reason for Refund */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700 font-nepali">
+                  फिर्ता गर्नुको कारण / कैफियत (Remarks / Reason for Refund) *
+                </label>
+                <textarea
+                  value={refundRemarks}
+                  onChange={(e) => setRefundRemarks(e.target.value)}
+                  placeholder="कृपया रकम फिर्ता गर्नुको कारण लेख्नुहोस् (उदा: बिरामीले सेवा नलिने भएको, दोहोरो बिलिङ भएको आदि)..."
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-[60px]"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRefundingBill(null)}
+                className="px-4 py-2 border border-slate-300 rounded-xl hover:bg-slate-100 text-sm font-medium text-slate-600 transition-all font-nepali"
+              >
+                रद्द गर्नुहोस् (Cancel)
+              </button>
+              <button
+                type="button"
+                disabled={refundCalculations.subTotal === 0 || !refundRemarks.trim()}
+                onClick={handleProcessRefund}
+                className="px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm font-bold shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed font-nepali"
+              >
+                <RotateCcw size={16} />
+                रकम फिर्ता गर्नुहोस् (Process Refund)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
