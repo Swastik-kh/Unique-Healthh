@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle } from 'lucide-react';
+import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
@@ -117,47 +117,58 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
   // Protsahan settings
+  interface ProtsahanRecipient {
+    id: string;
+    nameNe: string;
+    nameEn: string;
+    sharePercent: number;
+    isSystemReferrer?: boolean;
+  }
+
   const [labIncentivePercent, setLabIncentivePercent] = useState<number>(() => {
     const saved = localStorage.getItem('protsahan_lab_incentive_percent');
     return saved ? Number(saved) : 10;
   });
-  const [referrerSharePercent, setReferrerSharePercent] = useState<number>(() => {
-    const saved = localStorage.getItem('protsahan_referrer_share_percent');
-    return saved ? Number(saved) : 40;
-  });
-  const [labStaffSharePercent, setLabStaffSharePercent] = useState<number>(() => {
-    const saved = localStorage.getItem('protsahan_lab_staff_share_percent');
-    return saved ? Number(saved) : 40;
-  });
-  const [helperSharePercent, setHelperSharePercent] = useState<number>(() => {
-    const saved = localStorage.getItem('protsahan_helper_share_percent');
-    return saved ? Number(saved) : 20;
+
+  const [protsahanRecipients, setProtsahanRecipients] = useState<ProtsahanRecipient[]>(() => {
+    const saved = localStorage.getItem('protsahan_recipients');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Error parsing protsahan_recipients", e);
+      }
+    }
+    return [
+      { id: 'referrer', nameNe: 'सिफारिसकर्ता', nameEn: 'Referrer', sharePercent: 40, isSystemReferrer: true },
+      { id: 'lab_staff', nameNe: 'प्रयोगशालाकर्मी', nameEn: 'Lab Staff', sharePercent: 40 },
+      { id: 'helper', nameNe: 'सहयोगी/सफाईकर्मी', nameEn: 'Helper/Cleaner', sharePercent: 20 }
+    ];
   });
 
   const [isSettingsEditing, setIsSettingsEditing] = useState<boolean>(false);
-  const [tempSettings, setTempSettings] = useState({
-    labIncentivePercent: 10,
-    referrerSharePercent: 40,
-    labStaffSharePercent: 40,
-    helperSharePercent: 20
-  });
+  const [tempIncentivePercent, setTempIncentivePercent] = useState<number>(10);
+  const [tempRecipients, setTempRecipients] = useState<ProtsahanRecipient[]>([]);
 
   const handleSaveProtsahanSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    const sum = tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent;
-    if (sum !== 100) {
+    const sum = tempRecipients.reduce((s, r) => s + r.sharePercent, 0);
+    if (Math.abs(sum - 100) > 0.01) {
       alert("प्रोत्साहनका बाँडफाँड प्रतिशतहरूको जोड १००% हुनुपर्दछ। (Total share allocation must sum to exactly 100%)");
       return;
     }
-    setLabIncentivePercent(tempSettings.labIncentivePercent);
-    setReferrerSharePercent(tempSettings.referrerSharePercent);
-    setLabStaffSharePercent(tempSettings.labStaffSharePercent);
-    setHelperSharePercent(tempSettings.helperSharePercent);
 
-    localStorage.setItem('protsahan_lab_incentive_percent', String(tempSettings.labIncentivePercent));
-    localStorage.setItem('protsahan_referrer_share_percent', String(tempSettings.referrerSharePercent));
-    localStorage.setItem('protsahan_lab_staff_share_percent', String(tempSettings.labStaffSharePercent));
-    localStorage.setItem('protsahan_helper_share_percent', String(tempSettings.helperSharePercent));
+    const hasReferrer = tempRecipients.some(r => r.isSystemReferrer);
+    if (!hasReferrer) {
+      alert("कम्तिमा एउटा सिफारिसकर्ता (Referrer) सिस्टम रेसिपिएन्ट हुनुपर्दछ।");
+      return;
+    }
+
+    setLabIncentivePercent(tempIncentivePercent);
+    setProtsahanRecipients(tempRecipients);
+
+    localStorage.setItem('protsahan_lab_incentive_percent', String(tempIncentivePercent));
+    localStorage.setItem('protsahan_recipients', JSON.stringify(tempRecipients));
 
     setIsSettingsEditing(false);
   };
@@ -791,6 +802,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
   }, [filteredAmbulanceRecords]);
 
+  const referrerRecipient = useMemo(() => {
+    return protsahanRecipients.find(r => r.isSystemReferrer);
+  }, [protsahanRecipients]);
+
   // Protsahan Report Data calculations
   const protsahanReportData = useMemo(() => {
     return filteredRecords.map(record => {
@@ -809,9 +824,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const netLabAmount = Math.max(0, grossLabAmount - proRatedDiscount);
 
       const totalIncentive = netLabAmount * (labIncentivePercent / 100);
-      const referrerShare = totalIncentive * (referrerSharePercent / 100);
-      const labStaffShare = totalIncentive * (labStaffSharePercent / 100);
-      const helperShare = totalIncentive * (helperSharePercent / 100);
+
+      const recipientShares = protsahanRecipients.map(recipient => {
+        const shareAmount = totalIncentive * (recipient.sharePercent / 100);
+        return {
+          id: recipient.id,
+          nameNe: recipient.nameNe,
+          nameEn: recipient.nameEn,
+          sharePercent: recipient.sharePercent,
+          shareAmount,
+          isSystemReferrer: !!recipient.isSystemReferrer
+        };
+      });
 
       const referrerVal = record.referredBy;
       const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
@@ -824,23 +848,25 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         netLabAmount,
         totalIncentive,
         referrerName,
-        referrerShare,
-        labStaffShare,
-        helperShare,
+        recipientShares,
         hasReferrer: !!referrerVal && referrerVal !== 'All' && referrerVal !== '-'
       };
     }).filter(d => d.grossLabAmount > 0); // Only keep records that have lab services
-  }, [filteredRecords, labIncentivePercent, referrerSharePercent, labStaffSharePercent, helperSharePercent, users, getServiceCategory]);
+  }, [filteredRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory]);
 
   const protsahanByReferrer = useMemo(() => {
     const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number }>();
     protsahanReportData.forEach(item => {
       const key = item.record.referredBy && item.record.referredBy !== 'All' && item.record.referredBy !== '-' ? item.referrerName : 'स्वतन्त्र (Self / direct)';
       const existing = map.get(key) || { netLabAmount: 0, totalIncentive: 0, referrerShare: 0 };
+      
+      const refShareObj = item.recipientShares.find(s => s.isSystemReferrer);
+      const refShareAmount = refShareObj ? refShareObj.shareAmount : 0;
+
       map.set(key, {
         netLabAmount: existing.netLabAmount + item.netLabAmount,
         totalIncentive: existing.totalIncentive + item.totalIncentive,
-        referrerShare: existing.referrerShare + item.referrerShare
+        referrerShare: existing.referrerShare + refShareAmount
       });
     });
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
@@ -861,10 +887,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         "मिति (Date)", 
         "ल्याब खुद रकम (Lab Net Amount)", 
         "कुल प्रोत्साहन (Total Incentive)", 
-        "सिफारिस गर्ने (Referred By)", 
-        "सिफारिसकर्ता हिस्सा (Referrer Share)", 
-        "प्रयोगशालाकर्मी हिस्सा (Lab Staff Share)", 
-        "सहयोगी हिस्सा (Helper Share)"
+        "सिफारिस गर्ने (Referred By)",
+        ...protsahanRecipients.map(recipient => `${recipient.nameNe} हिस्सा (${recipient.sharePercent}%)`)
       ];
 
       const rows = protsahanReportData.map((r, idx) => {
@@ -875,11 +899,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const netAmt = r.netLabAmount.toFixed(2);
         const totalInc = r.totalIncentive.toFixed(2);
         const referrer = r.referrerName;
-        const refShare = r.referrerShare.toFixed(2);
-        const staffShare = r.labStaffShare.toFixed(2);
-        const helperShare = r.helperShare.toFixed(2);
+        
+        const recipientSharesRow = r.recipientShares.map(share => share.shareAmount.toFixed(2));
 
-        return [serial, patient, billNo, date, netAmt, totalInc, referrer, refShare, staffShare, helperShare];
+        return [serial, patient, billNo, date, netAmt, totalInc, referrer, ...recipientSharesRow];
       });
 
       const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -1331,100 +1354,155 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               <h3 className="text-sm font-black text-slate-900 font-nepali flex items-center gap-2">
                 प्रोत्साहन दर र बाँडफाँड सेटिङहरू (Incentive Distribution Settings)
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                ल्याब सेवाको बिल रकमको आधारमा कुल प्रोत्साहन र त्यसको बाँडफाँडको प्रतिशत यहाँ निर्धारण गर्नुहोस्।
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                ल्याब सेवाको बिल रकमको आधारमा कुल प्रोत्साहन र त्यसको बाँडफाँड प्राप्तकर्ताहरू र प्रतिशत यहाँ निर्धारण गर्नुहोस्।
               </p>
             </div>
             {!isSettingsEditing && (
               <button
                 onClick={() => {
-                  setTempSettings({
-                    labIncentivePercent,
-                    referrerSharePercent,
-                    labStaffSharePercent,
-                    helperSharePercent
-                  });
+                  setTempIncentivePercent(labIncentivePercent);
+                  setTempRecipients([...protsahanRecipients]);
                   setIsSettingsEditing(true);
                 }}
                 className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all"
               >
-                दर परिमार्जन गर्नुहोस् (Edit Settings)
+                दर र प्राप्तकर्ता परिमार्जन गर्नुहोस् (Edit Settings)
               </button>
             )}
           </div>
 
           {isSettingsEditing ? (
-            <form onSubmit={handleSaveProtsahanSettings} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-white p-4 rounded-xl border border-slate-200">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">कुल प्रोत्साहन दर % (Total Incentive %):</label>
+            <form onSubmit={handleSaveProtsahanSettings} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-5">
+              <div className="max-w-xs">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 font-nepali">कुल प्रोत्साहन दर % (Total Incentive % of Lab Bill):</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   step="any"
-                  value={tempSettings.labIncentivePercent}
-                  onChange={(e) => setTempSettings({ ...tempSettings, labIncentivePercent: Number(e.target.value) })}
-                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">सिफारिस हिस्सा % (Referrer %):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="any"
-                  value={tempSettings.referrerSharePercent}
-                  onChange={(e) => setTempSettings({ ...tempSettings, referrerSharePercent: Number(e.target.value) })}
-                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">ल्याबकर्मी हिस्सा % (Lab Staff %):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="any"
-                  value={tempSettings.labStaffSharePercent}
-                  onChange={(e) => setTempSettings({ ...tempSettings, labStaffSharePercent: Number(e.target.value) })}
-                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1 font-nepali">सहयोगी हिस्सा % (Helper %):</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="any"
-                  value={tempSettings.helperSharePercent}
-                  onChange={(e) => setTempSettings({ ...tempSettings, helperSharePercent: Number(e.target.value) })}
-                  className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg font-bold"
+                  value={tempIncentivePercent}
+                  onChange={(e) => setTempIncentivePercent(Number(e.target.value))}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                   required
                 />
               </div>
 
-              <div className="md:col-span-4 flex justify-between items-center border-t border-slate-100 pt-3 mt-1">
-                <span className="text-xs text-slate-500">
-                  बाँडफाँडहरूको जोड: <strong className={Math.abs((tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent) - 100) < 0.01 ? "text-emerald-600" : "text-rose-600"}>
-                    {(tempSettings.referrerSharePercent + tempSettings.labStaffSharePercent + tempSettings.helperSharePercent).toFixed(1)}%
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-xs font-bold text-slate-800 font-nepali">
+                    प्रोत्साहन प्राप्तकर्ताहरू र बाँडफाँड प्रतिशत (Recipients & Share Percentages):
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempRecipients([
+                        ...tempRecipients,
+                        {
+                          id: 'recipient_' + Date.now(),
+                          nameNe: '',
+                          nameEn: '',
+                          sharePercent: 0
+                        }
+                      ]);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    <Plus size={12} />
+                    नयाँ थप्नुहोस् (Add Recipient)
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {tempRecipients.map((recipient, index) => (
+                    <div key={recipient.id} className="flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">प्राप्तकर्ताको नाम (नेपाली):</label>
+                        <input
+                          type="text"
+                          value={recipient.nameNe}
+                          onChange={(e) => {
+                            const updated = [...tempRecipients];
+                            updated[index] = { ...recipient, nameNe: e.target.value };
+                            setTempRecipients(updated);
+                          }}
+                          placeholder="उदा: प्रयोगशालाकर्मी, सहयोगी"
+                          className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg outline-none font-medium focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">Recipient Name (English):</label>
+                        <input
+                          type="text"
+                          value={recipient.nameEn}
+                          onChange={(e) => {
+                            const updated = [...tempRecipients];
+                            updated[index] = { ...recipient, nameEn: e.target.value };
+                            setTempRecipients(updated);
+                          }}
+                          placeholder="e.g. Lab Staff, Helper"
+                          className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg outline-none font-medium focus:ring-1 focus:ring-emerald-500"
+                          required
+                        />
+                      </div>
+                      <div className="w-full md:w-32">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">बाँडफाँड हिस्सा % (Share %):</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          value={recipient.sharePercent}
+                          onChange={(e) => {
+                            const updated = [...tempRecipients];
+                            updated[index] = { ...recipient, sharePercent: Number(e.target.value) };
+                            setTempRecipients(updated);
+                          }}
+                          className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg font-bold outline-none focus:ring-1 focus:ring-emerald-500 text-right"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end justify-end md:self-end h-9 pb-1">
+                        {recipient.isSystemReferrer ? (
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 font-nepali" title="यो सिफारिसकर्ताको नाम बिल अनुसार परिवर्तन हुन्छ">
+                            सिस्टम (System)
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTempRecipients(tempRecipients.filter(r => r.id !== recipient.id));
+                            }}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-lg transition-all"
+                            title="हटाउनुहोस् (Delete)"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-t border-slate-100 pt-4 mt-2">
+                <span className="text-xs text-slate-600 font-medium">
+                  बाँडफाँड हिस्साको जोड: <strong className={Math.abs(tempRecipients.reduce((s, r) => s + r.sharePercent, 0) - 100) < 0.01 ? "text-emerald-600 text-sm font-black" : "text-rose-600 text-sm font-black"}>
+                    {tempRecipients.reduce((s, r) => s + r.sharePercent, 0).toFixed(1)}%
                   </strong> (१००% हुनुपर्छ)
                 </span>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setIsSettingsEditing(false)}
-                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-all"
+                    className="px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all"
                   >
                     रद्द (Cancel)
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all"
+                    className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all"
                   >
                     बचत गर्नुहोस् (Save)
                   </button>
@@ -1432,27 +1510,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               </div>
             </form>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl text-center">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[140px] bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl text-center">
                 <span className="block text-[10px] text-emerald-800 font-bold tracking-wider uppercase font-nepali">कुल प्रोत्साहन दर (Total Incentive)</span>
                 <span className="block text-xl font-extrabold text-emerald-700 font-mono mt-1">{toNepaliDigits(labIncentivePercent)}%</span>
-                <span className="text-[10px] text-slate-500 font-nepali">ल्याब बिलको रकम</span>
+                <span className="text-[10px] text-slate-500 font-nepali font-medium">ल्याब बिलको रकम</span>
               </div>
-              <div className="bg-sky-50/50 border border-sky-100 p-3 rounded-xl text-center">
-                <span className="block text-[10px] text-sky-800 font-bold tracking-wider uppercase font-nepali">सिफारिस हिस्सा (Referrer)</span>
-                <span className="block text-xl font-extrabold text-sky-700 font-mono mt-1">{toNepaliDigits(referrerSharePercent)}%</span>
-                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
-              </div>
-              <div className="bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl text-center">
-                <span className="block text-[10px] text-indigo-800 font-bold tracking-wider uppercase font-nepali">ल्याबकर्मी हिस्सा (Lab Staff)</span>
-                <span className="block text-xl font-extrabold text-indigo-700 font-mono mt-1">{toNepaliDigits(labStaffSharePercent)}%</span>
-                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
-              </div>
-              <div className="bg-purple-50/50 border border-purple-100 p-3 rounded-xl text-center">
-                <span className="block text-[10px] text-purple-800 font-bold tracking-wider uppercase font-nepali">सहयोगी/सफाईकर्मी हिस्सा (Helper)</span>
-                <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">{toNepaliDigits(helperSharePercent)}%</span>
-                <span className="text-[10px] text-slate-500 font-nepali">कुल प्रोत्साहनको हिस्सा</span>
-              </div>
+              {protsahanRecipients.map(recipient => (
+                <div key={recipient.id} className="flex-1 min-w-[140px] bg-sky-50/50 border border-sky-100 p-3 rounded-2xl text-center">
+                  <span className="block text-[10px] text-sky-800 font-bold tracking-wider uppercase font-nepali">{recipient.nameNe} हिस्सा</span>
+                  <span className="block text-xl font-extrabold text-sky-700 font-mono mt-1">{toNepaliDigits(recipient.sharePercent)}%</span>
+                  <span className="text-[10px] text-slate-500 font-nepali font-medium">कुल प्रोत्साहनको हिस्सा</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1553,37 +1623,33 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           {reportSource === 'Protsahan' ? (
             <div className="space-y-8">
               {/* Protsahan Overview Panel inside the printable area */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 print:grid-cols-5 print:gap-2">
-                <div className="bg-slate-50 border border-slate-300 p-3 rounded-xl text-center">
+              <div className="flex flex-wrap gap-4 mb-4 print:gap-2">
+                <div className="flex-1 min-w-[140px] bg-slate-50 border border-slate-300 p-3 rounded-xl text-center">
                   <span className="block text-[10px] text-slate-700 font-bold tracking-wide uppercase font-nepali">कुल ल्याब खुद बिक्री</span>
                   <span className="block text-sm font-black text-slate-800 font-mono mt-0.5">
                     Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.netLabAmount, 0).toFixed(2))}
                   </span>
                 </div>
-                <div className="bg-emerald-50/50 border border-emerald-200 p-3 rounded-xl text-center">
+                <div className="flex-1 min-w-[140px] bg-emerald-50/50 border border-emerald-200 p-3 rounded-xl text-center">
                   <span className="block text-[10px] text-emerald-800 font-bold tracking-wide uppercase font-nepali">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</span>
                   <span className="block text-sm font-black text-emerald-700 font-mono mt-0.5">
                     Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
                   </span>
                 </div>
-                <div className="bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
-                  <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">सिफारिस हिस्सा ({toNepaliDigits(referrerSharePercent)}%)</span>
-                  <span className="block text-sm font-black text-sky-700 font-mono mt-0.5">
-                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.referrerShare, 0).toFixed(2))}
-                  </span>
-                </div>
-                <div className="bg-indigo-50/50 border border-indigo-200 p-3 rounded-xl text-center">
-                  <span className="block text-[10px] text-indigo-800 font-bold tracking-wide uppercase font-nepali">ल्याबकर्मी हिस्सा ({toNepaliDigits(labStaffSharePercent)}%)</span>
-                  <span className="block text-sm font-black text-indigo-700 font-mono mt-0.5">
-                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.labStaffShare, 0).toFixed(2))}
-                  </span>
-                </div>
-                <div className="bg-purple-50/50 border border-purple-200 p-3 rounded-xl text-center">
-                  <span className="block text-[10px] text-purple-800 font-bold tracking-wide uppercase font-nepali">सहयोगी हिस्सा ({toNepaliDigits(helperSharePercent)}%)</span>
-                  <span className="block text-sm font-black text-purple-700 font-mono mt-0.5">
-                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.helperShare, 0).toFixed(2))}
-                  </span>
-                </div>
+                {protsahanRecipients.map(recipient => {
+                  const totalForRecipient = protsahanReportData.reduce((sum, d) => {
+                    const share = d.recipientShares.find(s => s.id === recipient.id);
+                    return sum + (share ? share.shareAmount : 0);
+                  }, 0);
+                  return (
+                    <div key={recipient.id} className="flex-1 min-w-[140px] bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
+                      <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">{recipient.nameNe} हिस्सा ({toNepaliDigits(recipient.sharePercent)}%)</span>
+                      <span className="block text-sm font-black text-sky-700 font-mono mt-0.5">
+                        Rs. {toNepaliDigits(totalForRecipient.toFixed(2))}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* 1. Referrer-wise Incentive Allocation Summary */}
@@ -1598,7 +1664,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">सिफारिसकर्ताको नाम (Referrer Name)</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">खुद ल्याब रकम</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">जम्मा प्रोत्साहन</th>
-                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">सिफारिस हिस्सा ({toNepaliDigits(referrerSharePercent)}%)</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">सिफारिस हिस्सा ({toNepaliDigits(referrerRecipient?.sharePercent || 0)}%)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1652,9 +1718,11 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">ल्याब खुद रकम</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</th>
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[110px]">सिफारिसकर्ता</th>
-                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">सिफारिस ({toNepaliDigits(referrerSharePercent)}%)</th>
-                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">ल्याबकर्मी ({toNepaliDigits(labStaffSharePercent)}%)</th>
-                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">सहयोगी ({toNepaliDigits(helperSharePercent)}%)</th>
+                      {protsahanRecipients.map(recipient => (
+                        <th key={recipient.id} className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali min-w-[80px]">
+                          {recipient.nameNe} ({toNepaliDigits(recipient.sharePercent)}%)
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -1673,15 +1741,17 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                             <td className="border border-slate-950 p-2 text-right font-mono font-medium">Rs. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
                             <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">Rs. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
                             <td className="border border-slate-950 p-2 text-slate-800">{item.referrerName}</td>
-                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-sky-700">Rs. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
-                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-indigo-700">Rs. {toNepaliDigits(item.labStaffShare.toFixed(2))}</td>
-                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-purple-700">Rs. {toNepaliDigits(item.helperShare.toFixed(2))}</td>
+                            {item.recipientShares.map(share => (
+                              <td key={share.id} className="border border-slate-950 p-2 text-right font-mono font-medium text-slate-800">
+                                Rs. {toNepaliDigits(share.shareAmount.toFixed(2))}
+                              </td>
+                            ))}
                           </tr>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan={10} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                        <td colSpan={7 + protsahanRecipients.length} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
                           प्रोत्साहन गणनाको लागि कुनै विस्तृत रेकर्ड फेला परेन।
                         </td>
                       </tr>
@@ -1696,15 +1766,17 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                           Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
                         </td>
                         <td className="border-2 border-slate-950 p-2.5"></td>
-                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-sky-800">
-                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
-                        </td>
-                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-indigo-800">
-                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.labStaffShare, 0).toFixed(2))}
-                        </td>
-                        <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-purple-800">
-                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.helperShare, 0).toFixed(2))}
-                        </td>
+                        {protsahanRecipients.map(recipient => {
+                          const totalForRecipient = protsahanReportData.reduce((sum, d) => {
+                            const share = d.recipientShares.find(s => s.id === recipient.id);
+                            return sum + (share ? share.shareAmount : 0);
+                          }, 0);
+                          return (
+                            <td key={recipient.id} className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-slate-800">
+                              Rs. {toNepaliDigits(totalForRecipient.toFixed(2))}
+                            </td>
+                          );
+                        })}
                       </tr>
                     )}
                   </tbody>
