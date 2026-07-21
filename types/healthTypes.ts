@@ -141,6 +141,7 @@ export interface ChildImmunizationVaccine {
   givenDateBs?: string | null;
   givenDateAd?: string | null;
   status: 'Pending' | 'Given' | 'Missed';
+  vaccinatedElsewhere?: boolean;
 }
 
 export interface ChildImmunizationRecord {

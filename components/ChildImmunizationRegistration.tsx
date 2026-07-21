@@ -153,6 +153,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedVaccineForUpdate, setSelectedVaccineForUpdate] = useState<{ record: ChildImmunizationRecord; vaccineIndex: number; } | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
+  const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
 
   const getTodayAd = () => toLocalISO(new Date());
   const getTodayBs = () => {
@@ -169,9 +170,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       const currentVaccine = (record.vaccines || [])[vaccineIndex];
       if (currentVaccine) {
         setModalGivenDateBs(currentVaccine.givenDateBs || getTodayBs());
+        setModalVaccinatedElsewhere(!!currentVaccine.vaccinatedElsewhere);
       }
     } else {
       setModalGivenDateBs('');
+      setModalVaccinatedElsewhere(false);
     }
   }, [selectedVaccineForUpdate]);
 
@@ -382,7 +385,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       let outOfStockWarnings: string[] = [];
 
       (formData.vaccines || []).forEach(v => {
-        if (v.status === 'Given' && !oldGivenVaccines.has(v.name)) {
+        if (v.status === 'Given' && !v.vaccinatedElsewhere && !oldGivenVaccines.has(v.name)) {
           const currentStock = updatedInventory[v.name] || 0;
           if (currentStock > 0) {
             updatedInventory[v.name] = currentStock - 1;
@@ -453,7 +456,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     setSuccessMessage(null); // Clear success message on reset
   };
 
-  const handleFormVaccineChange = (vaccineName: string, status: 'Given' | 'Pending', givenDateBs: string) => {
+  const handleFormVaccineChange = (vaccineName: string, status: 'Given' | 'Pending', givenDateBs: string, vaccinatedElsewhere?: boolean) => {
     let givenDateAd: string | null = null;
     if (status === 'Given' && givenDateBs) {
       try {
@@ -466,9 +469,23 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
     const currentVaccines = formData.vaccines || [];
     
+    // Map existing vaccines to update status and vaccinatedElsewhere for the target vaccine
+    const targetVaccines = currentVaccines.map(v => {
+      if (v.name === vaccineName) {
+        return {
+          ...v,
+          status,
+          givenDateBs: status === 'Given' ? givenDateBs : null,
+          givenDateAd: status === 'Given' ? givenDateAd : null,
+          vaccinatedElsewhere: status === 'Given' ? (vaccinatedElsewhere !== undefined ? vaccinatedElsewhere : !!v.vaccinatedElsewhere) : undefined
+        };
+      }
+      return v;
+    });
+
     // Call recalculateFutureDoses
     const updated = recalculateFutureDoses(
-      currentVaccines,
+      targetVaccines,
       vaccineName,
       givenDateAd || '',
       givenDateBs,
@@ -483,7 +500,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           ...updated[foundIdx],
           status: 'Pending',
           givenDateAd: null,
-          givenDateBs: null
+          givenDateBs: null,
+          vaccinatedElsewhere: undefined
         };
       }
       // Recalculate without any newly marked dose
@@ -522,8 +540,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     const nd = new NepaliDate(modalGivenDateBs);
     const givenDateAd = toLocalISO(nd.toJsDate());
 
-    // Consuming/Deducting vaccine stock once it is given to the child
-    if (onUpdateGeneralSettings && currentVaccine.status !== 'Given') {
+    // Consuming/Deducting vaccine stock once it is given to the child, UNLESS it's vaccinated elsewhere
+    if (onUpdateGeneralSettings && currentVaccine.status !== 'Given' && !modalVaccinatedElsewhere) {
       const currentStock = generalSettings.vaccineInventory?.[currentVaccine.name] || 0;
       if (currentStock > 0) {
         const updatedInventory = {
@@ -539,7 +557,20 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       }
     }
 
-    const finalVaccines = recalculateFutureDoses(record.vaccines || [], currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
+    const preMappedVaccines = (record.vaccines || []).map((v, idx) => {
+        if (idx === vaccineIndex) {
+            return {
+                ...v,
+                status: 'Given' as const,
+                givenDateAd,
+                givenDateBs: modalGivenDateBs,
+                vaccinatedElsewhere: modalVaccinatedElsewhere
+            };
+        }
+        return v;
+    });
+
+    const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
     onUpdateRecord({ ...record, vaccines: finalVaccines });
     setSelectedVaccineForUpdate(null);
   };
@@ -714,6 +745,22 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                       </>
                                     )}
                                   </div>
+                                  <div className="mt-2.5 flex items-center gap-2 bg-white/50 border border-green-100/50 p-1.5 rounded-lg">
+                                    <input
+                                      type="checkbox"
+                                      id={`elsewhere-${v.name}`}
+                                      checked={!!v.vaccinatedElsewhere}
+                                      disabled={isAlreadySavedAsGiven}
+                                      onChange={(e) => handleFormVaccineChange(v.name, 'Given', v.givenDateBs || '', e.target.checked)}
+                                      className="w-3.5 h-3.5 text-green-600 border-slate-300 rounded focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    />
+                                    <label 
+                                      htmlFor={`elsewhere-${v.name}`} 
+                                      className="text-[10px] font-bold text-slate-600 font-nepali cursor-pointer select-none disabled:opacity-50 flex-1"
+                                    >
+                                      अन्यत्र लगाएको (Vaccinated Elsewhere)
+                                    </label>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -794,7 +841,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                           <span className="mb-0.5 text-center leading-tight">{v.name}</span>
                                           <div className="flex flex-col text-[7px] font-normal leading-tight">
                                               <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
-                                              {v.givenDateBs && <span className="flex items-center gap-0.5 text-green-700 font-bold"><CheckCircle2 size={7}/> {v.givenDateBs}</span>}
+                                              {v.givenDateBs && (
+                                                <span className="flex items-center gap-0.5 text-green-700 font-bold">
+                                                  <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                </span>
+                                              )}
                                           </div>
                                       </div>
                                     );
@@ -853,6 +904,21 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                             onChange={setModalGivenDateBs} 
                             required
                         />
+                        <div className="flex items-center gap-2 pt-1">
+                            <input
+                              type="checkbox"
+                              id="modal-elsewhere"
+                              checked={modalVaccinatedElsewhere}
+                              onChange={(e) => setModalVaccinatedElsewhere(e.target.checked)}
+                              className="w-4 h-4 text-green-600 border-slate-300 rounded focus:ring-green-500 cursor-pointer"
+                            />
+                            <label 
+                              htmlFor="modal-elsewhere" 
+                              className="text-xs font-bold text-slate-700 font-nepali cursor-pointer select-none"
+                            >
+                              अन्यत्र लगाएको (Vaccinated Elsewhere)
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div className="p-4 bg-slate-50 border-t flex gap-3">

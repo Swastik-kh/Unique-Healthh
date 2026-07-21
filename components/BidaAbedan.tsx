@@ -186,7 +186,15 @@ export const BidaAbedan: React.FC<BidaAbedanProps> = ({
 
   const myBalance = { ...adminBalance };
 
-  const userOptions = users.map(u => ({ id: u.id, value: u.id, label: `${u.fullName} (${u.designation})` }));
+  const filteredUsers = React.useMemo(() => {
+    if (!currentUser) return [];
+    return users.filter(u => {
+      if (!currentUser.organizationName) return true;
+      return u.organizationName === currentUser.organizationName;
+    });
+  }, [users, currentUser]);
+
+  const userOptions = filteredUsers.map(u => ({ id: u.id, value: u.id, label: `${u.fullName} (${u.designation})` }));
 
   const pendingApplications = leaveApplications.filter(app => app.status === 'Pending');
 
