@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2 } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine } from '../types/healthTypes';
-import { Option, OrganizationSettings } from '../types/coreTypes';
+import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
 // @ts-ignore
@@ -17,6 +17,8 @@ interface ImmunizationTrackingProps {
   currentFiscalYear: string;
   records: ChildImmunizationRecord[];
   generalSettings: OrganizationSettings;
+  currentUser?: SystemUser | null;
+  onDeleteRecord?: (id: string) => void;
 }
 
 const nepaliMonthOptions = [
@@ -84,10 +86,13 @@ const calculateAge = (dobBs: string) => {
 export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   currentFiscalYear,
   records,
-  generalSettings
+  generalSettings,
+  currentUser,
+  onDeleteRecord
 }) => {
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Filters
   const [filterCenter, setFilterCenter] = useState('');
@@ -100,6 +105,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const isAdmin = useMemo(() => {
+    return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  }, [currentUser]);
+
+  const handleDeleteChild = useCallback((childId: string, childName: string) => {
+    if (!onDeleteRecord) return;
+    if (window.confirm(`के तपाईं निश्चित हुनुहुन्छ कि तपाईं ${childName} को रेकर्ड हटाउन चाहनुहुन्छ? यो कार्य पूर्ववत गर्न सकिँदैन।`)) {
+      onDeleteRecord(childId);
+      setSuccessMessage(`${childName} को रेकर्ड सफलतापूर्वक हटाइयो।`);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+  }, [onDeleteRecord]);
 
   const getVaccinesGivenCount = (vaccines: ChildImmunizationVaccine[] = []) => {
     return vaccines.filter(v => v.status === 'Given').length;
@@ -611,6 +629,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
             </div>
         </div>
 
+        {successMessage && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200 no-print">
+                <div className="flex items-center gap-2">
+                    <CheckCircle2 className="text-green-600 animate-pulse" size={18} />
+                    <span className="font-bold text-sm font-nepali">{successMessage}</span>
+                </div>
+                <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-green-700">
+                    <X size={18} />
+                </button>
+            </div>
+        )}
+
         {/* List View Container */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
             {activeView === 'upcoming' && (
@@ -636,6 +666,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <th className="px-6 py-3">अभिभावक / ठेगाना</th>
                                     <th className="px-6 py-3 text-center">लगाउनुपर्ने खोप (Vaccines Due)</th>
                                     <th className="px-6 py-3 text-right">सम्पर्क</th>
+                                    {isAdmin && <th className="px-6 py-3 text-right no-print">कार्य</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -702,10 +733,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">{item.child.phone}</td>
+                                            {isAdmin && (
+                                                <td className="px-6 py-4 text-right no-print">
+                                                    <button 
+                                                        onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
+                                                        className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                        title="हटाउनुहोस् (Delete)"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
+                                            )}
                                         </tr>
                                         {expandedRows[item.child.id] && (
                                             <tr className="bg-slate-50/70">
-                                                <td colSpan={4} className="px-6 py-3">
+                                                <td colSpan={isAdmin ? 5 : 4} className="px-6 py-3">
                                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs animate-in slide-in-from-top-1 duration-200 text-left">
                                                         <div className="flex items-center justify-between border-b pb-2 mb-3">
                                                             <div className="flex items-center gap-1.5">
@@ -757,7 +799,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         )}
                                     </React.Fragment>
                                 ))}
-                                {upcomingSessionList.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
+                                {upcomingSessionList.length === 0 && <tr><td colSpan={isAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -783,6 +825,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <th className="px-6 py-3">छुटेको खोप विवरण</th>
                                     <th className="px-6 py-3 text-center">सम्पर्क</th>
                                     <th className="px-6 py-3 text-right">स्थिति</th>
+                                    {isAdmin && <th className="px-6 py-3 text-right no-print">कार्य</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -815,9 +858,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 <Clock size={10}/> Overdue
                                             </span>
                                         </td>
+                                        {isAdmin && (
+                                            <td className="px-6 py-4 text-right no-print">
+                                                <button 
+                                                    onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
+                                                    className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                    title="हटाउनुहोस् (Delete)"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
-                                {defaulterList.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
+                                {defaulterList.length === 0 && <tr><td colSpan={isAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
                             </tbody>
                         </table>
                     </div>
