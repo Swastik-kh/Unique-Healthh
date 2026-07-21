@@ -572,6 +572,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
     const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
     onUpdateRecord({ ...record, vaccines: finalVaccines });
+    
+    // If this record is currently being edited on the top form, update the form state as well
+    if (editingRecordId === record.id) {
+      setFormData(prev => ({
+        ...prev,
+        vaccines: finalVaccines
+      }));
+    }
+
+    setSuccessMessage(`${record.childName} को खोप '${currentVaccine.name}' को विवरण सफलतापूर्वक सुरक्षित गरियो (Vaccine details successfully updated)`);
     setSelectedVaccineForUpdate(null);
   };
 

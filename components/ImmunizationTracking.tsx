@@ -99,6 +99,24 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [filterVaccine, setFilterVaccine] = useState(''); 
   
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+
+  const getVaccinesGivenCount = (vaccines: ChildImmunizationVaccine[] = []) => {
+    return vaccines.filter(v => v.status === 'Given').length;
+  };
+
+  const getVaccinesStatusPercent = (vaccines: ChildImmunizationVaccine[] = []) => {
+    const total = vaccines.length;
+    if (total === 0) return 0;
+    return Math.round((vaccines.filter(v => v.status === 'Given').length / total) * 100);
+  };
+
+  const toggleRowExpanded = (childId: string) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [childId]: !prev[childId]
+    }));
+  };
 
   const todayBsFormatted = useMemo(() => getTodayBsFormatted(), []);
 
@@ -622,50 +640,122 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {upcomingSessionList.map((item, idx) => (
-                                    <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-800">{item.child.childName}</div>
-                                            <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
-                                                <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-slate-700 font-medium">
-                                                आमा: {item.child.motherName} {item.child.fatherName && `/ बुबा: ${item.child.fatherName}`}
-                                            </div>
-                                            <div className="text-[10px] text-slate-400 mt-0.5">{item.child.address}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex flex-col gap-2 justify-center">
-                                                {/* Group vaccines by date to apply same color */}
-                                                {Object.entries(item.vaccines.reduce((acc: Record<string, ChildImmunizationVaccine[]>, vax) => {
-                                                    if (!acc[vax.scheduledDateBs]) acc[vax.scheduledDateBs] = [];
-                                                    acc[vax.scheduledDateBs].push(vax);
-                                                    return acc;
-                                                }, {})).map(([date, vaccines], dIdx) => {
-                                                    const typedVaccines = vaccines as ChildImmunizationVaccine[];
-                                                    const color = getDateColor(date);
-                                                    return (
-                                                        <div key={dIdx} className="flex flex-wrap gap-2 justify-center">
-                                                            {typedVaccines.map((vax, vIdx) => (
-                                                                <div key={vIdx} className={`flex items-center gap-1 ${color.bg} px-2 py-1 rounded border ${color.border}`}>
-                                                                    <Syringe size={12} className={color.icon} />
-                                                                    <div className="flex flex-col items-center">
-                                                                        <span className={`${color.text} font-black text-[11px]`}>{vax.name}</span>
-                                                                        <span className="text-[9px] text-slate-500 font-bold font-nepali">
-                                                                            {vax.scheduledDateBs.split('-')[2]} गते
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                    <React.Fragment key={idx}>
+                                        <tr className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-800">{item.child.childName}</div>
+                                                <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                                    <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
+                                                    <div className="flex items-center gap-1 mb-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
+                                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                                        <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden shrink-0">
+                                                            <div 
+                                                                className="bg-green-500 h-1.5 rounded-full" 
+                                                                style={{ width: `${getVaccinesStatusPercent(item.child.vaccines)}%` }}
+                                                            />
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">{item.child.phone}</td>
-                                    </tr>
+                                                        <span className="text-[9px] font-bold text-slate-600 font-nepali">
+                                                            खोप स्थिति: {getVaccinesGivenCount(item.child.vaccines)}/{item.child.vaccines?.length || 0} ({getVaccinesStatusPercent(item.child.vaccines)}% पुरा)
+                                                        </span>
+                                                        <button 
+                                                            onClick={() => toggleRowExpanded(item.child.id)}
+                                                            className="text-[9px] text-primary-600 hover:text-primary-800 font-bold font-nepali flex items-center gap-0.5 hover:underline"
+                                                            type="button"
+                                                        >
+                                                            {expandedRows[item.child.id] ? 'स्थिति लुकाउनुहोस् ▲' : 'पूर्ण विवरण हेर्नुहोस् ▼'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-700 font-medium">
+                                                    आमा: {item.child.motherName} {item.child.fatherName && `/ बुबा: ${item.child.fatherName}`}
+                                                </div>
+                                                <div className="text-[10px] text-slate-400 mt-0.5">{item.child.address}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex flex-col gap-2 justify-center">
+                                                    {/* Group vaccines by date to apply same color */}
+                                                    {Object.entries(item.vaccines.reduce((acc: Record<string, ChildImmunizationVaccine[]>, vax) => {
+                                                        if (!acc[vax.scheduledDateBs]) acc[vax.scheduledDateBs] = [];
+                                                        acc[vax.scheduledDateBs].push(vax);
+                                                        return acc;
+                                                    }, {})).map(([date, vaccines], dIdx) => {
+                                                        const typedVaccines = vaccines as ChildImmunizationVaccine[];
+                                                        const color = getDateColor(date);
+                                                        return (
+                                                            <div key={dIdx} className="flex flex-wrap gap-2 justify-center">
+                                                                {typedVaccines.map((vax, vIdx) => (
+                                                                    <div key={vIdx} className={`flex items-center gap-1 ${color.bg} px-2 py-1 rounded border ${color.border}`}>
+                                                                        <Syringe size={12} className={color.icon} />
+                                                                        <div className="flex flex-col items-center">
+                                                                            <span className={`${color.text} font-black text-[11px]`}>{vax.name}</span>
+                                                                            <span className="text-[9px] text-slate-500 font-bold font-nepali">
+                                                                                {vax.scheduledDateBs.split('-')[2]} गते
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">{item.child.phone}</td>
+                                        </tr>
+                                        {expandedRows[item.child.id] && (
+                                            <tr className="bg-slate-50/70">
+                                                <td colSpan={4} className="px-6 py-3">
+                                                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs animate-in slide-in-from-top-1 duration-200 text-left">
+                                                        <div className="flex items-center justify-between border-b pb-2 mb-3">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <CheckCircle2 size={15} className="text-green-600 animate-pulse" />
+                                                                <h4 className="text-xs font-bold text-slate-700 font-nepali">खोपको पूर्ण स्थिति विवरण (Full Vaccination Status)</h4>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-[9px] font-bold text-slate-600 font-nepali">
+                                                                <span className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">लगाएको: {getVaccinesGivenCount(item.child.vaccines)}</span>
+                                                                <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">बाँकी: {(item.child.vaccines || []).length - getVaccinesGivenCount(item.child.vaccines)}</span>
+                                                                <span className="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">जम्मा: {(item.child.vaccines || []).length}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+                                                            {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
+                                                                const vaccinesInCluster = (item.child.vaccines || []).filter(v => v.cluster === clusterName);
+                                                                if (vaccinesInCluster.length === 0) return null;
+                                                                return (
+                                                                    <div key={clusterName} className="flex flex-col gap-1 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100">
+                                                                        <span className="text-[8px] font-black uppercase text-slate-500 border-b border-slate-200/60 pb-0.5 mb-1">{clusterName}</span>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            {vaccinesInCluster.map((v) => {
+                                                                                const isGiven = v.status === 'Given';
+                                                                                return (
+                                                                                    <div 
+                                                                                        key={v.name} 
+                                                                                        className={`px-1 py-0.5 rounded text-[8px] font-bold border flex flex-col min-w-0
+                                                                                            ${isGiven ? 'bg-green-50 text-green-800 border-green-100' : 'bg-blue-50/60 text-blue-700 border-blue-100/60'}`}
+                                                                                    >
+                                                                                        <span className="mb-0.5 font-bold truncate text-left" title={v.name}>{v.name}</span>
+                                                                                        <div className="flex flex-col text-[7px] font-normal leading-tight opacity-85 text-left">
+                                                                                            <span className="flex items-center gap-0.5 truncate"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
+                                                                                            {v.givenDateBs && (
+                                                                                                <span className="flex items-center gap-0.5 text-green-700 font-bold truncate">
+                                                                                                    <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[5px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 ))}
                                 {upcomingSessionList.length === 0 && <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
                             </tbody>
