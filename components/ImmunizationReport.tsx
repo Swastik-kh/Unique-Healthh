@@ -93,7 +93,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         let receivedDoseThisMonth = false;
 
         record.vaccines.forEach(v => {
-          if (v.status === 'Given' && v.givenDateBs) {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
             const m = v.givenDateBs.split('-')[1];
             
             if (m === selectedMonth) {

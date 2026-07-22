@@ -300,7 +300,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
       if (record.fiscalYear !== currentFiscalYear) return;
       
       (record.vaccines || []).forEach(vax => {
-        if (vax.status === 'Given') {
+        if (vax.status === 'Given' && !vax.vaccinatedElsewhere) {
           if (summaryMonth !== 'all') {
             const vaxMonth = getMonthFromBsDate(vax.givenDateBs);
             if (vaxMonth !== summaryMonth) return;

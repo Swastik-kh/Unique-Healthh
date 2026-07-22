@@ -397,7 +397,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       .forEach(record => {
         const gender = (record.gender || '').toLowerCase();
         record.vaccines?.forEach((v: any) => {
-          if (v.status === 'Given' && v.givenDateBs) {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
             const m = v.givenDateBs.split('-')[1];
             if (data[m]) {
               const nameLower = (v.name || v.vaccineName || '').toLowerCase();
@@ -581,7 +581,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
 
         const gender = (record.gender || '').toLowerCase();
         record.vaccines?.forEach((v: any) => {
-          if (v.status === 'Given' && v.givenDateBs) {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
             const nameLower = (v.name || v.vaccineName || '').toLowerCase();
             if (nameLower.includes('bcg')) {
               data[cName].bcg++;
