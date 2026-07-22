@@ -127,6 +127,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
       { id: 'report_mch', label: 'MCH रिपोर्ट', icon: <Baby size={16} /> },
       { id: 'report_tb_dst', label: 'TBDST रिपोर्ट', icon: <FileText size={16} /> },
       { id: 'report_inventory_monthly', label: 'जिन्सी मासिक रिपोर्ट', icon: <FileText size={16} /> },
+      { id: 'report_drug_quantification', label: 'Drug Quantification', icon: <Pill size={16} /> },
       { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट', icon: <FileText size={16} /> },
       { 
         id: 'report_dhis', 

@@ -78,6 +78,7 @@ import { USGSewa } from './USGSewa';
 import { PhysiotherapySewa } from './PhysiotherapySewa';
 import { TBDSTReport } from './TBDSTReport';
 import { LabBillingReport } from './LabBillingReport';
+import { DrugQuantification } from './DrugQuantification';
 import { FamilyPlanningReport } from './FamilyPlanningReport';
 import { GESIReport } from './GESIReport';
 import { GESIOPDReport } from './GESIOPDReport';
@@ -2234,6 +2235,17 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                               stockEntryRequests={stockEntryRequests} 
                                               stores={stores} 
                                             />;
+      case 'report_drug_quantification': return <DrugQuantification 
+                                                  currentFiscalYear={currentFiscalYear}
+                                                  opdRecords={opdRecords}
+                                                  emergencyRecords={emergencyRecords}
+                                                  cbimnciRecords={cbimnciRecords}
+                                                  ipdRecords={ipdRecords}
+                                                  inventoryItems={inventoryItems}
+                                                  stores={stores}
+                                                  generalSettings={generalSettings}
+                                                  currentUser={currentUser}
+                                                />;
       case 'report_lab_billing': return <LabBillingReport 
                                           billingRecords={billingRecords} 
                                           ambulanceRecords={ambulanceRecords}

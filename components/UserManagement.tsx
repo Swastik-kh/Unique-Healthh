@@ -135,6 +135,7 @@ const PERMISSION_STRUCTURE = [
             { id: 'report_mch', label: 'MCH रिपोर्ट (MCH Report)' },
             { id: 'report_tb_dst', label: 'TBDST रिपोर्ट (TBDST Report)' },
             { id: 'report_inventory_monthly', label: 'जिन्सी मासिक प्रतिवेदन (Monthly Report)' },
+            { id: 'report_drug_quantification', label: 'Drug Quantification (औषधि परिमाण)' },
             { 
                 id: 'report_lab_billing', 
                 label: 'बिलिङ रिपोर्ट (Billing Report)',
