@@ -432,6 +432,56 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
     setProcurementItems(prev => prev.filter(i => i.id !== id));
   };
 
+  // Sync exact prescription/consumption data from OPD, IPD, Emergency, CBIMNCI
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  const handleSyncExactConsumptionData = () => {
+    let syncedCount = 0;
+    setProcurementItems(prev => {
+      return prev.map(item => {
+        const itemLower = item.medicineName.toLowerCase();
+        // find matching drug in quantifiedDrugs
+        const matched = quantifiedDrugs.find(qd => {
+          const qdLower = qd.name.toLowerCase();
+          return itemLower.includes(qdLower) || qdLower.includes(itemLower);
+        });
+
+        if (matched && matched.totalPrescribedQty > 0) {
+          syncedCount++;
+          return {
+            ...item,
+            fy3Qty: Math.round(matched.totalPrescribedQty)
+          };
+        }
+        return item;
+      });
+    });
+
+    setSyncStatus(`सफलतापूर्वक क्लिनिकल दर्ता (OPD, Emergency, IPD, CBIMNCI) बाट औषधिको वास्तविक खपत डाटा सिङ्क भयो! (${syncedCount} वटा औषधि अद्यावधिक)`);
+    setTimeout(() => setSyncStatus(null), 6000);
+  };
+
+  // Procurement totals
+  const procurementTotals = useMemo(() => {
+    let sumFy1 = 0;
+    let sumFy2 = 0;
+    let sumFy3 = 0;
+    let sumAvg = 0;
+    let sumTarget = 0;
+
+    procurementItems.forEach(item => {
+      sumFy1 += item.fy1Qty || 0;
+      sumFy2 += item.fy2Qty || 0;
+      sumFy3 += item.fy3Qty || 0;
+      const avg = Math.round((item.fy1Qty + item.fy2Qty + item.fy3Qty) / 3);
+      const target = Math.round(avg * 1.10);
+      sumAvg += avg;
+      sumTarget += target;
+    });
+
+    return { sumFy1, sumFy2, sumFy3, sumAvg, sumTarget };
+  }, [procurementItems]);
+
   // Stats calculation
   const totalUniqueMeds = quantifiedDrugs.length;
   const totalOutCount = quantifiedDrugs.filter(d => d.stockStatus === 'Out').length;
@@ -570,40 +620,69 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
           <p className="text-2xl font-black text-slate-800 font-mono">
             {reportMode === 'probable_procurement' ? toNepaliNumber(procurementItems.length) : toNepaliNumber(totalUniqueMeds)}
           </p>
-          <p className="text-xs text-slate-400 mt-1 font-nepali">कुल औषधि सूची संख्या</p>
+          <p className="text-xs text-slate-400 mt-1 font-nepali">कुल सूचीमा रहेका औषधिहरू</p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-amber-600 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">न्यून मौज्दात (Low Stock)</span>
-            <AlertTriangle size={20} />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">
+              {reportMode === 'probable_procurement' ? 'हालको आ.व. वास्तविक खपत' : 'न्यून मौज्दात (Low Stock)'}
+            </span>
+            {reportMode === 'probable_procurement' ? <ShoppingBag className="text-amber-600" size={20} /> : <AlertTriangle size={20} />}
           </div>
-          <p className="text-2xl font-black text-amber-600 font-mono">{toNepaliNumber(totalLowCount)}</p>
-          <p className="text-xs text-amber-700/70 mt-1 font-nepali">१ महिनाको खपतभन्दा कम मौज्दात</p>
+          <p className="text-2xl font-black text-amber-600 font-mono">
+            {reportMode === 'probable_procurement' ? `${toNepaliNumber(procurementTotals.sumFy3)} इकाई` : toNepaliNumber(totalLowCount)}
+          </p>
+          <p className="text-xs text-amber-700/70 mt-1 font-nepali">
+            {reportMode === 'probable_procurement' ? 'OPD/IPD/Emergency प्रेस्क्राइब्ड परिमाण' : '१ महिनाको खपतभन्दा कम मौज्दात'}
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-rose-600 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">मौज्दात नभएको (Stock Out)</span>
-            <Package size={20} />
+          <div className="flex items-center justify-between text-teal-600 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">
+              {reportMode === 'probable_procurement' ? '३ वर्षको औसत वार्षिक खपत' : 'मौज्दात नभएको (Stock Out)'}
+            </span>
+            {reportMode === 'probable_procurement' ? <Calculator className="text-teal-600" size={20} /> : <Package size={20} />}
           </div>
-          <p className="text-2xl font-black text-rose-600 font-mono">{toNepaliNumber(totalOutCount)}</p>
-          <p className="text-xs text-rose-700/70 mt-1 font-nepali">तत्काल स्टक थप्नुपर्ने औषधि</p>
+          <p className="text-2xl font-black text-teal-600 font-mono">
+            {reportMode === 'probable_procurement' ? `${toNepaliNumber(procurementTotals.sumAvg)} इकाई` : toNepaliNumber(totalOutCount)}
+          </p>
+          <p className="text-xs text-teal-700/70 mt-1 font-nepali">
+            {reportMode === 'probable_procurement' ? 'वार्षिक औसत औषधीय खपत परिमाण' : 'तत्काल स्टक थप्नुपर्ने औषधि'}
+          </p>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-indigo-600 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">३ महिनाको अनुमानित माग</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-nepali">
+              {reportMode === 'probable_procurement' ? `आवश्यक खरिद परिमाण (${targetFiscalYear})` : '३ महिनाको अनुमानित माग'}
+            </span>
             <TrendingUp size={20} />
           </div>
-          <p className="text-2xl font-black text-indigo-600 font-mono">{toNepaliNumber(totalReorderUnits)} <span className="text-xs font-normal">इकाइ</span></p>
-          <p className="text-xs text-indigo-700/70 mt-1 font-nepali">अपुग औषधिको अनुमानित माग</p>
+          <p className="text-2xl font-black text-indigo-600 font-mono">
+            {reportMode === 'probable_procurement' ? `${toNepaliNumber(procurementTotals.sumTarget)} इकाई` : `${toNepaliNumber(totalReorderUnits)} इकाई`}
+          </p>
+          <p className="text-xs text-indigo-700/70 mt-1 font-nepali">
+            {reportMode === 'probable_procurement' ? '१०% वृद्धिदर सहितको आवश्यक खरिद परिमाण' : 'अपुग औषधिको अनुमानित माग'}
+          </p>
         </div>
       </div>
 
+      {/* Sync Status Banner */}
+      {syncStatus && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold font-nepali flex items-center justify-between shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <span>{syncStatus}</span>
+          </div>
+          <button onClick={() => setSyncStatus(null)} className="text-emerald-600 hover:text-emerald-900 font-bold px-2 py-1">✕</button>
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-sm print:hidden">
-        <div className="relative w-full md:w-96">
+        <div className="relative w-full md:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
             type="text"
@@ -615,9 +694,9 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
         </div>
 
         {reportMode === 'probable_procurement' ? (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-600 font-nepali">स्वास्थ्य संस्था:</span>
+              <span className="text-xs font-bold text-slate-600 font-nepali">संस्था:</span>
               <input
                 type="text"
                 value={healthFacilityName}
@@ -627,7 +706,7 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-slate-600 font-nepali">आर्थिक वर्ष:</span>
+              <span className="text-xs font-bold text-slate-600 font-nepali">आ.व.:</span>
               <input
                 type="text"
                 value={targetFiscalYear}
@@ -635,15 +714,23 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
                   setTargetFiscalYear(e.target.value);
                   setTargetFyLabel(`F/Y ${e.target.value}`);
                 }}
-                className="w-24 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-20 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
+
+            <button
+              onClick={handleSyncExactConsumptionData}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all font-nepali shadow-sm"
+              title="OPD, Emergency, IPD र CBIMNCI दर्ताबाट वास्तविक खपत डाटा सिङ्क गर्नुहोस्"
+            >
+              <RefreshCw size={14} /> वास्तविक खपत सिङ्क गर्नुहोस्
+            </button>
 
             <button
               onClick={handleAddProcurementRow}
               className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-xl hover:bg-teal-700 transition-all font-nepali"
             >
-              <Plus size={14} /> नयाँ औषधि थप्नुहोस्
+              <Plus size={14} /> नयाँ थप्नुहोस्
             </button>
           </div>
         ) : (
@@ -847,6 +934,29 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
                   </tr>
                 )}
               </tbody>
+              <tfoot className="bg-[#b8cce4] text-slate-900 font-bold border-t-2 border-slate-500 font-mono">
+                <tr>
+                  <td colSpan={5} className="p-2.5 text-center font-bold font-nepali border-r border-slate-400">
+                    जम्मा कुल परिमाण (Grand Total Quantity)
+                  </td>
+                  <td className="p-2.5 text-right border-r border-slate-400">
+                    {procurementTotals.sumFy1}
+                  </td>
+                  <td className="p-2.5 text-right border-r border-slate-400">
+                    {procurementTotals.sumFy2}
+                  </td>
+                  <td className="p-2.5 text-right border-r border-slate-400 bg-amber-100/60 text-slate-900">
+                    {procurementTotals.sumFy3}
+                  </td>
+                  <td className="p-2.5 text-right border-r border-slate-400 bg-teal-100/60">
+                    {procurementTotals.sumAvg}
+                  </td>
+                  <td className="p-2.5 text-right bg-[#95b3d7] font-black text-slate-900 text-sm">
+                    {procurementTotals.sumTarget}
+                  </td>
+                  <td className="p-2.5 print:hidden"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
