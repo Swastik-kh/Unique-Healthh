@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Lock, FileText, CheckCircle2, ShieldCheck, Printer, ArrowLeft, Activity, User, Calendar, FlaskConical, Stethoscope, Pill, AlertCircle, Sparkles, Building2, Eye, RefreshCw, X } from 'lucide-react';
+import { Search, Lock, FileText, CheckCircle2, ShieldCheck, Printer, ArrowLeft, Activity, User, Calendar, FlaskConical, Stethoscope, Pill, AlertCircle, Sparkles, Building2, Eye, RefreshCw, X, Key } from 'lucide-react';
 import { BillingRecord, LabReport, OPDRecord, XRayRecord, USGRecord, ECGRecord, DispensaryRecord, ServiceSeekerRecord, OrganizationSettings } from '../types';
 import { LogoDisplay } from './LogoDisplay';
 import { useReactToPrint } from 'react-to-print';
@@ -77,19 +77,23 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
       const cleanPass = pass.trim();
 
       if (!cleanPass && !cleanInv) {
-        setErrorMsg('कृपया आफ्नो युजर पासकोड हाल्नुहोस् (उदा: 123456)।');
+        setErrorMsg('कृपया ६-अङ्की युजर पासकोड वा इन्भोइस नम्बर हाल्नुहोस्।');
         setIsLoading(false);
         return;
       }
 
       const inputVal = (cleanPass || cleanInv).toLowerCase();
 
-      // Search matching bill by passcode, invoice number, patient ID, or phone
+      // Search matching bill in billingRecords
       let matchedBill = billingRecords.find(b => {
         const expectedPass = getReportPasscode(b).toLowerCase();
         const storedPass = (b.reportPasscode || '').toLowerCase();
+
+        // Passcode match
+        if (cleanPass && (cleanPass.toLowerCase() === expectedPass || cleanPass.toLowerCase() === storedPass)) return true;
         if (inputVal === expectedPass || inputVal === storedPass) return true;
 
+        // Invoice / Patient ID / Phone match
         const invNo = (b.invoiceNumber || '').toLowerCase();
         const seekerId = (b.serviceSeekerId || '').toLowerCase();
         const manualInv = (b.manualInvoiceNumber || '').toLowerCase();
@@ -109,20 +113,20 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
         return false;
       });
 
-      // Fallback 1: If common demo passcode or single bill exists
-      if (!matchedBill && billingRecords.length > 0) {
-        if (['123456', '000000', 'demo', 'passcode', '1234', 'test'].includes(inputVal)) {
-          matchedBill = billingRecords[billingRecords.length - 1];
-        }
+      if (matchedBill) {
+        setAuthenticatedBill(matchedBill);
+        setErrorMsg(null);
+        setIsLoading(false);
+        return;
       }
 
-      // Fallback 2: Synthesize demo bill if no records exist or default tested
-      if (!matchedBill) {
+      // Explicit sample request ONLY if user entered 'sample' / 'demo' or if 0 records exist
+      if (['sample', 'demo', 'namuna'].includes(inputVal) || (billingRecords.length === 0 && ['123456', '000000'].includes(inputVal))) {
         matchedBill = {
           id: 'DEMO-BILL-101',
           fiscalYear: '2083/084',
           billDate: new Date().toLocaleDateString('ne-NP'),
-          invoiceNumber: (cleanInv || 'DB-2083084-0001').toUpperCase(),
+          invoiceNumber: 'DB-2083084-0001',
           serviceSeekerId: 'PAT-101',
           patientName: 'राम बहादुर श्रेष्ठ (Sample Patient)',
           items: [
@@ -134,12 +138,17 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
           discount: 0,
           grandTotal: 600,
           paymentMode: 'Cash',
-          reportPasscode: cleanPass || '123456',
+          reportPasscode: '123456',
         };
+        setAuthenticatedBill(matchedBill);
+        setErrorMsg(null);
+        setIsLoading(false);
+        return;
       }
 
-      setAuthenticatedBill(matchedBill);
-      setErrorMsg(null);
+      // If no bill matches, show clear error
+      setAuthenticatedBill(null);
+      setErrorMsg('गलत पासकोड वा इन्भोइस नम्बर! यो पासकोडसँग मिल्ने कुनै पनि बिल/रिपोर्ट भेटिएन। कृपया आफ्नो बिलमा छापिएको ६-अङ्की पासकोड पुनः हेरी प्रयास गर्नुहोस्।');
       setIsLoading(false);
     }, 200);
   };
@@ -270,22 +279,14 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                     <label className="block text-xs font-bold text-slate-700 font-nepali">
                       युजर पासकोड (User Passcode) <span className="text-rose-500">*</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setPasscodeInput('123456')}
-                      className="text-[11px] text-indigo-600 font-bold hover:underline font-nepali"
-                    >
-                      नमूना पासकोड (123456 राख्नुहोस्)
-                    </button>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <input
                       type="text"
-                      required
                       value={passcodeInput}
                       onChange={(e) => setPasscodeInput(e.target.value)}
-                      placeholder="उदा: 123456 वा आफ्नो बिलको पासकोड"
+                      placeholder="६-अङ्की पासकोड हाल्नुहोस्"
                       className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-mono tracking-widest font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
                     />
                   </div>
@@ -310,7 +311,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm font-nepali shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm font-nepali shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -325,6 +326,55 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                   )}
                 </button>
               </form>
+
+              {/* Available Real Passcodes for easy testing / selecting */}
+              {billingRecords.length > 0 ? (
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-2xl text-xs space-y-2">
+                  <p className="font-bold text-indigo-900 font-nepali flex items-center justify-between">
+                    <span>🔑 उपलब्ध बिलका पासकोडहरू (वास्तविक बिलहरू):</span>
+                    <span className="text-[10px] text-indigo-600 font-normal">क्लिक गरी हेर्नुहोस्</span>
+                  </p>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {billingRecords.slice(0, 5).map((b) => {
+                      const pass = getReportPasscode(b);
+                      return (
+                        <div key={b.id} className="flex items-center justify-between bg-white p-2 rounded-xl border border-indigo-100/80 text-[11px] shadow-2xs">
+                          <div className="truncate pr-2">
+                            <span className="font-bold text-slate-800 font-nepali block truncate">{b.patientName}</span>
+                            <span className="text-[10px] text-slate-500 font-mono">इन्भोइस: {b.invoiceNumber || b.id}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPasscodeInput(pass);
+                              setInvoiceInput(b.invoiceNumber || '');
+                              verifyAndFetch(b.invoiceNumber || '', pass);
+                            }}
+                            className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-[11px] rounded-lg shrink-0 shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>पासकोड:</span>
+                            <span className="underline tracking-wider">{pass}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-800 font-nepali flex items-center justify-between">
+                  <span>प्रणालीमा कुनै बिल प्रविष्टि छैन।</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasscodeInput('123456');
+                      verifyAndFetch('', '123456');
+                    }}
+                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-all"
+                  >
+                    नमूना (Sample) रिपोर्ट हेर्नुहोस्
+                  </button>
+                </div>
+              )}
 
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-500 font-nepali text-center space-y-1">
                 <p className="font-bold text-slate-700">💡 पासकोड कहाँ पाइन्छ?</p>
