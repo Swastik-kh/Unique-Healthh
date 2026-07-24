@@ -520,6 +520,7 @@ export interface BillingRecord {
   refundStatus?: 'Refunded' | 'Partially_Refunded';
   refundRemarks?: string;
   refundDateBs?: string;
+  reportPasscode?: string;
 }
 
 export interface SubTest {

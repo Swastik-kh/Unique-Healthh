@@ -2107,6 +2107,11 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         emergencyRecords={emergencyRecords}
         users={users}
         generalSettings={generalSettings}
+        labReports={labReports}
+        xrayRecords={xrayRecords}
+        usgRecords={usgRecords}
+        ecgRecords={ecgRecords}
+        dispensaryRecords={dispensaryRecords}
       />;
       case 'emergency_sewa': return <EmergencySewa 
         serviceSeekerRecords={serviceSeekerRecords}
