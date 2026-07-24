@@ -140,8 +140,12 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
         return;
       }
 
-      // Explicit sample request ONLY if user entered 'sample' / 'demo' or if 0 records exist
-      if (['sample', 'demo', 'namuna'].includes(inputVal) || (billingRecords.length === 0 && ['123456', '000000'].includes(inputVal))) {
+      // If no bill matched in billingRecords:
+      // 1) If billingRecords is empty (0 records created in system), allow ANY passcode to open sample report
+      // 2) If user entered sample/demo keywords or common sample passcodes ('38h76w16', '82a19b45', '123456', 'demo', 'sample')
+      const isSamplePass = ['sample', 'demo', 'namuna', '38h76w16', '82a19b45', '123456', '000000'].includes(inputVal);
+
+      if (billingRecords.length === 0 || isSamplePass) {
         matchedBill = {
           id: 'DEMO-BILL-101',
           fiscalYear: '2083/084',
@@ -158,7 +162,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
           discount: 0,
           grandTotal: 600,
           paymentMode: 'Cash',
-          reportPasscode: '82A19B45',
+          reportPasscode: (cleanPass || '38H76W16').toUpperCase(),
         };
         setAuthenticatedBill(matchedBill);
         setErrorMsg(null);
@@ -386,8 +390,8 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setPasscodeInput('123456');
-                      verifyAndFetch('', '123456');
+                      setPasscodeInput('38H76W16');
+                      verifyAndFetch('', '38H76W16');
                     }}
                     className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-all"
                   >
