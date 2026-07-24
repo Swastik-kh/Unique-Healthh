@@ -283,6 +283,18 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                 <p className="font-bold text-slate-700">💡 पासकोड कहाँ पाइन्छ?</p>
                 <p>पासकोड तपाईंको सेवासम्बन्धी बिल (Service Invoice) को पुछारमा उल्लेख गरिएको हुन्छ।</p>
               </div>
+
+              {onClose && (
+                <div className="pt-2 text-center border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="text-xs text-slate-500 hover:text-indigo-600 font-bold font-nepali transition-colors inline-flex items-center gap-1"
+                  >
+                    ← कर्मचारी लगइन पृष्ठमा जानुहोस् (Staff Login)
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             /* Verified Report Display */

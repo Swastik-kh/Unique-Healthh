@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
+import { PatientReportPortal } from './components/PatientReportPortal';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
 import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock } from 'lucide-react';
@@ -62,6 +63,24 @@ const App: React.FC = () => {
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [isDbLocked, setIsDbLocked] = useState(false);
+  const [showPublicPatientPortal, setShowPublicPatientPortal] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.has('portal') || params.has('inv') || params.has('passcode') || params.has('report');
+    }
+    return false;
+  });
+
+  const urlParams = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        inv: params.get('inv') || params.get('invoice') || '',
+        passcode: params.get('passcode') || params.get('pass') || ''
+      };
+    }
+    return { inv: '', passcode: '' };
+  }, []);
   
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
@@ -1889,6 +1908,22 @@ const App: React.FC = () => {
     onDeletePaymentRequest={handleDeletePaymentRequest}
     onDeleteAllowance={handleDeleteAllowance}
         />
+      ) : showPublicPatientPortal ? (
+        <PatientReportPortal
+          billingRecords={billingRecords}
+          labReports={labReports}
+          opdRecords={opdRecords}
+          xrayRecords={xrayRecords}
+          usgRecords={usgRecords}
+          ecgRecords={ecgRecords}
+          dispensaryRecords={dispensaryRecords}
+          serviceSeekerRecords={serviceSeekerRecords}
+          generalSettings={generalSettings}
+          isOpen={true}
+          onClose={() => setShowPublicPatientPortal(false)}
+          initialInvoiceNo={urlParams.inv}
+          initialPasscode={urlParams.passcode}
+        />
       ) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
           <div className="w-full max-w-[440px] animate-in fade-in zoom-in-95 duration-500">
@@ -1923,6 +1958,7 @@ const App: React.FC = () => {
                     users={allUsers} 
                     onLoginSuccess={handleLoginSuccess} 
                     initialFiscalYear={'2083/084'} 
+                    onOpenPatientPortal={() => setShowPublicPatientPortal(true)}
                 />
               </div>
               <div className="bg-slate-50 p-5 text-center border-t border-slate-100 flex items-center justify-center gap-3">

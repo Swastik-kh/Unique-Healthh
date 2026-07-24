@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import NepaliDate from 'nepali-date-converter';
-import { Calendar, User, Lock, LogIn, Eye, EyeOff, Loader2, AlertCircle, Info, Code, ShieldAlert } from 'lucide-react';
+import { Calendar, User, Lock, LogIn, Eye, EyeOff, Loader2, AlertCircle, Info, Code, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
@@ -15,9 +15,10 @@ interface LoginFormProps {
   users: AppUser[];
   onLoginSuccess: (user: AppUser) => void;
   initialFiscalYear: string;
+  onOpenPatientPortal?: () => void;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, initialFiscalYear }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, initialFiscalYear, onOpenPatientPortal }) => {
   const [formData, setFormData] = useState<LoginFormData>({
     fiscalYear: initialFiscalYear || '2083/084',
     username: '',
@@ -182,6 +183,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         {isLoading ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
         <span>{isLoading ? 'प्रक्रियामा छ...' : 'लगइन गर्नुहोस्'}</span>
       </button>
+
+      {onOpenPatientPortal && (
+        <div className="pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onOpenPatientPortal}
+            className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl font-bold text-xs font-nepali transition-all flex items-center justify-center gap-2 shadow-sm"
+          >
+            <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+            <span>🌐 अनलाइन बिरामी रिपोर्ट हेर्नुहोस् (Patient Report Portal)</span>
+          </button>
+        </div>
+      )}
 
       <div className="text-center pt-2">
           <div className="flex items-center justify-center gap-1.5 text-slate-400">
