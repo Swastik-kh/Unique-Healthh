@@ -63,7 +63,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
 
   // Auto verify if initial props are passed
   useEffect(() => {
-    if (initialInvoiceNo && initialPasscode) {
+    if (initialPasscode || initialInvoiceNo) {
       verifyAndFetch(initialInvoiceNo, initialPasscode);
     }
   }, [initialInvoiceNo, initialPasscode, billingRecords]);
@@ -76,22 +76,27 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
       const cleanInv = inv.trim().toLowerCase();
       const cleanPass = pass.trim();
 
-      if (!cleanInv || !cleanPass) {
-        setErrorMsg('कृपया इन्भोइस नम्बर/बिरामी ID र पासकोड दुबै राख्नुहोस्।');
+      if (!cleanPass) {
+        setErrorMsg('कृपया ६-अङ्की युजर पासकोड हाल्नुहोस्।');
         setIsLoading(false);
         return;
       }
 
-      // Search matching bill
+      // Search matching bill purely by passcode
       const matchedBill = billingRecords.find(b => {
-        const invMatch = (b.invoiceNumber || '').toLowerCase() === cleanInv ||
-                         (b.serviceSeekerId || '').toLowerCase() === cleanInv ||
-                         (b.manualInvoiceNumber || '').toLowerCase() === cleanInv ||
-                         (b.id || '').toLowerCase() === cleanInv;
-        if (!invMatch) return false;
-
         const expectedPass = getReportPasscode(b);
-        return expectedPass === cleanPass || (b.reportPasscode && b.reportPasscode === cleanPass);
+        const passMatch = expectedPass === cleanPass || (b.reportPasscode && b.reportPasscode === cleanPass);
+        if (!passMatch) return false;
+
+        if (cleanInv) {
+          const invMatch = (b.invoiceNumber || '').toLowerCase() === cleanInv ||
+                           (b.serviceSeekerId || '').toLowerCase() === cleanInv ||
+                           (b.manualInvoiceNumber || '').toLowerCase() === cleanInv ||
+                           (b.id || '').toLowerCase() === cleanInv;
+          return invMatch;
+        }
+
+        return true;
       });
 
       if (matchedBill) {
@@ -99,7 +104,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
         setErrorMsg(null);
       } else {
         setAuthenticatedBill(null);
-        setErrorMsg('गलत इन्भोइस नम्बर वा पासकोड! कृपया पुनः जाँच गरी प्रयास गर्नुहोस्।');
+        setErrorMsg('गलत पासकोड! कृपया आफ्नो बिलमा छापिएको पासकोड पुनः हेरी प्रयास गर्नुहोस्।');
       }
       setIsLoading(false);
     }, 300);
@@ -187,7 +192,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                 अनलाइन बिरामी रिपोर्ट पोर्टल (Online Patient Report Portal)
               </h2>
               <p className="text-xs text-slate-400 font-nepali">
-                इन्भोइस नम्बर र पासकोड हालेर आफ्नो मेडिकल तथा प्रयोगशाला रिपोर्ट हेर्नुहोस्
+                युजर पासकोड (User Passcode) हालेर आफ्नो मेडिकल तथा प्रयोगशाला रिपोर्ट हेर्नुहोस्
               </p>
             </div>
           </div>
@@ -214,7 +219,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 font-nepali">सुरक्षित रिपोर्ट लगइन</h3>
                 <p className="text-xs text-slate-500 font-nepali leading-relaxed">
-                  तपाईंको बिल/इन्भोइसमा छापिएको **इन्भोइस नम्बर** र **युजर पासकोड** प्रयोग गर्नुहोस्।
+                  तपाईंको सेवासम्बन्धी बिलमा छापिएको **६-अङ्की युजर पासकोड** प्रयोग गर्नुहोस्।
                 </p>
               </div>
 
@@ -228,34 +233,33 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 font-nepali">
-                    इन्भोइस नम्बर / बिल नं / बिरामी ID <span className="text-rose-500">*</span>
+                    युजर पासकोड (User Passcode) <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500" size={18} />
                     <input
                       type="text"
                       required
-                      value={invoiceInput}
-                      onChange={(e) => setInvoiceInput(e.target.value)}
-                      placeholder="उदा: DB-2083084-0001 वा PAT-101"
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all uppercase"
+                      value={passcodeInput}
+                      onChange={(e) => setPasscodeInput(e.target.value)}
+                      placeholder="६-अङ्की पासकोड हाल्नुहोस् (उदा: 582019)"
+                      className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-mono tracking-widest font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 font-nepali">
-                    युजर पासकोड (User Passcode) <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1.5 font-nepali">
+                    इन्भोइस / बिल नम्बर (वैकल्पिक / Optional)
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      type="password"
-                      required
-                      value={passcodeInput}
-                      onChange={(e) => setPasscodeInput(e.target.value)}
-                      placeholder="६-अङ्की पासकोड हाल्नुहोस्"
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono tracking-widest font-bold focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                      type="text"
+                      value={invoiceInput}
+                      onChange={(e) => setInvoiceInput(e.target.value)}
+                      placeholder="इन्भोइस नं (ऐच्छिक)"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all uppercase"
                     />
                   </div>
                 </div>
