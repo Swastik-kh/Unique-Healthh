@@ -5,16 +5,36 @@ import { LogoDisplay } from './LogoDisplay';
 import { useReactToPrint } from 'react-to-print';
 
 export const getReportPasscode = (bill: { reportPasscode?: string; invoiceNumber?: string; id?: string; serviceSeekerId?: string } | null | undefined): string => {
-  if (!bill) return '123456';
-  if (bill.reportPasscode) return bill.reportPasscode;
-  const seed = (bill.invoiceNumber || bill.id || bill.serviceSeekerId || '123456') + '_HEALTH_PASS';
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
+  if (!bill) return '82A19B45';
+
+  if (bill.reportPasscode && bill.reportPasscode.trim().length === 8 && /[A-Za-z]/.test(bill.reportPasscode)) {
+    return bill.reportPasscode.trim().toUpperCase();
   }
-  const code = (Math.abs(hash) % 900000 + 100000).toString();
-  return code;
+
+  const rawKey = bill.invoiceNumber || bill.id || bill.serviceSeekerId || 'INV-0001';
+  const seed = `${rawKey}_NEPAL_HEALTH_8CHAR_PASS`;
+
+  let h1 = 0;
+  let h2 = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const code = seed.charCodeAt(i);
+    h1 = (h1 << 5) - h1 + code;
+    h1 |= 0;
+    h2 = (h2 << 7) ^ code;
+    h2 |= 0;
+  }
+
+  const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const abs1 = Math.abs(h1);
+  const abs2 = Math.abs(h2);
+
+  const L1 = LETTERS[abs1 % LETTERS.length];
+  const L2 = LETTERS[(abs2 + abs1) % LETTERS.length];
+
+  const numPart = (abs1 % 899999 + 100000).toString();
+
+  const passcode = `${numPart.slice(0, 2)}${L1}${numPart.slice(2, 4)}${L2}${numPart.slice(4)}`;
+  return passcode.toUpperCase();
 };
 
 interface PatientReportPortalProps {
@@ -77,7 +97,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
       const cleanPass = pass.trim();
 
       if (!cleanPass && !cleanInv) {
-        setErrorMsg('कृपया ६-अङ्की युजर पासकोड वा इन्भोइस नम्बर हाल्नुहोस्।');
+        setErrorMsg('कृपया ८-अङ्की युजर पासकोड वा इन्भोइस नम्बर हाल्नुहोस्।');
         setIsLoading(false);
         return;
       }
@@ -138,7 +158,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
           discount: 0,
           grandTotal: 600,
           paymentMode: 'Cash',
-          reportPasscode: '123456',
+          reportPasscode: '82A19B45',
         };
         setAuthenticatedBill(matchedBill);
         setErrorMsg(null);
@@ -148,7 +168,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
 
       // If no bill matches, show clear error
       setAuthenticatedBill(null);
-      setErrorMsg('गलत पासकोड वा इन्भोइस नम्बर! यो पासकोडसँग मिल्ने कुनै पनि बिल/रिपोर्ट भेटिएन। कृपया आफ्नो बिलमा छापिएको ६-अङ्की पासकोड पुनः हेरी प्रयास गर्नुहोस्।');
+      setErrorMsg('गलत पासकोड वा इन्भोइस नम्बर! यो पासकोडसँग मिल्ने कुनै पनि बिल/रिपोर्ट भेटिएन। कृपया आफ्नो बिलमा छापिएको ८-अङ्की पासकोड (२ अक्षरसहित) पुनः हेरी प्रयास गर्नुहोस्।');
       setIsLoading(false);
     }, 200);
   };
@@ -262,7 +282,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 font-nepali">सुरक्षित रिपोर्ट लगइन</h3>
                 <p className="text-xs text-slate-500 font-nepali leading-relaxed">
-                  तपाईंको सेवासम्बन्धी बिलमा छापिएको **६-अङ्की युजर पासकोड** प्रयोग गर्नुहोस्।
+                  तपाईंको सेवासम्बन्धी बिलमा छापिएको **८-अङ्की युजर पासकोड (२ अक्षरसहित)** प्रयोग गर्नुहोस्।
                 </p>
               </div>
 
@@ -286,7 +306,7 @@ export const PatientReportPortal: React.FC<PatientReportPortalProps> = ({
                       type="text"
                       value={passcodeInput}
                       onChange={(e) => setPasscodeInput(e.target.value)}
-                      placeholder="६-अङ्की पासकोड हाल्नुहोस्"
+                      placeholder="उदा: 82A19B45 (८-अङ्क पासकोड)"
                       className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-mono tracking-widest font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
                     />
                   </div>
