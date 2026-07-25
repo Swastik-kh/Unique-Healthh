@@ -698,6 +698,14 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
 
+  useEffect(() => {
+    if (activeItem === 'dashboard' && !hasAccess('dashboard')) {
+      if (hasAccess('online_report')) {
+        setActiveItem('online_report');
+      }
+    }
+  }, [activeItem, hasAccess]);
+
   const menuItems = useMemo(() => {
     const config = generalSettings.menuConfig;
 
@@ -859,13 +867,35 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     if (!currentUser) return null;
     
     // Check if user has access to the active item
-    if (activeItem !== 'dashboard' && !hasAccess(activeItem)) {
+    if (activeItem === 'dashboard') {
+      if (!hasAccess('dashboard')) {
+        if (hasAccess('online_report')) {
+          return (
+            <OnlineReport 
+              currentFiscalYear={currentFiscalYear}
+              currentUser={currentUser}
+              generalSettings={generalSettings}
+              serviceSeekerRecords={serviceSeekerRecords}
+              opdRecords={opdRecords}
+              emergencyRecords={emergencyRecords}
+              billingRecords={billingRecords}
+              dispensaryRecords={dispensaryRecords}
+            />
+          );
+        }
+        return null;
+      }
+    } else if (!hasAccess(activeItem)) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 mt-20">
                 <ShieldAlert size={64} className="text-red-400" />
                 <h3 className="text-xl font-bold text-slate-600 font-nepali">पहुँच अस्वीकृत (Access Denied)</h3>
                 <p className="text-sm">तपाईंसँग यो मेनु चलाउने अनुमति छैन।</p>
-                <button onClick={() => setActiveItem('dashboard')} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">ड्यासबोर्डमा जानुहोस्</button>
+                {hasAccess('dashboard') ? (
+                  <button onClick={() => setActiveItem('dashboard')} className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">ड्यासबोर्डमा जानुहोस्</button>
+                ) : hasAccess('online_report') ? (
+                  <button onClick={() => setActiveItem('online_report')} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">अनलाइन रिपोर्टमा जानुहोस्</button>
+                ) : null}
             </div>
         );
     }
