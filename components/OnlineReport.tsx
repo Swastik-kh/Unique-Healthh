@@ -579,6 +579,19 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
                 </div>
               </div>
 
+              {/* Online Report Instruction Box */}
+              <div className="p-3.5 bg-blue-50/80 border border-dashed border-blue-300 rounded-2xl text-center font-nepali my-4">
+                <p className="text-xs font-bold text-slate-700">
+                  अनलाइन प्रतिवेदन कोड (Online Report Passcode):{' '}
+                  <span className="font-mono text-blue-900 text-sm font-black px-2.5 py-0.5 bg-white border border-blue-200 rounded-md tracking-widest inline-block shadow-xs">
+                    {searchedPasscode || matchedBill.passcode || 'N/A'}
+                  </span>
+                </p>
+                <p className="text-xs font-medium text-slate-700 mt-1.5">
+                  अनलाइन रिपोर्ट हेर्न <span className="font-bold text-blue-800">smartinventoryy.com</span> लिङ्क खोली User Name: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-200 text-slate-800">12345</span>, Password: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-200 text-slate-800">12345</span> राखी आफ्नो पासकोड राख्नुहोस्।
+                </p>
+              </div>
+
               {/* Official Seal / Signature Footer */}
               <div className="pt-8 border-t border-slate-200 flex justify-between items-end text-xs text-slate-500">
                 <div>

@@ -2479,8 +2479,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 {currentBill?.passcode || 'N/A'}
               </span>
             </p>
-            <p className="text-[10px] text-slate-500 mt-1">
-              तपाईंको रिपोर्ट हेर्नका लागि अनलाइन रिपोर्ट प्रणालीमा गई यो ८-अङ्की पासकोड राख्नुहोस्।
+            <p className="text-xs font-medium text-slate-700 mt-1.5">
+              अनलाइन रिपोर्ट हेर्न <span className="font-bold text-blue-800">smartinventoryy.com</span> लिङ्क खोली User Name: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-200 text-slate-800">12345</span>, Password: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-200 text-slate-800">12345</span> राखी आफ्नो पासकोड राख्नुहोस्।
             </p>
           </div>
 
