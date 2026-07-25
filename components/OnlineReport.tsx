@@ -44,6 +44,7 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
   const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [searchedPasscode, setSearchedPasscode] = useState<string | null>(null);
   const [searchAttempted, setSearchAttempted] = useState<boolean>(false);
+  const [printTarget, setPrintTarget] = useState<'all' | 'lab'>('all');
 
   const reportPrintRef = useRef<HTMLDivElement>(null);
 
@@ -163,8 +164,18 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
     setSearchAttempted(false);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrintFull = () => {
+    setPrintTarget('all');
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const handlePrintLabOnly = () => {
+    setPrintTarget('lab');
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   return (
@@ -274,17 +285,28 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
             </button>
 
             {matchedBill && (
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-1.5">
                   <CheckCircle2 size={14} />
                   <span>पासकोड: {searchedPasscode} (Verified)</span>
                 </span>
+                
+                {matchedLabReports.length > 0 && (
+                  <button
+                    onClick={handlePrintLabOnly}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 text-xs sm:text-sm"
+                  >
+                    <FlaskConical size={16} />
+                    <span>प्रयोगशाला रिपोर्ट प्रिन्ट (Print Lab Report)</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={handlePrint}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 text-sm"
+                  onClick={handlePrintFull}
+                  className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2 rounded-xl border border-slate-300 transition-all active:scale-95 text-xs sm:text-sm"
                 >
                   <Printer size={16} />
-                  <span>रिपोर्ट प्रिन्ट गर्नुहोस् (Print Report)</span>
+                  <span>रसिद / बिल प्रिन्ट (Print Invoice)</span>
                 </button>
               </div>
             )}
@@ -318,7 +340,7 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
 
           {/* Found Report Display Card (Printable) */}
           {matchedBill && (
-            <div ref={reportPrintRef} className="bg-white rounded-3xl border border-slate-200 p-6 md:p-10 shadow-lg space-y-8 font-nepali">
+            <div ref={reportPrintRef} className={`bg-white rounded-3xl border border-slate-200 p-6 md:p-10 shadow-lg space-y-8 font-nepali ${printTarget === 'lab' ? 'no-print' : ''}`}>
               {/* Header Header Info */}
               <div className="border-b border-slate-200 pb-6">
                 <LogoDisplay
@@ -452,8 +474,15 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
                               <span className="ml-3 font-bold text-slate-700">बारकोड: <span className="font-mono text-blue-700">{report.barcodeId}</span></span>
                             )}
                           </div>
-                          <div>
+                          <div className="flex items-center gap-3">
                             <span className="font-bold text-slate-700">जाँच मिति:</span> <span>{toNepaliDigits(report.reportDate)}</span>
+                            <button
+                              onClick={handlePrintLabOnly}
+                              className="no-print flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1 rounded-lg transition-all shadow-xs ml-2"
+                            >
+                              <Printer size={13} />
+                              <span>प्रिन्ट (Print)</span>
+                            </button>
                           </div>
                         </div>
 
@@ -564,6 +593,125 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
                   <p className="font-bold text-slate-700">अधिकृत दस्तखत (Authorized Signature)</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Dedicated Printable Template for Exact Laboratory Report Format */}
+          {matchedLabReports.length > 0 && (
+            <div className={`printable-area ${printTarget === 'lab' ? 'block' : 'hidden print:block'} font-sans bg-white text-slate-900 p-8`}>
+              {matchedLabReports.map((report, rIdx) => {
+                const validTests = report.tests?.filter(
+                  test => (test.result && test.result.trim() !== '') || (test.remarks && test.remarks.trim() !== '')
+                ) || [];
+
+                return (
+                  <div key={rIdx} className={rIdx > 0 ? "page-break-before pt-8 border-t border-slate-300 print:border-none" : ""}>
+                    {/* Header */}
+                    <div className="mb-8 border-b-2 border-slate-800 pb-6">
+                      <div className="flex justify-between items-start">
+                        <div className="w-24 h-24">
+                          <img 
+                            src={generalSettings?.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                            alt="Logo" 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="flex-1 text-center px-4">
+                          <h1 className="text-2xl font-black text-slate-900 mb-1">{generalSettings?.orgNameNepali || ''}</h1>
+                          {generalSettings?.subTitleNepali && <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings.subTitleNepali}</p>}
+                          {generalSettings?.subTitleNepali2 && <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings.subTitleNepali2}</p>}
+                          {generalSettings?.subTitleNepali3 && <p className="text-sm font-bold text-slate-700 mb-0.5">{generalSettings.subTitleNepali3}</p>}
+                          {generalSettings?.subTitleNepali4 && <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings.subTitleNepali4}</p>}
+                          <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
+                          <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500 mt-1">
+                            {generalSettings?.phone && <p>फोन नं: {generalSettings.phone}</p>}
+                            {generalSettings?.panNo && <p>PAN No: {generalSettings.panNo}</p>}
+                          </div>
+                        </div>
+                        <div className="w-24 h-24 flex justify-end">
+                          {generalSettings?.provinceLogoUrl && (
+                            <img 
+                              src={generalSettings.provinceLogoUrl} 
+                              alt="Province Logo" 
+                              className="w-full h-full object-contain"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-center mt-4">
+                        <h2 className="text-lg font-bold border-2 border-slate-800 inline-block px-6 py-1 rounded-md uppercase tracking-wider">
+                          Laboratory Report
+                        </h2>
+                      </div>
+                    </div>
+
+                    {/* Patient Details */}
+                    <div className="flex justify-between mb-6 text-sm border-b border-slate-200 pb-4">
+                      <div className="space-y-1">
+                        <p><strong>Patient Name:</strong> {report.patientName || matchedBill?.patientName || '-'}</p>
+                        <p><strong>Age/Gender:</strong> {report.age || matchedPatient?.age || '-'} / {report.gender || matchedPatient?.gender || '-'}</p>
+                        <p><strong>Patient ID:</strong> {matchedPatient?.uniquePatientId || matchedBill?.serviceSeekerId || report.serviceSeekerId || '-'}</p>
+                        {report.referredBy && (
+                          <p><strong>Referred By:</strong> {report.referredBy}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <p><strong>Report Date:</strong> {toNepaliDigits(report.reportDate)}</p>
+                        <p><strong>Report ID:</strong> <span className="font-mono">{report.id}</span></p>
+                        {(report.invoiceNumber || matchedBill?.invoiceNumber) && (
+                          <p><strong>Invoice No:</strong> <span className="font-mono">{report.invoiceNumber || matchedBill?.invoiceNumber}</span></p>
+                        )}
+                        {report.barcodeId && (
+                          <p><strong>Barcode:</strong> <span className="font-mono">{report.barcodeId}</span></p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Test Results Table */}
+                    <table className="w-full mb-6 text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-slate-800 bg-slate-50 font-bold">
+                          <th className="py-2.5 px-4 text-left">Test Name</th>
+                          <th className="py-2.5 px-4 text-left">Result</th>
+                          <th className="py-2.5 px-4 text-left">Unit</th>
+                          <th className="py-2.5 px-4 text-left">Reference Range</th>
+                          <th className="py-2.5 px-4 text-left">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validTests.map((test, idx) => (
+                          <tr key={idx} className="border-b border-slate-200">
+                            <td className="py-2 px-4 font-medium">{test.testName}</td>
+                            <td className="py-2 px-4 font-bold text-slate-900">{test.result || '-'}</td>
+                            <td className="py-2 px-4 text-slate-600 font-mono text-xs">{test.unit || '-'}</td>
+                            <td className="py-2 px-4 text-slate-600 font-mono text-xs">{test.normalRange || '-'}</td>
+                            <td className="py-2 px-4 text-slate-600 italic text-xs">{test.remarks || '-'}</td>
+                          </tr>
+                        ))}
+                        {validTests.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                              प्रयोगशाला नतिजा प्रविष्ट भइरहेको छ (Test results are currently being prepared).
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Footer */}
+                    <div className="mt-12 pt-4 border-t border-slate-300 flex justify-between text-xs text-slate-500">
+                      <div>
+                        <p>Prepared By: {report.createdBy || 'Lab Technician'}</p>
+                        <p>Printed On: {new Date().toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="h-8 border-b border-slate-300 w-32 mb-1 ml-auto"></div>
+                        <p>Lab Technician / Pathologist</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
