@@ -5,7 +5,7 @@ import {
   Calculator, Calendar, Syringe, HeartHandshake, CheckCircle2, Package, Warehouse, 
   ClipboardCheck, FilePlus, ShoppingCart, FileOutput, Archive, Book, BookOpen, RotateCcw, 
   Wrench, Trash2, Scroll, FileSpreadsheet, BarChart3, MessageSquare, Settings, Sliders, 
-  ShieldCheck, Store, KeyRound, Database
+  ShieldCheck, Store, KeyRound, Database, Globe
 } from 'lucide-react';
 
 export interface MenuItem {
@@ -69,7 +69,6 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
           { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा', icon: <Baby size={16} /> },
         ]
       },
-      { id: 'online_report', label: 'अनलाइन रिपोर्ट (Online Report)', icon: <FileText size={16} /> },
       { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
       { 
         id: 'karyakram', 
@@ -82,6 +81,11 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         ]
       }
     ] 
+  },
+  { 
+    id: 'online_report', 
+    label: 'अनलाइन रिपोर्ट (Online Report)', 
+    icon: <Globe size={20} /> 
   },
   {
     id: 'inventory',

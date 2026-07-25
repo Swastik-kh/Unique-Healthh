@@ -95,7 +95,13 @@ const PERMISSION_STRUCTURE = [
                     { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा (Post-Natal Service)' },
                 ]
             },
-            { id: 'immunization_tracking', label: 'खोप अनुगमन (Immunization Tracking)' },
+            { id: 'immunization_tracking', label: 'खोप अनुगमन (Immunization Tracking)' }
+        ]
+    },
+    {
+        id: 'online_report_group',
+        label: 'अनलाइन रिपोर्ट (Online Report)',
+        children: [
             { id: 'online_report', label: 'अनलाइन रिपोर्ट (Online Report)' }
         ]
     },
