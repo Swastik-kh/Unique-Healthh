@@ -14,9 +14,10 @@ import {
   Receipt,
   Sparkles,
   Download,
-  Info
+  Info,
+  FlaskConical
 } from 'lucide-react';
-import { ServiceSeekerRecord, OPDRecord, BillingRecord, User as AppUser, OrganizationSettings } from '../types/coreTypes';
+import { ServiceSeekerRecord, OPDRecord, BillingRecord, User as AppUser, OrganizationSettings, LabReport } from '../types/coreTypes';
 import { LogoDisplay } from './LogoDisplay';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -28,6 +29,7 @@ interface OnlineReportProps {
   serviceSeekerRecords?: ServiceSeekerRecord[];
   opdRecords?: OPDRecord[];
   billingRecords?: BillingRecord[];
+  labReports?: LabReport[];
 }
 
 export const OnlineReport: React.FC<OnlineReportProps> = ({
@@ -36,7 +38,8 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
   generalSettings,
   serviceSeekerRecords = [],
   opdRecords = [],
-  billingRecords = []
+  billingRecords = [],
+  labReports = []
 }) => {
   const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [searchedPasscode, setSearchedPasscode] = useState<string | null>(null);
@@ -68,13 +71,13 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
     return `${l1}${l2}${digits}`;
   };
 
-  // Find matching billing record by passcode or invoice number
+  // Find matching billing record by passcode or invoice number or lab report
   const matchedBill = useMemo(() => {
     if (!searchedPasscode) return null;
     const cleanSearch = searchedPasscode.trim().toLowerCase();
     if (!cleanSearch) return null;
 
-    return billingRecords.find(b => {
+    const billMatch = billingRecords.find(b => {
       const explicitPasscode = b.passcode ? b.passcode.toLowerCase() : '';
       const effectivePasscode = getEffectivePasscode(b).toLowerCase();
       const invoiceNo = (b.invoiceNumber || '').toLowerCase();
@@ -84,8 +87,34 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
              effectivePasscode === cleanSearch || 
              invoiceNo === cleanSearch || 
              manualInvoiceNo === cleanSearch;
-    }) || null;
-  }, [searchedPasscode, billingRecords]);
+    });
+
+    if (billMatch) return billMatch;
+
+    // Search by lab report barcode or ID
+    const labMatch = labReports.find(r => 
+      (r.barcodeId && r.barcodeId.toLowerCase() === cleanSearch) ||
+      (r.id && r.id.toLowerCase() === cleanSearch) ||
+      (r.invoiceNumber && r.invoiceNumber.toLowerCase() === cleanSearch)
+    );
+
+    if (labMatch) {
+      if (labMatch.invoiceNumber) {
+        const found = billingRecords.find(b => 
+          (b.invoiceNumber || '').toLowerCase() === labMatch.invoiceNumber?.toLowerCase()
+        );
+        if (found) return found;
+      }
+      if (labMatch.serviceSeekerId) {
+        const found = billingRecords.find(b => 
+          (b.serviceSeekerId || '').toLowerCase() === labMatch.serviceSeekerId?.toLowerCase()
+        );
+        if (found) return found;
+      }
+    }
+
+    return null;
+  }, [searchedPasscode, billingRecords, labReports]);
 
   // Associated patient record if found
   const matchedPatient = useMemo(() => {
@@ -98,6 +127,28 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
     if (!matchedBill) return [];
     return opdRecords.filter(o => o.uniquePatientId === matchedBill.serviceSeekerId || o.serviceSeekerId === matchedBill.serviceSeekerId);
   }, [matchedBill, opdRecords]);
+
+  // Associated Lab Reports (Prepared / Completed / Pending)
+  const matchedLabReports = useMemo(() => {
+    if (!matchedBill) return [];
+    return labReports.filter(r => {
+      const invMatch = r.invoiceNumber && matchedBill.invoiceNumber && 
+        r.invoiceNumber.toLowerCase().trim() === matchedBill.invoiceNumber.toLowerCase().trim();
+      const manualInvMatch = r.invoiceNumber && matchedBill.manualInvoiceNumber && 
+        r.invoiceNumber.toLowerCase().trim() === matchedBill.manualInvoiceNumber.toLowerCase().trim();
+      const seekerMatch = r.serviceSeekerId && matchedBill.serviceSeekerId && 
+        r.serviceSeekerId.toLowerCase().trim() === matchedBill.serviceSeekerId.toLowerCase().trim();
+      return invMatch || manualInvMatch || seekerMatch;
+    });
+  }, [matchedBill, labReports]);
+
+  const hasLabItemsInBill = useMemo(() => {
+    if (!matchedBill) return false;
+    return matchedBill.items?.some(item => {
+      const name = (item.serviceName || '').toLowerCase();
+      return name.includes('lab') || name.includes('blood') || name.includes('test') || name.includes('urine') || name.includes('stool') || name.includes('cbc') || name.includes('tf') || name.includes('sugar');
+    });
+  }, [matchedBill]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,6 +415,101 @@ export const OnlineReport: React.FC<OnlineReportProps> = ({
                   </table>
                 </div>
               </div>
+
+              {/* Laboratory Service Prepared Report Section (प्रयोगशाला सेवाको तयार भएको रिपोर्ट) */}
+              {matchedLabReports.length > 0 ? (
+                <div className="space-y-4 pt-4 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200">
+                    <h3 className="font-bold text-blue-900 text-base flex items-center gap-2">
+                      <FlaskConical size={20} className="text-blue-600" />
+                      <span>प्रयोगशाला सेवा नतिजा प्रतिवेदन (Laboratory Test Results Report)</span>
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {matchedLabReports.some(r => r.status === 'Completed') ? (
+                        <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full border border-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 size={13} />
+                          <span>रिपोर्ट तयार भएको (Completed)</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-300">
+                          प्रक्रियामा (In Progress)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {matchedLabReports.map((report, rIdx) => {
+                    const validTests = report.tests?.filter(
+                      t => (t.result && t.result.trim() !== '') || (t.remarks && t.remarks.trim() !== '')
+                    ) || [];
+
+                    return (
+                      <div key={rIdx} className="border border-slate-200 rounded-2xl p-4 bg-white space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 border-b border-slate-100 pb-2">
+                          <div>
+                            <span className="font-bold text-slate-700">रिपोर्ट ID:</span> <span className="font-mono">{report.id}</span>
+                            {report.barcodeId && (
+                              <span className="ml-3 font-bold text-slate-700">बारकोड: <span className="font-mono text-blue-700">{report.barcodeId}</span></span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-700">जाँच मिति:</span> <span>{toNepaliDigits(report.reportDate)}</span>
+                          </div>
+                        </div>
+
+                        {validTests.length > 0 ? (
+                          <div className="border border-slate-200 rounded-xl overflow-hidden">
+                            <table className="w-full text-left text-sm border-collapse">
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-700 font-bold text-xs uppercase border-b border-slate-200">
+                                  <th className="p-2.5 text-center w-10">क्र.सं.</th>
+                                  <th className="p-2.5">जाँचको नाम (Test Name)</th>
+                                  <th className="p-2.5 font-bold text-blue-900">नतिजा (Result)</th>
+                                  <th className="p-2.5">इकाई (Unit)</th>
+                                  <th className="p-2.5">सामान्य दर (Reference Range)</th>
+                                  <th className="p-2.5">कैफियत (Remarks)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                                {validTests.map((test, tIdx) => (
+                                  <tr key={tIdx} className="hover:bg-blue-50/30">
+                                    <td className="p-2.5 text-center text-slate-400 font-bold">{toNepaliDigits(tIdx + 1)}</td>
+                                    <td className="p-2.5 font-bold text-slate-900">{test.testName}</td>
+                                    <td className="p-2.5 font-black text-blue-800 bg-blue-50/50">{test.result || '-'}</td>
+                                    <td className="p-2.5 text-slate-600 text-xs font-mono">{test.unit || '-'}</td>
+                                    <td className="p-2.5 text-slate-600 text-xs font-mono">{test.normalRange || '-'}</td>
+                                    <td className="p-2.5 text-slate-500 text-xs italic">{test.remarks || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="p-4 text-center text-slate-400 italic text-xs bg-slate-50 rounded-xl">
+                            यस प्रयोगशाला प्रतिवेदनको नतिजा प्रविष्ट गर्ने क्रममा छ (Test results are currently being prepared).
+                          </div>
+                        )}
+
+                        {report.createdBy && (
+                          <div className="text-[11px] text-slate-400 text-right italic">
+                            परीक्षण गर्ने स्वास्थ्यकर्मी / Lab Technician: {report.createdBy}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : hasLabItemsInBill ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex items-center gap-3">
+                  <FlaskConical size={20} className="text-amber-600 shrink-0" />
+                  <div>
+                    <strong className="block font-bold text-amber-900 mb-0.5">प्रयोगशाला रिपोर्ट प्रक्रियामा छ (Laboratory Report Pending)</strong>
+                    <p className="text-[11px] text-amber-700">
+                      यस इनभ्वाइसमा प्रयोगशाला सेवाका जाँचहरू समावेश छन्। प्रयोगशालाबाट नतिजा तयार भएपछि अनलाइन रिपोर्ट यहाँ स्वतः देखिनेछ।
+                    </p>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Totals & Financial Breakdown */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-t border-slate-200 pt-6">

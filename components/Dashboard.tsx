@@ -880,6 +880,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
               emergencyRecords={emergencyRecords}
               billingRecords={billingRecords}
               dispensaryRecords={dispensaryRecords}
+              labReports={labReports}
             />
           );
         }
@@ -2298,6 +2299,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         emergencyRecords={emergencyRecords}
         billingRecords={billingRecords}
         dispensaryRecords={dispensaryRecords}
+        labReports={labReports}
       />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} users={allUsers} />;
