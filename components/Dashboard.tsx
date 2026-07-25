@@ -89,6 +89,7 @@ import { DHISReport } from './DHISReport';
 import { VitaminAProgram } from './VitaminAProgram';
 import { KhopAbhiyan } from './KhopAbhiyan';
 import { AmbulanceSewa } from './AmbulanceSewa';
+import { OnlineReport } from './OnlineReport';
 import { ALL_MENU_ITEMS, MenuItem } from '../src/constants/menuItems';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -2258,6 +2259,16 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                           serviceSeekerRecords={serviceSeekerRecords}
                                         />;
       case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
+      case 'online_report': return <OnlineReport 
+        currentFiscalYear={currentFiscalYear}
+        currentUser={currentUser}
+        generalSettings={generalSettings}
+        serviceSeekerRecords={serviceSeekerRecords}
+        opdRecords={opdRecords}
+        emergencyRecords={emergencyRecords}
+        billingRecords={billingRecords}
+        dispensaryRecords={dispensaryRecords}
+      />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} users={allUsers} />;
       case 'hib_settings': return <HIBSettings currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;

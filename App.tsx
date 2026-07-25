@@ -50,7 +50,7 @@ const DEFAULT_ADMIN: User = {
     fullName: 'Administrator',
     designation: 'System Manager',
     phoneNumber: '98XXXXXXXX',
-    allowedMenus: ['dashboard', 'inventory', 'settings', 'services', 'khop_sewa', 'emergency_sewa', 'cbimnci_sewa', 'conference', 'karyakram', 'vitamin_a', 'khop_abhiyan']
+    allowedMenus: ['dashboard', 'inventory', 'settings', 'services', 'khop_sewa', 'emergency_sewa', 'cbimnci_sewa', 'conference', 'karyakram', 'vitamin_a', 'khop_abhiyan', 'online_report']
 };
 
 const App: React.FC = () => {

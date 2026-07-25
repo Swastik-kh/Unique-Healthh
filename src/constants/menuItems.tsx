@@ -69,6 +69,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
           { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा', icon: <Baby size={16} /> },
         ]
       },
+      { id: 'online_report', label: 'अनलाइन रिपोर्ट (Online Report)', icon: <FileText size={16} /> },
       { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
       { 
         id: 'karyakram', 
