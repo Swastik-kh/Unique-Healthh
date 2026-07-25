@@ -520,6 +520,7 @@ export interface BillingRecord {
   refundStatus?: 'Refunded' | 'Partially_Refunded';
   refundRemarks?: string;
   refundDateBs?: string;
+  passcode?: string; // 8-character unique online report passcode (with 2 alphabets)
 }
 
 export interface SubTest {

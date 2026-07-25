@@ -8,6 +8,7 @@ import NepaliDate from 'nepali-date-converter';
 import { useReactToPrint } from 'react-to-print';
 import { LogoDisplay } from './LogoDisplay';
 import { toNepaliDigits } from '../lib/tableUtils';
+import { generateOnlinePasscode } from '../lib/passcodeUtils';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 
@@ -1064,6 +1065,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
           claimCode: paymentMode === 'Bima' ? claimCode : undefined,
           claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
+          passcode: existingBill?.passcode || generateOnlinePasscode(),
         };
 
         // Explicitly wait for persistence
@@ -1138,6 +1140,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
         claimCode: paymentMode === 'Bima' ? claimCode : undefined,
         claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
+        passcode: generateOnlinePasscode(),
       };
 
       await onSaveRecord(newBill);
@@ -2466,6 +2469,19 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 <span className="font-mono">Rs. {currentBill?.grandTotal.toFixed(2)}</span>
               </div>
             </div>
+          </div>
+
+          {/* Online Report Passcode Box */}
+          <div className="my-4 p-3 bg-blue-50/80 border border-dashed border-blue-300 rounded-lg text-center font-nepali">
+            <p className="text-xs font-bold text-slate-700">
+              अनलाइन प्रतिवेदन कोड (Online Report Passcode):{' '}
+              <span className="font-mono text-blue-900 text-sm font-black px-2.5 py-0.5 bg-white border border-blue-200 rounded-md tracking-widest inline-block shadow-xs">
+                {currentBill?.passcode || 'N/A'}
+              </span>
+            </p>
+            <p className="text-[10px] text-slate-500 mt-1">
+              तपाईंको रिपोर्ट हेर्नका लागि अनलाइन रिपोर्ट प्रणालीमा गई यो ८-अङ्की पासकोड राख्नुहोस्।
+            </p>
           </div>
 
           {/* Footer */}
