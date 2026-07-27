@@ -40,6 +40,26 @@ const jatLabels: Record<string, string> = {
   '06': 'अन्य (Others)',
 };
 
+const getFiscalYearFromBsDate = (dateBs: string): string => {
+  if (!dateBs) return '';
+  const parts = dateBs.split('-');
+  if (parts.length !== 3) return '';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  if (isNaN(year) || isNaN(month)) return '';
+  
+  if (month >= 4) {
+    const nextYearShort = (year + 1) % 100;
+    const nextYearStr = nextYearShort < 10 ? `0${nextYearShort}` : `${nextYearShort}`;
+    return `${year}/0${nextYearStr}`; // e.g. "2081/082"
+  } else {
+    const prevYear = year - 1;
+    const yearShort = year % 100;
+    const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
+    return `${prevYear}/0${yearStr}`; // e.g. "2080/081"
+  }
+};
+
 export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({ 
   currentFiscalYear, 
   bachhaRecords, 
@@ -84,31 +104,215 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     };
 
     bachhaRecords
-      .filter(r => r.fiscalYear === selectedFiscalYear)
       .filter(r => filterCenter ? r.vaccinationCenter === filterCenter : true) // Filter by center
       .forEach(record => {
         let isFullyImmunized = false;
         let lastVaccineMonth = '';
         let lastVaccineDateAd = '';
+        let lastVaccineGivenDateBs = '';
         let receivedDoseThisMonth = false;
+
+        // Check if child has taken ALL required vaccines (excluding HPV)
+        const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
+        const hasAllRequired = requiredVaccines.every(reqVax => {
+          return record.vaccines.some(v => {
+            if (v.status !== 'Given') return false;
+            const nameLower = (v.name || '').toLowerCase();
+            const reqLower = reqVax.name.toLowerCase();
+            const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normalize(v.name) === normalize(reqVax.name)) return true;
+            
+            // Fallbacks
+            if (reqLower.includes('bcg') && nameLower.includes('bcg')) return true;
+            if (reqLower.includes('dpt-hepb-hib-1') && (
+              nameLower.includes('dpt-hepb-hib-1') || 
+              nameLower.includes('dpt 1') || 
+              nameLower.includes('penta-1') || 
+              nameLower.includes('penta 1') || 
+              nameLower.includes('pentavalent-1') || 
+              nameLower.includes('pentavalent 1')
+            )) return true;
+            if (reqLower.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
+            if (reqLower.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
+            if (reqLower.includes('rota-1') && (
+              nameLower.includes('rota-1') || 
+              nameLower.includes('rota 1') || 
+              nameLower.includes('rotavirus-1') || 
+              nameLower.includes('rotavirus 1')
+            )) return true;
+            if (reqLower.includes('dpt-hepb-hib-2') && (
+              nameLower.includes('dpt-hepb-hib-2') || 
+              nameLower.includes('dpt 2') || 
+              nameLower.includes('penta-2') || 
+              nameLower.includes('penta 2') || 
+              nameLower.includes('pentavalent-2') || 
+              nameLower.includes('pentavalent 2')
+            )) return true;
+            if (reqLower.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
+            if (reqLower.includes('rota-2') && (
+              nameLower.includes('rota-2') || 
+              nameLower.includes('rota 2') || 
+              nameLower.includes('rotavirus-2') || 
+              nameLower.includes('rotavirus 2')
+            )) return true;
+            if (reqLower.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
+            if (reqLower.includes('fipv-1') && (
+              nameLower.includes('fipv-1') || 
+              nameLower.includes('fipv 1') || 
+              (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
+            )) return true;
+            if (reqLower.includes('dpt-hepb-hib-3') && (
+              nameLower.includes('dpt-hepb-hib-3') || 
+              nameLower.includes('dpt 3') || 
+              nameLower.includes('penta-3') || 
+              nameLower.includes('penta 3') || 
+              nameLower.includes('pentavalent-3') || 
+              nameLower.includes('pentavalent 3')
+            )) return true;
+            if (reqLower.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
+            if (reqLower.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
+            if (reqLower.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
+            if (reqLower.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
+            if (reqLower.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
+            if (reqLower.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
+            if (reqLower.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
+            return false;
+          });
+        });
+
+        // Fallback or shortcut: if they received MR-2 or Typhoid (given here, not elsewhere)
+        const hasCompletionVax = record.vaccines.some(v => v.status === 'Given' && !v.vaccinatedElsewhere && (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')));
+
+        if (hasAllRequired || hasCompletionVax) {
+          isFullyImmunized = true;
+          // Find the latest given date of the 15-month completion vaccines (MR-2 or Typhoid) to decide when they were fully immunized
+          const fifteenMonthVaccines = record.vaccines.filter(v => 
+            (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')) && 
+            v.status === 'Given'
+          );
+          
+          if (fifteenMonthVaccines.length > 0) {
+            const sortedFifteen = [...fifteenMonthVaccines].sort((a, b) => {
+              const d1 = a.givenDateBs || '';
+              const d2 = b.givenDateBs || '';
+              return d1.localeCompare(d2);
+            });
+            const latestVax = sortedFifteen[sortedFifteen.length - 1];
+            lastVaccineMonth = (latestVax.givenDateBs || '').split('-')[1] || '';
+            lastVaccineGivenDateBs = latestVax.givenDateBs || '';
+            lastVaccineDateAd = latestVax.givenDateAd || '';
+          } else {
+            // Fallback to the latest vaccine of all given vaccines excluding HPV
+            const nonHpvVax = record.vaccines.filter(v => v.status === 'Given' && !v.name.includes('HPV'));
+            if (nonHpvVax.length > 0) {
+              const sortedAll = [...nonHpvVax].sort((a, b) => {
+                const d1 = a.givenDateBs || '';
+                const d2 = b.givenDateBs || '';
+                return d1.localeCompare(d2);
+              });
+              const latestVax = sortedAll[sortedAll.length - 1];
+              lastVaccineMonth = (latestVax.givenDateBs || '').split('-')[1] || '';
+              lastVaccineGivenDateBs = latestVax.givenDateBs || '';
+              lastVaccineDateAd = latestVax.givenDateAd || '';
+            }
+          }
+        }
 
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
             const m = v.givenDateBs.split('-')[1];
+            const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
             
-            if (m === selectedMonth) {
+            // Dual fiscal year match to ensure we do not miss any records registered in this fiscal year but vaccinated at different boundaries
+            if (m === selectedMonth && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
               receivedDoseThisMonth = true;
-              const nameKey = v.name.replace(/[^a-zA-Z0-9]/g, ''); // Use sanitized key
-              if (stats.child[nameKey] !== undefined) {
-                stats.child[nameKey]++;
+              const nameLower = (v.name || '').toLowerCase();
+              
+              // 1. Normalized exact match first
+              const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              const normVax = normalize(v.name);
+              
+              let matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => normalize(vax.name) === normVax);
+              
+              // 2. If not found, fall back to sub-string matching
+              if (!matchedVax) {
+                matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => {
+                  const vaxName = vax.name.toLowerCase();
+                  if (vaxName.includes('bcg') && nameLower.includes('bcg')) return true;
+                  if (vaxName.includes('dpt-hepb-hib-1') && (
+                    nameLower.includes('dpt-hepb-hib-1') || 
+                    nameLower.includes('dpt 1') || 
+                    nameLower.includes('penta-1') || 
+                    nameLower.includes('penta 1') || 
+                    nameLower.includes('pentavalent-1') || 
+                    nameLower.includes('pentavalent 1')
+                  )) return true;
+                  if (vaxName.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
+                  if (vaxName.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
+                  if (vaxName.includes('rota-1') && (
+                    nameLower.includes('rota-1') || 
+                    nameLower.includes('rota 1') || 
+                    nameLower.includes('rotavirus-1') || 
+                    nameLower.includes('rotavirus 1')
+                  )) return true;
+                  
+                  if (vaxName.includes('dpt-hepb-hib-2') && (
+                    nameLower.includes('dpt-hepb-hib-2') || 
+                    nameLower.includes('dpt 2') || 
+                    nameLower.includes('penta-2') || 
+                    nameLower.includes('penta 2') || 
+                    nameLower.includes('pentavalent-2') || 
+                    nameLower.includes('pentavalent 2')
+                  )) return true;
+                  if (vaxName.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
+                  if (vaxName.includes('rota-2') && (
+                    nameLower.includes('rota-2') || 
+                    nameLower.includes('rota 2') || 
+                    nameLower.includes('rotavirus-2') || 
+                    nameLower.includes('rotavirus 2')
+                  )) return true;
+                  if (vaxName.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
+                  
+                  if (vaxName.includes('fipv-1') && (
+                    nameLower.includes('fipv-1') || 
+                    nameLower.includes('fipv 1') || 
+                    (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
+                  )) return true;
+                  if (vaxName.includes('dpt-hepb-hib-3') && (
+                    nameLower.includes('dpt-hepb-hib-3') || 
+                    nameLower.includes('dpt 3') || 
+                    nameLower.includes('penta-3') || 
+                    nameLower.includes('penta 3') || 
+                    nameLower.includes('pentavalent-3') || 
+                    nameLower.includes('pentavalent 3')
+                  )) return true;
+                  if (vaxName.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
+                  
+                  if (vaxName.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
+                  if (vaxName.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
+                  if (vaxName.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
+                  
+                  if (vaxName.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
+                  if (vaxName.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
+                  if (vaxName.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
+                  if (vaxName.includes('hpv') && nameLower.includes('hpv')) return true;
+
+                  return nameLower === vaxName || v.name === vax.name;
+                });
+              }
+
+              if (matchedVax) {
+                const nameKey = matchedVax.name.replace(/[^a-zA-Z0-9]/g, '');
+                if (stats.child[nameKey] !== undefined) {
+                  stats.child[nameKey]++;
+                }
+              } else {
+                const nameKey = v.name.replace(/[^a-zA-Z0-9]/g, '');
+                if (stats.child[nameKey] !== undefined) {
+                  stats.child[nameKey]++;
+                }
               }
               stats.child.total++;
-            }
-
-            if (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')) {
-                isFullyImmunized = true;
-                lastVaccineMonth = v.givenDateBs.split('-')[1];
-                if (v.givenDateAd) lastVaccineDateAd = v.givenDateAd;
             }
           }
         });
@@ -121,7 +325,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             stats.uniqueChildrenVax.total++;
         }
 
-        if (isFullyImmunized && lastVaccineMonth === selectedMonth) {
+        // Check dual matching for the selected month and fiscal year for FIC tables
+        if (isFullyImmunized && lastVaccineMonth === selectedMonth && (getFiscalYearFromBsDate(lastVaccineGivenDateBs) === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
             const code = record.jatCode || '06'; 
             const gender = record.gender === 'Female' ? 'female' : 'male';
             
@@ -151,12 +356,26 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       });
 
     maternalRecords
-      .filter(r => r.fiscalYear === selectedFiscalYear)
       .filter(r => filterCenter ? (r.remarks?.includes(filterCenter) || r.address?.includes(filterCenter)) : true) // Basic filter for maternal records
       .forEach(p => {
-        if (p.td1DateBs?.split('-')[1] === selectedMonth && !p.td1VaccinatedElsewhere) stats.maternal.td1++;
-        if (p.td2DateBs?.split('-')[1] === selectedMonth && !p.td2VaccinatedElsewhere) stats.maternal.td2++;
-        if (p.tdBoosterDateBs?.split('-')[1] === selectedMonth && !p.tdBoosterVaccinatedElsewhere) stats.maternal.tdBooster++;
+        if (p.td1DateBs) {
+          const m = p.td1DateBs.split('-')[1];
+          if (m === selectedMonth && (getFiscalYearFromBsDate(p.td1DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td1VaccinatedElsewhere) {
+            stats.maternal.td1++;
+          }
+        }
+        if (p.td2DateBs) {
+          const m = p.td2DateBs.split('-')[1];
+          if (m === selectedMonth && (getFiscalYearFromBsDate(p.td2DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td2VaccinatedElsewhere) {
+            stats.maternal.td2++;
+          }
+        }
+        if (p.tdBoosterDateBs) {
+          const m = p.tdBoosterDateBs.split('-')[1];
+          if (m === selectedMonth && (getFiscalYearFromBsDate(p.tdBoosterDateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.tdBoosterVaccinatedElsewhere) {
+            stats.maternal.tdBooster++;
+          }
+        }
       });
     stats.maternal.total = stats.maternal.td1 + stats.maternal.td2 + stats.maternal.tdBooster;
 

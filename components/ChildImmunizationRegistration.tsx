@@ -56,6 +56,84 @@ export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
     { name: 'HPV (१४ वर्ष)', relativeDays: 5110, base: 'dob', femaleOnly: true, cluster: '१४ वर्ष' }, 
 ];
 
+export const isChildFullyImmunized = (record: ChildImmunizationRecord): boolean => {
+  if (!record || !record.vaccines) return false;
+  
+  const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(v => !v.name.includes('HPV'));
+  
+  // A child is fully immunized if they have received all required vaccines (excluding HPV)
+  const hasAllRequired = requiredVaccines.every(reqVax => {
+    return record.vaccines.some(v => {
+      if (v.status !== 'Given') return false;
+      const nameLower = (v.name || '').toLowerCase();
+      const reqLower = reqVax.name.toLowerCase();
+      const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalize(v.name) === normalize(reqVax.name)) return true;
+      
+      // Fallbacks
+      if (reqLower.includes('bcg') && nameLower.includes('bcg')) return true;
+      if (reqLower.includes('dpt-hepb-hib-1') && (
+        nameLower.includes('dpt-hepb-hib-1') || 
+        nameLower.includes('dpt 1') || 
+        nameLower.includes('penta-1') || 
+        nameLower.includes('penta 1') || 
+        nameLower.includes('pentavalent-1') || 
+        nameLower.includes('pentavalent 1')
+      )) return true;
+      if (reqLower.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
+      if (reqLower.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
+      if (reqLower.includes('rota-1') && (
+        nameLower.includes('rota-1') || 
+        nameLower.includes('rota 1') || 
+        nameLower.includes('rotavirus-1') || 
+        nameLower.includes('rotavirus 1')
+      )) return true;
+      if (reqLower.includes('dpt-hepb-hib-2') && (
+        nameLower.includes('dpt-hepb-hib-2') || 
+        nameLower.includes('dpt 2') || 
+        nameLower.includes('penta-2') || 
+        nameLower.includes('penta 2') || 
+        nameLower.includes('pentavalent-2') || 
+        nameLower.includes('pentavalent 2')
+      )) return true;
+      if (reqLower.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
+      if (reqLower.includes('rota-2') && (
+        nameLower.includes('rota-2') || 
+        nameLower.includes('rota 2') || 
+        nameLower.includes('rotavirus-2') || 
+        nameLower.includes('rotavirus 2')
+      )) return true;
+      if (reqLower.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
+      if (reqLower.includes('fipv-1') && (
+        nameLower.includes('fipv-1') || 
+        nameLower.includes('fipv 1') || 
+        (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
+      )) return true;
+      if (reqLower.includes('dpt-hepb-hib-3') && (
+        nameLower.includes('dpt-hepb-hib-3') || 
+        nameLower.includes('dpt 3') || 
+        nameLower.includes('penta-3') || 
+        nameLower.includes('penta 3') || 
+        nameLower.includes('pentavalent-3') || 
+        nameLower.includes('pentavalent 3')
+      )) return true;
+      if (reqLower.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
+      if (reqLower.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
+      if (reqLower.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
+      if (reqLower.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
+      if (reqLower.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
+      if (reqLower.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
+      if (reqLower.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
+      return false;
+    });
+  });
+
+  // Fallback or shortcut: if they received MR-2 or Typhoid (given here, not elsewhere)
+  const hasCompletionVax = record.vaccines.some(v => v.status === 'Given' && !v.vaccinatedElsewhere && (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')));
+
+  return hasAllRequired || hasCompletionVax;
+};
+
 const parseDateLocal = (dateStr: string) => {
     if (!dateStr) return new Date();
     const parts = dateStr.split('-');
@@ -587,7 +665,12 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
   const filteredRecords = useMemo(() => {
     return (records || [])
-      .filter(r => r && r.fiscalYear === currentFiscalYear)
+      .filter(r => {
+        if (!r) return false;
+        // Show if child belongs to the current fiscal year, OR if they are from an earlier/other fiscal year but not fully immunized
+        if (r.fiscalYear === currentFiscalYear) return true;
+        return !isChildFullyImmunized(r);
+      })
       .filter(r => {
         const query = (searchTerm || '').toLowerCase();
         return (
