@@ -337,17 +337,17 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
     garbhawatiPatients.forEach(patient => {
       if (patient.fiscalYear !== currentFiscalYear) return;
       
-      if (patient.td1DateBs) {
+      if (patient.td1DateBs && !patient.td1VaccinatedElsewhere) {
         if (summaryMonth === 'all' || getMonthFromBsDate(patient.td1DateBs) === summaryMonth) {
           stats.TD += 1;
         }
       }
-      if (patient.td2DateBs) {
+      if (patient.td2DateBs && !patient.td2VaccinatedElsewhere) {
         if (summaryMonth === 'all' || getMonthFromBsDate(patient.td2DateBs) === summaryMonth) {
           stats.TD += 1;
         }
       }
-      if (patient.tdBoosterDateBs) {
+      if (patient.tdBoosterDateBs && !patient.tdBoosterVaccinatedElsewhere) {
         if (summaryMonth === 'all' || getMonthFromBsDate(patient.tdBoosterDateBs) === summaryMonth) {
           stats.TD += 1;
         }

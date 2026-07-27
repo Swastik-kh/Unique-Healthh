@@ -154,9 +154,9 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       .filter(r => r.fiscalYear === selectedFiscalYear)
       .filter(r => filterCenter ? (r.remarks?.includes(filterCenter) || r.address?.includes(filterCenter)) : true) // Basic filter for maternal records
       .forEach(p => {
-        if (p.td1DateBs?.split('-')[1] === selectedMonth) stats.maternal.td1++;
-        if (p.td2DateBs?.split('-')[1] === selectedMonth) stats.maternal.td2++;
-        if (p.tdBoosterDateBs?.split('-')[1] === selectedMonth) stats.maternal.tdBooster++;
+        if (p.td1DateBs?.split('-')[1] === selectedMonth && !p.td1VaccinatedElsewhere) stats.maternal.td1++;
+        if (p.td2DateBs?.split('-')[1] === selectedMonth && !p.td2VaccinatedElsewhere) stats.maternal.td2++;
+        if (p.tdBoosterDateBs?.split('-')[1] === selectedMonth && !p.tdBoosterVaccinatedElsewhere) stats.maternal.tdBooster++;
       });
     stats.maternal.total = stats.maternal.td1 + stats.maternal.td2 + stats.maternal.tdBooster;
 

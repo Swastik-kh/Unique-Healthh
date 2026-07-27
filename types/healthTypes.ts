@@ -123,10 +123,13 @@ export interface GarbhawatiPatient {
   previousTdCount?: string;
   td1DateBs?: string | null;
   td1DateAd?: string | null;
+  td1VaccinatedElsewhere?: boolean;
   td2DateBs?: string | null;
   td2DateAd?: string | null;
+  td2VaccinatedElsewhere?: boolean;
   tdBoosterDateBs?: string | null;
   tdBoosterDateAd?: string | null;
+  tdBoosterVaccinatedElsewhere?: boolean;
   remarks?: string | null;
 }
 

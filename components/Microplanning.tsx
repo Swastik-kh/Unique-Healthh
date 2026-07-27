@@ -455,15 +455,15 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     localMaternalRecords
       .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
-        if (record.td1DateBs) {
+        if (record.td1DateBs && !record.td1VaccinatedElsewhere) {
           const m = record.td1DateBs.split('-')[1];
           if (data[m]) data[m].td1++;
         }
-        if (record.td2DateBs) {
+        if (record.td2DateBs && !record.td2VaccinatedElsewhere) {
           const m = record.td2DateBs.split('-')[1];
           if (data[m]) data[m].td2++;
         }
-        if (record.tdBoosterDateBs) {
+        if (record.tdBoosterDateBs && !record.tdBoosterVaccinatedElsewhere) {
           const m = record.tdBoosterDateBs.split('-')[1];
           if (data[m]) data[m].td_booster++;
         }
@@ -648,9 +648,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
           };
         }
 
-        if (record.td1DateBs) data[cName].td1++;
-        if (record.td2DateBs) data[cName].td2++;
-        if (record.tdBoosterDateBs) data[cName].td_booster++;
+        if (record.td1DateBs && !record.td1VaccinatedElsewhere) data[cName].td1++;
+        if (record.td2DateBs && !record.td2VaccinatedElsewhere) data[cName].td2++;
+        if (record.tdBoosterDateBs && !record.tdBoosterVaccinatedElsewhere) data[cName].td_booster++;
       });
 
     return data;

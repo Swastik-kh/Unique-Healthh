@@ -45,6 +45,26 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedDoseForUpdate, setSelectedDoseForUpdate] = useState<{ patient: GarbhawatiPatient; doseType: 'td1' | 'td2' | 'tdBooster'; } | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
+  const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
+
+  const getTodayBs = () => {
+    try {
+      return new NepaliDate().format('YYYY-MM-DD');
+    } catch (e) {
+      return '';
+    }
+  };
+
+  useEffect(() => {
+    if (selectedDoseForUpdate) {
+      const { patient, doseType } = selectedDoseForUpdate;
+      setModalGivenDateBs(patient[`${doseType}DateBs`] || getTodayBs());
+      setModalVaccinatedElsewhere(!!patient[`${doseType}VaccinatedElsewhere`]);
+    } else {
+      setModalGivenDateBs('');
+      setModalVaccinatedElsewhere(false);
+    }
+  }, [selectedDoseForUpdate]);
 
   const generateRegNo = (fy: string, patientsList: GarbhawatiPatient[]) => {
     try {
@@ -213,7 +233,12 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
         return;
     }
 
-    const updatedPatient = { ...patient, [`${doseType}DateBs`]: modalGivenDateBs, [`${doseType}DateAd`]: givenDateAd };
+    const updatedPatient = { 
+      ...patient, 
+      [`${doseType}DateBs`]: modalGivenDateBs, 
+      [`${doseType}DateAd`]: givenDateAd,
+      [`${doseType}VaccinatedElsewhere`]: modalVaccinatedElsewhere
+    };
     onUpdatePatient(updatedPatient);
     setSuccessMessage(`${doseType.toUpperCase()} खोप सफलतापूर्वक अपडेट भयो!`);
     setSelectedDoseForUpdate(null);
@@ -357,38 +382,41 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'td1' })}
-                                className={`px-2 py-1 rounded text-[10px] font-bold border 
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
                                     ${patient.td1DateBs ? 'bg-green-100 text-green-700 border-green-200' :
                                     'bg-purple-50 text-purple-700 border-purple-200'
                                     }`}
                             >
-                                TD1 ({patient.td1DateBs ? patient.td1DateBs.slice(5) : 'Pending'})
+                                <span>TD1 ({patient.td1DateBs ? patient.td1DateBs.slice(5) : 'Pending'})</span>
+                                {patient.td1VaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
                             </button>
                             {/* TD2 */}
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'td2' })}
                                 disabled={!patient.td1DateBs} // Disable TD2 if TD1 not given
-                                className={`px-2 py-1 rounded text-[10px] font-bold border 
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
                                     ${patient.td2DateBs ? 'bg-green-100 text-green-700 border-green-200' :
                                     !patient.td1DateBs ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
                                     'bg-purple-50 text-purple-700 border-purple-200'
                                     }`}
                             >
-                                TD2 ({patient.td2DateBs ? patient.td2DateBs.slice(5) : 'Pending'})
+                                <span>TD2 ({patient.td2DateBs ? patient.td2DateBs.slice(5) : 'Pending'})</span>
+                                {patient.td2VaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
                             </button>
                             {/* TD Booster */}
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'tdBooster' })}
                                 disabled={!patient.td2DateBs} // Disable Booster if TD2 not given
-                                className={`px-2 py-1 rounded text-[10px] font-bold border 
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
                                     ${patient.tdBoosterDateBs ? 'bg-green-100 text-green-700 border-green-200' :
                                     !patient.td2DateBs ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
                                     'bg-purple-50 text-purple-700 border-purple-200'
                                     }`}
                             >
-                                TD Booster ({patient.tdBoosterDateBs ? patient.tdBoosterDateBs.slice(5) : 'Pending'})
+                                <span>TD Booster ({patient.tdBoosterDateBs ? patient.tdBoosterDateBs.slice(5) : 'Pending'})</span>
+                                {patient.tdBoosterVaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
                             </button>
                         </div>
                     </td>
@@ -433,6 +461,22 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                         required
                         disabled={!!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`]} // Disable if already given
                     />
+                    
+                    <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="checkbox"
+                          id="modal-td-elsewhere"
+                          checked={modalVaccinatedElsewhere}
+                          onChange={(e) => setModalVaccinatedElsewhere(e.target.checked)}
+                          className="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500 cursor-pointer"
+                        />
+                        <label 
+                          htmlFor="modal-td-elsewhere" 
+                          className="text-xs font-bold text-slate-700 font-nepali cursor-pointer select-none"
+                        >
+                          अन्यत्र लगाएको (Vaccinated Elsewhere)
+                        </label>
+                    </div>
                     
                     {!!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`] && (
                         <div className="bg-green-50 border border-green-100 p-3 rounded-lg text-center font-nepali text-green-700">
