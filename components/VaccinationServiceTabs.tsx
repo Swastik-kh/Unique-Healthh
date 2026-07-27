@@ -315,6 +315,7 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
           <GarbhawatiTDRegistration
             currentFiscalYear={currentFiscalYear}
             patients={garbhawatiPatients}
+            generalSettings={generalSettings}
             onAddPatient={onAddGarbhawatiPatient}
             onUpdatePatient={onUpdateGarbhawatiPatient}
             onDeletePatient={onDeleteGarbhawatiPatient}

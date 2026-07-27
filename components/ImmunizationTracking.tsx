@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
 import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2 } from 'lucide-react';
-import { ChildImmunizationRecord, ChildImmunizationVaccine } from '../types/healthTypes';
+import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -16,6 +16,7 @@ import { safeEncodeKey } from '../firebase';
 interface ImmunizationTrackingProps {
   currentFiscalYear: string;
   records: ChildImmunizationRecord[];
+  garbhawatiPatients?: GarbhawatiPatient[];
   generalSettings: OrganizationSettings;
   currentUser?: SystemUser | null;
   onDeleteRecord?: (id: string) => void;
@@ -86,10 +87,12 @@ const calculateAge = (dobBs: string) => {
 export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   currentFiscalYear,
   records,
+  garbhawatiPatients = [],
   generalSettings,
   currentUser,
   onDeleteRecord
 }) => {
+  const [trackingTarget, setTrackingTarget] = useState<'child' | 'maternal'>('child');
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -357,11 +360,78 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .sort((a, b) => a.childName.localeCompare(b.childName));
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine]); 
 
-  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card') => {
+  const getNepaliMonthName = useCallback((monthStr: string): string => {
+    const months: Record<string, string> = {
+      '01': 'बैशाख', '02': 'जेठ', '03': 'असार', '04': 'साउन',
+      '05': 'भदौ', '06': 'असोज', '07': 'कार्तिक', '08': 'मंसिर',
+      '09': 'पुष', '10': 'माघ', '11': 'फागुन', '12': 'चैत्र'
+    };
+    return months[monthStr] || monthStr;
+  }, []);
+
+  // TD Upcoming List: Pregnant women who have taken TD1, not TD2, and due in selected month
+  const upcomingTdList = useMemo(() => {
+    return (garbhawatiPatients || [])
+      .filter(p => {
+        // Must have received TD1
+        if (!p.td1DateBs) return false;
+        // Must NOT have received TD2 yet
+        if (p.td2DateBs) return false;
+
+        // Calculate expected year-month for TD2 (TD1 month + 1)
+        const parts = p.td1DateBs.split('-');
+        if (parts.length < 2) return false;
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        m += 1;
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        }
+        const dueYearMonth = `${y}-${String(m).padStart(2, '0')}`;
+
+        // Filter by the selected month/fiscal year prefix (e.g. "2083-03")
+        const matchesDate = targetYearPrefix ? dueYearMonth === targetYearPrefix : true;
+
+        // Filter by vaccination center
+        const matchesCenter = filterCenter ? p.vaccinationCenter === filterCenter : true;
+
+        // Filter by search query (name, address, regNo)
+        const query = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || 
+          (p.name || '').toLowerCase().includes(query) ||
+          (p.regNo || '').toLowerCase().includes(query) ||
+          (p.address && p.address.toLowerCase().includes(query));
+
+        return matchesDate && matchesCenter && matchesSearch;
+      })
+      .map(p => {
+        // Map to a structured format for easy display
+        const parts = p.td1DateBs!.split('-');
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10);
+        m += 1;
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        }
+        const dueYearMonth = `${y}-${String(m).padStart(2, '0')}`;
+        return {
+          patient: p,
+          dueYearMonth,
+          expectedMonthName: getNepaliMonthName(String(m).padStart(2, '0')),
+          expectedYear: y,
+        };
+      })
+      .sort((a, b) => a.dueYearMonth.localeCompare(b.dueYearMonth));
+  }, [garbhawatiPatients, targetYearPrefix, filterCenter, searchTerm, getNepaliMonthName]);
+
+  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td') => {
     const printContentId = 
         listType === 'upcoming' ? 'upcoming-list-print' : 
         listType === 'defaulter' ? 'defaulter-list-print' : 
-        listType === 'fic' ? 'fic-list-print' : 'single-card-print';
+        listType === 'fic' ? 'fic-list-print' : 
+        listType === 'maternal-td' ? 'maternal-td-print' : 'single-card-print';
         
     const printElement = document.getElementById(printContentId);
 
@@ -527,123 +597,150 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
             }
         `}} />
 
-        {/* View Selection Tabs & Search */}
-        <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner w-full md:w-auto">
-                    <button 
-                        onClick={() => { setActiveView('upcoming'); setSearchTerm(''); }}
-                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
-                    >
-                        <CalendarClock size={18}/> आगामी खोप
-                    </button>
-                    <button 
-                        onClick={() => { setActiveView('defaulter'); setSearchTerm(''); }}
-                        className={`flex-1 md::flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'defaulter' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}
-                    >
-                        <AlertOctagon size={18}/> छुटेका (Defaulters)
-                    </button>
-                    <button 
-                        onClick={() => { setActiveView('fic'); setSearchTerm(''); }}
-                        className={`flex-1 md::flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'fic' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
-                    >
-                        <BadgeCheck size={18}/> पूर्ण खोप (FIC)
-                    </button>
-                </div>
+      {/* Tracking Target Switcher Tabs */}
+      <div className="flex bg-slate-100 p-1.5 rounded-xl shadow-inner w-full sm:w-max no-print">
+        <button
+          onClick={() => { setTrackingTarget('child'); setSearchTerm(''); }}
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${trackingTarget === 'child' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <Baby size={18}/> बच्चा खोप अनुगमन (Child Immunization)
+        </button>
+        <button
+          onClick={() => { setTrackingTarget('maternal'); setSearchTerm(''); }}
+          className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${trackingTarget === 'maternal' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          <Syringe size={18}/> गर्भवती महिला टी.डी. खोप अनुगमन (Maternal TD Tracking)
+        </button>
+      </div>
 
-                <div className="relative w-full md:w-80">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                        type="text" 
-                        value={searchTerm} 
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="बच्चाको नाम वा दर्ता नं खोज्नुहोस्..." 
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm"
-                    />
-                </div>
-            </div>
+      {/* View Selection Tabs & Search */}
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              {trackingTarget === 'child' ? (
+                  <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner w-full md:w-auto">
+                      <button 
+                          onClick={() => { setActiveView('upcoming'); setSearchTerm(''); }}
+                          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'upcoming' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                      >
+                          <CalendarClock size={18}/> आगामी खोप
+                      </button>
+                      <button 
+                          onClick={() => { setActiveView('defaulter'); setSearchTerm(''); }}
+                          className={`flex-1 md::flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'defaulter' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}
+                      >
+                          <AlertOctagon size={18}/> छुटेका (Defaulters)
+                      </button>
+                      <button 
+                          onClick={() => { setActiveView('fic'); setSearchTerm(''); }}
+                          className={`flex-1 md::flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'fic' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
+                      >
+                          <BadgeCheck size={18}/> पूर्ण खोप (FIC)
+                      </button>
+                  </div>
+              ) : (
+                  <div className="flex items-center gap-2 bg-purple-50 text-purple-800 px-4 py-2 rounded-xl border border-purple-100">
+                      <Syringe size={18} className="text-purple-600 animate-pulse" />
+                      <span className="font-bold text-sm font-nepali">टी.डी. खोप अनुगमन (TD Vaccination Tracker)</span>
+                  </div>
+              )}
 
-            {/* Filter Bar */}
-            <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-slate-100">
-                <div className="w-full md:w-40">
-                    <Select 
-                        label="आर्थिक वर्ष" 
-                        options={FISCAL_YEARS} 
-                        value={filterFiscalYear}
-                        onChange={e => setFilterFiscalYear(e.target.value)}
-                        icon={<Calendar size={16} />}
-                    />
-                </div>
-                <div className="w-full md:w-40">
-                    <Select 
-                        label="महिना" 
-                        options={nepaliMonthOptions} 
-                        value={filterMonth}
-                        onChange={e => setFilterMonth(e.target.value)}
-                        icon={<Filter size={16} />}
-                    />
-                </div>
-                <div className="w-full md:w-56">
-                    <Select 
-                        label="खोप केन्द्र फिल्टर" 
-                        options={[{id: 'all', value: '', label: '-- सबै केन्द्रहरू --'}, ...centerOptions]} 
-                        value={filterCenter}
-                        onChange={e => setFilterCenter(e.target.value)}
-                        icon={<MapPinned size={16} />}
-                    />
-                    {filterCenter && (
-                        <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-1 rounded border border-teal-100 font-nepali leading-relaxed">
-                            {(() => {
-                                const encodedKey = safeEncodeKey(filterCenter);
-                                const days = generalSettings?.vaccinationCenterDays?.[encodedKey] || [];
-                                return days.length > 0 
-                                    ? `* यो केन्द्रमा खोप चल्ने गतेहरू: प्रत्येक महिनाको ${days.join(', ')} गते`
-                                    : `* यो केन्द्रमा सबै गते खोप सञ्चालन हुन्छ (गतेहरू सेट गरिएको छैन)`;
-                            })()}
-                        </div>
-                    )}
-                </div>
-                <div className="w-full md:w-56">
-                    <Select 
-                        label="खोपको नाम फिल्टर" 
-                        options={[{id: 'all', value: '', label: '-- सबै खोपहरू --'}, ...vaccineNameOptions]} 
-                        value={filterVaccine}
-                        onChange={e => setFilterVaccine(e.target.value)}
-                        icon={<Baby size={16} />}
-                    />
-                </div>
-                <button 
-                    onClick={() => { setFilterCenter(''); setFilterVaccine(''); setSearchTerm(''); setFilterFiscalYear(currentFiscalYear); }} 
-                    className="flex items-center gap-2 px-4 py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs"
-                >
-                    <RotateCcw size={14}/> रिसेट
-                </button>
-                <div className="ml-auto">
-                    <button 
-                        onClick={() => handlePrint(activeView)}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900"
-                    >
-                        <Printer size={18}/> सूची प्रिन्ट गर्नुहोस्
-                    </button>
-                </div>
-            </div>
-        </div>
+              <div className="relative w-full md:w-80">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                      type="text" 
+                      value={searchTerm} 
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder={trackingTarget === 'child' ? "बच्चाको नाम वा दर्ता नं खोज्नुहोस्..." : "गर्भवतीको नाम वा दर्ता नं खोज्नुहोस्..."} 
+                      className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm font-nepali"
+                  />
+              </div>
+          </div>
 
-        {successMessage && (
-            <div className="mb-4 bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200 no-print">
-                <div className="flex items-center gap-2">
-                    <CheckCircle2 className="text-green-600 animate-pulse" size={18} />
-                    <span className="font-bold text-sm font-nepali">{successMessage}</span>
-                </div>
-                <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-green-700">
-                    <X size={18} />
-                </button>
-            </div>
-        )}
+          {/* Filter Bar */}
+          <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-slate-100">
+              <div className="w-full md:w-40">
+                  <Select 
+                      label="आर्थिक वर्ष" 
+                      options={FISCAL_YEARS} 
+                      value={filterFiscalYear}
+                      onChange={e => setFilterFiscalYear(e.target.value)}
+                      icon={<Calendar size={16} />}
+                  />
+              </div>
+              <div className="w-full md:w-40">
+                  <Select 
+                      label="महिना" 
+                      options={nepaliMonthOptions} 
+                      value={filterMonth}
+                      onChange={e => setFilterMonth(e.target.value)}
+                      icon={<Filter size={16} />}
+                  />
+              </div>
+              <div className="w-full md:w-56">
+                  <Select 
+                      label="खोप केन्द्र फिल्टर" 
+                      options={[{id: 'all', value: '', label: '-- सबै केन्द्रहरू --'}, ...centerOptions]} 
+                      value={filterCenter}
+                      onChange={e => setFilterCenter(e.target.value)}
+                      icon={<MapPinned size={16} />}
+                  />
+                  {filterCenter && (
+                      <div className="text-[10px] text-teal-700 font-bold mt-1 bg-teal-50 px-2 py-1 rounded border border-teal-100 font-nepali leading-relaxed">
+                          {(() => {
+                              const encodedKey = safeEncodeKey(filterCenter);
+                              const days = generalSettings?.vaccinationCenterDays?.[encodedKey] || [];
+                              return days.length > 0 
+                                  ? `* यो केन्द्रमा खोप चल्ने गतेहरू: प्रत्येक महिनाको ${days.join(', ')} गते`
+                                  : `* यो केन्द्रमा सबै गते खोप सञ्चालन हुन्छ (गतेहरू सेट गरिएको छैन)`;
+                          })()}
+                      </div>
+                  )}
+              </div>
+              {trackingTarget === 'child' && (
+                  <div className="w-full md:w-56">
+                      <Select 
+                          label="खोपको नाम फिल्टर" 
+                          options={[{id: 'all', value: '', label: '-- सबै खोपहरू --'}, ...vaccineNameOptions]} 
+                          value={filterVaccine}
+                          onChange={e => setFilterVaccine(e.target.value)}
+                          icon={<Baby size={16} />}
+                      />
+                  </div>
+              )}
+              <button 
+                  onClick={() => { setFilterCenter(''); setFilterVaccine(''); setSearchTerm(''); setFilterFiscalYear(currentFiscalYear); }} 
+                  className="flex items-center gap-2 px-4 py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs"
+              >
+                  <RotateCcw size={14}/> रिसेट
+              </button>
+              <div className="ml-auto">
+                  <button 
+                      onClick={() => handlePrint(trackingTarget === 'child' ? activeView : 'maternal-td')}
+                      className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900"
+                  >
+                      <Printer size={18}/> सूची प्रिन्ट गर्नुहोस्
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      {successMessage && (
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in duration-200 no-print">
+              <div className="flex items-center gap-2">
+                  <CheckCircle2 className="text-green-600 animate-pulse" size={18} />
+                  <span className="font-bold text-sm font-nepali">{successMessage}</span>
+              </div>
+              <button onClick={() => setSuccessMessage(null)} className="text-green-500 hover:text-green-700">
+                  <X size={18} />
+              </button>
+          </div>
+      )}
 
         {/* List View Container */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
-            {activeView === 'upcoming' && (
+            {trackingTarget === 'child' ? (
+                <>
+                    {activeView === 'upcoming' && (
                 <div className="animate-in fade-in duration-300">
                     <div className="p-4 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                         <div className="flex items-center gap-3 text-blue-800">
@@ -928,6 +1025,80 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     </div>
                 </div>
             )}
+                </>
+            ) : (
+                /* Maternal TD Tracking View */
+                <div className="animate-in fade-in duration-300">
+                    <div className="p-4 bg-purple-50 border-b border-purple-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-purple-800">
+                            <Syringe className="text-purple-600" />
+                            <span className="font-bold font-nepali">
+                                गर्भवती महिला आगामी टी.डी. (TD) खोप तालिका (Maternal TD Vaccination Schedule)
+                                <span className="ml-2 text-sm font-normal bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200">
+                                    {filterFiscalYear} - {getSelectedMonthLabel()}
+                                </span>
+                                {filterCenter && ` - ${filterCenter}`}
+                            </span>
+                        </div>
+                        <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-full">{upcomingTdList.length} गर्भवती महिलाहरू</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-bold border-b">
+                                <tr>
+                                    <th className="px-6 py-3">क्र.सं. (S.N.)</th>
+                                    <th className="px-6 py-3">गर्भवती विवरण / केन्द्र</th>
+                                    <th className="px-6 py-3">ठेगाना / सम्पर्क</th>
+                                    <th className="px-6 py-3 text-center">टी.डी. १ प्राप्त मिति (TD1 Date)</th>
+                                    <th className="px-6 py-3 text-center">टी.डी. २ लगाउनुपर्ने महिना (Expected TD2 Month)</th>
+                                    <th className="px-6 py-3 text-center">स्थिति (Status)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {upcomingTdList.map((item, idx) => {
+                                    return (
+                                        <tr key={item.patient.id} className="hover:bg-purple-50/20 transition-colors border-b border-slate-100">
+                                            <td className="px-6 py-4 font-mono font-medium text-slate-400">{idx + 1}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-800">{item.patient.name}</div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5">दर्ता नं: <span className="font-mono text-purple-600 font-bold">{item.patient.regNo}</span></div>
+                                                <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-1"><MapPinned size={10} className="text-purple-500"/> {item.patient.vaccinationCenter || 'N/A'}</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-700 font-medium">{item.patient.address}</div>
+                                                <div className="text-[10px] text-slate-400 font-mono font-bold mt-0.5">{item.patient.phone}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded border border-green-200 font-mono">
+                                                    {item.patient.td1DateBs}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded border border-purple-200">
+                                                    {item.expectedMonthName}, {item.expectedYear}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+                                                    <Clock size={12} className="text-amber-500 animate-spin" style={{ animationDuration: '3s' }} />
+                                                    <span>टी.डी. २ बाँकी (TD2 Pending)</span>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {upcomingTdList.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center text-slate-400 italic font-nepali text-lg">
+                                            छानिएको मिति र केन्द्रमा कुनै गर्भवती महिलाको आगामी टी.डी. खोप तालिका छैन।
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
 
         {/* FIC Card Modal and Hidden Print Containers remain the same but will respect filters */}
@@ -1150,6 +1321,50 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{getCompletionDate(child)}</td>
                         </tr>
                     ))}
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="maternal-td-print" className="hidden print-container">
+            <div className="print-header">
+                <h1 style={{color: '#6b21a8'}}>{generalSettings.orgNameNepali}</h1>
+                <h2 style={{color: '#6b21a8'}}>गर्भवती महिला आगामी टी.डी. खोप तालिका (Maternal TD Vaccination Schedule)</h2>
+                <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()}</p>
+                {filterCenter && <p>केन्द्र: {filterCenter}</p>}
+            </div>
+            <table className="print-table">
+                <thead>
+                    <tr>
+                        <th style={{width: '60px'}}>क्र.सं.</th>
+                        <th>गर्भवतीको नाम</th>
+                        <th>दर्ता नं</th>
+                        <th>ठेगाना</th>
+                        <th>खोप केन्द्र</th>
+                        <th>टी.डी. १ प्राप्त मिति</th>
+                        <th>टी.डी. २ लगाउनुपर्ने महिना</th>
+                        <th>सम्पर्क नम्बर</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {upcomingTdList.map((item, idx) => (
+                        <tr key={item.patient.id}>
+                            <td style={{textAlign: 'center'}}>{idx + 1}</td>
+                            <td>{item.patient.name}</td>
+                            <td>{item.patient.regNo}</td>
+                            <td>{item.patient.address}</td>
+                            <td>{item.patient.vaccinationCenter || 'N/A'}</td>
+                            <td style={{textAlign: 'center'}}>{item.patient.td1DateBs}</td>
+                            <td style={{textAlign: 'center', fontWeight: 'bold'}}>{item.expectedMonthName}, {item.expectedYear}</td>
+                            <td style={{fontFamily: 'monospace'}}>{item.patient.phone}</td>
+                        </tr>
+                    ))}
+                    {upcomingTdList.length === 0 && (
+                        <tr>
+                            <td colSpan={8} style={{textAlign: 'center', fontStyle: 'italic', padding: '20px'}}>
+                                छानिएको अवधि र केन्द्रमा कुनै टी.डी. खोप तालिका छैन।
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>

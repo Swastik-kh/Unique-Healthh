@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Save, RotateCcw, Droplets, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Baby, CheckCircle2, AlertTriangle, Info, Clock, Check, X } from 'lucide-react';
+import { Save, RotateCcw, Droplets, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Baby, CheckCircle2, AlertTriangle, Info, Clock, Check, X, MapPinned } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { EnglishDatePicker } from './EnglishDatePicker';
-import { Option } from '../types/coreTypes'; // Corrected import path
+import { Option, OrganizationSettings } from '../types/coreTypes'; // Corrected import path
 import { GarbhawatiPatient } from '../types/healthTypes'; // Corrected import path
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -13,6 +13,7 @@ import NepaliDate from 'nepali-date-converter';
 interface GarbhawatiTDRegistrationProps {
   currentFiscalYear: string;
   patients: GarbhawatiPatient[];
+  generalSettings: OrganizationSettings;
   onAddPatient: (patient: GarbhawatiPatient) => void;
   onUpdatePatient: (patient: GarbhawatiPatient) => void;
   onDeletePatient: (patientId: string) => void;
@@ -35,11 +36,13 @@ const previousTdOptions: Option[] = [
 export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> = ({
   currentFiscalYear,
   patients,
+  generalSettings,
   onAddPatient,
   onUpdatePatient,
   onDeletePatient
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCenter, setFilterCenter] = useState('');
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -84,6 +87,10 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     }
   };
 
+  const centerOptions = useMemo(() => {
+    return (generalSettings?.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c }));
+  }, [generalSettings]);
+
   const [formData, setFormData] = useState<GarbhawatiPatient>({
     id: '',
     fiscalYear: currentFiscalYear,
@@ -101,6 +108,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     tdBoosterDateBs: null, // Initialize as null
     tdBoosterDateAd: null, // Initialize as null
     remarks: '',
+    vaccinationCenter: centerOptions[0]?.value || '',
   });
 
   useEffect(() => {
@@ -116,15 +124,17 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
             td2DateAd: null, // Reset to null
             tdBoosterDateBs: null, // Reset to null
             tdBoosterDateAd: null, // Reset to null
+            vaccinationCenter: prev.vaccinationCenter || centerOptions[0]?.value || '',
         }));
     }
-  }, [currentFiscalYear, patients, editingPatientId]);
+  }, [currentFiscalYear, patients, editingPatientId, centerOptions]);
 
   const validateForm = () => {
     setValidationError(null);
     if (!formData.name.trim()) return "बिरामीको नाम आवश्यक छ।";
     if (!formData.address.trim()) return "ठेगाना आवश्यक छ।";
     if (!formData.phone.trim()) return "फोन नम्बर आवश्यक छ।";
+    if (!formData.vaccinationCenter) return "खोप केन्द्र आवश्यक छ।";
     return null;
   };
 
@@ -148,6 +158,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
       tdBoosterDateBs: formData.tdBoosterDateBs || null,
       tdBoosterDateAd: formData.tdBoosterDateAd || null,
       remarks: formData.remarks || null, // Also sanitize remarks if it can be undefined
+      vaccinationCenter: formData.vaccinationCenter || null,
     };
 
     const patientToSave: GarbhawatiPatient = {
@@ -180,6 +191,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
         tdBoosterDateBs: patient.tdBoosterDateBs || null,
         tdBoosterDateAd: patient.tdBoosterDateAd || null,
         remarks: patient.remarks || null,
+        vaccinationCenter: patient.vaccinationCenter || centerOptions[0]?.value || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -210,6 +222,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
       tdBoosterDateBs: null, // Reset to null
       tdBoosterDateAd: null, // Reset to null
       remarks: '',
+      vaccinationCenter: centerOptions[0]?.value || '',
     }));
     setValidationError(null);
     setSuccessMessage(null);
@@ -248,15 +261,17 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     return (patients || [])
       .filter(p => p && p.fiscalYear === currentFiscalYear)
       .filter(p => {
+        if (filterCenter && p.vaccinationCenter !== filterCenter) return false;
         const query = (searchTerm || '').toLowerCase();
         return (
           (p.name || '').toLowerCase().includes(query) || 
           (p.regNo || '').toLowerCase().includes(query) ||
-          (p.address || '').toLowerCase().includes(query)
+          (p.address || '').toLowerCase().includes(query) ||
+          (p.vaccinationCenter || '').toLowerCase().includes(query)
         );
       })
       .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
-  }, [patients, currentFiscalYear, searchTerm]);
+  }, [patients, currentFiscalYear, searchTerm, filterCenter]);
 
 
 
@@ -321,7 +336,9 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
           <Input label="ठेगाना (Address) *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
           <Input label="फोन नं (Phone) *" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required icon={<Phone size={16} />} />
 
-          <Input label="कैफियत (Remarks)" value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} className="lg:col-span-3" />
+          <Select label="खोप केन्द्र (Vaccination Center) *" options={centerOptions} value={formData.vaccinationCenter || ''} onChange={e => setFormData({...formData, vaccinationCenter: e.target.value})} placeholder="-- केन्द्र छान्नुहोस् --" icon={<MapPinned size={16} />} />
+
+          <Input label="कैफियत (Remarks)" value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} className="lg:col-span-2" />
 
           <div className="lg:col-span-3 pt-4 border-t border-slate-100 flex justify-end gap-3">
             <button type="button" onClick={handleReset} className="flex items-center gap-2 px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium">
@@ -340,9 +357,21 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
           <div className="flex items-center gap-3">
             <h3 className="font-semibold text-slate-700 font-nepali">गर्भवती महिलाहरूको सूची ({filteredPatients.length})</h3>
           </div>
-          <div className="relative w-full sm:w-72">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम वा दर्ता नं खोज्नुहोस्..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all" />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <select
+              value={filterCenter}
+              onChange={(e) => setFilterCenter(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all bg-white font-nepali text-slate-700"
+            >
+              <option value="">सबै खोप केन्द्र (All Centers)</option>
+              {centerOptions.map(c => (
+                <option key={c.id} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+            <div className="relative w-full sm:w-64">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम वा दर्ता नं खोज्नुहोस्..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all" />
+            </div>
           </div>
         </div>
 
@@ -361,7 +390,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
               {filteredPatients.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-slate-400 italic">
-                    {searchTerm ? 'कुनै नतिजा फेला परेन (No matching records)' : 'कुनै गर्भवती बिरामी दर्ता भएको छैन (No pregnant patients registered)'}
+                    {searchTerm || filterCenter ? 'कुनै नतिजा फेला परेन (No matching records)' : 'कुनै गर्भवती बिरामी दर्ता भएको छैन (No pregnant patients registered)'}
                   </td>
                 </tr>
               ) : (
@@ -371,6 +400,9 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800">{patient.name} ({patient.age} वर्ष)</div>
                       <div className="text-xs text-slate-500">{patient.address}</div>
+                      {patient.vaccinationCenter && (
+                        <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-1"><MapPinned size={10} className="text-purple-500"/> {patient.vaccinationCenter}</div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-600 font-nepali">
                         <span className="font-medium">पटक: {patient.previousTdCount || '०'}</span>
@@ -436,10 +468,10 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
 
       {/* Dose Update Modal */}
       {selectedDoseForUpdate && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 sm:pt-24">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedDoseForUpdate(null)}></div>
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-purple-50/50">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-purple-50/50 shrink-0">
                     <div className="flex items-center gap-2">
                         <Droplets size={20} className="text-purple-600"/>
                         <h3 className="font-bold text-slate-800 font-nepali text-sm">खोप स्थिति अपडेट (Update Dose Status)</h3>
@@ -447,7 +479,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                     {/* Added X icon for closing vaccine update modal */}
                     <button type="button" onClick={() => setSelectedDoseForUpdate(null)} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto flex-1">
                     <div className="text-center">
                         <h4 className="text-lg font-bold text-slate-800">{selectedDoseForUpdate.patient.name}</h4>
                         <p className="text-sm text-slate-600">खोप: <span className="font-bold text-purple-700">{selectedDoseForUpdate.doseType.toUpperCase().replace('TD', 'TD ')}</span></p>
@@ -459,7 +491,6 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                         value={modalGivenDateBs} 
                         onChange={setModalGivenDateBs} 
                         required
-                        disabled={!!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`]} // Disable if already given
                     />
                     
                     <div className="flex items-center gap-2 pt-1">
@@ -479,20 +510,41 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                     </div>
                     
                     {!!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`] && (
-                        <div className="bg-green-50 border border-green-100 p-3 rounded-lg text-center font-nepali text-green-700">
-                            <CheckCircle2 size={20} className="mx-auto mb-1" />
-                            <span className="font-bold">खोप लगाइसकियो (Locked)</span>
+                        <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="bg-green-50 border border-green-100 p-2.5 rounded-lg text-center font-nepali text-green-700 text-xs flex items-center justify-center gap-1.5">
+                                <CheckCircle2 size={16} />
+                                <span className="font-bold">खोपको विवरण सुरक्षित छ (Vaccinated)</span>
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={() => {
+                                    if (window.confirm("के तपाईं यो खोपको विवरण हटाउन चाहनुहुन्छ?")) {
+                                        const { patient, doseType } = selectedDoseForUpdate;
+                                        const updatedPatient = { 
+                                          ...patient, 
+                                          [`${doseType}DateBs`]: null, 
+                                          [`${doseType}DateAd`]: null,
+                                          [`${doseType}VaccinatedElsewhere`]: false
+                                        };
+                                        onUpdatePatient(updatedPatient);
+                                        setSuccessMessage(`${doseType.toUpperCase()} खोपको विवरण हटाइयो।`);
+                                        setSelectedDoseForUpdate(null);
+                                    }
+                                }} 
+                                className="w-full py-2 px-3 bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 rounded-lg font-bold font-nepali transition-all text-xs flex items-center justify-center gap-1.5"
+                            >
+                                <Trash2 size={14} />
+                                खोप विवरण हटाउनुहोस् (Clear Vaccine)
+                            </button>
                         </div>
                     )}
                 </div>
-                <div className="p-4 border-t border-slate-100 flex gap-3 bg-slate-50">
+                <div className="p-4 border-t border-slate-100 flex gap-3 bg-slate-50 shrink-0">
                     <button type="button" onClick={() => setSelectedDoseForUpdate(null)} className="flex-1 py-2 text-slate-600 font-medium font-nepali hover:bg-slate-200 rounded-lg transition-colors text-sm">बन्द (Close)</button>
-                    {!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`] && (
-                        <button type="button" onClick={handleUpdateDoseStatus} className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-medium shadow-sm font-nepali hover:bg-purple-700 transition-all active:scale-95 text-sm flex items-center justify-center gap-2">
-                            <Check size={16} />
-                            सुरक्षित गर्नुहोस्
-                        </button>
-                    )}
+                    <button type="button" onClick={handleUpdateDoseStatus} className="flex-1 py-2 bg-purple-600 text-white rounded-lg font-medium shadow-sm font-nepali hover:bg-purple-700 transition-all active:scale-95 text-sm flex items-center justify-center gap-2">
+                        <Check size={16} />
+                        सुरक्षित गर्नुहोस्
+                    </button>
                 </div>
             </div>
         </div>

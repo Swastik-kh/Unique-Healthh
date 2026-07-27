@@ -697,17 +697,17 @@ export const RabiesRegistration: React.FC<RabiesRegistrationProps> = ({
 
       {/* Dose Update Modal */}
       {selectedDoseInfo && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 sm:pt-24">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedDoseInfo(null)}></div>
-              <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+              <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50 shrink-0">
                       <div className="flex items-center gap-2">
                           <Syringe size={20} className="text-indigo-600"/>
                           <h3 className="font-bold text-slate-800 font-nepali text-sm">खोप स्थिति अपडेट (Update Dose Status)</h3>
                       </div>
                       <button type="button" onClick={() => setSelectedDoseInfo(null)} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>
                   </div>
-                  <div className="p-6 space-y-4">
+                  <div className="p-6 space-y-4 overflow-y-auto flex-1">
                       <div className="text-center">
                           <h4 className="text-lg font-bold text-slate-800">{selectedDoseInfo.patient.name}</h4>
                           <p className="text-sm text-slate-600">खोप: <span className="font-bold text-indigo-700">D{selectedDoseInfo.dose.day}</span></p>
@@ -738,7 +738,7 @@ export const RabiesRegistration: React.FC<RabiesRegistrationProps> = ({
                           </div>
                       )}
                   </div>
-                  <div className="p-4 border-t border-slate-100 flex gap-3 bg-slate-50">
+                  <div className="p-4 border-t border-slate-100 flex gap-3 bg-slate-50 shrink-0">
                       <button type="button" onClick={() => setSelectedDoseInfo(null)} className="flex-1 py-2 text-slate-600 font-medium font-nepali hover:bg-slate-200 rounded-lg transition-colors text-sm">बन्द (Close)</button>
                       {(selectedDoseInfo.dose.status !== 'Given' || isAdmin) && (
                           <button type="button" onClick={confirmDoseUpdate} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-medium shadow-sm font-nepali hover:bg-indigo-700 transition-all active:scale-95 text-sm flex items-center justify-center gap-2">

@@ -131,6 +131,7 @@ export interface GarbhawatiPatient {
   tdBoosterDateAd?: string | null;
   tdBoosterVaccinatedElsewhere?: boolean;
   remarks?: string | null;
+  vaccinationCenter?: string | null;
 }
 
 export interface ChildImmunizationVaccine {

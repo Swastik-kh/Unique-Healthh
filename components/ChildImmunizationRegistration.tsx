@@ -965,12 +965,12 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       {selectedVaccineForUpdate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedVaccineForUpdate(null)}></div>
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-6 py-4 border-b bg-blue-50 text-blue-800 flex justify-between items-center">
+            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b bg-blue-50 text-blue-800 flex justify-between items-center shrink-0">
                     <h3 className="font-bold font-nepali">खोप स्थिति अपडेट</h3>
                     <button onClick={() => setSelectedVaccineForUpdate(null)}><X size={20}/></button>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 overflow-y-auto flex-1">
                     <div className="text-center bg-slate-50 p-3 rounded-lg border">
                         <h4 className="font-bold text-slate-800 text-sm">{selectedVaccineForUpdate.record.childName}</h4>
                         <p className="text-xs font-bold text-blue-600 mt-1">{selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex].name}</p>
@@ -1014,7 +1014,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                         </div>
                     </div>
                 </div>
-                <div className="p-4 bg-slate-50 border-t flex gap-3">
+                <div className="p-4 bg-slate-50 border-t flex gap-3 shrink-0">
                     <button onClick={() => setSelectedVaccineForUpdate(null)} className="flex-1 py-2 text-slate-600 font-bold border rounded-lg">रद्द</button>
                     <button onClick={handleUpdateDoseStatus} className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg shadow-sm">सुरक्षित गर्नुहोस्</button>
                 </div>
