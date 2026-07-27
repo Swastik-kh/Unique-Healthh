@@ -17,6 +17,7 @@ interface ImmunizationReportProps {
 }
 
 const nepaliMonthOptions = [
+  { id: 'all', value: 'all', label: 'सबै महिना (All Months)' },
   { id: '01', value: '01', label: 'बैशाख (Baishakh)' },
   { id: '02', value: '02', label: 'जेठ (Jestha)' },
   { id: '03', value: '03', label: 'असार (Ashad)' },
@@ -67,7 +68,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   generalSettings 
 }) => {
   const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail'>('summary');
-  const [selectedMonth, setSelectedMonth] = useState('01');
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [filterCenter, setFilterCenter] = useState(''); // New state for filter by vaccination center
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +90,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             const m = v.givenDateBs.split('-')[1];
             const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
             
-            if (m === selectedMonth && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
+            if ((selectedMonth === 'all' || m === selectedMonth) && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
               hasVaccineThisMonth = true;
               vaccinesGiven.push(v.name);
             }
@@ -344,7 +345,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
             
             // Dual fiscal year match to ensure we do not miss any records registered in this fiscal year but vaccinated at different boundaries
-            if (m === selectedMonth && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
+            if ((selectedMonth === 'all' || m === selectedMonth) && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
               receivedDoseThisMonth = true;
               const nameLower = (v.name || '').toLowerCase();
               
@@ -446,7 +447,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         }
 
         // Check dual matching for the selected month and fiscal year for FIC tables
-        if (isFullyImmunized && lastVaccineMonth === selectedMonth && (getFiscalYearFromBsDate(lastVaccineGivenDateBs) === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
+        if (isFullyImmunized && (selectedMonth === 'all' || lastVaccineMonth === selectedMonth) && (getFiscalYearFromBsDate(lastVaccineGivenDateBs) === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
             const code = record.jatCode || '06'; 
             const gender = record.gender === 'Female' ? 'female' : 'male';
             
@@ -480,19 +481,19 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       .forEach(p => {
         if (p.td1DateBs) {
           const m = p.td1DateBs.split('-')[1];
-          if (m === selectedMonth && (getFiscalYearFromBsDate(p.td1DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td1VaccinatedElsewhere) {
+          if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.td1DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td1VaccinatedElsewhere) {
             stats.maternal.td1++;
           }
         }
         if (p.td2DateBs) {
           const m = p.td2DateBs.split('-')[1];
-          if (m === selectedMonth && (getFiscalYearFromBsDate(p.td2DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td2VaccinatedElsewhere) {
+          if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.td2DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td2VaccinatedElsewhere) {
             stats.maternal.td2++;
           }
         }
         if (p.tdBoosterDateBs) {
           const m = p.tdBoosterDateBs.split('-')[1];
-          if (m === selectedMonth && (getFiscalYearFromBsDate(p.tdBoosterDateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.tdBoosterVaccinatedElsewhere) {
+          if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.tdBoosterDateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.tdBoosterVaccinatedElsewhere) {
             stats.maternal.tdBooster++;
           }
         }
