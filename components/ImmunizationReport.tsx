@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned } from 'lucide-react';
+import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient } from '../types/healthTypes';
@@ -66,14 +66,134 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   maternalRecords, 
   generalSettings 
 }) => {
+  const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail'>('summary');
   const [selectedMonth, setSelectedMonth] = useState('01');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [filterCenter, setFilterCenter] = useState(''); // New state for filter by vaccination center
+  const [searchQuery, setSearchQuery] = useState('');
 
   const centerOptions: Option[] = useMemo(() => 
     (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c })),
     [generalSettings.vaccinationCenters]
   );
+
+  const childrenDetailsThisMonth = useMemo(() => {
+    return bachhaRecords
+      .filter(r => filterCenter ? r.vaccinationCenter === filterCenter : true)
+      .map((record) => {
+        const vaccinesGiven: string[] = [];
+        let hasVaccineThisMonth = false;
+
+        record.vaccines.forEach(v => {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            const m = v.givenDateBs.split('-')[1];
+            const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
+            
+            if (m === selectedMonth && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
+              hasVaccineThisMonth = true;
+              vaccinesGiven.push(v.name);
+            }
+          }
+        });
+
+        if (hasVaccineThisMonth) {
+          // Check if they are fully immunized (all required vaccines from template are Given)
+          const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
+          const hasAllRequired = requiredVaccines.every(reqVax => {
+            return record.vaccines.some(v => {
+              if (v.status !== 'Given') return false;
+              const nameLower = (v.name || '').toLowerCase();
+              const reqLower = reqVax.name.toLowerCase();
+              const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (normalize(v.name) === normalize(reqVax.name)) return true;
+              
+              // Fallbacks
+              if (reqLower.includes('bcg') && nameLower.includes('bcg')) return true;
+              if (reqLower.includes('dpt-hepb-hib-1') && (
+                nameLower.includes('dpt-hepb-hib-1') || 
+                nameLower.includes('dpt 1') || 
+                nameLower.includes('penta-1') || 
+                nameLower.includes('penta 1') || 
+                nameLower.includes('pentavalent-1') || 
+                nameLower.includes('pentavalent 1')
+              )) return true;
+              if (reqLower.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
+              if (reqLower.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
+              if (reqLower.includes('rota-1') && (
+                nameLower.includes('rota-1') || 
+                nameLower.includes('rota 1') || 
+                nameLower.includes('rotavirus-1') || 
+                nameLower.includes('rotavirus 1')
+              )) return true;
+              if (reqLower.includes('dpt-hepb-hib-2') && (
+                nameLower.includes('dpt-hepb-hib-2') || 
+                nameLower.includes('dpt 2') || 
+                nameLower.includes('penta-2') || 
+                nameLower.includes('penta 2') || 
+                nameLower.includes('pentavalent-2') || 
+                nameLower.includes('pentavalent 2')
+              )) return true;
+              if (reqLower.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
+              if (reqLower.includes('rota-2') && (
+                nameLower.includes('rota-2') || 
+                nameLower.includes('rota 2') || 
+                nameLower.includes('rotavirus-2') || 
+                nameLower.includes('rotavirus 2')
+              )) return true;
+              if (reqLower.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
+              if (reqLower.includes('fipv-1') && (
+                nameLower.includes('fipv-1') || 
+                nameLower.includes('fipv 1') || 
+                (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
+              )) return true;
+              if (reqLower.includes('dpt-hepb-hib-3') && (
+                nameLower.includes('dpt-hepb-hib-3') || 
+                nameLower.includes('dpt 3') || 
+                nameLower.includes('penta-3') || 
+                nameLower.includes('penta 3') || 
+                nameLower.includes('pentavalent-3') || 
+                nameLower.includes('pentavalent 3')
+              )) return true;
+              if (reqLower.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
+              if (reqLower.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
+              if (reqLower.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
+              if (reqLower.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
+              if (reqLower.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
+              if (reqLower.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
+              if (reqLower.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
+              return false;
+            });
+          });
+
+          const hasCompletionVax = record.vaccines.some(v => v.status === 'Given' && !v.vaccinatedElsewhere && (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')));
+
+          const isFullyImmunized = hasAllRequired || hasCompletionVax;
+          const statusText = isFullyImmunized ? 'पूर्ण खोप' : 'आंशिक खोप';
+
+          return {
+            ...record,
+            vaccinesGiven,
+            statusText,
+            isFullyImmunized,
+          };
+        }
+        return null;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [bachhaRecords, selectedMonth, selectedFiscalYear, filterCenter]);
+
+  const filteredChildren = useMemo(() => {
+    if (!searchQuery.trim()) return childrenDetailsThisMonth;
+    const query = searchQuery.toLowerCase().trim();
+    return childrenDetailsThisMonth.filter(c => 
+      c.childName.toLowerCase().includes(query) ||
+      (c.motherName && c.motherName.toLowerCase().includes(query)) ||
+      (c.fatherName && c.fatherName.toLowerCase().includes(query)) ||
+      (c.address && c.address.toLowerCase().includes(query)) ||
+      (c.phone && c.phone.includes(query)) ||
+      c.regNo.toLowerCase().includes(query)
+    );
+  }, [childrenDetailsThisMonth, searchQuery]);
 
   const reportStats = useMemo(() => {
     // Initialize child vaccine counts dynamically for all vaccines in the template
@@ -384,8 +504,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
   const currentMonthLabel = nepaliMonthOptions.find(m => m.value === selectedMonth)?.label || '';
 
-  const handlePrint = () => {
-    const printContent = document.getElementById('immunization-report-print-content');
+  const handlePrint = (printId: string) => {
+    const printContent = document.getElementById(printId);
     if (!printContent) return;
 
     // Create a hidden iframe for printing
@@ -419,8 +539,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             padding: 20px;
           }
           /* Ensure table styles are explicitly applied for print */
-          table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; }
-          th, td { border: 1px solid #000; padding: 4px 8px; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+          th, td { border: 1px solid #000; padding: 4px 6px; }
           thead th { background-color: #f0f0f0; font-weight: bold; }
           .no-print { display: none; }
           /* Utility replacements if tailwind fails to load fast enough */
@@ -431,6 +551,17 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           .pb-4 { padding-bottom: 16px; }
           .border-b-2 { border-bottom-width: 2px; }
           .border-slate-900 { border-color: #0f172a; }
+          .page-break { page-break-before: always; }
+          .flex { display: flex; }
+          .flex-wrap { flex-wrap: wrap; }
+          .gap-1 { gap: 4px; }
+          .bg-indigo-50 { background-color: #f5f3ff; }
+          .text-indigo-700 { color: #4338ca; }
+          .border-indigo-100 { border-color: #e0e7ff; }
+          .rounded { border-radius: 4px; }
+          .px-1\\.5 { padding-left: 6px; padding-right: 6px; }
+          .py-0\\.5 { padding-top: 2px; padding-bottom: 2px; }
+          .text-\\[10px\\] { font-size: 10px; }
         </style>
       </head>
       <body>
@@ -459,8 +590,34 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       
+      {/* Tab Selector */}
+      <div className="flex border-b border-slate-200 no-print bg-slate-50 rounded-lg p-1">
+        <button
+          onClick={() => setActiveReportTab('summary')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+            activeReportTab === 'summary'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <BarChart size={16} />
+          संख्यात्मक विवरण प्रतिवेदन (Summary Report)
+        </button>
+        <button
+          onClick={() => setActiveReportTab('detail')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+            activeReportTab === 'detail'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Users size={16} />
+          बालबालिका विस्तृत विवरण (Detailed Children Log)
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4 items-end w-full md:w-auto">
           <div className="w-40"><Select label="आर्थिक वर्ष" options={FISCAL_YEARS} value={selectedFiscalYear} onChange={(e) => setSelectedFiscalYear(e.target.value)} icon={<Calendar size={18} />} /></div>
           <div className="w-48"><Select label="महिना" options={nepaliMonthOptions} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} icon={<Filter size={18} />} /></div>
           <div className="w-48">
@@ -472,164 +629,277 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                 icon={<MapPinned size={18} />} 
             />
           </div>
+          {activeReportTab === 'detail' && (
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">बालबालिका खोज्नुहोस् (Search Child)</label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="दर्ता नं, नाम, ठेगाना, बुवा/आमा, फोन..."
+                  className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-slate-200 bg-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-nepali"
+                />
+              </div>
+            </div>
+          )}
         </div>
-        <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg font-medium shadow-sm"><Printer size={18} /> प्रिन्ट</button>
+        <button 
+          onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : 'print-detailed-content')} 
+          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap w-full md:w-auto mt-2 md:mt-0"
+        >
+          <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : 'प्रिन्ट (विस्तृत विवरण)'}
+        </button>
       </div>
 
-      <div id="immunization-report-print-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full">
-        {/* Header */}
-        <div className="text-center mb-6 border-b-2 border-slate-900 pb-4">
-            <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
-            <h3 className="text-lg font-black mt-2 underline font-nepali">खोप कार्यक्रमको मासिक प्रतिवेदन</h3>
-            <div className="flex justify-between mt-4 text-xs font-bold text-slate-600">
-                <span>आ.व.: {selectedFiscalYear}</span>
-                <span>महिना: {currentMonthLabel}</span>
-                <span>केन्द्र: {filterCenter || 'सबै'}</span>
-            </div>
-        </div>
+      {activeReportTab === 'summary' ? (
+        /* ======================== SUMMARY REPORT VIEW ======================== */
+        <div id="print-summary-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full">
+          {/* Header */}
+          <div className="text-center mb-6 border-b-2 border-slate-900 pb-4">
+              <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
+              <h3 className="text-lg font-black mt-2 underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (संख्यात्मक विवरण)</h3>
+              <div className="flex justify-between mt-4 text-xs font-bold text-slate-600">
+                  <span>आ.व.: {selectedFiscalYear}</span>
+                  <span>महिना: {currentMonthLabel}</span>
+                  <span>केन्द्र: {filterCenter || 'सबै'}</span>
+              </div>
+          </div>
 
-        {/* Section 1: Child Vaccines Table */}
-        <div className="mb-8">
-            <h4 className="text-base font-bold text-indigo-800 mb-2 font-nepali border-b border-indigo-100 pb-1">१. खोप मात्रा अनुसारको तथ्याङ्क (Child Immunization)</h4>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full text-sm text-left border-collapse">
-                    <thead className="bg-slate-50 text-slate-700 font-bold">
-                        <tr>
-                            <th className="border-b border-r border-slate-200 p-3">खोपको नाम (Vaccine)</th>
-                            <th className="border-b border-slate-200 p-3 text-center w-32">संख्या (Count)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.map((vax, i) => {
-                            const nameKey = vax.name.replace(/[^a-zA-Z0-9]/g, '');
-                            const count = reportStats.child[nameKey] !== undefined ? reportStats.child[nameKey] : 0;
-                            return (
-                                <tr key={i} className="hover:bg-slate-50">
-                                    <td className="border-r border-slate-200 p-2 pl-3">{vax.name}</td>
-                                    <td className="p-2 text-center font-mono font-bold text-slate-700">{count}</td>
-                                </tr>
-                            );
-                        })}
-                        <tr className="bg-indigo-50 font-bold text-indigo-900">
-                            <td className="border-r border-indigo-200 p-2 pl-3 text-right">कुल बालबालिका (जसले यो महिना कुनै खोप लगाए):</td>
-                            <td className="p-2 text-center">{reportStats.uniqueChildrenVax.total}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+          {/* Section 1: Child Vaccines Table */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-indigo-800 mb-2 font-nepali border-b border-indigo-100 pb-1">१. खोप मात्रा अनुसारको तथ्याङ्क (Child Immunization)</h4>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm text-left border-collapse">
+                      <thead className="bg-slate-50 text-slate-700 font-bold">
+                          <tr>
+                              <th className="border-b border-r border-slate-200 p-3">खोपको नाम (Vaccine)</th>
+                              <th className="border-b border-slate-200 p-3 text-center w-32">संख्या (Count)</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                          {NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.map((vax, i) => {
+                              const nameKey = vax.name.replace(/[^a-zA-Z0-9]/g, '');
+                              const count = reportStats.child[nameKey] !== undefined ? reportStats.child[nameKey] : 0;
+                              return (
+                                  <tr key={i} className="hover:bg-slate-50">
+                                      <td className="border-r border-slate-200 p-2 pl-3">{vax.name}</td>
+                                      <td className="p-2 text-center font-mono font-bold text-slate-700">{count}</td>
+                                  </tr>
+                              );
+                          })}
+                          <tr className="bg-indigo-50 font-bold text-indigo-900">
+                              <td className="border-r border-indigo-200 p-2 pl-3 text-right">कुल बालबालिका (जसले यो महिना कुनै खोप लगाए):</td>
+                              <td className="p-2 text-center">{reportStats.uniqueChildrenVax.total}</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
 
-        {/* Section 2: Maternal Table */}
-        <div className="mb-8">
-            <h4 className="text-base font-bold text-purple-800 mb-2 font-nepali border-b border-purple-100 pb-1">२. गर्भवती महिला TD खोपको तथ्याङ्क (Maternal TD)</h4>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full text-sm text-left border-collapse">
-                    <thead className="bg-slate-50 text-slate-700 font-bold">
-                        <tr>
-                            <th className="border-b border-r border-slate-200 p-3">खोपको नाम (Vaccine)</th>
-                            <th className="border-b border-slate-200 p-3 text-center w-32">संख्या (Count)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        <tr className="hover:bg-slate-50">
-                            <td className="border-r border-slate-200 p-2 pl-3">TD1</td>
-                            <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.td1}</td>
-                        </tr>
-                        <tr className="hover:bg-slate-50">
-                            <td className="border-r border-slate-200 p-2 pl-3">TD2</td>
-                            <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.td2}</td>
-                        </tr>
-                        <tr className="hover:bg-slate-50">
-                            <td className="border-r border-slate-200 p-2 pl-3">TD Booster</td>
-                            <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.tdBooster}</td>
-                        </tr>
-                        <tr className="bg-purple-50 font-bold text-purple-900">
-                            <td className="border-r border-purple-200 p-2 pl-3 text-right">कुल खोप लगाउने गर्भवती महिलाहरू:</td>
-                            <td className="p-2 text-center">{reportStats.maternal.total}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+          {/* Section 2: Maternal Table */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-purple-800 mb-2 font-nepali border-b border-purple-100 pb-1">२. गर्भवती महिला TD खोपको तथ्याङ्क (Maternal TD)</h4>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm text-left border-collapse">
+                      <thead className="bg-slate-50 text-slate-700 font-bold">
+                          <tr>
+                              <th className="border-b border-r border-slate-200 p-3">खोपको नाम (Vaccine)</th>
+                              <th className="border-b border-slate-200 p-3 text-center w-32">संख्या (Count)</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                          <tr className="hover:bg-slate-50">
+                              <td className="border-r border-slate-200 p-2 pl-3">TD1</td>
+                              <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.td1}</td>
+                          </tr>
+                          <tr className="hover:bg-slate-50">
+                              <td className="border-r border-slate-200 p-2 pl-3">TD2</td>
+                              <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.td2}</td>
+                          </tr>
+                          <tr className="hover:bg-slate-50">
+                              <td className="border-r border-slate-200 p-2 pl-3">TD Booster</td>
+                              <td className="p-2 text-center font-mono font-bold text-slate-700">{reportStats.maternal.tdBooster}</td>
+                          </tr>
+                          <tr className="bg-purple-50 font-bold text-purple-900">
+                              <td className="border-r border-purple-200 p-2 pl-3 text-right">कुल खोप लगाउने गर्भवती महिलाहरू:</td>
+                              <td className="p-2 text-center">{reportStats.maternal.total}</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
 
-        {/* Section 3: Ethnicity Table (Under 24 Months) */}
-        <div className="mb-8">
-            <h4 className="text-base font-bold text-teal-800 mb-2 font-nepali border-b border-teal-100 pb-1">३. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना सम्म) (Fully Immunized Children ≤ 23 Months)</h4>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full text-sm text-left border-collapse">
-                    <thead className="bg-slate-50 text-slate-700 font-bold">
-                        <tr>
-                            <th className="border-b border-r border-slate-200 p-3">जातीय कोड (Ethnicity)</th>
-                            <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालक (Male)</th>
-                            <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालिका (Female)</th>
-                            <th className="border-b border-slate-200 p-3 text-center w-24">जम्मा (Total)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {Object.entries(jatLabels).map(([code, label]) => {
-                            const d = reportStats.ethnicFIC_Under24[code] || { male: 0, female: 0, total: 0 };
-                            return (
-                                <tr key={code} className="hover:bg-slate-50">
-                                    <td className="border-r border-slate-200 p-2 pl-3"><span className="font-mono font-bold text-slate-500 mr-2">{code}</span> {label}</td>
-                                    <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.male}</td>
-                                    <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.female}</td>
-                                    <td className="p-2 text-center font-bold text-teal-700">{d.total}</td>
-                                </tr>
-                            );
-                        })}
-                        <tr className="bg-teal-50 font-bold text-teal-900">
-                            <td className="border-r border-teal-200 p-2 pl-3 text-right">कुल पूर्ण खोप (FIC ≤ 23 Months):</td>
-                            <td className="border-r border-teal-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.male, 0)}</td>
-                            <td className="border-r border-teal-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.female, 0)}</td>
-                            <td className="p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.total, 0)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+          {/* Section 3: Ethnicity Table (Under 24 Months) */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-teal-800 mb-2 font-nepali border-b border-teal-100 pb-1">३. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना सम्म) (Fully Immunized Children ≤ 23 Months)</h4>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm text-left border-collapse">
+                      <thead className="bg-slate-50 text-slate-700 font-bold">
+                          <tr>
+                              <th className="border-b border-r border-slate-200 p-3">जातीय कोड (Ethnicity)</th>
+                              <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालक (Male)</th>
+                              <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालिका (Female)</th>
+                              <th className="border-b border-slate-200 p-3 text-center w-24">जम्मा (Total)</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                          {Object.entries(jatLabels).map(([code, label]) => {
+                              const d = reportStats.ethnicFIC_Under24[code] || { male: 0, female: 0, total: 0 };
+                              return (
+                                  <tr key={code} className="hover:bg-slate-50">
+                                      <td className="border-r border-slate-200 p-2 pl-3"><span className="font-mono font-bold text-slate-500 mr-2">{code}</span> {label}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.male}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.female}</td>
+                                      <td className="p-2 text-center font-bold text-teal-700">{d.total}</td>
+                                  </tr>
+                              );
+                          })}
+                          <tr className="bg-teal-50 font-bold text-teal-900">
+                              <td className="border-r border-teal-200 p-2 pl-3 text-right">कुल पूर्ण खोप (FIC ≤ 23 Months):</td>
+                              <td className="border-r border-teal-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.male, 0)}</td>
+                              <td className="border-r border-teal-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.female, 0)}</td>
+                              <td className="p-2 text-center">{Object.values(reportStats.ethnicFIC_Under24).reduce((a, b: any) => a + b.total, 0)}</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
 
-        {/* Section 4: Ethnicity Table (Over 24 Months) */}
-        <div className="mb-8">
-            <h4 className="text-base font-bold text-orange-800 mb-2 font-nepali border-b border-orange-100 pb-1">४. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना माथि) (Fully Immunized Children {'>'} 23 Months)</h4>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-                <table className="w-full text-sm text-left border-collapse">
-                    <thead className="bg-slate-50 text-slate-700 font-bold">
-                        <tr>
-                            <th className="border-b border-r border-slate-200 p-3">जातीय कोड (Ethnicity)</th>
-                            <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालक (Male)</th>
-                            <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालिका (Female)</th>
-                            <th className="border-b border-slate-200 p-3 text-center w-24">जम्मा (Total)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {Object.entries(jatLabels).map(([code, label]) => {
-                            const d = reportStats.ethnicFIC_Over24[code] || { male: 0, female: 0, total: 0 };
-                            return (
-                                <tr key={code} className="hover:bg-slate-50">
-                                    <td className="border-r border-slate-200 p-2 pl-3"><span className="font-mono font-bold text-slate-500 mr-2">{code}</span> {label}</td>
-                                    <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.male}</td>
-                                    <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.female}</td>
-                                    <td className="p-2 text-center font-bold text-orange-700">{d.total}</td>
-                                </tr>
-                            );
-                        })}
-                        <tr className="bg-orange-50 font-bold text-orange-900">
-                            <td className="border-r border-orange-200 p-2 pl-3 text-right">कुल पूर्ण खोप (FIC {'>'} 23 Months):</td>
-                            <td className="border-r border-orange-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.male, 0)}</td>
-                            <td className="border-r border-orange-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.female, 0)}</td>
-                            <td className="p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.total, 0)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+          {/* Section 4: Ethnicity Table (Over 24 Months) */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-orange-800 mb-2 font-nepali border-b border-orange-100 pb-1">४. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना माथि) (Fully Immunized Children {'>'} 23 Months)</h4>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm text-left border-collapse">
+                      <thead className="bg-slate-50 text-slate-700 font-bold">
+                          <tr>
+                              <th className="border-b border-r border-slate-200 p-3">जातीय कोड (Ethnicity)</th>
+                              <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालक (Male)</th>
+                              <th className="border-b border-r border-slate-200 p-3 text-center w-24">बालिका (Female)</th>
+                              <th className="border-b border-slate-200 p-3 text-center w-24">जम्मा (Total)</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                          {Object.entries(jatLabels).map(([code, label]) => {
+                              const d = reportStats.ethnicFIC_Over24[code] || { male: 0, female: 0, total: 0 };
+                              return (
+                                  <tr key={code} className="hover:bg-slate-50">
+                                      <td className="border-r border-slate-200 p-2 pl-3"><span className="font-mono font-bold text-slate-500 mr-2">{code}</span> {label}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.male}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center text-slate-700">{d.female}</td>
+                                      <td className="p-2 text-center font-bold text-orange-700">{d.total}</td>
+                                  </tr>
+                              );
+                          })}
+                          <tr className="bg-orange-50 font-bold text-orange-900">
+                              <td className="border-r border-orange-200 p-2 pl-3 text-right">कुल पूर्ण खोप (FIC {'>'} 23 Months):</td>
+                              <td className="border-r border-orange-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.male, 0)}</td>
+                              <td className="border-r border-orange-200 p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.female, 0)}</td>
+                              <td className="p-2 text-center">{Object.values(reportStats.ethnicFIC_Over24).reduce((a, b: any) => a + b.total, 0)}</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
 
-        {/* Footer */}
-        <div className="grid grid-cols-2 gap-10 mt-12 text-center text-xs font-bold font-nepali">
-            <div className="border-t border-slate-900 pt-2">तयार गर्ने</div>
-            <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
+          {/* Footer */}
+          <div className="grid grid-cols-2 gap-10 mt-12 text-center text-xs font-bold font-nepali">
+              <div className="border-t border-slate-900 pt-2">तयार गर्ने</div>
+              <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ======================== DETAILED LOG VIEW ======================== */
+        <div id="print-detailed-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[297mm] mx-auto print-full">
+          {/* Header */}
+          <div className="text-center mb-6 border-b-2 border-slate-900 pb-4">
+              <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
+              <h3 className="text-lg font-black mt-2 underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (बालबालिका विस्तृत विवरण)</h3>
+              <div className="flex justify-between mt-4 text-xs font-bold text-slate-600">
+                  <span>आ.व.: {selectedFiscalYear}</span>
+                  <span>महिना: {currentMonthLabel}</span>
+                  <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                  <span>जम्मा संख्या: {filteredChildren.length}</span>
+              </div>
+          </div>
+
+          {/* Section 5: Children's Detailed Immunization Log */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-indigo-900 mb-2 font-nepali border-b border-indigo-200 pb-1 flex justify-between items-center">
+                  <span>यो महिना खोप प्राप्त गर्ने बालबालिकाको विस्तृत विवरण (Children's Detailed Immunization Log)</span>
+              </h4>
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full text-xs text-left border-collapse min-w-[900px]">
+                      <thead className="bg-slate-50 text-slate-700 font-bold">
+                          <tr className="bg-slate-100">
+                              <th className="border-b border-r border-slate-200 p-2 text-center w-8">क्र.सं.</th>
+                              <th className="border-b border-r border-slate-200 p-2 w-16 text-center">दर्ता नं.</th>
+                              <th className="border-b border-r border-slate-200 p-2">बच्चाको नाम (Child's Name)</th>
+                              <th className="border-b border-r border-slate-200 p-2 w-12 text-center">लिङ्ग</th>
+                              <th className="border-b border-r border-slate-200 p-2 w-20 text-center">जन्म मिति</th>
+                              <th className="border-b border-r border-slate-200 p-2">बुवा / आमाको नाम (Parents)</th>
+                              <th className="border-b border-r border-slate-200 p-2">ठेगाना र फोन (Address & Contact)</th>
+                              <th className="border-b border-r border-slate-200 p-2">यो महिना लगाइएको खोप (Vaccines Given)</th>
+                              <th className="border-b border-r border-slate-200 p-2 text-center">खोप केन्द्र</th>
+                              <th className="border-b border-slate-200 p-2 w-20 text-center">स्थिति (Status)</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                          {filteredChildren.length === 0 ? (
+                              <tr>
+                                  <td colSpan={10} className="p-4 text-center text-slate-500 font-nepali font-medium bg-slate-50">यस अवधिमा कुनै खोपको विवरण फेला परेन।</td>
+                              </tr>
+                          ) : (
+                              filteredChildren.map((child, idx) => (
+                                  <tr key={child.id} className="hover:bg-slate-50 transition-colors">
+                                      <td className="border-r border-slate-200 p-2 text-center font-mono">{idx + 1}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center font-mono font-bold text-indigo-700">{child.regNo}</td>
+                                      <td className="border-r border-slate-200 p-2 font-bold text-slate-800">{child.childName}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center font-nepali">{child.gender === 'Male' ? 'पुरुष' : child.gender === 'Female' ? 'महिला' : 'अन्य'}</td>
+                                      <td className="border-r border-slate-200 p-2 text-center font-mono text-xs">{child.dobBs}</td>
+                                      <td className="border-r border-slate-200 p-2 text-[11px] leading-relaxed">
+                                          <div><span className="text-slate-500 font-nepali">बुवा:</span> <span className="font-medium text-slate-700">{child.fatherName || '-'}</span></div>
+                                          <div><span className="text-slate-500 font-nepali">आमा:</span> <span className="font-medium text-slate-700">{child.motherName || '-'}</span></div>
+                                      </td>
+                                      <td className="border-r border-slate-200 p-2 text-[11px] leading-relaxed">
+                                          <div className="text-slate-700">{child.address}</div>
+                                          <div className="font-mono text-slate-500 font-semibold">{child.phone || '-'}</div>
+                                      </td>
+                                      <td className="border-r border-slate-200 p-2 text-[11px]">
+                                          <div className="flex flex-wrap gap-1">
+                                              {child.vaccinesGiven.map((v, vIdx) => (
+                                                  <span key={vIdx} className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold border border-indigo-100 text-[10px] whitespace-nowrap">
+                                                      {v}
+                                                  </span>
+                                              ))}
+                                          </div>
+                                      </td>
+                                      <td className="border-r border-slate-200 p-2 text-center text-xs font-medium text-slate-600">{child.vaccinationCenter || '-'}</td>
+                                      <td className="p-2 text-center text-[10px] font-bold">
+                                          <span className={`inline-block px-2 py-0.5 rounded-full ${
+                                              child.isFullyImmunized 
+                                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                                                  : 'bg-amber-50 text-amber-700 border border-amber-100'
+                                          }`}>
+                                              {child.statusText}
+                                          </span>
+                                      </td>
+                                  </tr>
+                              ))
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+
+          {/* Footer */}
+          <div className="grid grid-cols-2 gap-10 mt-12 text-center text-xs font-bold font-nepali">
+              <div className="border-t border-slate-900 pt-2">तयार गर्ने</div>
+              <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -225,6 +225,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   onDeleteRecord,
   onUpdateGeneralSettings
 }) => {
+  const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -493,6 +494,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     handleReset();
     // NEW: Clear filters after successful save to ensure new/updated record is visible
     setSearchTerm('');
+    
+    // Focus child's name field after save/update
+    setTimeout(() => {
+      childNameRef.current?.focus();
+    }, 150);
   };
 
   const handleEditRecord = (record: ChildImmunizationRecord) => {
@@ -508,6 +514,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines || [], "", "", "", loadedRecord.dobAd, loadedRecord.gender);
     setFormData({ ...loadedRecord, vaccines: reEvaluatedVaccines });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Focus child's name field when Edit is clicked
+    setTimeout(() => {
+      childNameRef.current?.focus();
+    }, 150);
   };
 
   const handleReset = () => {
@@ -715,7 +726,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         <form onSubmit={handleSubmit} className="grid md:grid-cols-3 gap-6">
           <Input label="दर्ता नम्बर" value={formData.regNo} readOnly className="bg-slate-50 font-bold text-green-700" icon={<FileDigit size={16} />} />
           <NepaliDatePicker label="जन्म मिति *" value={formData.dobBs} onChange={handleDOBBsChange} required />
-          <Input label="बच्चाको नाम *" value={formData.childName} onChange={e => setFormData({...formData, childName: e.target.value})} required icon={<User size={16} />} />
+          <Input ref={childNameRef} label="बच्चाको नाम *" value={formData.childName} onChange={e => setFormData({...formData, childName: e.target.value})} required icon={<User size={16} />} />
           
           <Select label="खोप केन्द्र *" options={centerOptions} value={formData.vaccinationCenter || ''} onChange={e => setFormData({...formData, vaccinationCenter: e.target.value})} placeholder="-- केन्द्र छान्नुहोस् --" icon={<MapPinned size={16} />} />
           <Select label="लिङ्ग *" options={genderOptions} value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})} />
@@ -875,9 +886,14 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b bg-slate-50/50 flex justify-between items-center">
-          <h3 className="font-bold text-slate-700 font-nepali">खोप तालिका विवरण</h3>
-          <div className="relative w-64">
+        <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-slate-700 font-nepali">खोप तालिका विवरण</h3>
+            <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full font-nepali">
+              जम्मा: {filteredRecords.length} जना
+            </span>
+          </div>
+          <div className="relative w-full sm:w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम, दर्ता नं वा केन्द्र..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-sm" />
           </div>
