@@ -25,6 +25,13 @@ const gravidaOptions: Option[] = [
   { id: '4+', value: '4', label: 'Gravida 4+' },
 ];
 
+const previousTdOptions: Option[] = [
+  { id: '0', value: '0', label: '० (छैन)' },
+  { id: '1', value: '1', label: '१ पटक' },
+  { id: '2', value: '2', label: '२ पटक' },
+  { id: '3+', value: '3+', label: '३ वा सो भन्दा बढी' },
+];
+
 export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> = ({
   currentFiscalYear,
   patients,
@@ -38,15 +45,6 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedDoseForUpdate, setSelectedDoseForUpdate] = useState<{ patient: GarbhawatiPatient; doseType: 'td1' | 'td2' | 'tdBooster'; } | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
-
-  const getTodayAd = () => new Date().toISOString().split('T')[0];
-  const getTodayBs = () => {
-    try {
-      return new NepaliDate().format('YYYY-MM-DD');
-    } catch (e) {
-      return '';
-    }
-  };
 
   const generateRegNo = (fy: string, patientsList: GarbhawatiPatient[]) => {
     try {
@@ -75,10 +73,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     address: '',
     phone: '',
     gravida: 1,
-    lmpBs: getTodayBs(),
-    lmpAd: getTodayAd(),
-    eddBs: '',
-    eddAd: '',
+    previousTdCount: '0',
     td1DateBs: null, // Initialize as null
     td1DateAd: null, // Initialize as null
     td2DateBs: null, // Initialize as null
@@ -94,10 +89,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
             ...prev,
             fiscalYear: currentFiscalYear,
             regNo: generateRegNo(currentFiscalYear, patients),
-            lmpBs: getTodayBs(),
-            lmpAd: getTodayAd(),
-            eddBs: '', // Reset EDD for new entry
-            eddAd: '',
+            previousTdCount: '0',
             td1DateBs: null, // Reset to null
             td1DateAd: null, // Reset to null
             td2DateBs: null, // Reset to null
@@ -108,51 +100,9 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     }
   }, [currentFiscalYear, patients, editingPatientId]);
 
-  // Effect to calculate EDD based on LMP
-  useEffect(() => {
-    if (formData.lmpBs) {
-      try {
-        const lmpAdDate = new NepaliDate(formData.lmpBs).toJsDate();
-        if (isNaN(lmpAdDate.getTime())) {
-          throw new Error("Invalid LMP date");
-        }
-        // Add 280 days (40 weeks) for EDD
-        const eddAdDate = new Date(lmpAdDate.getTime() + (280 * 24 * 60 * 60 * 1000));
-        if (isNaN(eddAdDate.getTime())) {
-          throw new Error("Invalid EDD calculation");
-        }
-        setFormData(prev => ({
-          ...prev,
-          eddAd: eddAdDate.toISOString().split('T')[0],
-          eddBs: new NepaliDate(eddAdDate).format('YYYY-MM-DD'),
-        }));
-      } catch (e) {
-        console.error("Error calculating EDD:", e);
-        setFormData(prev => ({ ...prev, eddAd: '', eddBs: '' }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, eddAd: '', eddBs: '' }));
-    }
-  }, [formData.lmpBs]);
-
-
-  const handleLMPBsChange = (dateBs: string) => {
-    let dateAd = '';
-    if (dateBs) {
-      try {
-        const nd = new NepaliDate(dateBs);
-        dateAd = nd.toJsDate().toISOString().split('T')[0];
-      } catch (e) {
-        console.error("Invalid BS date for LMP conversion:", e);
-      }
-    }
-    setFormData(prev => ({ ...prev, lmpBs: dateBs, lmpAd: dateAd }));
-  };
-
   const validateForm = () => {
     setValidationError(null);
     if (!formData.name.trim()) return "बिरामीको नाम आवश्यक छ।";
-    if (!formData.lmpBs.trim()) return "LMP मिति आवश्यक छ।";
     if (!formData.address.trim()) return "ठेगाना आवश्यक छ।";
     if (!formData.phone.trim()) return "फोन नम्बर आवश्यक छ।";
     return null;
@@ -202,6 +152,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     // to match the form's state initialization.
     setFormData({ 
         ...patient,
+        previousTdCount: patient.previousTdCount || '0',
         td1DateBs: patient.td1DateBs || null,
         td1DateAd: patient.td1DateAd || null,
         td2DateBs: patient.td2DateBs || null,
@@ -231,10 +182,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
       address: '',
       phone: '',
       gravida: 1,
-      lmpBs: getTodayBs(),
-      lmpAd: getTodayAd(),
-      eddBs: '',
-      eddAd: '',
+      previousTdCount: '0',
       td1DateBs: null, // Reset to null
       td1DateAd: null, // Reset to null
       td2DateBs: null, // Reset to null
@@ -285,39 +233,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
       .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   }, [patients, currentFiscalYear, searchTerm]);
 
-  // Helper to get estimated TD dates (based on LMP, 4 weeks after TD1, 6 months after TD2)
-  const getEstimatedTDDate = (patient: GarbhawatiPatient, doseType: 'td1' | 'td2' | 'tdBooster') => {
-    if (!patient.lmpAd) return { bs: 'N/A', ad: 'N/A' };
 
-    try {
-        const lmpAdDate = new Date(patient.lmpAd);
-        let estimatedAdDate: Date | null = null;
-
-        if (doseType === 'td1') {
-            // TD1 is usually given early in pregnancy, we can just use a slightly offset LMP or let it be manual
-            // For now, no auto-calc based on weeks, user will mark given
-            return { bs: 'N/A', ad: 'N/A' }; 
-        } else if (doseType === 'td2') {
-            if (!patient.td1DateAd) return { bs: 'N/A', ad: 'N/A' };
-            estimatedAdDate = new Date(patient.td1DateAd);
-            estimatedAdDate.setDate(estimatedAdDate.getDate() + (4 * 7)); // 4 weeks after TD1
-        } else if (doseType === 'tdBooster') {
-            if (!patient.td2DateAd) return { bs: 'N/A', ad: 'N/A' };
-            estimatedAdDate = new Date(patient.td2DateAd);
-            estimatedAdDate.setMonth(estimatedAdDate.getMonth() + 6); // 6 months after TD2
-        }
-
-        if (estimatedAdDate) {
-            return {
-                ad: estimatedAdDate.toISOString().split('T')[0],
-                bs: new NepaliDate(estimatedAdDate).format('YYYY-MM-DD'),
-            };
-        }
-    } catch (e) {
-        console.error("Error calculating estimated TD dates:", e);
-    }
-    return { bs: 'N/A', ad: 'N/A' };
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
@@ -365,22 +281,18 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
             <span className="font-semibold font-nepali">बिरामीको विवरण (Patient Details)</span>
         </div>
         <form onSubmit={handleSubmit} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-3 grid md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <div className="lg:col-span-3 grid md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
             <Input label="आर्थिक वर्ष" value={formData.fiscalYear} readOnly className="bg-slate-100 text-slate-600 font-medium cursor-not-allowed" icon={<Calendar size={16} />} />
             <Input label="दर्ता नम्बर (Reg No)" value={formData.regNo} readOnly className="font-mono font-bold text-purple-600" icon={<FileDigit size={16} />} />
-            <NepaliDatePicker label="LMP मिति (BS) *" value={formData.lmpBs} onChange={handleLMPBsChange} required />
           </div>
 
           <Input label="बिरामीको नाम (Patient Name) *" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required icon={<User size={16} />} />
           <Input label="उमेर (Age) *" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required type="number" icon={<Clock size={16} />} />
           
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="LMP (AD)" value={formData.lmpAd} readOnly className="bg-slate-100 text-slate-500 text-xs cursor-not-allowed" icon={<Calendar size={16} />} />
-            <Input label="EDD (BS)" value={formData.eddBs} readOnly className="bg-slate-100 text-slate-500 text-xs cursor-not-allowed" icon={<Calendar size={16} />} />
-          </div>
-
           <Select label="Gravida (गर्भावस्था संख्या)" options={gravidaOptions} value={formData.gravida.toString()} onChange={e => setFormData({...formData, gravida: parseInt(e.target.value)})} />
           
+          <Select label="यस अघि TD खोप लिएको पटक" options={previousTdOptions} value={formData.previousTdCount || '0'} onChange={e => setFormData({...formData, previousTdCount: e.target.value})} />
+
           <Input label="ठेगाना (Address) *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
           <Input label="फोन नं (Phone) *" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required icon={<Phone size={16} />} />
 
@@ -415,7 +327,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
               <tr>
                 <th className="px-6 py-3">Reg No</th>
                 <th className="px-6 py-3">Patient Details</th>
-                <th className="px-6 py-3">LMP / EDD (BS)</th>
+                <th className="px-6 py-3">यस अघि TD खोप (Previous TD)</th>
                 <th className="px-6 py-3">TD1 / TD2 / Booster</th>
                 <th className="px-6 py-3 text-right">Action</th>
               </tr>
@@ -436,8 +348,8 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                       <div className="text-xs text-slate-500">{patient.address}</div>
                     </td>
                     <td className="px-6 py-4 text-slate-600 font-nepali">
-                        LMP: {patient.lmpBs}
-                        <div className="text-xs text-slate-500">EDD: {patient.eddBs}</div>
+                        <span className="font-medium">पटक: {patient.previousTdCount || '०'}</span>
+                        <div className="text-xs text-slate-500">Gravida: {patient.gravida}</div>
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
@@ -511,8 +423,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                     <div className="text-center">
                         <h4 className="text-lg font-bold text-slate-800">{selectedDoseForUpdate.patient.name}</h4>
                         <p className="text-sm text-slate-600">खोप: <span className="font-bold text-purple-700">{selectedDoseForUpdate.doseType.toUpperCase().replace('TD', 'TD ')}</span></p>
-                        {selectedDoseForUpdate.patient.lmpBs && <p className="text-xs text-slate-500">LMP (BS): {selectedDoseForUpdate.patient.lmpBs}</p>}
-                        {selectedDoseForUpdate.patient.eddBs && <p className="text-xs text-slate-500">EDD (BS): {selectedDoseForUpdate.patient.eddBs}</p>}
+                        <p className="text-xs text-slate-500 font-nepali mt-1">यस अघि TD लिएको पटक: {selectedDoseForUpdate.patient.previousTdCount || '०'} | Gravida: {selectedDoseForUpdate.patient.gravida}</p>
                     </div>
                     
                     <NepaliDatePicker 

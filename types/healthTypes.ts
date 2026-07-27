@@ -120,10 +120,7 @@ export interface GarbhawatiPatient {
   address: string;
   phone: string;
   gravida: number;
-  lmpBs: string;
-  lmpAd: string;
-  eddBs: string;
-  eddAd: string;
+  previousTdCount?: string;
   td1DateBs?: string | null;
   td1DateAd?: string | null;
   td2DateBs?: string | null;
