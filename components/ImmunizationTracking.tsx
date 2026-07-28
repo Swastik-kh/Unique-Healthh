@@ -481,15 +481,51 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           text-align: center; 
           margin-bottom: 20px; 
           border-bottom: 2px solid #000; 
-          padding-bottom: 10px; 
+          padding-bottom: 12px; 
+          position: relative;
+          min-height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .print-logo {
+          position: absolute;
+          left: 10px;
+          top: 0;
+          height: 75px;
+          width: 75px;
+          object-fit: contain;
+        }
+        .print-header-text {
+          text-align: center;
+          width: 100%;
+          padding-left: 90px;
+          padding-right: 90px;
         }
         .print-header h1 { 
           font-size: 20px; 
-          margin: 0 0 5px 0;
+          margin: 0 0 3px 0;
+          font-weight: bold;
         }
         .print-header h2 { 
-          font-size: 16px; 
-          margin: 0;
+          font-size: 15px; 
+          margin: 0 0 2px 0;
+          font-weight: bold;
+        }
+        .print-header h3 { 
+          font-size: 13px; 
+          margin: 0 0 2px 0;
+          font-weight: normal;
+        }
+        .print-header h4 { 
+          font-size: 12px; 
+          margin: 0 0 2px 0;
+          font-weight: normal;
+        }
+        .print-header p {
+          font-size: 11px;
+          margin: 4px 0 0 0;
+          color: #334155;
         }
         .print-table { 
           width: 100%; 
@@ -1212,10 +1248,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         {/* PRINT SECTIONS */}
         <div id="upcoming-list-print" className="hidden print-container">
             <div className="print-header">
-                <h1>{generalSettings.orgNameNepali}</h1>
-                <h2>खोप तालिका विवरण (Vaccination Schedule)</h2>
-                <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()}</p>
-                {filterCenter && <p>केन्द्र: {filterCenter}</p>}
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{ fontSize: '15px', textDecoration: 'underline' }}>बच्चा खोप अनुगमन - आगामी खोप तालिका (Child Upcoming Vaccination Schedule)</h2>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                </div>
             </div>
             <table className="print-table">
                 <thead>
@@ -1251,10 +1292,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
         <div id="defaulter-list-print" className="hidden print-container">
             <div className="print-header">
-                <h1 style={{color: 'red'}}>{generalSettings.orgNameNepali}</h1>
-                <h2 style={{color: 'red'}}>खोप छुटेका बालबालिकाहरूको सूची (Defaulter List)</h2>
-                <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()}</p>
-                {filterCenter && <p>केन्द्र: {filterCenter}</p>}
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1 style={{color: 'red'}}>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2 style={{color: 'red'}}>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3 style={{color: 'red'}}>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4 style={{color: 'red'}}>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{color: 'red', fontSize: '15px', textDecoration: 'underline'}}>खोप छुटेका बालबालिकाहरूको सूची (Defaulter List)</h2>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                </div>
             </div>
             <table className="print-table">
                 <thead>
@@ -1290,10 +1336,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         
         <div id="fic-list-print" className="hidden print-container">
             <div className="print-header">
-                <h1 style={{color: 'teal'}}>{generalSettings.orgNameNepali}</h1>
-                <h2 style={{color: 'teal'}}>पूर्ण खोप पुरा गरेका बालबालिकाहरूको सूची (FIC List)</h2>
-                <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()}</p>
-                {filterCenter && <p>केन्द्र: {filterCenter}</p>}
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1 style={{color: 'teal'}}>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2 style={{color: 'teal'}}>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3 style={{color: 'teal'}}>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4 style={{color: 'teal'}}>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{color: 'teal', fontSize: '15px', textDecoration: 'underline'}}>पूर्ण खोप पुरा गरेका बालबालिकाहरूको सूची (FIC List)</h2>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                </div>
             </div>
             <table className="print-table">
                 <thead>
@@ -1327,10 +1378,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         
         <div id="maternal-td-print" className="hidden print-container">
             <div className="print-header">
-                <h1 style={{color: '#6b21a8'}}>{generalSettings.orgNameNepali}</h1>
-                <h2 style={{color: '#6b21a8'}}>गर्भवती महिला आगामी टी.डी. खोप तालिका (Maternal TD Vaccination Schedule)</h2>
-                <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()}</p>
-                {filterCenter && <p>केन्द्र: {filterCenter}</p>}
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1 style={{color: '#6b21a8'}}>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2 style={{color: '#6b21a8'}}>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3 style={{color: '#6b21a8'}}>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4 style={{color: '#6b21a8'}}>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{color: '#6b21a8', fontSize: '15px', textDecoration: 'underline'}}>गर्भवती महिला आगामी टी.डी. खोप तालिका (Maternal TD Vaccination Schedule)</h2>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                </div>
             </div>
             <table className="print-table">
                 <thead>
