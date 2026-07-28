@@ -61,6 +61,37 @@ const getFiscalYearFromBsDate = (dateBs: string): string => {
   }
 };
 
+const isSameVaccine = (actualName: string, targetName: string) => {
+  if (targetName === 'all') return true;
+  const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const nActual = norm(actualName);
+  const nTarget = norm(targetName);
+  if (nActual === nTarget) return true;
+  
+  // Custom mapping matches
+  if (nTarget.includes('bcg') && nActual.includes('bcg')) return true;
+  if (nTarget.includes('dpthepbhib1') && (nActual.includes('dpthepbhib1') || nActual.includes('penta1') || nActual.includes('pentavalent1') || nActual.includes('dpt1'))) return true;
+  if (nTarget.includes('dpthepbhib2') && (nActual.includes('dpthepbhib2') || nActual.includes('penta2') || nActual.includes('pentavalent2') || nActual.includes('dpt2'))) return true;
+  if (nTarget.includes('dpthepbhib3') && (nActual.includes('dpthepbhib3') || nActual.includes('penta3') || nActual.includes('pentavalent3') || nActual.includes('dpt3'))) return true;
+  if (nTarget.includes('opv1') && (nActual.includes('opv1') || nActual.includes('polio1'))) return true;
+  if (nTarget.includes('opv2') && (nActual.includes('opv2') || nActual.includes('polio2'))) return true;
+  if (nTarget.includes('opv3') && (nActual.includes('opv3') || nActual.includes('polio3'))) return true;
+  if (nTarget.includes('pcv1') && nActual.includes('pcv1')) return true;
+  if (nTarget.includes('pcv2') && nActual.includes('pcv2')) return true;
+  if (nTarget.includes('pcv3') && nActual.includes('pcv3')) return true;
+  if (nTarget.includes('rota1') && (nActual.includes('rota1') || nActual.includes('rotavirus1'))) return true;
+  if (nTarget.includes('rota2') && (nActual.includes('rota2') || nActual.includes('rotavirus2'))) return true;
+  if (nTarget.includes('fipv1') && (nActual.includes('fipv1') || (nActual.includes('fipv') && !nActual.includes('2') && !nActual.includes('२')))) return true;
+  if (nTarget.includes('fipv2') && nActual.includes('fipv2')) return true;
+  if (nTarget.includes('mr1') && (nActual.includes('mr1') || nActual.includes('measles1'))) return true;
+  if (nTarget.includes('mr2') && (nActual.includes('mr2') || nActual.includes('measles2'))) return true;
+  if (nTarget.includes('je') && nActual.includes('je')) return true;
+  if (nTarget.includes('typhoid') && nActual.includes('typhoid')) return true;
+  if (nTarget.includes('hpv') && nActual.includes('hpv')) return true;
+
+  return nActual.includes(nTarget) || nTarget.includes(nActual);
+};
+
 export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({ 
   currentFiscalYear, 
   bachhaRecords, 
@@ -71,12 +102,28 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [filterCenter, setFilterCenter] = useState(''); // New state for filter by vaccination center
+  const [selectedVaccine, setSelectedVaccine] = useState('all'); // New state for filter by specific vaccine
   const [searchQuery, setSearchQuery] = useState('');
 
   const centerOptions: Option[] = useMemo(() => 
     (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c })),
     [generalSettings.vaccinationCenters]
   );
+
+  const vaccineOptions: Option[] = useMemo(() => {
+    const opts: Option[] = [
+      { id: 'all', value: 'all', label: '-- सबै खोपहरू (All Vaccines) --' }
+    ];
+    // Add child vaccines
+    NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.forEach(v => {
+      opts.push({ id: v.name, value: v.name, label: `${v.name} (Child)` });
+    });
+    // Add maternal vaccines
+    opts.push({ id: 'TD1', value: 'TD1', label: 'TD1 (Maternal)' });
+    opts.push({ id: 'TD2', value: 'TD2', label: 'TD2 (Maternal)' });
+    opts.push({ id: 'TD Booster', value: 'TD Booster', label: 'TD Booster (Maternal)' });
+    return opts;
+  }, []);
 
   const childrenDetailsThisMonth = useMemo(() => {
     return bachhaRecords
@@ -91,8 +138,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
             
             if ((selectedMonth === 'all' || m === selectedMonth) && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
-              hasVaccineThisMonth = true;
-              vaccinesGiven.push(v.name);
+              if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
+                hasVaccineThisMonth = true;
+                vaccinesGiven.push(v.name);
+              }
             }
           }
         });
@@ -181,7 +230,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         return null;
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [bachhaRecords, selectedMonth, selectedFiscalYear, filterCenter]);
+  }, [bachhaRecords, selectedMonth, selectedFiscalYear, filterCenter, selectedVaccine]);
 
   const filteredChildren = useMemo(() => {
     if (!searchQuery.trim()) return childrenDetailsThisMonth;
@@ -346,94 +395,96 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             
             // Dual fiscal year match to ensure we do not miss any records registered in this fiscal year but vaccinated at different boundaries
             if ((selectedMonth === 'all' || m === selectedMonth) && (vaxFY === selectedFiscalYear || record.fiscalYear === selectedFiscalYear)) {
-              receivedDoseThisMonth = true;
-              const nameLower = (v.name || '').toLowerCase();
-              
-              // 1. Normalized exact match first
-              const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-              const normVax = normalize(v.name);
-              
-              let matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => normalize(vax.name) === normVax);
-              
-              // 2. If not found, fall back to sub-string matching
-              if (!matchedVax) {
-                matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => {
-                  const vaxName = vax.name.toLowerCase();
-                  if (vaxName.includes('bcg') && nameLower.includes('bcg')) return true;
-                  if (vaxName.includes('dpt-hepb-hib-1') && (
-                    nameLower.includes('dpt-hepb-hib-1') || 
-                    nameLower.includes('dpt 1') || 
-                    nameLower.includes('penta-1') || 
-                    nameLower.includes('penta 1') || 
-                    nameLower.includes('pentavalent-1') || 
-                    nameLower.includes('pentavalent 1')
-                  )) return true;
-                  if (vaxName.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
-                  if (vaxName.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
-                  if (vaxName.includes('rota-1') && (
-                    nameLower.includes('rota-1') || 
-                    nameLower.includes('rota 1') || 
-                    nameLower.includes('rotavirus-1') || 
-                    nameLower.includes('rotavirus 1')
-                  )) return true;
-                  
-                  if (vaxName.includes('dpt-hepb-hib-2') && (
-                    nameLower.includes('dpt-hepb-hib-2') || 
-                    nameLower.includes('dpt 2') || 
-                    nameLower.includes('penta-2') || 
-                    nameLower.includes('penta 2') || 
-                    nameLower.includes('pentavalent-2') || 
-                    nameLower.includes('pentavalent 2')
-                  )) return true;
-                  if (vaxName.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
-                  if (vaxName.includes('rota-2') && (
-                    nameLower.includes('rota-2') || 
-                    nameLower.includes('rota 2') || 
-                    nameLower.includes('rotavirus-2') || 
-                    nameLower.includes('rotavirus 2')
-                  )) return true;
-                  if (vaxName.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
-                  
-                  if (vaxName.includes('fipv-1') && (
-                    nameLower.includes('fipv-1') || 
-                    nameLower.includes('fipv 1') || 
-                    (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
-                  )) return true;
-                  if (vaxName.includes('dpt-hepb-hib-3') && (
-                    nameLower.includes('dpt-hepb-hib-3') || 
-                    nameLower.includes('dpt 3') || 
-                    nameLower.includes('penta-3') || 
-                    nameLower.includes('penta 3') || 
-                    nameLower.includes('pentavalent-3') || 
-                    nameLower.includes('pentavalent 3')
-                  )) return true;
-                  if (vaxName.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
-                  
-                  if (vaxName.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
-                  if (vaxName.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
-                  if (vaxName.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
-                  
-                  if (vaxName.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
-                  if (vaxName.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
-                  if (vaxName.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
-                  if (vaxName.includes('hpv') && nameLower.includes('hpv')) return true;
+              if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
+                receivedDoseThisMonth = true;
+                const nameLower = (v.name || '').toLowerCase();
+                
+                // 1. Normalized exact match first
+                const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const normVax = normalize(v.name);
+                
+                let matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => normalize(vax.name) === normVax);
+                
+                // 2. If not found, fall back to sub-string matching
+                if (!matchedVax) {
+                  matchedVax = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(vax => {
+                    const vaxName = vax.name.toLowerCase();
+                    if (vaxName.includes('bcg') && nameLower.includes('bcg')) return true;
+                    if (vaxName.includes('dpt-hepb-hib-1') && (
+                      nameLower.includes('dpt-hepb-hib-1') || 
+                      nameLower.includes('dpt 1') || 
+                      nameLower.includes('penta-1') || 
+                      nameLower.includes('penta 1') || 
+                      nameLower.includes('pentavalent-1') || 
+                      nameLower.includes('pentavalent 1')
+                    )) return true;
+                    if (vaxName.includes('opv-1') && (nameLower.includes('opv-1') || nameLower.includes('opv 1') || nameLower.includes('polio 1'))) return true;
+                    if (vaxName.includes('pcv-1') && (nameLower.includes('pcv-1') || nameLower.includes('pcv 1'))) return true;
+                    if (vaxName.includes('rota-1') && (
+                      nameLower.includes('rota-1') || 
+                      nameLower.includes('rota 1') || 
+                      nameLower.includes('rotavirus-1') || 
+                      nameLower.includes('rotavirus 1')
+                    )) return true;
+                    
+                    if (vaxName.includes('dpt-hepb-hib-2') && (
+                      nameLower.includes('dpt-hepb-hib-2') || 
+                      nameLower.includes('dpt 2') || 
+                      nameLower.includes('penta-2') || 
+                      nameLower.includes('penta 2') || 
+                      nameLower.includes('pentavalent-2') || 
+                      nameLower.includes('pentavalent 2')
+                    )) return true;
+                    if (vaxName.includes('opv-2') && (nameLower.includes('opv-2') || nameLower.includes('opv 2') || nameLower.includes('polio 2'))) return true;
+                    if (vaxName.includes('rota-2') && (
+                      nameLower.includes('rota-2') || 
+                      nameLower.includes('rota 2') || 
+                      nameLower.includes('rotavirus-2') || 
+                      nameLower.includes('rotavirus 2')
+                    )) return true;
+                    if (vaxName.includes('pcv-2') && (nameLower.includes('pcv-2') || nameLower.includes('pcv 2'))) return true;
+                    
+                    if (vaxName.includes('fipv-1') && (
+                      nameLower.includes('fipv-1') || 
+                      nameLower.includes('fipv 1') || 
+                      (nameLower.includes('fipv') && !nameLower.includes('2') && !nameLower.includes('२'))
+                    )) return true;
+                    if (vaxName.includes('dpt-hepb-hib-3') && (
+                      nameLower.includes('dpt-hepb-hib-3') || 
+                      nameLower.includes('dpt 3') || 
+                      nameLower.includes('penta-3') || 
+                      nameLower.includes('penta 3') || 
+                      nameLower.includes('pentavalent-3') || 
+                      nameLower.includes('pentavalent 3')
+                    )) return true;
+                    if (vaxName.includes('opv-3') && (nameLower.includes('opv-3') || nameLower.includes('opv 3') || nameLower.includes('polio 3'))) return true;
+                    
+                    if (vaxName.includes('mr-1') && (nameLower.includes('mr-1') || nameLower.includes('mr 1') || nameLower.includes('measles 1'))) return true;
+                    if (vaxName.includes('pcv-3') && (nameLower.includes('pcv-3') || nameLower.includes('pcv 3'))) return true;
+                    if (vaxName.includes('fipv-2') && (nameLower.includes('fipv-2') || nameLower.includes('fipv 2'))) return true;
+                    
+                    if (vaxName.includes('je') && (nameLower.includes('je') || nameLower.includes('जे.ई.') || nameLower.includes('japanese'))) return true;
+                    if (vaxName.includes('mr-2') && (nameLower.includes('mr-2') || nameLower.includes('mr 2') || nameLower.includes('measles 2'))) return true;
+                    if (vaxName.includes('typhoid') && (nameLower.includes('typhoid') || nameLower.includes('टाइफाइड') || nameLower.includes('tcv'))) return true;
+                    if (vaxName.includes('hpv') && nameLower.includes('hpv')) return true;
 
-                  return nameLower === vaxName || v.name === vax.name;
-                });
-              }
+                    return nameLower === vaxName || v.name === vax.name;
+                  });
+                }
 
-              if (matchedVax) {
-                const nameKey = matchedVax.name.replace(/[^a-zA-Z0-9]/g, '');
-                if (stats.child[nameKey] !== undefined) {
-                  stats.child[nameKey]++;
+                if (matchedVax) {
+                  const nameKey = matchedVax.name.replace(/[^a-zA-Z0-9]/g, '');
+                  if (stats.child[nameKey] !== undefined) {
+                    stats.child[nameKey]++;
+                  }
+                } else {
+                  const nameKey = v.name.replace(/[^a-zA-Z0-9]/g, '');
+                  if (stats.child[nameKey] !== undefined) {
+                    stats.child[nameKey]++;
+                  }
                 }
-              } else {
-                const nameKey = v.name.replace(/[^a-zA-Z0-9]/g, '');
-                if (stats.child[nameKey] !== undefined) {
-                  stats.child[nameKey]++;
-                }
+                stats.child.total++;
               }
-              stats.child.total++;
             }
           }
         });
@@ -482,26 +533,32 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         if (p.td1DateBs) {
           const m = p.td1DateBs.split('-')[1];
           if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.td1DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td1VaccinatedElsewhere) {
-            stats.maternal.td1++;
+            if (selectedVaccine === 'all' || selectedVaccine === 'TD1') {
+              stats.maternal.td1++;
+            }
           }
         }
         if (p.td2DateBs) {
           const m = p.td2DateBs.split('-')[1];
           if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.td2DateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.td2VaccinatedElsewhere) {
-            stats.maternal.td2++;
+            if (selectedVaccine === 'all' || selectedVaccine === 'TD2') {
+              stats.maternal.td2++;
+            }
           }
         }
         if (p.tdBoosterDateBs) {
           const m = p.tdBoosterDateBs.split('-')[1];
           if ((selectedMonth === 'all' || m === selectedMonth) && (getFiscalYearFromBsDate(p.tdBoosterDateBs) === selectedFiscalYear || p.fiscalYear === selectedFiscalYear) && !p.tdBoosterVaccinatedElsewhere) {
-            stats.maternal.tdBooster++;
+            if (selectedVaccine === 'all' || selectedVaccine === 'TD Booster') {
+              stats.maternal.tdBooster++;
+            }
           }
         }
       });
     stats.maternal.total = stats.maternal.td1 + stats.maternal.td2 + stats.maternal.tdBooster;
 
     return stats;
-  }, [bachhaRecords, maternalRecords, selectedFiscalYear, selectedMonth, filterCenter]);
+  }, [bachhaRecords, maternalRecords, selectedFiscalYear, selectedMonth, filterCenter, selectedVaccine]);
 
   const currentMonthLabel = nepaliMonthOptions.find(m => m.value === selectedMonth)?.label || '';
 
@@ -630,6 +687,15 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                 icon={<MapPinned size={18} />} 
             />
           </div>
+          <div className="w-56">
+            <Select 
+                label="खोप (Vaccine Filter)" 
+                options={vaccineOptions} 
+                value={selectedVaccine} 
+                onChange={(e) => setSelectedVaccine(e.target.value)} 
+                icon={<Droplets size={18} />} 
+            />
+          </div>
           {activeReportTab === 'detail' && (
             <div className="flex-1 min-w-[240px]">
               <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">बालबालिका खोज्नुहोस् (Search Child)</label>
@@ -665,6 +731,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                   <span>आ.व.: {selectedFiscalYear}</span>
                   <span>महिना: {currentMonthLabel}</span>
                   <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                  {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
               </div>
           </div>
 
@@ -732,9 +799,32 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
               </div>
           </div>
 
-          {/* Section 3: Ethnicity Table (Under 24 Months) */}
+          {/* Section 3: Grand Total Immunization Service Recipients */}
           <div className="mb-8">
-              <h4 className="text-base font-bold text-teal-800 mb-2 font-nepali border-b border-teal-100 pb-1">३. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना सम्म) (Fully Immunized Children ≤ 23 Months)</h4>
+              <h4 className="text-base font-bold text-emerald-800 mb-2 font-nepali border-b border-emerald-100 pb-1">३. जम्मा खोप सेवा पाएकाको संख्या (Grand Total Recipients)</h4>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm text-left border-collapse">
+                      <tbody className="divide-y divide-slate-200">
+                          <tr className="bg-indigo-50 font-bold text-indigo-900">
+                              <td className="p-2 pl-3 text-right">कुल बालबालिका (जसले यो महिना कुनै खोप लगाए):</td>
+                              <td className="p-2 text-center w-32 font-mono font-bold text-indigo-700">{reportStats.uniqueChildrenVax.total}</td>
+                          </tr>
+                          <tr className="bg-purple-50 font-bold text-purple-900">
+                              <td className="p-2 pl-3 text-right">TD खोप पाउने गर्भवतीको संख्या (Total Maternal TD):</td>
+                              <td className="p-2 text-center w-32 font-mono font-bold text-purple-700">{reportStats.maternal.total}</td>
+                          </tr>
+                          <tr className="bg-emerald-600 font-bold text-white text-sm">
+                              <td className="p-2 pl-3 text-right text-base">जम्मा खोप सेवा पाएकाको संख्या (बालबालिका + गर्भवती):</td>
+                              <td className="p-2 text-center w-32 font-mono text-lg font-black">{reportStats.uniqueChildrenVax.total + reportStats.maternal.total}</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+
+          {/* Section 4: Ethnicity Table (Under 24 Months) */}
+          <div className="mb-8">
+              <h4 className="text-base font-bold text-teal-800 mb-2 font-nepali border-b border-teal-100 pb-1">४. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना सम्म) (Fully Immunized Children ≤ 23 Months)</h4>
               <div className="overflow-hidden rounded-lg border border-slate-200">
                   <table className="w-full text-sm text-left border-collapse">
                       <thead className="bg-slate-50 text-slate-700 font-bold">
@@ -768,9 +858,9 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
               </div>
           </div>
 
-          {/* Section 4: Ethnicity Table (Over 24 Months) */}
+          {/* Section 5: Ethnicity Table (Over 24 Months) */}
           <div className="mb-8">
-              <h4 className="text-base font-bold text-orange-800 mb-2 font-nepali border-b border-orange-100 pb-1">४. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना माथि) (Fully Immunized Children {'>'} 23 Months)</h4>
+              <h4 className="text-base font-bold text-orange-800 mb-2 font-nepali border-b border-orange-100 pb-1">५. पूर्ण खोप पुरा गरेका बच्चाहरू (२३ महिना माथि) (Fully Immunized Children {'>'} 23 Months)</h4>
               <div className="overflow-hidden rounded-lg border border-slate-200">
                   <table className="w-full text-sm text-left border-collapse">
                       <thead className="bg-slate-50 text-slate-700 font-bold">
@@ -821,6 +911,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                   <span>आ.व.: {selectedFiscalYear}</span>
                   <span>महिना: {currentMonthLabel}</span>
                   <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                  {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
                   <span>जम्मा संख्या: {filteredChildren.length}</span>
               </div>
           </div>
