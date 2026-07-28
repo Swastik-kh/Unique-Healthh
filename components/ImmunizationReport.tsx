@@ -601,6 +601,57 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           th, td { border: 1px solid #000; padding: 4px 6px; }
           thead th { background-color: #f0f0f0; font-weight: bold; }
           .no-print { display: none; }
+          /* print header specific styles */
+          .print-header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 12px; 
+            position: relative;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .print-logo {
+            position: absolute;
+            left: 10px;
+            top: 0;
+            height: 75px;
+            width: 75px;
+            object-fit: contain;
+          }
+          .print-header-text {
+            text-align: center;
+            width: 100%;
+            padding-left: 90px;
+            padding-right: 90px;
+          }
+          .print-header h1 { 
+            font-size: 20px; 
+            margin: 0 0 3px 0;
+            font-weight: bold;
+          }
+          .print-header h2 { 
+            font-size: 15px; 
+            margin: 0 0 2px 0;
+            font-weight: bold;
+          }
+          .print-header h3 { 
+            font-size: 13px; 
+            margin: 0 0 2px 0;
+            font-weight: normal;
+          }
+          .print-header h4 { 
+            font-size: 12px; 
+            margin: 0 0 2px 0;
+            font-weight: normal;
+          }
+          .print-header p {
+            font-size: 11px;
+            margin: 4px 0 0 0;
+            color: #334155;
+          }
           /* Utility replacements if tailwind fails to load fast enough */
           .text-center { text-align: center; }
           .text-right { text-align: right; }
@@ -724,14 +775,20 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         /* ======================== SUMMARY REPORT VIEW ======================== */
         <div id="print-summary-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full">
           {/* Header */}
-          <div className="text-center mb-6 border-b-2 border-slate-900 pb-4">
-              <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
-              <h3 className="text-lg font-black mt-2 underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (संख्यात्मक विवरण)</h3>
-              <div className="flex justify-between mt-4 text-xs font-bold text-slate-600">
-                  <span>आ.व.: {selectedFiscalYear}</span>
-                  <span>महिना: {currentMonthLabel}</span>
-                  <span>केन्द्र: {filterCenter || 'सबै'}</span>
-                  {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
+          <div className="print-header mb-6 pb-4 flex items-center justify-center relative border-b-2 border-slate-900">
+              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+              <div className="print-header-text text-center">
+                  <h1>{generalSettings.orgNameNepali}</h1>
+                  {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
+                  {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
+                  {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
+                  <h2 className="mt-3 font-bold text-lg font-black underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (संख्यात्मक विवरण)</h2>
+                  <div className="flex justify-between mt-4 text-xs font-bold text-slate-600 font-nepali">
+                      <span>आ.व.: {selectedFiscalYear}</span>
+                      <span>महिना: {currentMonthLabel}</span>
+                      <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                      {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
+                  </div>
               </div>
           </div>
 
@@ -904,15 +961,21 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         /* ======================== DETAILED LOG VIEW ======================== */
         <div id="print-detailed-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[297mm] mx-auto print-full">
           {/* Header */}
-          <div className="text-center mb-6 border-b-2 border-slate-900 pb-4">
-              <h1 className="text-xl font-bold text-slate-900">{generalSettings.orgNameNepali}</h1>
-              <h3 className="text-lg font-black mt-2 underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (बालबालिका विस्तृत विवरण)</h3>
-              <div className="flex justify-between mt-4 text-xs font-bold text-slate-600">
-                  <span>आ.व.: {selectedFiscalYear}</span>
-                  <span>महिना: {currentMonthLabel}</span>
-                  <span>केन्द्र: {filterCenter || 'सबै'}</span>
-                  {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
-                  <span>जम्मा संख्या: {filteredChildren.length}</span>
+          <div className="print-header mb-6 pb-4 flex items-center justify-center relative border-b-2 border-slate-900">
+              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+              <div className="print-header-text text-center">
+                  <h1>{generalSettings.orgNameNepali}</h1>
+                  {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
+                  {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
+                  {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
+                  <h2 className="mt-3 font-bold text-lg font-black underline font-nepali">मासिक खोप कार्यक्रम प्रतिवेदन (बालबालिका विस्तृत विवरण)</h2>
+                  <div className="flex justify-between mt-4 text-xs font-bold text-slate-600 font-nepali">
+                      <span>आ.व.: {selectedFiscalYear}</span>
+                      <span>महिना: {currentMonthLabel}</span>
+                      <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                      {selectedVaccine !== 'all' && <span>खोप: {selectedVaccine}</span>}
+                      <span>जम्मा संख्या: {filteredChildren.length}</span>
+                  </div>
               </div>
           </div>
 
