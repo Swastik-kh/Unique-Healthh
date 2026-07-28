@@ -620,6 +620,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             height: 75px;
             width: 75px;
             object-fit: contain;
+            display: block !important;
           }
           .print-header-text {
             text-align: center;
@@ -776,7 +777,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         <div id="print-summary-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full">
           {/* Header */}
           <div className="print-header mb-6 pb-4 flex items-center justify-center relative border-b-2 border-slate-900">
-              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo hidden" />
               <div className="print-header-text text-center">
                   <h1>{generalSettings.orgNameNepali}</h1>
                   {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
@@ -962,7 +963,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         <div id="print-detailed-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[297mm] mx-auto print-full">
           {/* Header */}
           <div className="print-header mb-6 pb-4 flex items-center justify-center relative border-b-2 border-slate-900">
-              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo hidden" />
               <div className="print-header-text text-center">
                   <h1>{generalSettings.orgNameNepali}</h1>
                   {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
