@@ -108,6 +108,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [blurPhone, setBlurPhone] = useState(false);
 
   const isAdmin = useMemo(() => {
     return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
@@ -474,6 +475,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           -webkit-print-color-adjust: exact; 
           print-color-adjust: exact;
         }
+        .blur-sm, .blurred-text {
+          filter: blur(3px) !important;
+          -webkit-filter: blur(3px) !important;
+          color: transparent !important;
+          text-shadow: 0 0 5px rgba(0,0,0,0.8) !important;
+        }
         .print-container { 
           display: block !important; 
         }
@@ -749,6 +756,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
               >
                   <RotateCcw size={14}/> रिसेट
               </button>
+              
+              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/50">
+                  <input 
+                      type="checkbox" 
+                      id="blur-phone-checkbox"
+                      checked={blurPhone}
+                      onChange={(e) => setBlurPhone(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                  />
+                  <label htmlFor="blur-phone-checkbox" className="text-xs font-bold text-slate-700 select-none cursor-pointer font-nepali">
+                      सम्पर्क नम्बर ब्लर गर्ने
+                  </label>
+              </div>
+
               <div className="ml-auto">
                   <button 
                       onClick={() => handlePrint(trackingTarget === 'child' ? activeView : 'maternal-td')}
@@ -865,7 +886,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                     })}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">{item.child.phone}</td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">
+                                                <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
+                                            </td>
                                             {isAdmin && (
                                                 <td className="px-6 py-4 text-right no-print">
                                                     <button 
@@ -985,7 +1008,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 })}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">{item.child.phone}</td>
+                                        <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">
+                                            <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-100 animate-pulse">
                                                 <Clock size={10}/> Overdue
@@ -1048,7 +1073,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         </td>
                                         <td className="px-6 py-4 text-slate-600">
                                             <div>{child.address}</div>
-                                            <div className="text-[10px] text-slate-400 mt-1 font-mono font-bold">फोन: {child.phone}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-mono font-bold">फोन: <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{child.phone}</span></div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className="text-teal-700 font-bold font-nepali">{getCompletionDate(child)}</span>
@@ -1102,7 +1127,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-slate-700 font-medium">{item.patient.address}</div>
-                                                <div className="text-[10px] text-slate-400 font-mono font-bold mt-0.5">{item.patient.phone}</div>
+                                                <div className="text-[10px] text-slate-400 font-mono font-bold mt-0.5"><span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.patient.phone}</span></div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded border border-green-200 font-mono">
@@ -1179,7 +1204,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">आमाको नाम:</span> <span className="font-bold">{selectedChildForCard.motherName}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बुबाको नाम:</span> <span className="font-bold">{selectedChildForCard.fatherName}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">ठेगाना:</span> <span className="font-bold truncate max-w-[150px] text-right">{selectedChildForCard.address}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">फोन:</span> <span className="font-bold font-mono">{selectedChildForCard.phone}</span></p>
+                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">फोन:</span> <span className={`font-bold font-mono ${blurPhone ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.phone}</span></p>
                                 </div>
                             </div>
 
@@ -1283,7 +1308,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 {item.vaccines.map(v => `${v.name}`).join(', ')}
                             </td>
                             <td>{item.scheduledDateBs} (Main)</td>
-                            <td style={{fontFamily: 'monospace'}}>{item.child.phone}</td>
+                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
                         </tr>
                     ))}
                 </tbody>
@@ -1327,7 +1352,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 {item.vaccines.map(v => v.name).join(', ')}
                             </td>
                             <td>{item.scheduledDateBs}</td>
-                            <td style={{fontFamily: 'monospace'}}>{item.child.phone}</td>
+                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
                         </tr>
                     ))}
                 </tbody>
@@ -1368,7 +1393,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</td>
                             <td>{child.vaccinationCenter}</td>
                             <td>{child.address}</td>
-                            <td style={{fontFamily: 'monospace'}}>{child.phone}</td>
+                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{child.phone}</span></td>
                             <td>{getCompletionDate(child)}</td>
                         </tr>
                     ))}
@@ -1411,7 +1436,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{item.patient.vaccinationCenter || 'N/A'}</td>
                             <td style={{textAlign: 'center'}}>{item.patient.td1DateBs}</td>
                             <td style={{textAlign: 'center', fontWeight: 'bold'}}>{item.expectedMonthName}, {item.expectedYear}</td>
-                            <td style={{fontFamily: 'monospace'}}>{item.patient.phone}</td>
+                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.patient.phone}</span></td>
                         </tr>
                     ))}
                     {upcomingTdList.length === 0 && (
