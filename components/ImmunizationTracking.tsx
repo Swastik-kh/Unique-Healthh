@@ -1294,7 +1294,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
                     {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
                     <h2 className="mt-3 font-bold" style={{ fontSize: '15px', textDecoration: 'underline' }}>बच्चा खोप अनुगमन - आगामी खोप तालिका (Child Upcoming Vaccination Schedule)</h2>
-                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा संख्या: {upcomingSessionList.length}</p>
                 </div>
             </div>
             <table className="print-table">
@@ -1338,7 +1338,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {generalSettings.subTitleNepali2 && <h3 style={{color: 'red'}}>{generalSettings.subTitleNepali2}</h3>}
                     {generalSettings.subTitleNepali3 && <h4 style={{color: 'red'}}>{generalSettings.subTitleNepali3}</h4>}
                     <h2 className="mt-3 font-bold" style={{color: 'red', fontSize: '15px', textDecoration: 'underline'}}>खोप छुटेका बालबालिकाहरूको सूची (Defaulter List)</h2>
-                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा संख्या: {defaulterList.length}</p>
                 </div>
             </div>
             <table className="print-table">
@@ -1382,7 +1382,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {generalSettings.subTitleNepali2 && <h3 style={{color: 'teal'}}>{generalSettings.subTitleNepali2}</h3>}
                     {generalSettings.subTitleNepali3 && <h4 style={{color: 'teal'}}>{generalSettings.subTitleNepali3}</h4>}
                     <h2 className="mt-3 font-bold" style={{color: 'teal', fontSize: '15px', textDecoration: 'underline'}}>पूर्ण खोप पुरा गरेका बालबालिकाहरूको सूची (FIC List)</h2>
-                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा संख्या: {ficList.length}</p>
                 </div>
             </div>
             <table className="print-table">
@@ -1424,7 +1424,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {generalSettings.subTitleNepali2 && <h3 style={{color: '#6b21a8'}}>{generalSettings.subTitleNepali2}</h3>}
                     {generalSettings.subTitleNepali3 && <h4 style={{color: '#6b21a8'}}>{generalSettings.subTitleNepali3}</h4>}
                     <h2 className="mt-3 font-bold" style={{color: '#6b21a8', fontSize: '15px', textDecoration: 'underline'}}>गर्भवती महिला आगामी टी.डी. खोप तालिका (Maternal TD Vaccination Schedule)</h2>
-                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`}</p>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा संख्या: {upcomingTdList.length}</p>
                 </div>
             </div>
             <table className="print-table">
