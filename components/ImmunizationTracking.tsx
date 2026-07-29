@@ -109,6 +109,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [blurPhone, setBlurPhone] = useState(false);
+  const [blurDob, setBlurDob] = useState(false);
 
   const isAdmin = useMemo(() => {
     return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
@@ -770,6 +771,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   </label>
               </div>
 
+              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/50">
+                  <input 
+                      type="checkbox" 
+                      id="blur-dob-checkbox"
+                      checked={blurDob}
+                      onChange={(e) => setBlurDob(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                  />
+                  <label htmlFor="blur-dob-checkbox" className="text-xs font-bold text-slate-700 select-none cursor-pointer font-nepali">
+                      जन्ममिति ब्लर गर्ने
+                  </label>
+              </div>
+
               <div className="ml-auto">
                   <button 
                       onClick={() => handlePrint(trackingTarget === 'child' ? activeView : 'maternal-td')}
@@ -830,7 +844,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-800">{item.child.childName}</div>
                                                 <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                                    <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
+                                                    <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                     <div className="flex items-center gap-1 mb-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
                                                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                                                         <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden shrink-0">
@@ -990,7 +1004,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{item.child.childName}</div>
                                             <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{item.child.dobBs}</span></div>
+                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                 <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
                                                 <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}</div>
                                                 <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
@@ -1064,7 +1078,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-slate-800">{child.childName}</div>
                                             <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{child.dobBs}</span></div>
+                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{child.dobBs}</span></div>
                                                 <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {child.vaccinationCenter}</div>
                                             </div>
                                         </td>
@@ -1197,7 +1211,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 <div className="space-y-0.5">
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">दर्ता नम्बर:</span> <span className="font-bold text-teal-800 font-mono">{selectedChildForCard.regNo}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बच्चाको नाम:</span> <span className="font-bold text-sm">{selectedChildForCard.childName}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">जन्म मिति (BS):</span> <span className="font-bold">{selectedChildForCard.dobBs}</span></p>
+                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">जन्म मिति (BS):</span> <span className={`font-bold ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.dobBs}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">लिङ्ग:</span> <span className="font-bold">{selectedChildForCard.gender === 'Male' ? 'बालक' : 'बालिका'}</span></p>
                                 </div>
                                 <div className="space-y-0.5">
@@ -1300,7 +1314,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {upcomingSessionList.map((item, idx) => (
                         <tr key={idx}>
                             <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
-                            <td>{item.child.dobBs}</td>
+                            <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
                             <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
                             <td>{item.child.address}</td>
                             <td>{item.child.vaccinationCenter}</td>
@@ -1344,7 +1358,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {defaulterList.map((item, idx) => (
                         <tr key={idx}>
                             <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
-                            <td>{item.child.dobBs}</td>
+                            <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
                             <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
                             <td>{item.child.address}</td>
                             <td>{item.child.vaccinationCenter}</td>
@@ -1389,7 +1403,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <tr key={idx}>
                             <td>{child.childName}</td>
                             <td>{child.regNo}</td>
-                            <td>{child.dobBs}</td>
+                            <td><span className={blurDob ? "blur-sm" : ""}>{child.dobBs}</span></td>
                             <td>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</td>
                             <td>{child.vaccinationCenter}</td>
                             <td>{child.address}</td>
