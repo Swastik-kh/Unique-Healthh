@@ -216,7 +216,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                             <div className="mt-4">
                                 <label className="block text-xs font-bold text-slate-600 mb-2">DataSet ID Mappings (Global)</label>
                                 <div className="space-y-3">
-                                    {['Reporting Status', 'Immunization', 'Progress Report'].map(module => (
+                                    {['Reporting Status', 'Immunization', 'MCH Report', 'Family Planning', 'CBIMNCI Report', 'GESI Report', 'FCHV Report'].map(module => (
                                         <div key={module} className="flex gap-2 items-center">
                                             <span className="text-xs font-medium text-slate-500 w-32">{module}:</span>
                                             <SearchableSelect 
