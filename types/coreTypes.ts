@@ -131,6 +131,7 @@ export interface OrganizationSettings {
   dhis2Password?: string;
   dhis2DataSetId?: string;
   dhis2OrgUnitId?: string;
+  dhis2OrgUnitName?: string;
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
   menuConfig?: MenuConfigItem[];

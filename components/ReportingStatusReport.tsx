@@ -184,10 +184,10 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
 
       const dataSetId = generalSettings.dhis2DatasetMappings?.['Reporting Status'] || generalSettings.dhis2DataSetId || "a2JkM9Uvfa2";
       const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
-      const orgName = generalSettings.officeName || 'Not Specified';
+      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
 
       const confirmMessage = `DHIS2 मा डाटा पठाउन चाहनुहुन्छ?\n\n` +
-        `संस्था: ${orgName}\n` +
+        `संस्था (DHIS2): ${orgName}\n` +
         `डाटासेट: ${dataSetLabel}\n` +
         `अवधि: ${period}\n\n` +
         `के तपाइँ पक्का हुनुहुन्छ?`;

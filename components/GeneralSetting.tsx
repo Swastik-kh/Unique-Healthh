@@ -203,6 +203,13 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                             placeholder="fBTyYLt6u8l"
                             icon={<MapPinned size={16} />}
                         />
+                        <Input 
+                            label="DHIS2 OrgUnit Name" 
+                            value={localSettings.dhis2OrgUnitName || ''} 
+                            onChange={(e) => handleChange('dhis2OrgUnitName', e.target.value)} 
+                            placeholder="Health Post Name"
+                            icon={<MapPinned size={16} />}
+                        />
                     </div>
                     {currentUser.role === 'SUPER_ADMIN' && (
                         <>
