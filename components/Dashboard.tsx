@@ -81,12 +81,10 @@ import { LabBillingReport } from './LabBillingReport';
 import { DrugQuantification } from './DrugQuantification';
 import { FamilyPlanningReport } from './FamilyPlanningReport';
 import { GESIReport } from './GESIReport';
-import { GESIOPDReport } from './GESIOPDReport';
-import { GESICBIMNCIReport } from './GESICBIMNCIReport';
 import { MCHReport } from './MCHReport';
 import { MedicineStatusReport } from './MedicineStatusReport';
-import { DHISReport } from './DHISReport';
 import { VitaminAProgram } from './VitaminAProgram';
+import { FCHVKaryakram } from './FCHVKaryakram';
 import { KhopAbhiyan } from './KhopAbhiyan';
 import { AmbulanceSewa } from './AmbulanceSewa';
 import { OnlineReport } from './OnlineReport';
@@ -1041,6 +1039,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
                                   onAddInterFacilityRequest={onAddInterFacilityRequest}
                                   onUpdateInterFacilityRequest={onUpdateInterFacilityRequest}
                                 />;
+      case 'fchv_karyakram': return <FCHVKaryakram activeOrgName={activeOrgName} currentFiscalYear={currentFiscalYear} />;
       case 'vitamin_a': return <VitaminAProgram currentFiscalYear={currentFiscalYear} activeOrgName={activeOrgName} generalSettings={generalSettings} currentUser={currentUser} allUsers={allUsers} />;
       case 'khop_abhiyan': return <KhopAbhiyan currentFiscalYear={currentFiscalYear} activeOrgName={activeOrgName} generalSettings={generalSettings} currentUser={currentUser} allUsers={users} />;
       case 'rabies': return <RabiesRegistration currentFiscalYear={currentFiscalYear} patients={rabiesPatients} onAddPatient={onAddRabiesPatient} onUpdatePatient={onUpdatePatient} onDeletePatient={onDeletePatient} currentUser={currentUser} />;
@@ -1049,8 +1048,6 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       case 'report_reporting_status': return <ReportingStatusReport serviceSeekerRecords={serviceSeekerRecords} bachhaImmunizationRecords={bachhaImmunizationRecords} currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} />;
       case 'report_pariwar_niyojan': return <FamilyPlanningReport records={pariwarSewaRecords} settings={generalSettings} fiscalYear={currentFiscalYear} />;
       case 'report_gesi': return <GESIReport currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} prasutiRecords={prasutiRecords} tbPatients={tbPatients} opdRecords={opdRecords} ipdRecords={ipdRecords} />;
-      case 'report_gesi_opd': return <GESIOPDReport currentFiscalYear={currentFiscalYear} serviceSeekerRecords={serviceSeekerRecords} opdRecords={opdRecords} />;
-      case 'report_gesi_cbimnci': return <GESICBIMNCIReport currentFiscalYear={currentFiscalYear} serviceSeekerRecords={serviceSeekerRecords} cbimnciRecords={cbimnciRecords} />;
       case 'report_mch': return <MCHReport currentFiscalYear={currentFiscalYear} garbhawotiRecords={garbhawotiRecords} prasutiRecords={prasutiRecords} generalSettings={generalSettings} />;
       case 'mag_faram': return <MagFaram currentFiscalYear={currentFiscalYear} currentUser={currentUser} existingForms={magForms} onSave={onSaveMagForm} onDelete={onDeleteMagForm} inventoryItems={inventoryItems} stores={stores} generalSettings={generalSettings} itemList={itemList} />;
       case 'kharid_adesh': return <KharidAdesh orders={purchaseOrders} currentFiscalYear={currentFiscalYear} onSave={onUpdatePurchaseOrder} onDelete={onDeletePurchaseOrder} currentUser={currentUser} firms={firms} quotations={quotations} onDakhilaClick={(po) => { setActiveItem('jinshi_maujdat'); setPendingPoDakhila(po); }} generalSettings={generalSettings} inventoryItems={inventoryItems} />;
@@ -2290,7 +2287,6 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                           serviceItems={serviceItems}
                                           serviceSeekerRecords={serviceSeekerRecords}
                                         />;
-      case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} currentUser={currentUser} settings={generalSettings} />;
       case 'online_report': return <OnlineReport 
         currentFiscalYear={currentFiscalYear}
         currentUser={currentUser}

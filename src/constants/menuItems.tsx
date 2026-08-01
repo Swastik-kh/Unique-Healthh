@@ -77,7 +77,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         subItems: [
           { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> },
           { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> },
-          { id: 'report_microplanning', label: 'खोप माइक्रोप्लानिङ', icon: <Calendar size={16} /> }
+          { id: 'fchv_karyakram', label: 'FCHV कार्यक्रम', icon: <Users size={16} /> }
         ]
       }
     ] 
@@ -127,21 +127,11 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
       { id: 'report_reporting_status', label: 'रिपोर्टिङ स्थिति', icon: <FileText size={16} /> },
       { id: 'report_pariwar_niyojan', label: 'परिवार नियोजन रिपोर्ट', icon: <Users size={16} /> },
       { id: 'report_gesi', label: 'Gender Equity and social inclusion', icon: <FileText size={16} /> },
-      { id: 'report_gesi_opd', label: 'GESI OPD सेवा रिपोर्ट', icon: <FileText size={16} /> },
-      { id: 'report_gesi_cbimnci', label: 'GESI CBIMNCI रिपोर्ट', icon: <FileText size={16} /> },
       { id: 'report_mch', label: 'MCH रिपोर्ट', icon: <Baby size={16} /> },
       { id: 'report_tb_dst', label: 'TBDST रिपोर्ट', icon: <FileText size={16} /> },
       { id: 'report_inventory_monthly', label: 'जिन्सी मासिक रिपोर्ट', icon: <FileText size={16} /> },
       { id: 'report_drug_quantification', label: 'Drug Quantification', icon: <Pill size={16} /> },
-      { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट', icon: <FileText size={16} /> },
-      { 
-        id: 'report_dhis', 
-        label: 'DHIS रिपोर्ट',
-        icon: <BarChart3 size={16} />,
-        subItems: [
-            { id: 'report_dhis_general', label: 'DHIS सामान्य रिपोर्ट', icon: <FileText size={16} /> }
-        ]
-      }
+      { id: 'report_lab_billing', label: 'बिलिङ रिपोर्ट', icon: <FileText size={16} /> }
     ]
   },
   {

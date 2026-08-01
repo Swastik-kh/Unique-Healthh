@@ -33,8 +33,17 @@ const CASTE_GROUPS = [
   { id: 'Other', name: 'अन्य' }
 ];
 
-const getCasteId = (code: string | undefined) => {
+const getCasteId = (code: any) => {
   if (!code) return 'Other';
+  
+  // Convert to string and trim
+  const strCode = String(code).trim();
+  
+  // Handle codes like '01', '02' by removing leading zero if present
+  const normalizedCode = (strCode.startsWith('0') && strCode.length > 1) 
+    ? strCode.substring(1) 
+    : strCode;
+
   const mapping: Record<string, string> = {
     '1': 'Dalit',
     '2': 'Janajati',
@@ -47,9 +56,18 @@ const getCasteId = (code: string | undefined) => {
     'Madhesi': 'Madhesi',
     'Brahmin/Chhetri': 'Brahmin/Chhetri',
     'Muslim': 'Muslim',
-    'Other': 'Other'
+    'Other': 'Other',
+    'Brahmin': 'Brahmin/Chhetri',
+    'Chhetri': 'Brahmin/Chhetri'
   };
-  return mapping[code] || 'Other';
+
+  // Case insensitive check for keys
+  const lowerMapping: Record<string, string> = {};
+  Object.keys(mapping).forEach(k => {
+    lowerMapping[k.toLowerCase()] = mapping[k];
+  });
+
+  return mapping[normalizedCode] || mapping[strCode] || lowerMapping[normalizedCode.toLowerCase()] || lowerMapping[strCode.toLowerCase()] || 'Other';
 };
 
 export const GESIReport: React.FC<GESIReportProps> = ({
@@ -104,14 +122,57 @@ export const GESIReport: React.FC<GESIReportProps> = ({
     });
   };
 
-  const filteredBachha = useMemo(() => filterRecords(bachhaRecords, 'date'), [bachhaRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
-  const filteredCbimnci = useMemo(() => filterRecords(cbimnciRecords, 'visitDate'), [cbimnciRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
-  const filteredPrasuti = useMemo(() => filterRecords(prasutiRecords, 'date'), [prasutiRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
-  const filteredTb = useMemo(() => filterRecords(tbPatients, 'date'), [tbPatients, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
-  const filteredOpd = useMemo(() => filterRecords(opdRecords, 'date'), [opdRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
-  const filteredIpd = useMemo(() => filterRecords(ipdRecords, 'date'), [ipdRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredBachha = useMemo(() => {
+    return bachhaRecords.filter(record => {
+      // Find completion vaccine (MR-2 or Typhoid)
+      const completionVax = record.vaccines.find(v => 
+        (v.name.includes('MR-2') || v.name.includes('Typhoid')) && 
+        v.status === 'Given' && 
+        !v.vaccinatedElsewhere && 
+        v.givenDateBs
+      );
 
-  const getPatient = (id: string) => serviceSeekerRecords.find(p => p.id === id);
+      if (!completionVax || !completionVax.givenDateBs) return false;
+      
+      const date = completionVax.givenDateBs;
+      
+      if (reportType === 'FiscalYear') {
+        return record.fiscalYear === currentFiscalYear;
+      } else if (reportType === 'Monthly') {
+        const recordMonth = date.split('-')[1];
+        const recordYear = date.split('-')[0];
+        const currentYear = selectedDate.split('-')[0];
+        return recordMonth === selectedMonth && recordYear === currentYear;
+      } else if (reportType === 'Quarterly') {
+        const m = parseInt(date.split('-')[1]);
+        const q = m >= 4 && m <= 6 ? '1' : m >= 7 && m <= 9 ? '2' : m >= 10 && m <= 12 ? '3' : '4';
+        return q === selectedQuarter && record.fiscalYear === currentFiscalYear;
+      } else if (reportType === 'HalfYearly') {
+        const m = parseInt(date.split('-')[1]);
+        const h = (m >= 4 && m <= 9) ? '1' : '2';
+        return h === selectedHalfYear && record.fiscalYear === currentFiscalYear;
+      } else {
+        return date === selectedDate;
+      }
+    });
+  }, [bachhaRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredCbimnci = useMemo(() => filterRecords(cbimnciRecords, 'visitDate'), [cbimnciRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredPrasuti = useMemo(() => filterRecords(prasutiRecords, 'deliveryDate'), [prasutiRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredTb = useMemo(() => filterRecords(tbPatients, 'registrationDate'), [tbPatients, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredOpd = useMemo(() => filterRecords(opdRecords, 'visitDate'), [opdRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+  const filteredIpd = useMemo(() => filterRecords(ipdRecords, 'admissionDate'), [ipdRecords, reportType, selectedDate, selectedMonth, selectedQuarter, selectedHalfYear, currentFiscalYear]);
+
+  const getPatient = (id: string | undefined, name?: string) => {
+    if (id) {
+      const patient = serviceSeekerRecords.find(p => p.id === id);
+      if (patient) return patient;
+    }
+    if (name) {
+      const patientByName = serviceSeekerRecords.find(p => p.name === name);
+      if (patientByName) return patientByName;
+    }
+    return undefined;
+  };
 
   const reportData = useMemo(() => {
     // Initialize data structure
@@ -120,15 +181,12 @@ export const GESIReport: React.FC<GESIReportProps> = ({
       data[caste.id] = {
         name: caste.name,
         khop_m: 0, khop_f: 0,
-        imnci_u2_m: 0, imnci_u2_f: 0,
-        imnci_2_59_m: 0, imnci_2_59_f: 0,
         underweight_m: 0, underweight_f: 0,
         delivery: 0,
         abortion: 0,
         hiv_m: 0, hiv_f: 0, hiv_o: 0,
         leprosy_m: 0, leprosy_f: 0,
         tb_m: 0, tb_f: 0,
-        opd_new_m: 0, opd_new_f: 0,
         discharge_m: 0, discharge_f: 0,
         gbv_m: 0, gbv_f: 0
       };
@@ -138,27 +196,35 @@ export const GESIReport: React.FC<GESIReportProps> = ({
     filteredBachha.forEach(record => {
         const caste = getCasteId(record.jatCode);
         const gender = record.gender === 'Male' ? 'm' : 'f';
-        // Simplified check for fully immunized (assuming if they have measles 2 or typhoid, they are fully immunized)
-        const isFullyImmunized = record.vaccines.some(v => (v.name.includes('MR-2') || v.name.includes('Typhoid')) && v.status === 'Given');
-        if (isFullyImmunized && data[caste]) {
-          data[caste][`khop_${gender}`]++;
+        
+        // Calculate Age at completion
+        const completionVax = record.vaccines.find(v => 
+          (v.name.includes('MR-2') || v.name.includes('Typhoid')) && 
+          v.status === 'Given' && 
+          !v.vaccinatedElsewhere && 
+          v.givenDateBs
+        );
+
+        if (completionVax && record.dobAd && completionVax.givenDateAd) {
+            const dob = new Date(record.dobAd);
+            const vaxDate = new Date(completionVax.givenDateAd);
+            let ageMonths = (vaxDate.getFullYear() - dob.getFullYear()) * 12 + (vaxDate.getMonth() - dob.getMonth());
+            if (vaxDate.getDate() < dob.getDate()) ageMonths--;
+
+            if (ageMonths <= 23 && data[caste]) {
+              data[caste][`khop_${gender}`]++;
+            }
         }
     });
 
-    // 2. IMNCI Services & 3. Underweight
+    // 2. Underweight
     filteredCbimnci.forEach(record => {
-        const patient = getPatient(record.serviceSeekerId);
+        const patient = getPatient(record.serviceSeekerId, record.patientName);
         if (patient) {
           const caste = getCasteId(patient.casteCode);
-          const gender = patient.gender === 'Male' ? 'm' : 'f';
+          const gender = (patient.gender === 'Male' ? 'm' : 'f');
           
           if (data[caste]) {
-            if (record.moduleType === 'Infant') {
-              data[caste][`imnci_u2_${gender}`]++;
-            } else {
-              data[caste][`imnci_2_59_${gender}`]++;
-            }
-
             // Underweight check
             if (record.assessmentData?.weight) {
               if (record.diagnosis?.includes('Underweight') || record.diagnosis?.includes('Malnutrition')) {
@@ -171,9 +237,8 @@ export const GESIReport: React.FC<GESIReportProps> = ({
 
     // 4. Institutional Delivery
     filteredPrasuti.forEach(record => {
-        // PrasutiRecord doesn't have casteCode directly, we would need to link to GarbhawotiRecord, which also doesn't have it.
-        // Defaulting to '6' (Other) for now unless we add it.
-        const caste = getCasteId((record as any).casteCode);
+        const patient = getPatient(record.serviceSeekerId, record.name);
+        const caste = getCasteId(patient?.casteCode || (record as any).casteCode);
         if (data[caste] && (record.deliveryPlace === 'Health Facility' || record.deliveryPlace === 'Hospital')) {
           data[caste].delivery++;
         }
@@ -198,13 +263,6 @@ export const GESIReport: React.FC<GESIReportProps> = ({
               if (gender === 'm') data[caste].gbv_m++;
               else if (gender === 'f') data[caste].gbv_f++;
             }
-
-            // 9. New OPD > 5 years
-            const ageYears = patient.ageYears || 0;
-            if (ageYears > 5 && patient.visitType === 'New') {
-              if (gender === 'm') data[caste].opd_new_m++;
-              else if (gender === 'f') data[caste].opd_new_f++;
-            }
           }
         }
     });
@@ -226,7 +284,7 @@ export const GESIReport: React.FC<GESIReportProps> = ({
     // 10. Discharged Patients
     filteredIpd.forEach(record => {
       if (record.status === 'Discharged') {
-        const patient = getPatient(record.serviceSeekerId);
+        const patient = getPatient(record.serviceSeekerId, record.patientName);
         if (patient) {
           const caste = getCasteId(patient.casteCode);
           const gender = patient.gender === 'Male' ? 'm' : 'f';
@@ -356,33 +414,23 @@ export const GESIReport: React.FC<GESIReportProps> = ({
           <table className="w-full border-collapse border border-slate-300 text-xs text-center">
             <thead>
               <tr>
-                <th colSpan={22} className="border border-slate-300 p-2 bg-slate-100 font-bold text-sm">
+                <th colSpan={18} className="border border-slate-300 p-2 bg-slate-100 font-bold text-sm">
                   २०. लिङ्ग र जात/जाती अनुसारको प्रतिवेदन
                 </th>
               </tr>
               <tr>
-                <th rowSpan={3} className="border border-slate-300 p-2 w-24">जात/जाती</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">२३ म. भित्र पूर्ण खोप पाएका बच्चा संख्या</th>
-                <th colSpan={4} className="border border-slate-300 p-2">नवशिशु तथा बालरोगको एकीकृत व्यवस्थापन सेवा लिएका बच्चा संख्या</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">२ वर्ष मुनिका कम तौल भएका बच्चाहरुको संख्या</th>
-                <th rowSpan={3} className="border border-slate-300 p-2">स्वास्थ्य संस्थामा प्रसूति गराएका</th>
-                <th rowSpan={3} className="border border-slate-300 p-2">सुरक्षित गर्भपतन सेवा पाएका</th>
-                <th colSpan={3} rowSpan={2} className="border border-slate-300 p-2">एच.आई.भी. संक्रमित नयाँ बिरामी</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">नयाँ कुष्ठरोगीहरुको संख्या</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">नयाँ क्षयरोग बिरामीहरुको संख्या</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">ओ.पी.डी. मा आएका नयाँ बिरामी संख्या (५ वर्ष माथि)</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">अस्पतालबाट डिस्चार्ज भएका बिरामी</th>
-                <th colSpan={2} rowSpan={2} className="border border-slate-300 p-2">लैगिक हिंसाबाट पिडीतको संख्या</th>
+                <th rowSpan={2} className="border border-slate-300 p-2 w-24">जात/जाती</th>
+                <th colSpan={2} className="border border-slate-300 p-2">२३ म. भित्र पूर्ण खोप पाएका बच्चा संख्या</th>
+                <th colSpan={2} className="border border-slate-300 p-2">२ वर्ष मुनिका कम तौल भएका बच्चाहरुको संख्या</th>
+                <th rowSpan={2} className="border border-slate-300 p-2">स्वास्थ्य संस्थामा प्रसूति गराएका</th>
+                <th rowSpan={2} className="border border-slate-300 p-2">सुरक्षित गर्भपतन सेवा पाएका</th>
+                <th colSpan={3} className="border border-slate-300 p-2">एच.आई.भी. संक्रमित नयाँ बिरामी</th>
+                <th colSpan={2} className="border border-slate-300 p-2">नयाँ कुष्ठरोगीहरुको संख्या</th>
+                <th colSpan={2} className="border border-slate-300 p-2">नयाँ क्षयरोग बिरामीहरुको संख्या</th>
+                <th colSpan={2} className="border border-slate-300 p-2">अस्पतालबाट डिस्चार्ज भएका बिरामी</th>
+                <th colSpan={2} className="border border-slate-300 p-2">लैगिक हिंसाबाट पिडीतको संख्या</th>
               </tr>
               <tr>
-                <th colSpan={2} className="border border-slate-300 p-1">&lt;२ महिना</th>
-                <th colSpan={2} className="border border-slate-300 p-1">२-५९ महिना</th>
-              </tr>
-              <tr>
-                <th className="border border-slate-300 p-1">म.</th>
-                <th className="border border-slate-300 p-1">पु.</th>
-                <th className="border border-slate-300 p-1">म.</th>
-                <th className="border border-slate-300 p-1">पु.</th>
                 <th className="border border-slate-300 p-1">म.</th>
                 <th className="border border-slate-300 p-1">पु.</th>
                 <th className="border border-slate-300 p-1">म.</th>
@@ -390,8 +438,6 @@ export const GESIReport: React.FC<GESIReportProps> = ({
                 <th className="border border-slate-300 p-1">म.</th>
                 <th className="border border-slate-300 p-1">पु.</th>
                 <th className="border border-slate-300 p-1">यो.अ</th>
-                <th className="border border-slate-300 p-1">म.</th>
-                <th className="border border-slate-300 p-1">पु.</th>
                 <th className="border border-slate-300 p-1">म.</th>
                 <th className="border border-slate-300 p-1">पु.</th>
                 <th className="border border-slate-300 p-1">म.</th>
@@ -420,10 +466,6 @@ export const GESIReport: React.FC<GESIReportProps> = ({
                 <th className="border border-slate-300 p-1">16</th>
                 <th className="border border-slate-300 p-1">17</th>
                 <th className="border border-slate-300 p-1">18</th>
-                <th className="border border-slate-300 p-1">19</th>
-                <th className="border border-slate-300 p-1">20</th>
-                <th className="border border-slate-300 p-1">21</th>
-                <th className="border border-slate-300 p-1">22</th>
               </tr>
             </thead>
             <tbody>
@@ -434,23 +476,17 @@ export const GESIReport: React.FC<GESIReportProps> = ({
                     <td className="border border-slate-300 p-2 text-left font-medium">{caste.name}</td>
                     <td className="border border-slate-300 p-2">{row.khop_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.khop_m || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.imnci_u2_f || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.imnci_u2_m || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.imnci_2_59_f || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.imnci_2_59_m || ''}</td>
                     <td className="border border-slate-300 p-2">{row.underweight_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.underweight_m || ''}</td>
                     <td className="border border-slate-300 p-2">{row.delivery || ''}</td>
                     <td className="border border-slate-300 p-2">{row.abortion || ''}</td>
+                    <td className="border border-slate-300 p-2">{row.hiv_o || ''}</td>
                     <td className="border border-slate-300 p-2">{row.hiv_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.hiv_m || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.hiv_o || ''}</td>
                     <td className="border border-slate-300 p-2">{row.leprosy_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.leprosy_m || ''}</td>
                     <td className="border border-slate-300 p-2">{row.tb_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.tb_m || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.opd_new_f || ''}</td>
-                    <td className="border border-slate-300 p-2">{row.opd_new_m || ''}</td>
                     <td className="border border-slate-300 p-2">{row.discharge_f || ''}</td>
                     <td className="border border-slate-300 p-2">{row.discharge_m || ''}</td>
                     <td className="border border-slate-300 p-2">{row.gbv_f || ''}</td>
