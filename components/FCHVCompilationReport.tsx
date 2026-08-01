@@ -3,12 +3,17 @@ import { db } from '../firestore';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { FCHVReport } from '../types/fchvTypes';
 import { FCHV } from '../types/vitaminATypes';
-import { Printer, Filter, Users, FileText, Calendar } from 'lucide-react';
+import { OrganizationSettings } from '../types/coreTypes';
+import { Printer, Filter, Users, FileText, Calendar, RefreshCw, Plus } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface FCHVCompilationReportProps {
     safeOrgName: string;
     currentFiscalYear: string;
+    generalSettings: OrganizationSettings;
 }
 
 const MONTHS = [
@@ -26,13 +31,14 @@ const MONTHS = [
     { id: '03', name: 'असार' },
 ];
 
-export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ safeOrgName, currentFiscalYear }) => {
+export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ safeOrgName, currentFiscalYear, generalSettings }) => {
     const [reports, setReports] = useState<FCHVReport[]>([]);
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
     const [selectedFchvId, setSelectedFchvId] = useState<string>('all');
     const [selectedMonth, setSelectedMonth] = useState<string>('all');
     const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
     const [loading, setLoading] = useState(true);
+    const [isPushing, setIsPushing] = useState(false);
     const componentRef = React.useRef<HTMLDivElement>(null);
 
     const handlePrint = useReactToPrint({
@@ -145,6 +151,89 @@ export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ sa
         };
     }, [reports]);
 
+    const pushToDHIS2 = async () => {
+        if (!generalSettings.dhis2BaseUrl || !generalSettings.dhis2Username || !generalSettings.dhis2Password || !generalSettings.dhis2OrgUnitId) {
+            alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+            return;
+        }
+
+        setIsPushing(true);
+        try {
+            const dataValues: any[] = [];
+            
+            const mapCell = (key: string, value: number) => {
+                const mapping = getDhis2CellMapping(key, generalSettings, { dataElement: 'NOT_MAPPED', categoryOptionCombo: '' });
+                if (mapping.dataElement && mapping.dataElement !== 'NOT_MAPPED') {
+                    dataValues.push({
+                        dataElement: mapping.dataElement,
+                        categoryOptionCombo: mapping.categoryOptionCombo,
+                        value: String(value)
+                    });
+                }
+            };
+
+            // FCHV Specific Mappings (Example keys)
+            mapCell('FCHV_AMA_MEETING', compiledData.safeMotherhood.amaGroupMeeting);
+            mapCell('FCHV_PREGNANT_MET', compiledData.safeMotherhood.pregnantMet);
+            mapCell('FCHV_IRON_DISTRIBUTION', compiledData.safeMotherhood.ironDistribution);
+            mapCell('FCHV_HOME_DELIVERY_LIVE', compiledData.safeMotherhood.homeDelivery.liveBirth);
+            mapCell('FCHV_VIT_A_POSTNATAL', compiledData.safeMotherhood.vitADistributionPostnatal);
+            mapCell('FCHV_CONDOM_DIST', compiledData.safeMotherhood.condomDistribution);
+            mapCell('FCHV_IMNCI_RESP_TOTAL', compiledData.imnci.m2_59Months.respiratoryTotal);
+            mapCell('FCHV_MUAC_RED', compiledData.imam.muac.red);
+
+            if (dataValues.length === 0) {
+                alert('DHIS2 मा पठाउनको लागि कुनै डाटा म्यापिङ फेला परेन। कृपया सेटिङमा म्यापिङ मिलाउनुहोस्।');
+                setIsPushing(false);
+                return;
+            }
+
+            const period = selectedMonth === 'all'
+                ? selectedFiscalYear.replace(/\//g, '')
+                : `${selectedFiscalYear.split('/')[0]}${selectedMonth}`;
+
+            const dataSetId = generalSettings.dhis2DatasetMappings?.['FCHV Report'] || generalSettings.dhis2DataSetId || "";
+            const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+            const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
+
+            const confirmMessage = `DHIS2 मा FCHV संकलित डाटा पठाउन चाहनुहुन्छ?\n\n` +
+                `संस्था (DHIS2): ${orgName}\n` +
+                `डाटासेट: ${dataSetLabel}\n` +
+                `अवधि: ${period}\n` +
+                `म्याप गरिएका क्षेत्रहरू: ${dataValues.length}\n\n` +
+                `के तपाइँ पक्का हुनुहुन्छ?`;
+
+            if (!window.confirm(confirmMessage)) {
+                setIsPushing(false);
+                return;
+            }
+
+            const payload = {
+                dataSet: dataSetId,
+                completeDate: new Date().toISOString().split('T')[0],
+                period: period,
+                orgUnit: generalSettings.dhis2OrgUnitId,
+                dataValues: dataValues
+            };
+
+            const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
+            
+            await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            alert('DHIS2 मा सफलतापूर्वक FCHV डाटा पठाइयो।');
+        } catch (error) {
+            console.error("DHIS2 push error:", error);
+            alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+        } finally {
+            setIsPushing(false);
+        }
+    };
+
     const TableRow = ({ label, value, unit, colIndex = 3 }: { label: string; value: number; unit?: string; colIndex?: number }) => (
         <tr className="border-b border-slate-200">
             <td className="px-4 py-2 text-sm font-nepali border-r">{label}</td>
@@ -165,12 +254,22 @@ export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ sa
                         <p className="text-xs sm:text-sm text-slate-500">स्वयंसेविका कार्य विवरण संकलन</p>
                     </div>
                 </div>
-                <button 
-                    onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-sm"
-                >
-                    <Printer size={18} /> प्रिन्ट गर्नुहोस्
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={pushToDHIS2}
+                        disabled={isPushing}
+                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+                    >
+                        {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+                        {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+                    </button>
+                    <button 
+                        onClick={handlePrint}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-sm"
+                    >
+                        <Printer size={18} /> प्रिन्ट गर्नुहोस्
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
