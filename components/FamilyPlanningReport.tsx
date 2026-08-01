@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { PariwarSewaRecord, OrganizationSettings } from '../types';
-import { Printer, Calendar, Filter } from 'lucide-react';
+import { Printer, Calendar, Filter, RefreshCw, Plus } from 'lucide-react';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import NepaliDate from 'nepali-date-converter';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface FamilyPlanningReportProps {
   records: PariwarSewaRecord[];
@@ -12,6 +15,7 @@ interface FamilyPlanningReportProps {
 
 export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ records, settings, fiscalYear }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'Quarterly' | 'HalfYearly' | 'FiscalYear'>('Monthly');
+  const [isPushing, setIsPushing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     try { return new NepaliDate().format('YYYY-MM-DD'); } catch (e) { return ''; }
   });
@@ -77,6 +81,97 @@ export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ reco
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const pushToDHIS2 = async () => {
+    if (!settings.dhis2BaseUrl || !settings.dhis2Username || !settings.dhis2Password || !settings.dhis2OrgUnitId) {
+      alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const dataValues: any[] = [];
+      
+      const methods = [
+        'Condom', 'Emergency Contraceptive', 'Pills', 'Depo', 
+        'Sayana Press', 'IUCD', 'Implant 5 yrs', 'Implant 3 yrs'
+      ];
+
+      methods.forEach(method => {
+        const stats = getStats(method);
+        const methodKey = method.toUpperCase().replace(/\s+/g, '_');
+
+        const mapCell = (keySuffix: string, value: number) => {
+          const mapping = getDhis2CellMapping(`FP_${methodKey}_${keySuffix}`, settings, { dataElement: 'NOT_MAPPED', categoryOptionCombo: '' });
+          if (mapping.dataElement && mapping.dataElement !== 'NOT_MAPPED') {
+            dataValues.push({
+              dataElement: mapping.dataElement,
+              categoryOptionCombo: mapping.categoryOptionCombo,
+              value: String(value)
+            });
+          }
+        };
+
+        mapCell('NEW_U20', stats.newUnder20);
+        mapCell('NEW_O20', stats.newOver20);
+        mapCell('CURRENT', stats.current);
+        mapCell('DISCONTINUED', stats.discontinued);
+        mapCell('QUANTITY', stats.totalQuantity);
+      });
+
+      if (dataValues.length === 0) {
+        alert('DHIS2 मा पठाउनको लागि कुनै डाटा म्यापिङ फेला परेन। कृपया सेटिङमा म्यापिङ मिलाउनुहोस्।');
+        setIsPushing(false);
+        return;
+      }
+
+      const period = reportType === 'Daily' 
+        ? selectedDate.replace(/-/g, '') 
+        : reportType === 'Monthly' 
+          ? `${selectedDate.split('-')[0]}${selectedMonth}`
+          : fiscalYear.replace(/\//g, '');
+
+      const dataSetId = settings.dhis2DatasetMappings?.['Family Planning Report'] || settings.dhis2DataSetId || "";
+      const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+      const orgName = settings.dhis2OrgUnitName || settings.officeName || 'Not Specified';
+
+      const confirmMessage = `DHIS2 मा Family Planning डाटा पठाउन चाहनुहुन्छ?\n\n` +
+        `संस्था (DHIS2): ${orgName}\n` +
+        `डाटासेट: ${dataSetLabel}\n` +
+        `अवधि: ${period}\n` +
+        `म्याप गरिएका क्षेत्रहरू: ${dataValues.length}\n\n` +
+        `के तपाइँ पक्का हुनुहुन्छ?`;
+
+      if (!window.confirm(confirmMessage)) {
+        setIsPushing(false);
+        return;
+      }
+
+      const payload = {
+        dataSet: dataSetId,
+        completeDate: new Date().toISOString().split('T')[0],
+        period: period,
+        orgUnit: settings.dhis2OrgUnitId,
+        dataValues: dataValues
+      };
+
+      const auth = btoa(`${settings.dhis2Username}:${settings.dhis2Password}`);
+      
+      await axios.post(`${settings.dhis2BaseUrl}dataValueSets`, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('DHIS2 मा सफलतापूर्वक Family Planning डाटा पठाइयो।');
+    } catch (error) {
+      console.error("DHIS2 push error:", error);
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+    } finally {
+      setIsPushing(false);
+    }
   };
 
   return (
@@ -161,9 +256,19 @@ export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ reco
           </div>
         )}
         
-        <button onClick={handlePrint} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all shadow-sm ml-auto">
-          <Printer size={18} /> प्रिन्ट गर्नुहोस्
-        </button>
+        <div className="flex gap-2 ml-auto">
+          <button 
+            onClick={pushToDHIS2}
+            disabled={isPushing}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+          >
+            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+          </button>
+          <button onClick={handlePrint} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all shadow-sm">
+            <Printer size={18} /> प्रिन्ट गर्नुहोस्
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm print:shadow-none print:border-none print:p-0">

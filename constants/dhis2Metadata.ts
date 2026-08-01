@@ -66,6 +66,16 @@ export const DHIS2_SOURCE_KEYS: Option[] = [
     { id: 's27', value: 'VAX_CHILD_JE', label: 'Child Vax JE' },
     { id: 's28', value: 'VAX_MATERNAL_TD1', label: 'Maternal TD1' },
     { id: 's29', value: 'VAX_MATERNAL_TD2', label: 'Maternal TD2' },
+    { id: 's30', value: 'GESI_KHOP_F_DALIT', label: 'GESI: Full Immunization Female (Dalit)' },
+    { id: 's31', value: 'GESI_KHOP_M_DALIT', label: 'GESI: Full Immunization Male (Dalit)' },
+    { id: 's32', value: 'GESI_DELIVERY_DALIT', label: 'GESI: Institutional Delivery (Dalit)' },
+    { id: 's33', value: 'GESI_GBV_F_DALIT', label: 'GESI: GBV Female (Dalit)' },
+    { id: 's34', value: 'FP_CONDOM_NEW_O20', label: 'FP: Condom New User (>=20)' },
+    { id: 's35', value: 'FP_PILLS_NEW_O20', label: 'FP: Pills New User (>=20)' },
+    { id: 's36', value: 'FP_DEPO_NEW_O20', label: 'FP: Depo New User (>=20)' },
+    { id: 's37', value: 'ANC_FIRST_O20', label: 'ANC: First Visit (>=20)' },
+    { id: 's38', value: 'DELIVERY_SBA_O20', label: 'Delivery: SBA Conducted (>=20)' },
+    { id: 's39', value: 'IMNCI_CHILD_PNEUMONIA', label: 'IMNCI: Child Pneumonia Case' },
 ];
 
 export const DHIS2_COMBOS: Option[] = [
@@ -80,4 +90,5 @@ export const DHIS2_DATASETS: Option[] = [
     { id: 'ds1', value: 'a2JkM9Uvfa2', label: 'HMIS 3.3 - Immunization & Nutrition' },
     { id: 'ds2', value: 'fBTyYLt6u8l', label: 'HMIS 3.4 - Safe Motherhood' },
     { id: 'ds3', value: 'pMTY4vfa2Jk', label: 'HMIS 1.1 - OPD Services' },
+    { id: 'ds4', value: 'gEsiReportDataset', label: 'GESI Report Dataset' },
 ];

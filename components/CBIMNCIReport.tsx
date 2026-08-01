@@ -1,21 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { CBIMNCIRecord, ServiceSeekerRecord } from '../types/coreTypes';
+import { CBIMNCIRecord, ServiceSeekerRecord, OrganizationSettings } from '../types/coreTypes';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import NepaliDate from 'nepali-date-converter';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, Printer, RefreshCw, Plus } from 'lucide-react';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface CBIMNCIReportProps {
   cbimnciRecords: CBIMNCIRecord[];
   serviceSeekerRecords: ServiceSeekerRecord[];
   currentFiscalYear: string;
+  generalSettings: OrganizationSettings;
 }
 
 export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
   cbimnciRecords,
   serviceSeekerRecords,
-  currentFiscalYear
+  currentFiscalYear,
+  generalSettings
 }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'Quarterly' | 'HalfYearly' | 'FiscalYear'>('Monthly');
+  const [isPushing, setIsPushing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     try { return new NepaliDate().format('YYYY-MM-DD'); } catch (e) { return ''; }
   });
@@ -270,7 +276,7 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
       childStats.other++;
     }
 
-    // Death
+  // Death
     if (isDeath) {
       if (diag.includes('Pneumonia') || diag.includes('Disease')) childStats.death_resp++;
       else if (diag.includes('Dehydration') || diag.includes('Diarrhea')) childStats.death_diarrhea++;
@@ -287,6 +293,93 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
     }
   });
 
+  const pushToDHIS2 = async () => {
+    if (!generalSettings.dhis2BaseUrl || !generalSettings.dhis2Username || !generalSettings.dhis2Password || !generalSettings.dhis2OrgUnitId) {
+      alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const dataValues: any[] = [];
+      
+      const mapCell = (key: string, value: number) => {
+        const mapping = getDhis2CellMapping(key, generalSettings, { dataElement: 'NOT_MAPPED', categoryOptionCombo: '' });
+        if (mapping.dataElement && mapping.dataElement !== 'NOT_MAPPED') {
+          dataValues.push({
+            dataElement: mapping.dataElement,
+            categoryOptionCombo: mapping.categoryOptionCombo,
+            value: String(value)
+          });
+        }
+      };
+
+      // Infant Stats
+      mapCell('IMNCI_INFANT_TOTAL_0_28', infantStats.total_0_28);
+      mapCell('IMNCI_INFANT_TOTAL_29_59', infantStats.total_29_59);
+      mapCell('IMNCI_INFANT_SEVERE', infantStats.severe_0_28 + infantStats.severe_29_59);
+      mapCell('IMNCI_INFANT_PNEUMONIA', infantStats.pneumonia_0_28 + infantStats.pneumonia_29_59);
+
+      // Child Stats
+      mapCell('IMNCI_CHILD_BOY', childStats.total_boy);
+      mapCell('IMNCI_CHILD_GIRL', childStats.total_girl);
+      mapCell('IMNCI_CHILD_PNEUMONIA', childStats.pneumonia);
+      mapCell('IMNCI_CHILD_DIARRHEA', childStats.some_dehydration + childStats.severe_dehydration);
+
+      if (dataValues.length === 0) {
+        alert('DHIS2 मा पठाउनको लागि कुनै डाटा म्यापिङ फेला परएन। कृपया सेटिङमा म्यापिङ मिलाउनुहोस्।');
+        setIsPushing(false);
+        return;
+      }
+
+      const period = reportType === 'Daily' 
+        ? selectedDate.replace(/-/g, '') 
+        : reportType === 'Monthly' 
+          ? `${selectedDate.split('-')[0]}${selectedMonth}`
+          : currentFiscalYear.replace(/\//g, '');
+
+      const dataSetId = generalSettings.dhis2DatasetMappings?.['CBIMNCI Report'] || generalSettings.dhis2DataSetId || "";
+      const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
+
+      const confirmMessage = `DHIS2 मा CBIMNCI डाटा पठाउन चाहनुहुन्छ?\n\n` +
+        `संस्था (DHIS2): ${orgName}\n` +
+        `डाटासेट: ${dataSetLabel}\n` +
+        `अवधि: ${period}\n` +
+        `म्याप गरिएका क्षेत्रहरू: ${dataValues.length}\n\n` +
+        `के तपाइँ पक्का हुनुहुन्छ?`;
+
+      if (!window.confirm(confirmMessage)) {
+        setIsPushing(false);
+        return;
+      }
+
+      const payload = {
+        dataSet: dataSetId,
+        completeDate: new Date().toISOString().split('T')[0],
+        period: period,
+        orgUnit: generalSettings.dhis2OrgUnitId,
+        dataValues: dataValues
+      };
+
+      const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
+      
+      await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('DHIS2 मा सफलतापूर्वक CBIMNCI डाटा पठाइयो।');
+    } catch (error) {
+      console.error("DHIS2 push error:", error);
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -294,10 +387,20 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
           <FileText className="text-primary-600" />
           CBIMNCI रिपोर्ट
         </h2>
-        <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-bold text-sm transition-colors print:hidden">
-          <Printer size={16} />
-          प्रिन्ट गर्नुहोस्
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={pushToDHIS2}
+            disabled={isPushing}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50 print:hidden"
+          >
+            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-bold text-sm transition-colors print:hidden">
+            <Printer size={16} />
+            प्रिन्ट गर्नुहोस्
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm print:hidden flex flex-wrap gap-4 items-end">

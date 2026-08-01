@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Printer, Calendar, Filter } from 'lucide-react';
+import { Printer, Calendar, Filter, RefreshCw, Plus } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { GarbhawotiRecord, PrasutiRecord, OrganizationSettings } from '../types';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import NepaliDate from 'nepali-date-converter';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface MCHReportProps {
   currentFiscalYear: string;
@@ -35,6 +38,7 @@ export const MCHReport: React.FC<MCHReportProps> = ({
   generalSettings 
 }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'Quarterly' | 'HalfYearly' | 'FiscalYear'>('Monthly');
+  const [isPushing, setIsPushing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     try { return new NepaliDate().format('YYYY-MM-DD'); } catch (e) { return ''; }
   });
@@ -147,6 +151,101 @@ export const MCHReport: React.FC<MCHReportProps> = ({
     window.print();
   };
 
+  const pushToDHIS2 = async () => {
+    if (!generalSettings.dhis2BaseUrl || !generalSettings.dhis2Username || !generalSettings.dhis2Password || !generalSettings.dhis2OrgUnitId) {
+      alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const dataValues: any[] = [];
+      
+      const mapCell = (key: string, value: number) => {
+        const mapping = getDhis2CellMapping(key, generalSettings, { dataElement: 'NOT_MAPPED', categoryOptionCombo: '' });
+        if (mapping.dataElement && mapping.dataElement !== 'NOT_MAPPED') {
+          dataValues.push({
+            dataElement: mapping.dataElement,
+            categoryOptionCombo: mapping.categoryOptionCombo,
+            value: String(value)
+          });
+        }
+      };
+
+      // ANC Stats
+      mapCell('ANC_FIRST_U20', reportStats.anc.first.under20);
+      mapCell('ANC_FIRST_O20', reportStats.anc.first.over20);
+      mapCell('ANC_12WK_U20', reportStats.anc.within12Weeks.under20);
+      mapCell('ANC_12WK_O20', reportStats.anc.within12Weeks.over20);
+      mapCell('ANC_4TIME_U20', reportStats.anc.fourTimes.under20);
+      mapCell('ANC_4TIME_O20', reportStats.anc.fourTimes.over20);
+      mapCell('ANC_8TIME_U20', reportStats.anc.eightTimes.under20);
+      mapCell('ANC_8TIME_O20', reportStats.anc.eightTimes.over20);
+      mapCell('ANC_ROUSG_U20', reportStats.anc.rousg.under20);
+      mapCell('ANC_ROUSG_O20', reportStats.anc.rousg.over20);
+
+      // Delivery Stats
+      mapCell('DELIVERY_SBA_U20', reportStats.delivery.sba.under20);
+      mapCell('DELIVERY_SBA_O20', reportStats.delivery.sba.over20);
+      mapCell('DELIVERY_SHP_U20', reportStats.delivery.shp.under20);
+      mapCell('DELIVERY_SHP_O20', reportStats.delivery.shp.over20);
+      mapCell('DELIVERY_HOME_U20', reportStats.delivery.home.under20);
+      mapCell('DELIVERY_HOME_O20', reportStats.delivery.home.over20);
+
+      if (dataValues.length === 0) {
+        alert('DHIS2 मा पठाउनको लागि कुनै डाटा म्यापिङ फेला परेन। कृपया सेटिङमा म्यापिङ मिलाउनुहोस्।');
+        setIsPushing(false);
+        return;
+      }
+
+      const period = reportType === 'Daily' 
+        ? selectedDate.replace(/-/g, '') 
+        : reportType === 'Monthly' 
+          ? `${selectedDate.split('-')[0]}${selectedMonth}`
+          : selectedFiscalYear.replace(/\//g, '');
+
+      const dataSetId = generalSettings.dhis2DatasetMappings?.['MCH Report'] || generalSettings.dhis2DataSetId || "";
+      const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
+
+      const confirmMessage = `DHIS2 मा MCH डाटा पठाउन चाहनुहुन्छ?\n\n` +
+        `संस्था (DHIS2): ${orgName}\n` +
+        `डाटासेट: ${dataSetLabel}\n` +
+        `अवधि: ${period}\n` +
+        `म्याप गरिएका क्षेत्रहरू: ${dataValues.length}\n\n` +
+        `के तपाइँ पक्का हुनुहुन्छ?`;
+
+      if (!window.confirm(confirmMessage)) {
+        setIsPushing(false);
+        return;
+      }
+
+      const payload = {
+        dataSet: dataSetId,
+        completeDate: new Date().toISOString().split('T')[0],
+        period: period,
+        orgUnit: generalSettings.dhis2OrgUnitId,
+        dataValues: dataValues
+      };
+
+      const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
+      
+      await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('DHIS2 मा सफलतापूर्वक MCH डाटा पठाइयो।');
+    } catch (error) {
+      console.error("DHIS2 push error:", error);
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm print:hidden flex flex-wrap gap-4 items-end">
@@ -227,9 +326,19 @@ export const MCHReport: React.FC<MCHReportProps> = ({
           </div>
         )}
         
-        <button onClick={handlePrint} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all shadow-sm ml-auto">
-          <Printer size={18} /> प्रिन्ट गर्नुहोस्
-        </button>
+        <div className="flex gap-2 ml-auto">
+          <button 
+            onClick={pushToDHIS2}
+            disabled={isPushing}
+            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+          >
+            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+          </button>
+          <button onClick={handlePrint} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all shadow-sm">
+            <Printer size={18} /> प्रिन्ट गर्नुहोस्
+          </button>
+        </div>
       </div>
 
       <div id="mch-report-print-content" className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto">
