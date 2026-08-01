@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { ServiceSeekerRecord } from '../types/coreTypes';
+import { ServiceSeekerRecord, OrganizationSettings } from '../types/coreTypes';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import NepaliDate from 'nepali-date-converter';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, Printer, RefreshCw, Plus } from 'lucide-react';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface ReportingStatusReportProps {
   serviceSeekerRecords: ServiceSeekerRecord[];
   bachhaImmunizationRecords: any[];
   currentFiscalYear: string;
-  generalSettings: any;
+  generalSettings: OrganizationSettings;
 }
 
 export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
@@ -18,6 +21,7 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
   generalSettings
 }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'FiscalYear'>('Monthly');
+  const [isPushing, setIsPushing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     try { return new NepaliDate().format('YYYY-MM-DD'); } catch (e) { return ''; }
   });
@@ -132,6 +136,93 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
     };
   }, [filteredImmRecords, reportType, selectedMonth, generalSettings, selectedDate]);
 
+  const pushToDHIS2 = async () => {
+    if (!generalSettings.dhis2BaseUrl || !generalSettings.dhis2Username || !generalSettings.dhis2Password || !generalSettings.dhis2OrgUnitId) {
+      alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const dataValues: any[] = [];
+      
+      // Map Age Group Stats
+      ageGroups.forEach(group => {
+        const stats = getStatsForAgeGroup(group.min, group.max);
+        const baseElement = group.label === '0-9' ? 'fuHbV1eiKs0' :
+                           group.label === '10-14' ? 'qQ8UCWW6YUs' :
+                           group.label === '15-19' ? 'SbdW0pjvph3' :
+                           group.label === '20-59' ? 'CLYbMAU5lhD' :
+                           group.label === '60+' ? 'HEgvfxOppUY' : null;
+
+        if (baseElement) {
+          // Source keys for individual mapping: AGE_0-9_FEMALE, AGE_0-9_MALE, etc.
+          const femaleMapping = getDhis2CellMapping(`AGE_${group.label}_FEMALE`, generalSettings, { dataElement: baseElement, categoryOptionCombo: "ye1QuAMRG5Z" });
+          const maleMapping = getDhis2CellMapping(`AGE_${group.label}_MALE`, generalSettings, { dataElement: baseElement, categoryOptionCombo: "PflKpozpO7b" });
+
+          dataValues.push(
+            { dataElement: femaleMapping.dataElement, categoryOptionCombo: femaleMapping.categoryOptionCombo, value: String(stats.totalFemale) },
+            { dataElement: maleMapping.dataElement, categoryOptionCombo: maleMapping.categoryOptionCombo, value: String(stats.totalMale) }
+          );
+        }
+      });
+
+      // Map Clinic Stats (Planned vs Conducted)
+      const plannedMapping = getDhis2CellMapping('CLINIC_PLANNED', generalSettings, { dataElement: 'sBAeCFmRvOG', categoryOptionCombo: "kdsirVNKdhm" });
+      const conductedMapping = getDhis2CellMapping('CLINIC_CONDUCTED', generalSettings, { dataElement: 'w7FmV7f1Rcn', categoryOptionCombo: "kdsirVNKdhm" });
+
+      dataValues.push(
+        { dataElement: plannedMapping.dataElement, categoryOptionCombo: plannedMapping.categoryOptionCombo, value: String(immClinicStats.plannedClinics) },
+        { dataElement: conductedMapping.dataElement, categoryOptionCombo: conductedMapping.categoryOptionCombo, value: String(immClinicStats.operatedClinics) }
+      );
+
+      const period = reportType === 'Daily' 
+        ? selectedDate.replace(/-/g, '') 
+        : reportType === 'Monthly' 
+          ? `${parseNepaliDateString(selectedDate)?.year}${selectedMonth}`
+          : currentFiscalYear.replace(/\//g, '');
+
+      const dataSetId = generalSettings.dhis2DatasetMappings?.['Reporting Status'] || generalSettings.dhis2DataSetId || "a2JkM9Uvfa2";
+      const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+      const orgName = generalSettings.officeName || 'Not Specified';
+
+      const confirmMessage = `DHIS2 मा डाटा पठाउन चाहनुहुन्छ?\n\n` +
+        `संस्था: ${orgName}\n` +
+        `डाटासेट: ${dataSetLabel}\n` +
+        `अवधि: ${period}\n\n` +
+        `के तपाइँ पक्का हुनुहुन्छ?`;
+
+      if (!window.confirm(confirmMessage)) {
+        setIsPushing(false);
+        return;
+      }
+
+      const payload = {
+        dataSet: dataSetId,
+        completeDate: new Date().toISOString().split('T')[0],
+        period: period,
+        orgUnit: generalSettings.officeCode || generalSettings.dhis2OrgUnitId,
+        dataValues: dataValues
+      };
+
+      const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
+      
+      await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('DHIS2 मा सफलतापूर्वक डेटा पठाइयो।');
+    } catch (error) {
+      console.error("DHIS2 push error:", error);
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
   // Helper to calculate age in years
   const getAgeInYears = (record: ServiceSeekerRecord) => {
     if (record.ageYears !== undefined) return record.ageYears;
@@ -243,7 +334,7 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
       </div>
 
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-x-auto font-sans">
-        <div className="text-center mb-6">
+        <div className="text-center mb-6 relative">
           <h3 className="font-bold text-lg font-nepali">मासिक प्रगती प्रतिवेदन</h3>
           <p className="text-sm text-slate-500 font-nepali">
             {reportType === 'Daily' 
@@ -252,6 +343,25 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
                 ? `महिना: ${toNepaliDigits(parseNepaliDateString(selectedDate)?.year || '')}-${toNepaliDigits(selectedMonth)}` 
                 : `आर्थिक वर्ष: ${toNepaliDigits(currentFiscalYear)}`}
           </p>
+          <div className="absolute top-0 right-0 print:hidden">
+            <button 
+              onClick={pushToDHIS2}
+              disabled={isPushing}
+              className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50 shadow-sm"
+            >
+              {isPushing ? (
+                <>
+                  <RefreshCw className="animate-spin" size={14} />
+                  पठाउँदै...
+                </>
+              ) : (
+                <>
+                  <Plus size={14} />
+                  DHIS2 मा पठाउनुहोस्
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4">

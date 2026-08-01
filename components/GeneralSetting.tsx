@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
 import { OrganizationSettings, User as UserType, MenuConfigItem } from '../types/coreTypes'; // Changed import
 import { MenuManagement } from './MenuManagement';
+import { SearchableSelect } from './SearchableSelect';
+import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface GeneralSettingProps {
     currentUser: UserType;
     settings: OrganizationSettings;
     onUpdateSettings: (settings: OrganizationSettings) => void;
+    onUpdateGlobalDhis2Mappings?: (mappings: any) => void;
     users: UserType[];
 }
 
-export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, settings, onUpdateSettings, users }) => {
+export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, settings, onUpdateSettings, onUpdateGlobalDhis2Mappings, users }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
@@ -77,6 +80,15 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateSettings(localSettings);
+    
+    // If superadmin, also update global DHIS2 mappings
+    if (currentUser.role === 'SUPER_ADMIN' && onUpdateGlobalDhis2Mappings) {
+        onUpdateGlobalDhis2Mappings({
+            dhis2DatasetMappings: localSettings.dhis2DatasetMappings,
+            dhis2CellMappings: localSettings.dhis2CellMappings
+        });
+    }
+    
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
@@ -154,6 +166,172 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <Input label="वेबसाइट" value={localSettings.website} onChange={(e) => handleChange('website', e.target.value)} icon={<Globe size={16} />} />
                 </div>
                 <div className="mt-4"><Input label="PAN/VAT No" value={localSettings.panNo} onChange={(e) => handleChange('panNo', e.target.value)} icon={<FileText size={16} />} /></div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Globe size={18} className="text-primary-600"/>DHIS2 API कन्फिगरेसन</h3>
+                <div className="grid grid-cols-1 gap-4">
+                    <Input 
+                        label="DHIS2 Base URL" 
+                        value={localSettings.dhis2BaseUrl || ''} 
+                        onChange={(e) => handleChange('dhis2BaseUrl', e.target.value)} 
+                        placeholder="https://play.dhis2.org/2.40.0/api/"
+                        icon={<Globe size={16} />}
+                    />
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <Input 
+                            label="DHIS2 Username" 
+                            value={localSettings.dhis2Username || ''} 
+                            onChange={(e) => handleChange('dhis2Username', e.target.value)} 
+                            placeholder="admin"
+                            icon={<UserCog size={16} />}
+                        />
+                        <Input 
+                            label="DHIS2 Password" 
+                            type="password"
+                            value={localSettings.dhis2Password || ''} 
+                            onChange={(e) => handleChange('dhis2Password', e.target.value)} 
+                            placeholder="••••••••"
+                            icon={<Lock size={16} />}
+                        />
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <Input 
+                            label="DHIS2 OrgUnit ID" 
+                            value={localSettings.dhis2OrgUnitId || ''} 
+                            onChange={(e) => handleChange('dhis2OrgUnitId', e.target.value)} 
+                            placeholder="fBTyYLt6u8l"
+                            icon={<MapPinned size={16} />}
+                        />
+                    </div>
+                    {currentUser.role === 'SUPER_ADMIN' && (
+                        <>
+                            <div className="mt-4">
+                                <label className="block text-xs font-bold text-slate-600 mb-2">DataSet ID Mappings (Global)</label>
+                                <div className="space-y-3">
+                                    {['Reporting Status', 'Immunization', 'Progress Report'].map(module => (
+                                        <div key={module} className="flex gap-2 items-center">
+                                            <span className="text-xs font-medium text-slate-500 w-32">{module}:</span>
+                                            <SearchableSelect 
+                                                label="" 
+                                                className="flex-1"
+                                                options={DHIS2_DATASETS}
+                                                value={localSettings.dhis2DatasetMappings?.[module] || ''} 
+                                                onChange={(val) => {
+                                                    const newMappings = { ...(localSettings.dhis2DatasetMappings || {}) };
+                                                    newMappings[module] = val;
+                                                    handleChange('dhis2DatasetMappings', newMappings);
+                                                }} 
+                                                placeholder="Select DataSet"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-6 border-t pt-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <label className="block text-xs font-bold text-slate-600">Individual Cell Mappings (Global)</label>
+                                    <button 
+                                        onClick={() => {
+                                            const newMappings = [...(localSettings.dhis2CellMappings || [])];
+                                            newMappings.push({ id: crypto.randomUUID(), sourceKey: '', dataElement: '', categoryOptionCombo: '' });
+                                            handleChange('dhis2CellMappings', newMappings);
+                                        }}
+                                        className="flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md hover:bg-indigo-100 font-bold uppercase transition-colors"
+                                    >
+                                        <Plus size={12} /> Add Mapping
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    {(localSettings.dhis2CellMappings || []).map((mapping, index) => (
+                                        <div key={mapping.id} className="grid grid-cols-12 gap-2 items-end bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                            <div className="col-span-3">
+                                                <SearchableSelect 
+                                                    label="Source Key" 
+                                                    options={DHIS2_SOURCE_KEYS}
+                                                    value={mapping.sourceKey} 
+                                                    onChange={(val) => {
+                                                        const newMappings = [...(localSettings.dhis2CellMappings || [])];
+                                                        newMappings[index].sourceKey = val;
+                                                        
+                                                        // Auto-mapping logic
+                                                        const sourceKeyLabel = DHIS2_SOURCE_KEYS.find(sk => sk.value === val)?.label?.toLowerCase() || '';
+                                                        
+                                                        // Find best matching DataElement
+                                                        const matchingElement = DHIS2_DATA_ELEMENTS.find(de => 
+                                                            de.label.toLowerCase().includes(sourceKeyLabel.replace('child vax ', '').replace(' female', '').replace(' male', ''))
+                                                        );
+                                                        
+                                                        if (matchingElement) {
+                                                            newMappings[index].dataElement = matchingElement.value;
+                                                        }
+                                                        
+                                                        // Auto-mapping Combo based on Gender
+                                                        if (val.includes('FEMALE')) {
+                                                            newMappings[index].categoryOptionCombo = 'ye1QuAMRG5Z';
+                                                        } else if (val.includes('MALE')) {
+                                                            newMappings[index].categoryOptionCombo = 'PflKpozpO7b';
+                                                        } else {
+                                                            newMappings[index].categoryOptionCombo = 'kdsirVNKdhm'; // default
+                                                        }
+
+                                                        handleChange('dhis2CellMappings', newMappings);
+                                                    }}
+                                                    placeholder="Select Source"
+                                                    className="text-xs"
+                                                />
+                                            </div>
+                                            <div className="col-span-4">
+                                                <SearchableSelect 
+                                                    label="DataElement UID" 
+                                                    options={DHIS2_DATA_ELEMENTS}
+                                                    value={mapping.dataElement} 
+                                                    onChange={(val) => {
+                                                        const newMappings = [...(localSettings.dhis2CellMappings || [])];
+                                                        newMappings[index].dataElement = val;
+                                                        handleChange('dhis2CellMappings', newMappings);
+                                                    }}
+                                                    placeholder="UID"
+                                                    className="text-xs"
+                                                />
+                                            </div>
+                                            <div className="col-span-4">
+                                                <SearchableSelect 
+                                                    label="Combo UID" 
+                                                    options={DHIS2_COMBOS}
+                                                    value={mapping.categoryOptionCombo} 
+                                                    onChange={(val) => {
+                                                        const newMappings = [...(localSettings.dhis2CellMappings || [])];
+                                                        newMappings[index].categoryOptionCombo = val;
+                                                        handleChange('dhis2CellMappings', newMappings);
+                                                    }}
+                                                    placeholder="UID"
+                                                    className="text-xs"
+                                                />
+                                            </div>
+                                            <div className="col-span-1 flex justify-center pb-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        const newMappings = (localSettings.dhis2CellMappings || []).filter(m => m.id !== mapping.id);
+                                                        handleChange('dhis2CellMappings', newMappings);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 p-1"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(localSettings.dhis2CellMappings || []).length === 0 && (
+                                        <p className="text-center text-[10px] text-slate-400 py-4 italic">No individual cell mappings defined.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">

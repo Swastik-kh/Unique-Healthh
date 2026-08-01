@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { ref as dbRef, onValue, set, push } from "firebase/database";
-import { FileText, Settings, X, Plus } from 'lucide-react';
+import { FileText, Settings, X, Plus, RefreshCw } from 'lucide-react';
 import { SearchableSelect } from './SearchableSelect';
-import { Option } from '../types/coreTypes';
+import { OrganizationSettings, Option } from '../types/coreTypes';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface Mapping {
     disease: string;
@@ -13,10 +16,13 @@ interface Mapping {
 interface DHISReportProps {
     currentFiscalYear: string;
     currentUser: any;
+    settings: OrganizationSettings;
+    onUpdateSettings: (settings: OrganizationSettings) => void;
 }
 
-export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, currentUser }) => {
+export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, currentUser, settings, onUpdateSettings }) => {
     const [uploadMonth, setUploadMonth] = useState('');
+    const [isPushing, setIsPushing] = useState(false);
     const [reportMonth, setReportMonth] = useState('');
     const [selectedDataset, setSelectedDataset] = useState<'progress' | 'vaccination' | 'report'>('progress');
     const [showSettings, setShowSettings] = useState(false);
@@ -82,6 +88,95 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
         });
     }, [safeOrgName]);
 
+    const pushToDHIS2 = async () => {
+        if (!uploadMonth) {
+            alert('कृपया महिना छान्नुहोस्।');
+            return;
+        }
+
+        if (!settings.dhis2BaseUrl || !settings.dhis2Username || !settings.dhis2Password || !settings.dhis2OrgUnitId) {
+            alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+            return;
+        }
+
+        setIsPushing(true);
+        try {
+            const dataValues: any[] = [];
+            
+            // Map age groups using IDs from PDF Page 4/5
+            const ageMapping: Record<string, string> = {
+                '0-9': 'fuHbV1eiKs0',
+                '10-14': 'qQ8UCWW6YUs',
+                '15-19': 'SbdW0pjvph3',
+                '20-59': 'CLYbMAU5lhD',
+                '60+': 'HEgvfxOppUY'
+            };
+
+            Object.entries(progressReport.ageGroups).forEach(([age, metrics]: [string, any]) => {
+                const defaultElement = ageMapping[age];
+                if (defaultElement) {
+                    // Source keys for individual mapping: AGE_0-9_FEMALE, AGE_0-9_MALE, etc.
+                    const femaleMapping = getDhis2CellMapping(`AGE_${age}_FEMALE`, settings, { dataElement: defaultElement, categoryOptionCombo: "ye1QuAMRG5Z" });
+                    const maleMapping = getDhis2CellMapping(`AGE_${age}_MALE`, settings, { dataElement: defaultElement, categoryOptionCombo: "PflKpozpO7b" });
+
+                    if (metrics.female !== undefined) {
+                        dataValues.push({
+                            dataElement: femaleMapping.dataElement,
+                            categoryOptionCombo: femaleMapping.categoryOptionCombo,
+                            value: String(metrics.female)
+                        });
+                    }
+                    if (metrics.male !== undefined) {
+                        dataValues.push({
+                            dataElement: maleMapping.dataElement,
+                            categoryOptionCombo: maleMapping.categoryOptionCombo,
+                            value: String(metrics.male)
+                        });
+                    }
+                }
+            });
+
+            const period = (reportMonth || uploadMonth).replace(/-/g, '');
+            const dataSetId = settings.dhis2DatasetMappings?.['Progress Report'] || settings.dhis2DataSetId || "a2JkM9Uvfa2";
+            const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+            const orgName = settings.officeName || 'Not Specified';
+
+            const confirmMessage = `DHIS2 मा डाटा पठाउन चाहनुहुन्छ?\n\n` +
+              `संस्था: ${orgName}\n` +
+              `डाटासेट: ${dataSetLabel}\n` +
+              `अवधि: ${period}\n\n` +
+              `के तपाइँ पक्का हुनुहुन्छ?`;
+
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            const payload = {
+                dataSet: dataSetId,
+                completeDate: new Date().toISOString().split('T')[0],
+                period: period,
+                orgUnit: settings.officeCode || settings.dhis2OrgUnitId,
+                dataValues: dataValues
+            };
+
+            const auth = btoa(`${settings.dhis2Username}:${settings.dhis2Password}`);
+            
+            await axios.post(`${settings.dhis2BaseUrl}dataValueSets`, payload, {
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            alert('DHIS2 मा सफलतापूर्वक डेटा पठाइयो।');
+        } catch (error) {
+            console.error("DHIS2 push error:", error);
+            alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+        } finally {
+            setIsPushing(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!uploadMonth) {
             alert('कृपया महिना छान्नुहोस्।');
@@ -120,9 +215,60 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                             <h3 className="font-bold">रोग म्यापिङ (Disease Mapping)</h3>
                             <button onClick={() => setShowSettings(false)}><X size={20}/></button>
                         </div>
-                        <div className="space-y-4">
-                            {mappings.map((m, i) => <div key={i} className="flex justify-between text-sm"><span>{m.disease}</span> <span>➜</span> <span>{m.alias}</span></div>)}
-                            <div className="grid grid-cols-1 gap-2">
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                            <div className="bg-slate-50 p-4 rounded-xl space-y-4">
+                                <h4 className="font-bold text-slate-700 text-sm border-b pb-1">DHIS2 API कन्फिगरेसन</h4>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase">DHIS2 Base URL</label>
+                                        <input 
+                                            type="text" 
+                                            value={settings.dhis2BaseUrl || ''} 
+                                            onChange={(e) => onUpdateSettings({...settings, dhis2BaseUrl: e.target.value})}
+                                            className="w-full border rounded-lg p-2 text-sm"
+                                            placeholder="https://play.dhis2.org/2.40.0/api/"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Username</label>
+                                            <input 
+                                                type="text" 
+                                                value={settings.dhis2Username || ''} 
+                                                onChange={(e) => onUpdateSettings({...settings, dhis2Username: e.target.value})}
+                                                className="w-full border rounded-lg p-2 text-sm"
+                                                placeholder="admin"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Password</label>
+                                            <input 
+                                                type="password" 
+                                                value={settings.dhis2Password || ''} 
+                                                onChange={(e) => onUpdateSettings({...settings, dhis2Password: e.target.value})}
+                                                className="w-full border rounded-lg p-2 text-sm"
+                                                placeholder="••••••••"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase">OrgUnit ID</label>
+                                            <input 
+                                                type="text" 
+                                                value={settings.dhis2OrgUnitId || ''} 
+                                                onChange={(e) => onUpdateSettings({...settings, dhis2OrgUnitId: e.target.value})}
+                                                className="w-full border rounded-lg p-2 text-sm"
+                                                placeholder="fBTyYLt6u8l"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 className="font-bold border-t pt-2 mt-4 text-slate-700">रोग म्यापिङ (Disease Mapping)</h3>
+                            {mappings.map((m, i) => <div key={i} className="flex justify-between text-sm bg-white p-2 rounded-lg border border-slate-100 shadow-xs mb-2"><span>{m.disease}</span> <span className="text-slate-400">➜</span> <span className="font-bold text-indigo-600">{m.alias}</span></div>)}
+                            <div className="grid grid-cols-1 gap-2 bg-slate-50 p-3 rounded-xl border border-dashed border-slate-300">
                                 <SearchableSelect 
                                     label="अपलोड गरिएको नाम"
                                     options={diseaseOptions}
@@ -135,8 +281,10 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                                     value={newMapping.alias}
                                     onChange={(v) => setNewMapping({...newMapping, alias: v})}
                                 />
+                                <button onClick={saveMapping} className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold mt-2 shadow-sm hover:bg-slate-900 flex items-center justify-center gap-2">
+                                    <Plus size={16}/> Mapping सुरक्षित गर्नुहोस्
+                                </button>
                             </div>
-                            <button onClick={saveMapping} className="w-full bg-indigo-600 text-white py-2 rounded font-bold">Save Mapping</button>
                         </div>
                     </div>
                 </div>
@@ -227,12 +375,31 @@ export const DHISReport: React.FC<DHISReportProps> = ({ currentFiscalYear, curre
                             </tbody>
                         </table>
                     </div>
-                    <button 
-                        onClick={handleSave}
-                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 mt-4"
-                    >
-                        Save Report
-                    </button>
+                    <div className="flex items-center gap-3 mt-4">
+                        <button 
+                            onClick={handleSave}
+                            className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700"
+                        >
+                            Save Report
+                        </button>
+                        <button 
+                            onClick={pushToDHIS2}
+                            disabled={isPushing}
+                            className="bg-teal-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {isPushing ? (
+                                <>
+                                    <RefreshCw className="animate-spin" size={18} />
+                                    पठाउँदै...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus size={18} />
+                                    DHIS2 मा पठाउनुहोस् (Push to DHIS2)
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             )}
 

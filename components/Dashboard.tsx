@@ -183,6 +183,7 @@ interface ExtendedDashboardProps extends DashboardProps {
   onUpdateAllowance: (id: string, a: any) => void;
   onDeletePaymentRequest: (id: string) => void;
   onDeleteAllowance: (id: string) => void;
+  onUpdateGlobalDhis2Mappings?: (mappings: any) => void;
 }
 
 interface AppNotification {
@@ -2289,7 +2290,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                           serviceItems={serviceItems}
                                           serviceSeekerRecords={serviceSeekerRecords}
                                         />;
-      case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} />;
+      case 'report_dhis_general': return <DHISReport currentFiscalYear={currentFiscalYear} currentUser={currentUser} settings={generalSettings} />;
       case 'online_report': return <OnlineReport 
         currentFiscalYear={currentFiscalYear}
         currentUser={currentUser}
@@ -2302,7 +2303,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         labReports={labReports}
       />;
       case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
-      case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} users={allUsers} />;
+      case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} onUpdateGlobalDhis2Mappings={props.onUpdateGlobalDhis2Mappings} users={allUsers} />;
       case 'hib_settings': return <HIBSettings currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
       case 'service_settings': return <ServiceSettings 
         serviceItems={serviceItems}

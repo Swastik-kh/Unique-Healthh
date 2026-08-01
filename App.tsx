@@ -38,7 +38,12 @@ const INITIAL_SETTINGS: OrganizationSettings = {
     hibPassword: 'f/\\N6k@67',
     hibRemoteUser: 'hib_testuser_testfhir',
     hibPartnerId: '7aa79c53-057e-4e77-8576-dfcfb03584a8',
-    hibLocationId: '1ac457d3-efd3-4a67-89b3-bf8cbe18045d'
+    hibLocationId: '1ac457d3-efd3-4a67-89b3-bf8cbe18045d',
+    dhis2BaseUrl: 'https://play.dhis2.org/2.40.0/api/',
+    dhis2Username: 'admin',
+    dhis2Password: 'district',
+    dhis2DataSetId: 'a2JkM9Uvfa2',
+    dhis2OrgUnitId: 'fBTyYLt6u8l'
 };
 
 const DEFAULT_ADMIN: User = {
@@ -59,6 +64,10 @@ const App: React.FC = () => {
   const [activeOrgName, setActiveOrgName] = useState<string>('');
   const [currentFiscalYear, setCurrentFiscalYear] = useState<string>('2083/084');
   const [generalSettings, setGeneralSettings] = useState<OrganizationSettings>(INITIAL_SETTINGS);
+  const [globalDhis2Mappings, setGlobalDhis2Mappings] = useState<{
+    dhis2DatasetMappings?: Record<string, string>;
+    dhis2CellMappings?: any[];
+  }>({});
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [isDbLocked, setIsDbLocked] = useState(false);
@@ -347,6 +356,15 @@ const App: React.FC = () => {
     setupOrgListener('paymentRequests', setPaymentRequests);
     setupOrgListener('allowances', setAllowances);
     setupOrgListener('goswaraVouchers', setGoswaraVouchers);
+    
+    // Global DHIS2 Mappings Listener
+    const globalMappingsRef = ref(db, 'globalData/dhis2Mappings');
+    const unsubGlobalMappings = onValue(globalMappingsRef, (snap) => {
+        if (snap.exists()) {
+            setGlobalDhis2Mappings(snap.val());
+        }
+    });
+    unsubscribes.push(unsubGlobalMappings);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -1718,6 +1736,12 @@ const App: React.FC = () => {
       }
   };
 
+  const mergedSettings = useMemo(() => ({
+    ...generalSettings,
+    dhis2DatasetMappings: globalDhis2Mappings.dhis2DatasetMappings || generalSettings.dhis2DatasetMappings,
+    dhis2CellMappings: globalDhis2Mappings.dhis2CellMappings || generalSettings.dhis2CellMappings
+  }), [generalSettings, globalDhis2Mappings]);
+
   return (
     <>
       {currentUser ? (
@@ -1731,7 +1755,9 @@ const App: React.FC = () => {
           onDeleteOrganization={handleDeleteOrganization}
           onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: hashPassword(pass) })}
           isDbLocked={isDbLocked}
-          generalSettings={generalSettings} onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}
+          generalSettings={mergedSettings} 
+          onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}
+          onUpdateGlobalDhis2Mappings={(m) => set(ref(db, 'globalData/dhis2Mappings'), m)}
           magForms={magForms} onSaveMagForm={handleSaveMagForm} onDeleteMagForm={handleDeleteMagForm}
           purchaseOrders={purchaseOrders} onUpdatePurchaseOrder={(o) => set(getOrgRef(`purchaseOrders/${o.id}`), o)}
           issueReports={issueReports} onUpdateIssueReport={handleUpdateIssueReport}

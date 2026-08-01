@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search } from 'lucide-react';
+import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient } from '../types/healthTypes';
@@ -8,6 +8,9 @@ import { Option, OrganizationSettings } from '../types/coreTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration'; // Import the template
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
+import axios from 'axios';
+import { getDhis2CellMapping } from '../lib/dhis2Utils';
+import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
 
 interface ImmunizationReportProps {
   currentFiscalYear: string;
@@ -104,6 +107,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   const [filterCenter, setFilterCenter] = useState(''); // New state for filter by vaccination center
   const [selectedVaccine, setSelectedVaccine] = useState('all'); // New state for filter by specific vaccine
   const [searchQuery, setSearchQuery] = useState('');
+  const [isPushing, setIsPushing] = useState(false);
 
   const centerOptions: Option[] = useMemo(() => 
     (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c })),
@@ -562,6 +566,101 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
   const currentMonthLabel = nepaliMonthOptions.find(m => m.value === selectedMonth)?.label || '';
 
+  const pushToDHIS2 = async () => {
+    if (!generalSettings.dhis2BaseUrl || !generalSettings.dhis2Username || !generalSettings.dhis2Password || !generalSettings.dhis2OrgUnitId) {
+      alert('DHIS2 कन्फिगरेसन पुरा भएको छैन। कृपया सेटिङमा मिलाउनुहोस्।');
+      return;
+    }
+
+    setIsPushing(true);
+    try {
+      const dataValues: any[] = [];
+      
+      // Map Child Vaccine Stats using real IDs from PDF Page 37
+      const vaxMapping: Record<string, string> = {
+        'bcg': 'w84aFW1LESM',
+        'dpt1': 'S4NHzUtxuFr',
+        'dpt2': 'EWloIcvmV6J',
+        'dpt3': 'BKLqlVqwTX9',
+        'pcv1': 'F3fBb33oh1c',
+        'pcv2': 'TkfynUxlyEA',
+        'pcv3': 'Pzet2gxoVk4',
+        'opv1': 'j0Bqqi6vw0a',
+        'opv2': 'iIBI3R4j7rR',
+        'opv3': 'SZXbOZ7nCcT',
+        'rota1': 'XZZ0Lbe79KT',
+        'rota2': 'a6M1cxcfKOC',
+        'fipv1': 'W4MXIx0utSp',
+        'fipv2': 'HHg41AN9x3a',
+        'je': 'ZVZtO6UfQ85'
+      };
+
+      Object.entries(reportStats.child).forEach(([vaxKey, count]) => {
+        const defaultElement = vaxMapping[vaxKey.toLowerCase()];
+        if (defaultElement) {
+          const mapping = getDhis2CellMapping(`VAX_CHILD_${vaxKey.toUpperCase()}`, generalSettings, { dataElement: defaultElement, categoryOptionCombo: "kdsirVNKdhm" });
+          dataValues.push({
+            dataElement: mapping.dataElement,
+            categoryOptionCombo: mapping.categoryOptionCombo,
+            value: String(count)
+          });
+        }
+      });
+
+      // Map Maternal TD Stats
+      const td1Mapping = getDhis2CellMapping('VAX_MATERNAL_TD1', generalSettings, { dataElement: 'T6HLuCqpOMn', categoryOptionCombo: "kdsirVNKdhm" });
+      const td2Mapping = getDhis2CellMapping('VAX_MATERNAL_TD2', generalSettings, { dataElement: 'q0XkNvBOqZc', categoryOptionCombo: "kdsirVNKdhm" });
+
+      dataValues.push(
+        { dataElement: td1Mapping.dataElement, categoryOptionCombo: td1Mapping.categoryOptionCombo, value: String(reportStats.maternal.td1) },
+        { dataElement: td2Mapping.dataElement, categoryOptionCombo: td2Mapping.categoryOptionCombo, value: String(reportStats.maternal.td2) }
+      );
+
+      const period = selectedMonth === 'all' 
+        ? selectedFiscalYear.replace(/\//g, '') 
+        : `${selectedFiscalYear.split('/')[0]}${selectedMonth}`;
+
+      const dataSetId = generalSettings.dhis2DatasetMappings?.['Immunization'] || generalSettings.dhis2DataSetId || "a2JkM9Uvfa2";
+      const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
+      const orgName = generalSettings.officeName || 'Not Specified';
+
+      const confirmMessage = `DHIS2 मा डाटा पठाउन चाहनुहुन्छ?\n\n` +
+        `संस्था: ${orgName}\n` +
+        `डाटासेट: ${dataSetLabel}\n` +
+        `अवधि: ${period}\n\n` +
+        `के तपाइँ पक्का हुनुहुन्छ?`;
+
+      if (!window.confirm(confirmMessage)) {
+        setIsPushing(false);
+        return;
+      }
+
+      const payload = {
+        dataSet: dataSetId,
+        completeDate: new Date().toISOString().split('T')[0],
+        period: period,
+        orgUnit: generalSettings.officeCode || generalSettings.dhis2OrgUnitId,
+        dataValues: dataValues
+      };
+
+      const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
+      
+      await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      alert('DHIS2 मा सफलतापूर्वक डेटा पठाइयो।');
+    } catch (error) {
+      console.error("DHIS2 push error:", error);
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
   const handlePrint = (printId: string) => {
     const printContent = document.getElementById(printId);
     if (!printContent) return;
@@ -764,12 +863,30 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             </div>
           )}
         </div>
-        <button 
-          onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : 'print-detailed-content')} 
-          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap w-full md:w-auto mt-2 md:mt-0"
-        >
-          <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : 'प्रिन्ट (विस्तृत विवरण)'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <button 
+            onClick={pushToDHIS2}
+            disabled={isPushing}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold shadow-sm transition-colors whitespace-nowrap disabled:opacity-50"
+          >
+            {isPushing ? (
+              <>
+                <RefreshCw className="animate-spin" size={18} />
+                पठाउँदै...
+              </>
+            ) : (
+              <>
+                <Plus size={18} /> DHIS2 मा पठाउनुहोस्
+              </>
+            )}
+          </button>
+          <button 
+            onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : 'print-detailed-content')} 
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap"
+          >
+            <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : 'प्रिन्ट (विस्तृत विवरण)'}
+          </button>
+        </div>
       </div>
 
       {activeReportTab === 'summary' ? (
