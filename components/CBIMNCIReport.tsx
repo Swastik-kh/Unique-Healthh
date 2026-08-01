@@ -12,13 +12,15 @@ interface CBIMNCIReportProps {
   serviceSeekerRecords: ServiceSeekerRecord[];
   currentFiscalYear: string;
   generalSettings: OrganizationSettings;
+  currentUser: any;
 }
 
 export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
   cbimnciRecords,
   serviceSeekerRecords,
   currentFiscalYear,
-  generalSettings
+  generalSettings,
+  currentUser
 }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'Quarterly' | 'HalfYearly' | 'FiscalYear'>('Monthly');
   const [isPushing, setIsPushing] = useState(false);
@@ -388,14 +390,16 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
           CBIMNCI रिपोर्ट
         </h2>
         <div className="flex gap-2">
-          <button 
-            onClick={pushToDHIS2}
-            disabled={isPushing}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50 print:hidden"
-          >
-            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
-          </button>
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+            <button 
+              onClick={pushToDHIS2}
+              disabled={isPushing}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50 print:hidden"
+            >
+              {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+              {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+            </button>
+          )}
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-bold text-sm transition-colors print:hidden">
             <Printer size={16} />
             प्रिन्ट गर्नुहोस्

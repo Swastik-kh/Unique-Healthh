@@ -27,6 +27,7 @@ interface GESIReportProps {
   opdRecords: OPDRecord[];
   ipdRecords: IPDRecord[];
   generalSettings: OrganizationSettings;
+  currentUser: any;
 }
 
 const CASTE_GROUPS = [
@@ -84,7 +85,8 @@ export const GESIReport: React.FC<GESIReportProps> = ({
   tbPatients,
   opdRecords,
   ipdRecords,
-  generalSettings
+  generalSettings,
+  currentUser
 }) => {
   const componentRef = React.useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({
@@ -417,14 +419,16 @@ export const GESIReport: React.FC<GESIReportProps> = ({
           <p className="text-sm text-slate-500">लैंगिक समानता तथा सामाजिक समावेशीकरण प्रतिवेदन</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={pushToDHIS2}
-            disabled={isPushing}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
-          >
-            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
-          </button>
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+            <button 
+              onClick={pushToDHIS2}
+              disabled={isPushing}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+            >
+              {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+              {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+            </button>
+          )}
           <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold shadow-sm hover:bg-primary-700 transition-colors"

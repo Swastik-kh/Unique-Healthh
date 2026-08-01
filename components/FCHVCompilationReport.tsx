@@ -14,6 +14,7 @@ interface FCHVCompilationReportProps {
     safeOrgName: string;
     currentFiscalYear: string;
     generalSettings: OrganizationSettings;
+    currentUser: any;
 }
 
 const MONTHS = [
@@ -31,7 +32,7 @@ const MONTHS = [
     { id: '03', name: 'असार' },
 ];
 
-export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ safeOrgName, currentFiscalYear, generalSettings }) => {
+export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ safeOrgName, currentFiscalYear, generalSettings, currentUser }) => {
     const [reports, setReports] = useState<FCHVReport[]>([]);
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
     const [selectedFchvId, setSelectedFchvId] = useState<string>('all');
@@ -255,14 +256,16 @@ export const FCHVCompilationReport: React.FC<FCHVCompilationReportProps> = ({ sa
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={pushToDHIS2}
-                        disabled={isPushing}
-                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
-                    >
-                        {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-                        {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
-                    </button>
+                    {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+                        <button 
+                            onClick={pushToDHIS2}
+                            disabled={isPushing}
+                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+                        >
+                            {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
+                            {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+                        </button>
+                    )}
                     <button 
                         onClick={handlePrint}
                         className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-sm"

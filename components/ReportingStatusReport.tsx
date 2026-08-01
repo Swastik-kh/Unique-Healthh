@@ -12,13 +12,15 @@ interface ReportingStatusReportProps {
   bachhaImmunizationRecords: any[];
   currentFiscalYear: string;
   generalSettings: OrganizationSettings;
+  currentUser: any;
 }
 
 export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
   serviceSeekerRecords,
   bachhaImmunizationRecords,
   currentFiscalYear,
-  generalSettings
+  generalSettings,
+  currentUser
 }) => {
   const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'FiscalYear'>('Monthly');
   const [isPushing, setIsPushing] = useState(false);
@@ -344,23 +346,25 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
                 : `आर्थिक वर्ष: ${toNepaliDigits(currentFiscalYear)}`}
           </p>
           <div className="absolute top-0 right-0 print:hidden">
-            <button 
-              onClick={pushToDHIS2}
-              disabled={isPushing}
-              className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50 shadow-sm"
-            >
-              {isPushing ? (
-                <>
-                  <RefreshCw className="animate-spin" size={14} />
-                  पठाउँदै...
-                </>
-              ) : (
-                <>
-                  <Plus size={14} />
-                  DHIS2 मा पठाउनुहोस्
-                </>
-              )}
-            </button>
+            {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
+              <button 
+                onClick={pushToDHIS2}
+                disabled={isPushing}
+                className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50 shadow-sm"
+              >
+                {isPushing ? (
+                  <>
+                    <RefreshCw className="animate-spin" size={14} />
+                    पठाउँदै...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={14} />
+                    DHIS2 मा पठाउनुहोस्
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
