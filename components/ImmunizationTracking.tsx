@@ -9,7 +9,7 @@ import { Select } from './Select';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 // Add missing import for NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE
-import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
+import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE, calculateImmunizationDate } from './ChildImmunizationRegistration';
 import { FISCAL_YEARS } from '../constants';
 import { safeEncodeKey } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -145,6 +145,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
   const todayBsFormatted = useMemo(() => getTodayBsFormatted(), []);
 
+  // Helper to find effective scheduled date (fallback to DOB + relative days for 6-week and other vaccines)
+  const getEffectiveVaccineScheduledBs = useCallback((child: ChildImmunizationRecord, vaccine: ChildImmunizationVaccine) => {
+    if (vaccine.scheduledDateBs && vaccine.scheduledDateBs !== 'N/A' && vaccine.scheduledDateBs !== 'Error' && vaccine.scheduledDateBs !== '-') {
+      return vaccine.scheduledDateBs;
+    }
+    const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === vaccine.name);
+    if (templateItem && child.dobAd) {
+      const { bs } = calculateImmunizationDate(child.dobAd, templateItem.relativeDays, templateItem.base, child.vaccines || []);
+      if (bs && bs !== 'N/A' && bs !== 'Error') return bs;
+    }
+    return vaccine.scheduledDateBs || '-';
+  }, []);
+
   // Helper to find the actual vaccine date based on center schedule
   const getSessionDateForCenter = useCallback((scheduledDateBs: string, centerName: string) => {
     if (!scheduledDateBs) return '-';
@@ -240,8 +253,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // Calculate the actual session date for this center
-          const actualSessionDateBs = getSessionDateForCenter(vaccine.scheduledDateBs, child.vaccinationCenter);
+          // Calculate the actual session date for this center using effective scheduled date
+          const rawScheduledBs = getEffectiveVaccineScheduledBs(child, vaccine);
+          const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const vaccineYearMonth = actualSessionDateBs.substring(0, 7); // e.g. "2083-03"
           
           // Check if vaccine session month is equal to or earlier than the selected filter month
@@ -273,7 +287,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     
     // Sort by scheduled date
     return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
-  }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter]); 
+  }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
   // Grouped Defaulter List (Logic: Due Date was in past, but not given)
   const defaulterList = useMemo(() => {
@@ -284,7 +298,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
           // Calculate center session date for defaulters too
-          const actualSessionDateBs = getSessionDateForCenter(vaccine.scheduledDateBs, child.vaccinationCenter);
+          const rawScheduledBs = getEffectiveVaccineScheduledBs(child, vaccine);
+          const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const matchesDate = actualSessionDateBs.substring(0, 7) <= targetYearPrefix;
 
           if (
@@ -310,7 +325,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       });
     
     return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
-  }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter]); 
+  }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
   // FIC List: Fully Immunized Children (Excluding HPV)
   const ficList = useMemo(() => {

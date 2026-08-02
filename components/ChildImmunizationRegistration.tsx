@@ -150,7 +150,7 @@ const toLocalISO = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-const calculateImmunizationDate = (
+export const calculateImmunizationDate = (
     dobAd: string,
     relativeDays: number,
     baseName: string,
@@ -163,8 +163,10 @@ const calculateImmunizationDate = (
             const baseVaccine = allVaccines.find(v => v.name === baseName);
             if (baseVaccine && baseVaccine.givenDateAd) {
                 actualBaseAdDate = parseDateLocal(baseVaccine.givenDateAd);
+            } else if (baseVaccine && baseVaccine.scheduledDateAd && baseVaccine.scheduledDateAd !== "N/A" && baseVaccine.scheduledDateAd !== "Error") {
+                actualBaseAdDate = parseDateLocal(baseVaccine.scheduledDateAd);
             } else {
-                return { bs: "N/A", ad: "N/A" };
+                actualBaseAdDate = parseDateLocal(dobAd);
             }
         }
 
