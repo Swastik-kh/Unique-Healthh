@@ -157,13 +157,11 @@ export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ reco
         dataValues: dataValues
       };
 
-      const auth = btoa(`${settings.dhis2Username}:${settings.dhis2Password}`);
-      
-      await axios.post(`${settings.dhis2BaseUrl}dataValueSets`, payload, {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
-        }
+      await axios.post('/api/dhis2/push', {
+        payload,
+        baseUrl: settings.dhis2BaseUrl,
+        username: settings.dhis2Username,
+        password: settings.dhis2Password
       });
 
       alert('DHIS2 मा सफलतापूर्वक Family Planning डाटा पठाइयो।');

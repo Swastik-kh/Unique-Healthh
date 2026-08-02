@@ -207,13 +207,11 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
         dataValues: dataValues
       };
 
-      const auth = btoa(`${generalSettings.dhis2Username}:${generalSettings.dhis2Password}`);
-      
-      await axios.post(`${generalSettings.dhis2BaseUrl}dataValueSets`, payload, {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
-        }
+      await axios.post('/api/dhis2/push', {
+        payload,
+        baseUrl: generalSettings.dhis2BaseUrl,
+        username: generalSettings.dhis2Username,
+        password: generalSettings.dhis2Password
       });
 
       alert('DHIS2 मा सफलतापूर्वक डेटा पठाइयो।');

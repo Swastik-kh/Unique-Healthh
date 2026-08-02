@@ -234,6 +234,46 @@ async function startServer() {
     }
   });
 
+  // DHIS2 Proxy Endpoint
+  app.post("/api/dhis2/push", async (req, res) => {
+    try {
+      const { payload, baseUrl, username, password } = req.body;
+      
+      if (!baseUrl || !username || !password || !payload) {
+        return res.status(400).json({ error: "Missing required DHIS2 configuration or payload" });
+      }
+
+      const auth = Buffer.from(`${username}:${password}`).toString('base64');
+      
+      // Ensure target URL is correct
+      let targetUrl = baseUrl;
+      if (!targetUrl.endsWith('/')) targetUrl += '/';
+      targetUrl += 'api/dataValueSets';
+
+      console.log(`Pushing to DHIS2: ${targetUrl}`);
+
+      const response = await axios.post(targetUrl, payload, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000 // 30 second timeout for DHIS2
+      });
+
+      res.status(response.status).json(response.data);
+    } catch (error: any) {
+      const status = error.response?.status || 500;
+      const errorData = error.response?.data;
+      console.error(`DHIS2 Proxy Error [${status}]:`, errorData || error.message);
+      
+      res.status(status).json({
+        error: errorData?.message || errorData?.description || error.message || "DHIS2 push failed",
+        details: errorData,
+        status: status
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

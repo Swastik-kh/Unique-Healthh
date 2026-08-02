@@ -12,6 +12,7 @@ import NepaliDate from 'nepali-date-converter';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 import { FISCAL_YEARS } from '../constants';
 import { safeEncodeKey } from '../firebase';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ImmunizationTrackingProps {
   currentFiscalYear: string;
@@ -1308,6 +1309,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>लगाउनुपर्ने खोपहरू (Vaccines Due)</th>
                         <th>निर्धारित मिति</th>
                         <th>फोन नं</th>
+                        <th>दर्ता नं. QR</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1323,6 +1325,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             </td>
                             <td>{item.scheduledDateBs} (Main)</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
+                            <td className="text-center">
+                                <QRCodeSVG value={item.child.regNo || 'N/A'} size={45} level="M" />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
