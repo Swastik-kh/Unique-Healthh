@@ -1456,6 +1456,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>टी.डी. १ प्राप्त मिति</th>
                         <th>टी.डी. २ लगाउनुपर्ने महिना</th>
                         <th>सम्पर्क नम्बर</th>
+                        <th>दर्ता नं. QR</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1469,11 +1470,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td style={{textAlign: 'center'}}>{item.patient.td1DateBs}</td>
                             <td style={{textAlign: 'center', fontWeight: 'bold'}}>{item.expectedMonthName}, {item.expectedYear}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.patient.phone}</span></td>
+                            <td className="text-center">
+                                <QRCodeSVG value={item.patient.regNo || 'N/A'} size={45} level="M" />
+                            </td>
                         </tr>
                     ))}
                     {upcomingTdList.length === 0 && (
                         <tr>
-                            <td colSpan={8} style={{textAlign: 'center', fontStyle: 'italic', padding: '20px'}}>
+                            <td colSpan={9} style={{textAlign: 'center', fontStyle: 'italic', padding: '20px'}}>
                                 छानिएको अवधि र केन्द्रमा कुनै टी.डी. खोप तालिका छैन।
                             </td>
                         </tr>
