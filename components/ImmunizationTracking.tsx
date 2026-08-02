@@ -111,6 +111,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [blurPhone, setBlurPhone] = useState(false);
   const [blurDob, setBlurDob] = useState(false);
+  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   const isAdmin = useMemo(() => {
     return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
@@ -562,7 +563,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           display: flex;
           flex-direction: column;
         }
-        @page { size: A4; margin: 10mm; }
+        @page { size: A4 ${listType === 'single-card' ? 'portrait' : printOrientation}; margin: 10mm; }
       </style>
     `);
     
@@ -588,7 +589,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         }
       }, 1000);
     }, 500);
-  }, []);
+  }, [printOrientation]);
 
   const getCompletionDate = (child: ChildImmunizationRecord) => {
     const relevantVaccines = child.vaccines.filter(v => 
@@ -783,6 +784,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   <label htmlFor="blur-dob-checkbox" className="text-xs font-bold text-slate-700 select-none cursor-pointer font-nepali">
                       जन्ममिति ब्लर गर्ने
                   </label>
+              </div>
+
+              <div className="w-44">
+                  <Select 
+                      label="प्रिन्ट लेआउट" 
+                      options={[
+                          { id: 'landscape', value: 'landscape', label: 'ल्यान्डस्केप (Landscape)' },
+                          { id: 'portrait', value: 'portrait', label: 'पोर्ट्रेट (Portrait)' }
+                      ]} 
+                      value={printOrientation}
+                      onChange={e => setPrintOrientation(e.target.value as 'portrait' | 'landscape')}
+                  />
               </div>
 
               <div className="ml-auto">
