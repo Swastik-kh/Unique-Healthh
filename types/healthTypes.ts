@@ -159,6 +159,8 @@ export interface ChildImmunizationRecord {
   address: string;
   phone: string;
   birthWeightKg?: number;
+  regDateBs?: string;
+  regDateAd?: string;
   vaccines: ChildImmunizationVaccine[];
   remarks?: string;
   vaccinationCenter?: string; // Added for center tracking
@@ -296,6 +298,22 @@ export interface AmbulanceExpenseRecord {
   paidTo?: string;
   driverName?: string;
   remarks?: string;
+}
+
+export interface GaunGharClinicRecord {
+  id: string;
+  fiscalYear: string;
+  dateBs: string;
+  patientName: string;
+  age: string;
+  gender: 'Male' | 'Female' | 'Other';
+  address: string;
+  phone: string;
+  serviceType: string;
+  treatmentGiven: string;
+  remarks?: string;
+  createdBy?: string;
+  _orgName?: string;
 }
 
 

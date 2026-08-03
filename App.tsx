@@ -11,6 +11,7 @@ import {
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
+  GaunGharClinicRecord,
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
@@ -118,6 +119,7 @@ const App: React.FC = () => {
   const [ipdRecords, setIpdRecords] = useState<IPDRecord[]>([]);
   const [interFacilityRequests, setInterFacilityRequests] = useState<InterFacilityRequest[]>([]);
   const [itemList, setItemList] = useState<ItemEntry[]>([]);
+  const [gaunGharClinicRecords, setGaunGharClinicRecords] = useState<GaunGharClinicRecord[]>([]);
   
   // Financial State
   const [financialPrograms, setFinancialPrograms] = useState<any[]>([]);
@@ -127,6 +129,18 @@ const App: React.FC = () => {
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [allowances, setAllowances] = useState<AllowanceRecord[]>([]);
   const [goswaraVouchers, setGoswaraVouchers] = useState<GoswaraVoucher[]>([]);
+
+  const handleSaveGaunGharClinicRecord = async (r: GaunGharClinicRecord) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await set(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${r.id}`), r);
+  };
+
+  const handleDeleteGaunGharClinicRecord = async (id: string) => {
+    if (!currentUser) return;
+    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    await remove(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${id}`));
+  };
 
   const handleSavePaymentRequest = async (r: Omit<PaymentRequest, 'id'>) => {
     if (!currentUser) return;
@@ -346,6 +360,7 @@ const App: React.FC = () => {
     unsubscribes.push(unsubGlobalTalim);
 
     setupOrgListener('karmachariTalimRecords', setKarmachariTalimRecords);
+    setupOrgListener('gaunGharClinicRecords', setGaunGharClinicRecords);
     setupOrgListener('itemList', setItemList);
 
     // Financial Listeners
@@ -1931,6 +1946,9 @@ const App: React.FC = () => {
     onAddInterFacilityRequest={(req) => handleAddGlobal('interFacilityRequests', req)}
     onUpdateInterFacilityRequest={(req) => handleUpdateGlobal('interFacilityRequests', req)}
     itemList={itemList}
+    gaunGharClinicRecords={gaunGharClinicRecords}
+    onSaveGaunGharClinicRecord={handleSaveGaunGharClinicRecord}
+    onDeleteGaunGharClinicRecord={handleDeleteGaunGharClinicRecord}
     onUpdateReadNotifications={handleUpdateReadNotifications}
     activeOrgName={activeOrgName}
     onSetActiveOrgName={setActiveOrgName}

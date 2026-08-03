@@ -173,6 +173,9 @@ export interface DashboardProps {
   ambulanceRecords: AmbulanceRecord[];
   onSaveAmbulanceRecord: (record: AmbulanceRecord) => void;
   onDeleteAmbulanceRecord: (id: string) => void;
+  gaunGharClinicRecords?: any[];
+  onSaveGaunGharClinicRecord?: (record: any) => void;
+  onDeleteGaunGharClinicRecord?: (id: string) => void;
   ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
   onSaveAmbulanceExpense?: (record: AmbulanceExpenseRecord) => void;
   onDeleteAmbulanceExpense?: (id: string) => void;

@@ -64,6 +64,7 @@ const PERMISSION_STRUCTURE = [
                     { id: 'ambulance_tracking', label: 'लाइभ ट्र्याकिङ (Live Tracking)' }
                 ]
             },
+            { id: 'gaun_ghar_clinic', label: 'गाउँ घर क्लिनिक (Gaun Ghar Clinic)' },
             { 
                 id: 'administration', 
                 label: 'प्रशासन (Administration)',

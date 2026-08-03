@@ -293,6 +293,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     address: '',
     phone: '',
     birthWeightKg: undefined,
+    regDateBs: getTodayBs(),
+    regDateAd: getTodayAd(),
     vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
     remarks: '',
     vaccinationCenter: centerOptions[0]?.value || '',
@@ -306,6 +308,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             regNo: generateRegNo(currentFiscalYear, records),
             dobBs: getTodayBs(),
             dobAd: getTodayAd(),
+            regDateBs: getTodayBs(),
+            regDateAd: getTodayAd(),
             jatCode: '',
             vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
             vaccinationCenter: centerOptions[0]?.value || '',
@@ -444,6 +448,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     // Sanitize optional fields to null if they are undefined
     const sanitizedData = {
       ...formData,
+      regDateBs: formData.regDateBs || getTodayBs(),
+      regDateAd: formData.regDateAd || getTodayAd(),
       birthWeightKg: formData.birthWeightKg || null,
       remarks: formData.remarks || null,
       vaccinationCenter: formData.vaccinationCenter || null,
@@ -560,6 +566,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       address: '',
       phone: '',
       birthWeightKg: undefined,
+      regDateBs: getTodayBs(),
+      regDateAd: getTodayAd(),
       vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
       remarks: '',
       vaccinationCenter: centerOptions[0]?.value || '',
@@ -715,13 +723,19 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         );
       })
       .sort((a, b) => {
-        // Sort by registration date descending
+        // Primary sort: Registration Number descending (Sequential)
+        const regA = a.regNo || '';
+        const regB = b.regNo || '';
+        const regCompare = regB.localeCompare(regA);
+        if (regCompare !== 0) return regCompare;
+
+        // Secondary sort: Registration date descending
         const dateA = a.regDateBs || '';
         const dateB = b.regDateBs || '';
         const dateCompare = dateB.localeCompare(dateA);
         if (dateCompare !== 0) return dateCompare;
         
-        // Fallback to ID descending (usually a timestamp)
+        // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
   }, [records, currentFiscalYear, searchTerm]);

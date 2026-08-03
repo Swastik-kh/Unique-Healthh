@@ -37,6 +37,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
       { id: 'usg_sewa', label: 'यु.एस.जी. सेवा', icon: <Waves size={16} /> },
       { id: 'phisiotherapy', label: 'फिजियोथेरापी सेवा', icon: <Accessibility size={16} /> },
       { id: 'ambulance_sewa', label: 'एम्बुलेन्स सेवा', icon: <Truck size={16} /> },
+      { id: 'gaun_ghar_clinic', label: 'गाउँ घर क्लिनिक', icon: <Building2 size={16} /> },
       { 
         id: 'administration', 
         label: 'प्रशासन', 

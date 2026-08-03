@@ -53,6 +53,7 @@ import { VaccinationServiceTabs } from './VaccinationServiceTabs';
 import { ImmunizationTracking } from './ImmunizationTracking';
 import { ImmunizationReport } from './ImmunizationReport';
 import { Microplanning } from './Microplanning';
+import { GaunGharClinic } from './GaunGharClinic';
 import { DartaForm } from './DartaForm';
 import { ChalaniForm } from './ChalaniForm';
 import { BharmanAdesh } from './BharmanAdesh';
@@ -155,6 +156,9 @@ interface ExtendedDashboardProps extends DashboardProps {
   interFacilityRequests: InterFacilityRequest[];
   onAddInterFacilityRequest: (req: InterFacilityRequest) => void;
   onUpdateInterFacilityRequest: (req: InterFacilityRequest) => void;
+  gaunGharClinicRecords?: any[];
+  onSaveGaunGharClinicRecord?: (record: any) => void;
+  onDeleteGaunGharClinicRecord?: (id: string) => void;
   onUpdateReadNotifications: (userId: string, readIds: string[]) => void;
   activeOrgName: string;
   onSetActiveOrgName: (orgName: string) => void;
@@ -2253,6 +2257,14 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                       generalSettings={generalSettings}
                                       users={users}
                                     />;
+      case 'gaun_ghar_clinic': return <GaunGharClinic 
+                                        records={props.gaunGharClinicRecords || []} 
+                                        onSaveRecord={props.onSaveGaunGharClinicRecord!} 
+                                        onDeleteRecord={props.onDeleteGaunGharClinicRecord!} 
+                                        currentFiscalYear={currentFiscalYear} 
+                                        currentUser={currentUser} 
+                                        generalSettings={generalSettings} 
+                                      />;
       case 'log_book': return <LogBook currentUser={currentUser} currentFiscalYear={currentFiscalYear} inventoryItems={inventoryItems} logBookEntries={logBookEntries} onAddLogEntry={onSaveLogBookEntry} />;
       case 'report_tb_dst': return <TBDSTReport patients={tbPatients} currentFiscalYear={currentFiscalYear} />;
       case 'report_inventory_monthly': return <InventoryMonthlyReport 
