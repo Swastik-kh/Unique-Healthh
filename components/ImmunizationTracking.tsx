@@ -1354,7 +1354,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{item.scheduledDateBs} (Main)</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
                             <td className="text-center">
-                                <QRCodeSVG value={item.child.regNo || 'N/A'} size={45} level="M" />
+                                <QRCodeSVG value={`दर्ता नं: ${item.child.regNo || 'N/A'}\nनाम: ${item.child.childName}\nअभिभावक: ${item.child.motherName} ${item.child.fatherName ? `/ ${item.child.fatherName}` : ''}\nजन्म मिति: ${item.child.dobBs}`} size={45} level="M" />
                             </td>
                         </tr>
                     ))}
@@ -1385,6 +1385,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>छुटेका खोपहरू</th>
                         <th>निर्धारित मिति</th>
                         <th>फोन नं</th>
+                        <th>दर्ता नं. QR</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1400,6 +1401,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             </td>
                             <td>{item.scheduledDateBs}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
+                            <td className="text-center">
+                                <QRCodeSVG value={`दर्ता नं: ${item.child.regNo || 'N/A'}\nनाम: ${item.child.childName}\nअभिभावक: ${item.child.motherName} ${item.child.fatherName ? `/ ${item.child.fatherName}` : ''}\nजन्म मिति: ${item.child.dobBs}`} size={45} level="M" />
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -1429,6 +1433,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>ठेगाना</th>
                         <th>सम्पर्क (Phone)</th>
                         <th>सम्पन्न मिति</th>
+                        <th>दर्ता नं. QR</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1442,6 +1447,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{child.address}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{child.phone}</span></td>
                             <td>{getCompletionDate(child)}</td>
+                            <td className="text-center">
+                                <QRCodeSVG value={`दर्ता नं: ${child.regNo || 'N/A'}\nनाम: ${child.childName}\nअभिभावक: ${child.motherName} ${child.fatherName ? `/ ${child.fatherName}` : ''}\nजन्म मिति: ${child.dobBs}`} size={45} level="M" />
+                            </td>
                         </tr>
                     ))}
                 </tbody>

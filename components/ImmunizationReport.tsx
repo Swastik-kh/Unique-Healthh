@@ -157,7 +157,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
           const hasAllRequired = requiredVaccines.every(reqVax => {
             return record.vaccines.some(v => {
-              if (v.status !== 'Given') return false;
+              if (v.status !== 'Given' || v.vaccinatedElsewhere) return false;
               const nameLower = (v.name || '').toLowerCase();
               const reqLower = reqVax.name.toLowerCase();
               const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -292,7 +292,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
         const hasAllRequired = requiredVaccines.every(reqVax => {
           return record.vaccines.some(v => {
-            if (v.status !== 'Given') return false;
+            if (v.status !== 'Given' || v.vaccinatedElsewhere) return false;
             const nameLower = (v.name || '').toLowerCase();
             const reqLower = reqVax.name.toLowerCase();
             const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -364,7 +364,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           // Find the latest given date of the 15-month completion vaccines (MR-2 or Typhoid) to decide when they were fully immunized
           const fifteenMonthVaccines = record.vaccines.filter(v => 
             (v.name.toLowerCase().includes('mr-2') || v.name.toLowerCase().includes('typhoid')) && 
-            v.status === 'Given'
+            v.status === 'Given' &&
+            !v.vaccinatedElsewhere
           );
           
           if (fifteenMonthVaccines.length > 0) {
@@ -379,7 +380,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             lastVaccineDateAd = latestVax.givenDateAd || '';
           } else {
             // Fallback to the latest vaccine of all given vaccines excluding HPV
-            const nonHpvVax = record.vaccines.filter(v => v.status === 'Given' && !v.name.includes('HPV'));
+            const nonHpvVax = record.vaccines.filter(v => v.status === 'Given' && !v.vaccinatedElsewhere && !v.name.includes('HPV'));
             if (nonHpvVax.length > 0) {
               const sortedAll = [...nonHpvVax].sort((a, b) => {
                 const d1 = a.givenDateBs || '';
