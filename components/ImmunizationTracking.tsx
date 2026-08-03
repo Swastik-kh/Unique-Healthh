@@ -297,11 +297,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         });
       });
     
-    // Sort by scheduled date, then by regNo descending as secondary sort
+    // Sort by scheduled date, then by ID descending to show newest registrations first within a session
     return Array.from(groupedMap.values()).sort((a, b) => {
         const dateCompare = a.scheduledDateBs.localeCompare(b.scheduledDateBs);
         if (dateCompare !== 0) return dateCompare;
-        return (b.child.regNo || '').localeCompare(a.child.regNo || '');
+        return (b.child.id || '').localeCompare(a.child.id || '');
     });
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
@@ -346,7 +346,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     return Array.from(groupedMap.values()).sort((a, b) => {
         const dateCompare = a.scheduledDateBs.localeCompare(b.scheduledDateBs);
         if (dateCompare !== 0) return dateCompare;
-        return (b.child.regNo || '').localeCompare(a.child.regNo || '');
+        return (b.child.id || '').localeCompare(a.child.id || '');
     });
   }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
@@ -399,7 +399,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
         return true;
       })
-      .sort((a, b) => (b.regNo || '').localeCompare(a.regNo || ''));
+      .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine]); 
 
   const getNepaliMonthName = useCallback((monthStr: string): string => {

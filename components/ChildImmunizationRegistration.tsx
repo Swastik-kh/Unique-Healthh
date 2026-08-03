@@ -715,13 +715,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         );
       })
       .sort((a, b) => {
-        // Sort by registration number descending primarily
-        const regNoA = a.regNo || '';
-        const regNoB = b.regNo || '';
-        const regCompare = regNoB.localeCompare(regNoA);
-        if (regCompare !== 0) return regCompare;
+        // Sort by registration date descending
+        const dateA = a.regDateBs || '';
+        const dateB = b.regDateBs || '';
+        const dateCompare = dateB.localeCompare(dateA);
+        if (dateCompare !== 0) return dateCompare;
         
-        // Fallback to ID descending
+        // Fallback to ID descending (usually a timestamp)
         return (b.id || '').localeCompare(a.id || '');
       });
   }, [records, currentFiscalYear, searchTerm]);
