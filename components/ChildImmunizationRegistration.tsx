@@ -714,7 +714,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           (r.vaccinationCenter || '').toLowerCase().includes(query)
         );
       })
-      .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+      .sort((a, b) => {
+        // Sort by registration number descending primarily
+        const regNoA = a.regNo || '';
+        const regNoB = b.regNo || '';
+        const regCompare = regNoB.localeCompare(regNoA);
+        if (regCompare !== 0) return regCompare;
+        
+        // Fallback to ID descending
+        return (b.id || '').localeCompare(a.id || '');
+      });
   }, [records, currentFiscalYear, searchTerm]);
 
   return (

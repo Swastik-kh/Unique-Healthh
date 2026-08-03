@@ -297,8 +297,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         });
       });
     
-    // Sort by scheduled date
-    return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
+    // Sort by scheduled date, then by regNo descending as secondary sort
+    return Array.from(groupedMap.values()).sort((a, b) => {
+        const dateCompare = a.scheduledDateBs.localeCompare(b.scheduledDateBs);
+        if (dateCompare !== 0) return dateCompare;
+        return (b.child.regNo || '').localeCompare(a.child.regNo || '');
+    });
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
   // Grouped Defaulter List (Logic: Due Date was in past, but not given)
@@ -339,7 +343,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         });
       });
     
-    return Array.from(groupedMap.values()).sort((a, b) => a.scheduledDateBs.localeCompare(b.scheduledDateBs));
+    return Array.from(groupedMap.values()).sort((a, b) => {
+        const dateCompare = a.scheduledDateBs.localeCompare(b.scheduledDateBs);
+        if (dateCompare !== 0) return dateCompare;
+        return (b.child.regNo || '').localeCompare(a.child.regNo || '');
+    });
   }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
   // FIC List: Fully Immunized Children (Excluding HPV)
@@ -391,7 +399,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
         return true;
       })
-      .sort((a, b) => a.childName.localeCompare(b.childName));
+      .sort((a, b) => (b.regNo || '').localeCompare(a.regNo || ''));
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine]); 
 
   const getNepaliMonthName = useCallback((monthStr: string): string => {
