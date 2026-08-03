@@ -258,8 +258,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const vaccineYearMonth = actualSessionDateBs.substring(0, 7); // e.g. "2083-03"
           
-          // Check if vaccine session month is equal to the selected filter month
-          const matchesDate = targetYearPrefix ? (vaccineYearMonth === targetYearPrefix) : true;
+          // Check if vaccine session month is equal to or before the selected filter month
+          const matchesDate = targetYearPrefix ? (vaccineYearMonth <= targetYearPrefix) : true;
           
           if (
             (vaccine.status === 'Pending' || vaccine.status === 'Missed') &&
@@ -268,18 +268,30 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           ) {
             const key = child.id;
             
+            // Calculate the displayed session date for the selected month view
+            // If the actual session date was in the past relative to the selected month,
+            // we show them as expected in the first session of the selected month
+            let displayedSessionDate = actualSessionDateBs;
+            if (targetYearPrefix && vaccineYearMonth < targetYearPrefix) {
+                const encodedKey = safeEncodeKey(child.vaccinationCenter);
+                const days = generalSettings?.vaccinationCenterDays?.[encodedKey] || [];
+                if (days.length > 0) {
+                    displayedSessionDate = `${targetYearPrefix}-${days[0].toString().padStart(2, '0')}`;
+                }
+            }
+
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, {
                     child,
                     vaccines: [],
-                    scheduledDateBs: actualSessionDateBs // This will store the calculated session date
+                    scheduledDateBs: displayedSessionDate 
                 });
             }
             
-            // Push vaccine with updated session date
+            // Push vaccine with displayed session date
             groupedMap.get(key)?.vaccines.push({
                 ...vaccine,
-                scheduledDateBs: actualSessionDateBs
+                scheduledDateBs: displayedSessionDate
             });
           }
         });

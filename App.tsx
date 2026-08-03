@@ -654,13 +654,24 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
-      // Check for duplicates by regNo
+      // Check for duplicates by regNo OR (childName + motherName + dobBs)
       const isDuplicate = bachhaImmunizationRecords.some(r => 
-        r.regNo === record.regNo && r.id !== record.id && r._orgName === activeOrgName
+        (r.regNo === record.regNo || (
+          r.childName?.trim().toLowerCase() === record.childName?.trim().toLowerCase() && 
+          r.motherName?.trim().toLowerCase() === record.motherName?.trim().toLowerCase() &&
+          r.dobBs === record.dobBs
+        )) && r.id !== record.id && r._orgName === activeOrgName
       );
       
       if (isDuplicate) {
-        alert(`दर्ता नम्बर ${record.regNo} भएको बच्चा पहिले नै दर्ता भइसकेको छ। कृपया विवरण जाँच गर्नुहोस्।`);
+        const existing = bachhaImmunizationRecords.find(r => 
+          (r.regNo === record.regNo || (
+            r.childName?.trim().toLowerCase() === record.childName?.trim().toLowerCase() && 
+            r.motherName?.trim().toLowerCase() === record.motherName?.trim().toLowerCase() &&
+            r.dobBs === record.dobBs
+          )) && r.id !== record.id && r._orgName === activeOrgName
+        );
+        alert(`बच्चा पहिले नै दर्ता भइसकेको छ (दर्ता नम्बर: ${existing?.regNo || record.regNo})। कृपया विवरण जाँच गर्नुहोस्।`);
         return;
       }
 

@@ -450,6 +450,27 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       jatCode: formData.jatCode || null,
     };
 
+    // Immediate duplicate check in UI
+    const isDuplicate = records.some(r => 
+      (r.regNo === formData.regNo || (
+        r.childName?.trim().toLowerCase() === formData.childName?.trim().toLowerCase() && 
+        r.motherName?.trim().toLowerCase() === formData.motherName?.trim().toLowerCase() &&
+        r.dobBs === formData.dobBs
+      )) && r.id !== editingRecordId
+    );
+
+    if (isDuplicate) {
+      const existing = records.find(r => 
+        (r.regNo === formData.regNo || (
+          r.childName?.trim().toLowerCase() === formData.childName?.trim().toLowerCase() && 
+          r.motherName?.trim().toLowerCase() === formData.motherName?.trim().toLowerCase() &&
+          r.dobBs === formData.dobBs
+        )) && r.id !== editingRecordId
+      );
+      setValidationError(`बच्चा पहिले नै दर्ता भइसकेको छ (दर्ता नम्बर: ${existing?.regNo || formData.regNo})। कृपया विवरण जाँच गर्नुहोस्।`);
+      return;
+    }
+
     const recordToSave: ChildImmunizationRecord = {
       ...sanitizedData,
       id: editingRecordId || Date.now().toString(),
