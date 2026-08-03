@@ -211,6 +211,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     return Array.from(uniqueVaccineNames).sort().map(name => ({ id: name, value: name, label: name }));
   }, []);
 
+  const getBaseCategory = useCallback((name: string): string => {
+    const n = (name || '').toLowerCase();
+    if (n.includes('bcg')) return 'BCG (बि.सि.जी.)';
+    if (n.includes('dpt') || n.includes('penta')) return 'DPT-HepB-Hib (पेन्टाभ्यालेनट / DPT)';
+    if (n.includes('opv') || n.includes('polio')) return 'OPV (पोलियो)';
+    if (n.includes('rota')) return 'Rota (रोटाभाइरस)';
+    if (n.includes('pcv')) return 'PCV (न्यूमोकोकल)';
+    if (n.includes('fipv')) return 'FIPV (एफ.आई.पी.वी.)';
+    if (n.includes('mr') || n.includes('measles')) return 'MR (दादुरा-रुबेला)';
+    if (n.includes('je')) return 'JE (जापानी इन्सेफलाइटिस)';
+    if (n.includes('typhoid')) return 'Typhoid (टाइफाइड)';
+    if (n.includes('hpv')) return 'HPV (एच.पि.भी.)';
+    return name.replace(/[-–]\s*\d+/, '').replace(/\([^)]+\)/g, '').trim();
+  }, []);
+
   // Updated Interface to support grouping
   interface GroupedChildVaccineDue {
       child: ChildImmunizationRecord;
@@ -305,6 +320,40 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         return (b.child.id || '').localeCompare(a.child.id || '');
     });
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
+
+  const vaccineSummaryData = useMemo(() => {
+    const summaryMap = new Map<string, { category: string; count: number; children: Array<{ childName: string; regNo: string; dobBs: string; guardian: string; address: string; center: string; doses: string[] }> }>();
+
+    upcomingSessionList.forEach(item => {
+        item.vaccines.forEach(v => {
+            const cat = getBaseCategory(v.name);
+            if (!summaryMap.has(cat)) {
+                summaryMap.set(cat, { category: cat, count: 0, children: [] });
+            }
+            const entry = summaryMap.get(cat)!;
+            
+            let childEntry = entry.children.find(c => c.regNo === item.child.regNo);
+            if (!childEntry) {
+                childEntry = {
+                    childName: item.child.childName,
+                    regNo: item.child.regNo,
+                    dobBs: item.child.dobBs,
+                    guardian: `${item.child.motherName}${item.child.fatherName ? ` / ${item.child.fatherName}` : ''}`,
+                    address: item.child.address,
+                    center: item.child.vaccinationCenter,
+                    doses: []
+                };
+                entry.children.push(childEntry);
+                entry.count++;
+            }
+            if (!childEntry.doses.includes(v.name)) {
+                childEntry.doses.push(v.name);
+            }
+        });
+    });
+
+    return Array.from(summaryMap.values()).sort((a, b) => a.category.localeCompare(b.category));
+  }, [upcomingSessionList, getBaseCategory]); 
 
   // Grouped Defaulter List (Logic: Due Date was in past, but not given)
   const defaulterList = useMemo(() => {
@@ -470,12 +519,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .sort((a, b) => a.dueYearMonth.localeCompare(b.dueYearMonth));
   }, [garbhawatiPatients, targetYearPrefix, filterCenter, searchTerm, getNepaliMonthName]);
 
-  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td') => {
+  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td' | 'vaccine-summary') => {
     const printContentId = 
         listType === 'upcoming' ? 'upcoming-list-print' : 
         listType === 'defaulter' ? 'defaulter-list-print' : 
         listType === 'fic' ? 'fic-list-print' : 
-        listType === 'maternal-td' ? 'maternal-td-print' : 'single-card-print';
+        listType === 'maternal-td' ? 'maternal-td-print' : 
+        listType === 'vaccine-summary' ? 'vaccine-summary-print' : 'single-card-print';
         
     const printElement = document.getElementById(printContentId);
 
@@ -838,7 +888,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   />
               </div>
 
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                  {trackingTarget === 'child' && activeView === 'upcoming' && (
+                      <button 
+                          onClick={() => handlePrint('vaccine-summary')}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-teal-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-teal-800 transition-colors"
+                          title="खोप अनुसार समरी प्रिन्ट गर्नुहोस् (DPT1,2,3 आदि जोडिएको)"
+                      >
+                          <Printer size={18}/> खोप समरी प्रिन्ट
+                      </button>
+                  )}
                   <button 
                       onClick={() => handlePrint(trackingTarget === 'child' ? activeView : 'maternal-td')}
                       className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900"
@@ -1528,6 +1587,64 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     )}
                 </tbody>
             </table>
+        </div>
+
+        <div id="vaccine-summary-print" className="hidden print-container">
+            <div className="print-header">
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1 style={{color: '#0f766e'}}>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2 style={{color: '#0f766e'}}>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3 style={{color: '#0f766e'}}>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4 style={{color: '#0f766e'}}>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{color: '#0f766e', fontSize: '15px', textDecoration: 'underline'}}>खोप अनुसार समरी प्रतिवेदन (Vaccine-wise Summary Report - DPT1, 2, 3 समेटिएको)</h2>
+                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा खोप प्रकारहरू: {vaccineSummaryData.length}</p>
+                </div>
+            </div>
+            
+            <div className="space-y-6 mt-4">
+                {vaccineSummaryData.map((group, gIdx) => (
+                    <div key={gIdx} className="mb-6">
+                        <div style={{ backgroundColor: '#f1f5f9', padding: '6px 10px', fontWeight: 'bold', fontSize: '13px', borderBottom: '2px solid #cbd5e1', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>खोप समूह / नाम: {group.category}</span>
+                            <span>जम्मा बालबालिका संख्या: {group.count}</span>
+                        </div>
+                        <table className="print-table" style={{ width: '100%', marginBottom: '15px' }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40px' }}>क्र.सं.</th>
+                                    <th>बच्चाको नाम / दर्ता नं</th>
+                                    <th>जन्म मिति (DOB)</th>
+                                    <th>अभिभावकको नाम</th>
+                                    <th>ठेगाना</th>
+                                    <th>केन्द्र</th>
+                                    <th>लगाउनुपर्ने डोजहरू (Doses Due)</th>
+                                    <th>सम्पर्क नं</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {group.children.map((c, cIdx) => (
+                                    <tr key={cIdx}>
+                                        <td style={{ textAlign: 'center' }}>{cIdx + 1}</td>
+                                        <td>{c.childName} <br/> <small>{c.regNo}</small></td>
+                                        <td><span className={blurDob ? "blur-sm" : ""}>{c.dobBs}</span></td>
+                                        <td>{c.guardian}</td>
+                                        <td>{c.address}</td>
+                                        <td>{c.center}</td>
+                                        <td style={{ fontWeight: 'bold', color: '#0369a1' }}>
+                                            {c.doses.join(', ')}
+                                        </td>
+                                        <td style={{ fontFamily: 'monospace' }}><span className={blurPhone ? "blur-sm" : ""}>{c.regNo}</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ))}
+                {vaccineSummaryData.length === 0 && (
+                    <p style={{ textAlign: 'center', fontStyle: 'italic', padding: '20px' }}>छानिएको अवधिमा कुनै खोप डाटा फेला परेन।</p>
+                )}
+            </div>
         </div>
     </div>
   );
