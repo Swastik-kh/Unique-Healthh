@@ -145,15 +145,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
   const todayBsFormatted = useMemo(() => getTodayBsFormatted(), []);
 
-  // Helper to find effective scheduled date (fallback to DOB + relative days for 6-week and other vaccines)
+  // Helper to find effective scheduled date dynamically based on preceding vaccine given dates (6-week -> 10-week -> 14-week)
   const getEffectiveVaccineScheduledBs = useCallback((child: ChildImmunizationRecord, vaccine: ChildImmunizationVaccine) => {
-    if (vaccine.scheduledDateBs && vaccine.scheduledDateBs !== 'N/A' && vaccine.scheduledDateBs !== 'Error' && vaccine.scheduledDateBs !== '-') {
-      return vaccine.scheduledDateBs;
-    }
     const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === vaccine.name);
     if (templateItem && child.dobAd) {
       const { bs } = calculateImmunizationDate(child.dobAd, templateItem.relativeDays, templateItem.base, child.vaccines || []);
       if (bs && bs !== 'N/A' && bs !== 'Error') return bs;
+      if (templateItem.base !== 'dob') {
+        return 'N/A';
+      }
     }
     return vaccine.scheduledDateBs || '-';
   }, []);
@@ -255,6 +255,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           
           // Calculate the actual session date for this center using effective scheduled date
           const rawScheduledBs = getEffectiveVaccineScheduledBs(child, vaccine);
+          if (!rawScheduledBs || rawScheduledBs === 'N/A' || rawScheduledBs === '-') return;
           const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const vaccineYearMonth = actualSessionDateBs.substring(0, 7); // e.g. "2083-03"
           
@@ -315,6 +316,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           
           // Defaulters: past due date and still not given
           const rawScheduledBs = getEffectiveVaccineScheduledBs(child, vaccine);
+          if (!rawScheduledBs || rawScheduledBs === 'N/A' || rawScheduledBs === '-') return;
           const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const vaccineYearMonth = actualSessionDateBs.substring(0, 7);
           
@@ -984,7 +986,10 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                         </div>
                                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
                                                             {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
-                                                                const vaccinesInCluster = (item.child.vaccines || []).filter(v => v.cluster === clusterName);
+                                                                const vaccinesInCluster = (item.child.vaccines || []).map(v => ({
+                                                                    ...v,
+                                                                    scheduledDateBs: getEffectiveVaccineScheduledBs(item.child, v)
+                                                                })).filter(v => v.cluster === clusterName);
                                                                 if (vaccinesInCluster.length === 0) return null;
                                                                 return (
                                                                     <div key={clusterName} className="flex flex-col gap-1 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100">
@@ -1292,11 +1297,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     </thead>
                                     <tbody className="divide-y divide-teal-50">
                                         {selectedChildForCard.vaccines.map((v, i) => {
-                                            const color = getDateColor(v.scheduledDateBs);
+                                            const effSchedBs = getEffectiveVaccineScheduledBs(selectedChildForCard, v);
+                                            const color = getDateColor(effSchedBs);
                                             return (
                                                 <tr key={i} className={`${color.bg} border-b ${color.border}`}>
                                                     <td className={`px-2 py-0.5 font-bold ${color.text}`}>{v.name}</td>
-                                                    <td className="px-2 py-0.5 font-mono text-slate-500">{v.scheduledDateBs}</td>
+                                                    <td className="px-2 py-0.5 font-mono text-slate-500">{effSchedBs}</td>
                                                     <td className="px-2 py-0.5 font-mono font-black text-teal-700">{v.givenDateBs || '-'}</td>
                                                     <td className="px-2 py-0.5">
                                                         <span className={`font-bold text-[8px] ${v.status === 'Given' ? 'text-green-700' : 'text-red-500'}`}>

@@ -138,9 +138,18 @@ const parseDateLocal = (dateStr: string) => {
     if (!dateStr) return new Date();
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y >= 1943 && y <= 2034) {
+            const dateObj = new Date(y, m, d, 12, 0, 0);
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj;
+            }
+        }
     }
-    return new Date();
+    const today = new Date();
+    return (today.getFullYear() >= 1943 && today.getFullYear() <= 2034) ? today : new Date(2024, 0, 1, 12, 0, 0);
 };
 
 const toLocalISO = (date: Date) => {
@@ -161,20 +170,27 @@ export const calculateImmunizationDate = (
         
         if (baseName !== 'dob') {
             const baseVaccine = allVaccines.find(v => v.name === baseName);
-            if (baseVaccine && baseVaccine.givenDateAd) {
+            if (baseVaccine && baseVaccine.status === 'Given' && baseVaccine.givenDateAd) {
                 actualBaseAdDate = parseDateLocal(baseVaccine.givenDateAd);
-            } else if (baseVaccine && baseVaccine.scheduledDateAd && baseVaccine.scheduledDateAd !== "N/A" && baseVaccine.scheduledDateAd !== "Error") {
-                actualBaseAdDate = parseDateLocal(baseVaccine.scheduledDateAd);
             } else {
-                actualBaseAdDate = parseDateLocal(dobAd);
+                return { bs: "N/A", ad: "N/A" };
             }
+        }
+
+        if (isNaN(actualBaseAdDate.getTime())) {
+            return { bs: "N/A", ad: "N/A" };
         }
 
         const scheduledAdDate = new Date(actualBaseAdDate);
         scheduledAdDate.setDate(actualBaseAdDate.getDate() + relativeDays);
+        
+        const schedYear = scheduledAdDate.getFullYear();
+        if (isNaN(schedYear) || schedYear < 1943 || schedYear > 2034) {
+            return { bs: "N/A", ad: "N/A" };
+        }
+
         const scheduledAdDateString = toLocalISO(scheduledAdDate);
 
-        // FIX: Corrected month index for NepaliDate constructor by passing the Date object directly
         let scheduledNepaliDate = new NepaliDate(scheduledAdDate);
         
         return {
@@ -182,8 +198,7 @@ export const calculateImmunizationDate = (
             ad: scheduledAdDateString,
         };
     } catch (e) {
-        console.error("Error calculating immunization date:", e); // Added error logging
-        return { bs: "Error", ad: "Error" };
+        return { bs: "N/A", ad: "N/A" };
     }
 };
 
