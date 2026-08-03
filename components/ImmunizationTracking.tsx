@@ -258,11 +258,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
           const vaccineYearMonth = actualSessionDateBs.substring(0, 7); // e.g. "2083-03"
           
-          // Check if vaccine session month is equal to or earlier than the selected filter month
-          const matchesDate = targetYearPrefix ? (vaccineYearMonth <= targetYearPrefix) : true;
+          // Check if vaccine session month is equal to the selected filter month
+          const matchesDate = targetYearPrefix ? (vaccineYearMonth === targetYearPrefix) : true;
           
           if (
-            vaccine.status === 'Pending' &&
+            (vaccine.status === 'Pending' || vaccine.status === 'Missed') &&
             matchesDate &&
             matchesVaccine 
           ) {
@@ -297,15 +297,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         child.vaccines.forEach(vaccine => {
           const matchesVaccine = filterVaccine ? vaccine.name === filterVaccine : true;
           
-          // Calculate center session date for defaulters too
+          // Defaulters: past due date and still not given
           const rawScheduledBs = getEffectiveVaccineScheduledBs(child, vaccine);
           const actualSessionDateBs = getSessionDateForCenter(rawScheduledBs, child.vaccinationCenter);
-          const matchesDate = actualSessionDateBs.substring(0, 7) <= targetYearPrefix;
+          const vaccineYearMonth = actualSessionDateBs.substring(0, 7);
+          
+          // Matches if the vaccine was due in a month prior to or equal to the selected month, and it's before today
+          const matchesDate = targetYearPrefix ? (vaccineYearMonth <= targetYearPrefix) : true;
 
           if (
-            vaccine.status === 'Pending' &&
-            actualSessionDateBs < todayBsFormatted && // Strictly past due
-            matchesDate && // Matches the filter window (selected month or earlier)
+            (vaccine.status === 'Pending' || vaccine.status === 'Missed') &&
+            actualSessionDateBs < todayBsFormatted && 
+            matchesDate && 
             matchesVaccine 
           ) {
              const key = child.id;

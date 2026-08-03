@@ -650,6 +650,35 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSaveBachhaImmunizationRecord = async (record: ChildImmunizationRecord) => {
+    if (!currentUser) return;
+    try {
+      const sanitized = JSON.parse(JSON.stringify(record));
+      // Check for duplicates by regNo
+      const isDuplicate = bachhaImmunizationRecords.some(r => 
+        r.regNo === record.regNo && r.id !== record.id && r._orgName === activeOrgName
+      );
+      
+      if (isDuplicate) {
+        alert(`दर्ता नम्बर ${record.regNo} भएको बच्चा पहिले नै दर्ता भइसकेको छ। कृपया विवरण जाँच गर्नुहोस्।`);
+        return;
+      }
+
+      await set(getOrgRef(`bachhaImmunizationRecords/${record.id}`), sanitized);
+    } catch (error) {
+      alert("खोप रेकर्ड सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteBachhaImmunizationRecord = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`bachhaImmunizationRecords/${id}`));
+    } catch (error) {
+      alert("खोप रेकर्ड हटाउन सकिएन।");
+    }
+  };
+
   const handleDeletePrasutiRecord = async (id: string) => {
     if (!currentUser) return;
     try {
@@ -1794,7 +1823,10 @@ const App: React.FC = () => {
             }
           }}
           garbhawatiPatients={garbhawatiPatients} onAddGarbhawatiPatient={(p) => set(getOrgRef(`garbhawatiPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onUpdateGarbhawatiPatient={(p) => set(getOrgRef(`garbhawatiPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onDeleteGarbhawatiPatient={(id) => remove(getOrgRef(`garbhawatiPatients/${id}`))}
-          bachhaImmunizationRecords={bachhaImmunizationRecords} onAddBachhaImmunizationRecord={(r) => set(getOrgRef(`bachhaImmunizationRecords/${r.id}`), JSON.parse(JSON.stringify(r)))} onUpdateBachhaImmunizationRecord={(r) => set(getOrgRef(`bachhaImmunizationRecords/${r.id}`), JSON.parse(JSON.stringify(r)))} onDeleteBachhaImmunizationRecord={(id) => remove(getOrgRef(`bachhaImmunizationRecords/${id}`))}
+          bachhaImmunizationRecords={bachhaImmunizationRecords} 
+          onAddBachhaImmunizationRecord={handleSaveBachhaImmunizationRecord} 
+          onUpdateBachhaImmunizationRecord={handleSaveBachhaImmunizationRecord} 
+          onDeleteBachhaImmunizationRecord={handleDeleteBachhaImmunizationRecord}
           firms={firms} onAddFirm={(f) => set(getOrgRef(`firms/${f.id}`), f)} quotations={quotations} onAddQuotation={(q) => set(getOrgRef(`quotations/${q.id}`), q)}
           inventoryItems={inventoryItems} onAddInventoryItem={(i) => set(getOrgRef(`inventory/${i.id}`), i)} onUpdateInventoryItem={(i) => set(getOrgRef(`inventory/${i.id}`), i)} onDeleteInventoryItem={handleDeleteInventoryItem}
           stockEntryRequests={stockEntryRequests} onRequestStockEntry={(r) => set(getOrgRef(`stockRequests/${r.id}`), r)} onApproveStockEntry={handleApproveStockEntry}
