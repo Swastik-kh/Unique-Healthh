@@ -283,7 +283,17 @@ async function startServer() {
         return res.status(400).json({ error: "Recipients and message body are required" });
       }
 
-      const toStr = Array.isArray(recipients) ? recipients.join(',') : recipients;
+      // Clean recipient phone numbers (strip non-digits, remove +977 prefix)
+      const rawList = Array.isArray(recipients) ? recipients : String(recipients).split(',');
+      const cleanedList = rawList
+        .map(r => String(r).replace(/\D/g, '').replace(/^977/, ''))
+        .filter(p => p.length >= 10);
+
+      if (cleanedList.length === 0) {
+        return res.status(400).json({ error: "नेपाली १० अंकको मोबाइल नम्बर भेटिएन (उदा: 9841XXXXXX)" });
+      }
+
+      const toStr = cleanedList.join(',');
       const pName = (provider || '').toLowerCase();
       const urlStr = (apiUrl || '').toLowerCase();
 
@@ -294,13 +304,15 @@ async function startServer() {
         const key = apiKey || process.env.SMS_PASAL_KEY || '56A71A88EC9CA9';
         const targetUrl = apiUrl || process.env.SMS_PASAL_URL || 'https://sms.smspasal.com/smsapi/index.php';
         const from = senderId || process.env.SMS_PASAL_SENDER || 'SMSBit';
+        const campaign = req.body.campaign || process.env.SMS_PASAL_CAMPAIGN || '9674';
+        const routeid = req.body.routeid || process.env.SMS_PASAL_ROUTEID || '10259';
 
-        console.log(`Sending SMS via SMS Pasal (${targetUrl}) to: ${toStr}`);
+        console.log(`Sending SMS via SMSBit (${targetUrl}) to: ${toStr}`);
 
         const params = {
           key: key.trim(),
-          campaign: '9674',
-          routeid: '10259',
+          campaign: campaign.trim(),
+          routeid: routeid.trim(),
           type: 'text',
           responsetype: 'json',
           contacts: toStr,
@@ -308,11 +320,32 @@ async function startServer() {
           msg: message
         };
 
-        const apiRes = await axios.get(targetUrl, {
-          params,
-          timeout: 15000,
-          validateStatus: () => true
-        });
+        let apiRes;
+        try {
+          apiRes = await axios.get(targetUrl, {
+            params,
+            timeout: 15000,
+            validateStatus: () => true
+          });
+        } catch (getErr: any) {
+          console.warn("GET failed, trying POST to SMSBit...", getErr.message);
+          // Fallback to POST form-urlencoded
+          const formData = new URLSearchParams();
+          formData.append('key', key.trim());
+          formData.append('campaign', campaign.trim());
+          formData.append('routeid', routeid.trim());
+          formData.append('type', 'text');
+          formData.append('responsetype', 'json');
+          formData.append('contacts', toStr);
+          formData.append('senderid', from.trim());
+          formData.append('msg', message);
+
+          apiRes = await axios.post(targetUrl, formData.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: 15000,
+            validateStatus: () => true
+          });
+        }
 
         console.log("SMS Pasal Response:", apiRes.status, apiRes.data);
 
@@ -332,8 +365,21 @@ async function startServer() {
             message: "SMSBit (SMS Pasal) गेटवे मार्फत वास्तविक SMS सन्देश मोवाइलमा सफलतापुर्वक पठाइयो!"
           });
         } else {
+          // Parse friendly error for common SMSBit error messages
+          let userFriendlyError = responseDataStr;
+          if (responseDataStr.includes('INVALID API KEY') || responseDataStr.includes('INVALID KEY')) {
+            userFriendlyError = `SMSBit API Key (${key}) अमान्य वा निष्कृय छ। कृपया Super Admin को General Settings मा गएर SMSBit प्यानलको आफ्नो सही API Key राख्नुहोस्। (${responseDataStr})`;
+          } else if (responseDataStr.includes('SENDERID') || responseDataStr.includes('INVALID SENDER')) {
+            userFriendlyError = `SMSBit मा '${from}' Sender ID स्वीकृत छैन। कृपया आफ्नो प्यानलमा स्वीकृत भएको Sender ID राख्नुहोस्। (${responseDataStr})`;
+          } else if (responseDataStr.includes('CREDIT') || responseDataStr.includes('BALANCE')) {
+            userFriendlyError = `SMSBit मा सन्देश पठाउन बाँकी SMS Balance/Credit पुगेन। (${responseDataStr})`;
+          } else if (responseDataStr.includes('CONTACT')) {
+            userFriendlyError = `मोबाइल नम्बर अमान्य छ: (${toStr})। (${responseDataStr})`;
+          }
+
           return res.status(400).json({
-            error: responseDataStr || "SMS API Error",
+            error: userFriendlyError,
+            rawError: responseDataStr,
             status: apiRes.status
           });
         }
