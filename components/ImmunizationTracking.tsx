@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye, Coins } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
@@ -2019,17 +2019,23 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <Smartphone size={16} className="text-amber-600" />
                         Universal SMS Gateway: {generalSettings?.smsApiProvider || 'SMS Pasal'}
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-amber-200/60 font-mono">
+                      <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-amber-200/60 font-mono text-center">
                         <div className="bg-white p-2 rounded-lg border border-amber-100">
                           <span className="text-[10px] text-slate-500 block">कुल कोटा (Quota):</span>
                           <span className="font-bold text-amber-900">
-                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${currentUser?.smsQuota || 0} SMS`}
+                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${currentUser?.smsQuota || 0}`}
                           </span>
                         </div>
                         <div className="bg-white p-2 rounded-lg border border-amber-100">
-                          <span className="text-[10px] text-slate-500 block">बाँकी कोटा (Remaining):</span>
+                          <span className="text-[10px] text-slate-500 block">खर्च भएको (Used):</span>
+                          <span className="font-black text-rose-700">
+                            {currentUser?.smsUsedCount || 0}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-amber-100">
+                          <span className="text-[10px] text-slate-500 block">बाँकी कोटा (Remain):</span>
                           <span className="font-black text-emerald-700">
-                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${remainingQuota} SMS`}
+                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${remainingQuota}`}
                           </span>
                         </div>
                       </div>
@@ -2108,10 +2114,17 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
               </div>
 
               {/* Modal Footer */}
-              <div className="bg-slate-50 p-4 sm:p-5 border-t border-slate-200 flex items-center justify-between gap-3 font-nepali shrink-0">
-                <span className="text-xs text-slate-500 hidden sm:inline">
-                  * SMS पठाएपछि तपाईंको खाताको कोटाबाट स्वतः कट्टा हुनेछ।
-                </span>
+              <div className="bg-slate-50 p-4 sm:p-5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 font-nepali shrink-0">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200/80 shadow-2xs">
+                    <Coins size={15} className="text-amber-600 shrink-0" />
+                    <span>खर्च भएको कुल क्रेडिट (Used Credit):</span>
+                    <span className="font-mono font-black text-rose-700 bg-white px-2 py-0.5 rounded border border-amber-200">{currentUser?.smsUsedCount || 0} SMS</span>
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-600">
+                    बाँकी कोटा: <b className="text-emerald-700 font-mono font-bold">{currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${remainingQuota} SMS`}</b>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 ml-auto">
                   <button
                     type="button"

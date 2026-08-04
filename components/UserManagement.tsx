@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
-import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 
@@ -831,10 +831,22 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                 />
                                 <span className="text-[10px] text-blue-600 mt-1 block">यो प्रयोगकर्ताले पठाउन पाउने अधिकतम कुल SMSQuota संख्या</span>
                             </div>
-                            <div className="bg-white/90 p-3 rounded-xl border border-blue-200 flex flex-col justify-between">
+                            <div className="bg-white/90 p-3 rounded-xl border border-blue-200 flex flex-col justify-between space-y-2">
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-slate-600 font-medium">प्रयोग भएको SMS (Used):</span>
-                                    <span className="font-mono font-bold text-blue-700">{formData.smsUsedCount || 0} SMS</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono font-bold text-blue-700">{formData.smsUsedCount || 0} SMS</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, smsUsedCount: 0 }));
+                                            }}
+                                            className="px-2 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                            title="खर्च भएको संख्या ० मा रिसेट गर्नुहोस्"
+                                        >
+                                            <RotateCcw size={11} /> रिसेट (Reset)
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-100">
                                     <span className="text-slate-600 font-medium">बाँकी SMS (Remaining):</span>
@@ -915,13 +927,30 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                     असीमित (Unlimited)
                                 </span>
                             ) : user.allowSmsAccess ? (
-                                <div className="inline-flex flex-col">
+                                <div className="inline-flex flex-col gap-1">
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 w-fit">
                                         <MessageSquare size={10} /> अनुमति प्राप्त
                                     </span>
-                                    <span className="text-[11px] font-mono font-bold text-slate-700 mt-1">
-                                        बाँकी: {Math.max(0, (user.smsQuota || 0) - (user.smsUsedCount || 0))} / {user.smsQuota || 0}
-                                    </span>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[11px] font-mono font-bold text-slate-700">
+                                            बाँकी: {Math.max(0, (user.smsQuota || 0) - (user.smsUsedCount || 0))} / {user.smsQuota || 0}
+                                        </span>
+                                        {currentUser?.role === 'SUPER_ADMIN' && (
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (window.confirm(`${user.fullName} को प्रयोग भएको SMS (खर्च) रिसेट गरी ० बनाउन चाहनुहुन्छ?`)) {
+                                                        await onUpdateUser({ ...user, smsUsedCount: 0 });
+                                                    }
+                                                }}
+                                                className="px-1.5 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors cursor-pointer flex items-center gap-0.5"
+                                                title="खर्च भएको SMS संख्या ० मा रिसेट गर्नुहोस्"
+                                            >
+                                                <RotateCcw size={10} /> रिसेट
+                                            </button>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 font-medium">(खर्च: {user.smsUsedCount || 0} SMS)</span>
                                 </div>
                             ) : (
                                 <span className="text-slate-400 text-xs italic">अनुमति नभएको</span>
