@@ -297,17 +297,18 @@ async function startServer() {
       const pName = (provider || '').toLowerCase();
       const urlStr = (apiUrl || '').toLowerCase();
 
-      // Check if provider is SMS Pasal / SMSBit or if URL points to smspasal.com or if no custom provider specified
-      const isSmsPasal = pName.includes('pasal') || pName.includes('smsbit') || urlStr.includes('smspasal') || (!provider && !apiUrl) || provider === 'SMS Pasal' || provider === 'SMSBit';
+      // Route to SMSBit / SMS Pasal by default unless explicitly configured for sparrowsms.com domain
+      const isSparrowExplicit = urlStr.includes('sparrowsms') || (pName.includes('sparrow') && !urlStr.includes('smspasal') && apiKey !== '56A71A88EC9CA9');
+      const isSmsPasal = !isSparrowExplicit;
 
       if (isSmsPasal) {
         const key = apiKey || process.env.SMS_PASAL_KEY || '56A71A88EC9CA9';
-        const targetUrl = apiUrl || process.env.SMS_PASAL_URL || 'https://sms.smspasal.com/smsapi/index.php';
+        const targetUrl = (apiUrl && apiUrl.includes('http')) ? apiUrl : 'https://sms.smspasal.com/smsapi/index.php';
         const from = senderId || process.env.SMS_PASAL_SENDER || 'SMSBit';
         const campaign = req.body.campaign || process.env.SMS_PASAL_CAMPAIGN || '9674';
         const routeid = req.body.routeid || process.env.SMS_PASAL_ROUTEID || '10259';
 
-        console.log(`Sending SMS via SMSBit (${targetUrl}) to: ${toStr}`);
+        console.log(`Sending SMS via SMSBit / SMS Pasal (${targetUrl}) to: ${toStr}`);
 
         const params = {
           key: key.trim(),
@@ -414,8 +415,15 @@ async function startServer() {
             message: "SMS गेटवे मार्फत वास्तविक सन्देश सफलतापूर्वक पठाइयो!"
           });
         } else {
+          const rawErr = apiRes.data;
+          let errMsg = "SMS API Error";
+          if (typeof rawErr === 'string') {
+            errMsg = rawErr;
+          } else if (rawErr && typeof rawErr === 'object') {
+            errMsg = rawErr.response || rawErr.error || rawErr.message || JSON.stringify(rawErr);
+          }
           return res.status(apiRes.status || 500).json({
-            error: typeof apiRes.data === 'string' ? apiRes.data : (apiRes.data?.response || apiRes.data?.error || "SMS API Error"),
+            error: String(errMsg),
             status: apiRes.status
           });
         }
