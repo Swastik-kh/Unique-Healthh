@@ -198,23 +198,6 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     setShowSmsModal(true);
   };
 
-  const cleanPhone = useCallback((phone?: string) => {
-    if (!phone) return '';
-    return phone.trim().replace(/\D/g, '').replace(/^977/, '');
-  }, []);
-
-  const isValid10DigitMobile = useCallback((phone?: string) => {
-    const cleaned = cleanPhone(phone);
-    return /^\d{10}$/.test(cleaned);
-  }, [cleanPhone]);
-
-  const bulkTargetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
-  const validBulkRecipients = useMemo(() => {
-    return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone));
-  }, [bulkTargetList, isValid10DigitMobile]);
-
-  const invalidBulkCount = bulkTargetList.length - validBulkRecipients.length;
-
   // Execute SMS Sending via Backend API Proxy
   const handleSendSmsExecute = async (upcomingCount: number, defaulterCount: number) => {
     if (smsMode === 'single' && !smsRecipientPhone.trim()) {
@@ -608,6 +591,23 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         return (b.child.id || '').localeCompare(a.child.id || '');
     });
   }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
+
+  const cleanPhone = useCallback((phone?: string) => {
+    if (!phone) return '';
+    return phone.trim().replace(/\D/g, '').replace(/^977/, '');
+  }, []);
+
+  const isValid10DigitMobile = useCallback((phone?: string) => {
+    const cleaned = cleanPhone(phone);
+    return /^\d{10}$/.test(cleaned);
+  }, [cleanPhone]);
+
+  const bulkTargetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
+  const validBulkRecipients = useMemo(() => {
+    return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone));
+  }, [bulkTargetList, isValid10DigitMobile]);
+
+  const invalidBulkCount = bulkTargetList.length - validBulkRecipients.length;
 
   // FIC List: Fully Immunized Children (Excluding HPV)
   const ficList = useMemo(() => {
