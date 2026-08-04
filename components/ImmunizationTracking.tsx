@@ -2042,6 +2042,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                       <div className="flex items-center justify-between">
                         <label className="font-bold text-sm text-slate-800 flex items-center gap-2">
                           <span>SMS सन्देश पाठ (Short Message Body):</span>
+                          <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            🔒 सुरक्षित (Read Only)
+                          </span>
                         </label>
                         <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
                           {smsMessageText.length} वर्ण | ~{Math.ceil(smsMessageText.length / 160) || 1} SMS
@@ -2051,9 +2054,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                       <textarea
                         rows={5}
                         value={smsMessageText}
-                        onChange={(e) => setSmsMessageText(e.target.value)}
-                        className="w-full text-xs sm:text-sm leading-relaxed p-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50 font-nepali shadow-xs grow"
-                        placeholder="सन्देशको पाठ प्रविष्ट गर्नुहोस्..."
+                        readOnly={true}
+                        className="w-full text-xs sm:text-sm leading-relaxed p-4 border border-slate-300 rounded-2xl bg-slate-100/80 text-slate-700 font-nepali shadow-inner grow cursor-not-allowed select-none focus:outline-none"
+                        placeholder="सन्देशको पाठ..."
                       />
 
                       {smsMode === 'bulk' && (
