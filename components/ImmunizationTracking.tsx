@@ -322,7 +322,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
 
   const vaccineSummaryData = useMemo(() => {
-    const summaryMap = new Map<string, { category: string; count: number; children: Array<{ childName: string; regNo: string; dobBs: string; guardian: string; address: string; center: string; doses: string[] }> }>();
+    const summaryMap = new Map<string, { category: string; count: number; children: Array<{ childName: string; regNo: string; dobBs: string; guardian: string; address: string; center: string; phone: string; doses: string[] }> }>();
 
     upcomingSessionList.forEach(item => {
         item.vaccines.forEach(v => {
@@ -341,6 +341,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     guardian: `${item.child.motherName}${item.child.fatherName ? ` / ${item.child.fatherName}` : ''}`,
                     address: item.child.address,
                     center: item.child.vaccinationCenter,
+                    phone: item.child.phone,
                     doses: []
                 };
                 entry.children.push(childEntry);
