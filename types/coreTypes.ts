@@ -54,8 +54,9 @@ export interface User {
   canManageMenu?: boolean;
   editAccessMenus?: string[];
   deleteAccessMenus?: string[];
-  smsQuota?: number;
-  smsUsed?: number;
+  allowSmsAccess?: boolean; // Toggled by Super Admin in User Management
+  smsQuota?: number; // Pre-set SMS limit
+  smsUsedCount?: number; // Count of SMS sent
 }
 
 export interface WardConfig {
@@ -112,6 +113,11 @@ export interface OrganizationSettings {
   vaccinationCenters?: string[]; // Added for managing centers
   vaccinationCenterDays?: Record<string, number[]>; // Added for managing days per center
   vaccineInventory?: Record<string, number>; // Added for tracking received vaccine doses/stock
+  allowSmsAccess?: boolean; // Legacy/global toggle
+  smsApiProvider?: string; // Universal SMS API Provider (e.g. Sparrow SMS, Aakash SMS)
+  smsApiKey?: string; // Universal SMS API Token/Key
+  smsSenderId?: string; // Universal SMS Sender ID / Identity
+  smsApiUrl?: string; // Universal SMS API Endpoint URL
   ipdWards?: WardConfig[]; 
   isSubscribed?: boolean;
   subscriptionExpiryDate?: string;
@@ -137,10 +143,6 @@ export interface OrganizationSettings {
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
   menuConfig?: MenuConfigItem[];
-  smsProvider?: 'sparrow' | 'aakash' | 'generic';
-  smsToken?: string;
-  smsSenderId?: string;
-  smsApiUrl?: string;
 }
 
 export interface DHIS2CellMapping {

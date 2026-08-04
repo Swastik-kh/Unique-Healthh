@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2, Layers } from 'lucide-react';
+import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2, Layers, MessageSquare } from 'lucide-react';
 import { GarbhawatiPatient, ChildImmunizationRecord } from '../types/healthTypes';
 import { OrganizationSettings } from '../types/coreTypes';
 import { GarbhawatiTDRegistration } from './GarbhawatiTDRegistration';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -342,53 +342,6 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2">
-                    <MessageSquare size={18} className="text-primary-600"/>
-                    SMS API सेटिङ (SMS Gateway Configuration)
-                </h3>
-                <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <Select 
-                            label="SMS प्रदायक (SMS Provider)" 
-                            options={[
-                                { id: 'sparrow', label: 'Sparrow SMS', value: 'sparrow' },
-                                { id: 'aakash', label: 'Aakash SMS', value: 'aakash' },
-                                { id: 'generic', label: 'Custom / Generic HTTP API', value: 'generic' },
-                            ]} 
-                            value={localSettings.smsProvider || 'sparrow'} 
-                            onChange={(e) => handleChange('smsProvider', e.target.value)} 
-                        />
-                        <Input 
-                            label="Sender ID / Identity" 
-                            value={localSettings.smsSenderId || ''} 
-                            onChange={(e) => handleChange('smsSenderId', e.target.value)} 
-                            placeholder="उदा: InfoSMS / 33001"
-                        />
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <Input 
-                            label="API Token / Access Key" 
-                            type="password"
-                            value={localSettings.smsToken || ''} 
-                            onChange={(e) => handleChange('smsToken', e.target.value)} 
-                            placeholder="••••••••••••••••"
-                            icon={<Lock size={16} />}
-                        />
-                        <Input 
-                            label="API Gateway URL (Optional for Custom API)" 
-                            value={localSettings.smsApiUrl || ''} 
-                            onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
-                            placeholder="http://api.sparrowsms.com/v2/sms/"
-                            icon={<Globe size={16} />}
-                        />
-                    </div>
-                    <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        नोट: Sparrow SMS वा Aakash SMS API Token र Sender ID यहाँ सुरक्षित राख्न सकिन्छ। खोप अनुगमनबाट SMS पठाउँदा यो API प्रयोग हुनेछ।
-                    </p>
-                </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={18} className="text-primary-600"/>खोप केन्द्र व्यवस्थापन</h3>
                 <p className="text-xs text-slate-500 mb-4">केन्द्रको नाम र खोप चल्ने मिति (e.g., 'मुख्य अस्पताल|आइत-बिही')</p>
                 <div className="space-y-2">
@@ -582,6 +535,52 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <Select label="सक्रिय आर्थिक वर्ष" options={FISCAL_YEARS} value={localSettings.activeFiscalYear} onChange={(e) => handleChange('activeFiscalYear', e.target.value)} icon={<Calendar size={16} />} />
                     <Input label="डिफल्ट VAT दर (%)" type="number" value={localSettings.defaultVatRate} onChange={(e) => handleChange('defaultVatRate', e.target.value)} icon={<Percent size={16} />} />
                 </div>
+                {currentUser?.role === 'SUPER_ADMIN' && (
+                    <div className="mt-6 border-t pt-5">
+                        <h4 className="font-bold text-blue-900 mb-1 flex items-center gap-2 font-nepali text-sm">
+                            <MessageSquare size={18} className="text-blue-600"/>
+                            Universal SMS Gateway API सेटिङ (Super Admin Only)
+                        </h4>
+                        <p className="text-xs text-slate-500 font-nepali mb-4">
+                            यहाँ गेटवे (उदा. Sparrow SMS, Aakash SMS आदि) को API विवरणहरू सुरक्षित गरेपछि प्रयोगकर्ता व्यवस्थापनबाट अनुमति पाएका युजरहरूले खोप अनुगमन लगायतका ठाउँबाट SMS पठाउन पाउनेछन्।
+                        </p>
+                        <div className="grid md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                            <Select 
+                                label="SMS गेटवे प्रदायक (SMS Provider)" 
+                                options={[
+                                    { id: 'sparrow', value: 'Sparrow SMS', label: 'Sparrow SMS (नेपाल)' },
+                                    { id: 'aakash', value: 'Aakash SMS', label: 'Aakash SMS (नेपाल)' },
+                                    { id: 'custom', value: 'Custom Gateway', label: 'अन्य / Custom Gateway API' }
+                                ]} 
+                                value={localSettings.smsApiProvider || 'Sparrow SMS'} 
+                                onChange={(e) => handleChange('smsApiProvider', e.target.value)} 
+                                icon={<Server size={16} />} 
+                            />
+                            <Input 
+                                label="Sender ID / Header" 
+                                value={localSettings.smsSenderId || ''} 
+                                onChange={(e) => handleChange('smsSenderId', e.target.value)} 
+                                placeholder="उदा: HEALTH / SMARTHEALTH" 
+                                icon={<Send size={16} />} 
+                            />
+                            <Input 
+                                label="API Token / Key" 
+                                type="password" 
+                                value={localSettings.smsApiKey || ''} 
+                                onChange={(e) => handleChange('smsApiKey', e.target.value)} 
+                                placeholder="API Token प्रविष्ट गर्नुहोस्" 
+                                icon={<Key size={16} />} 
+                            />
+                            <Input 
+                                label="API Endpoint URL" 
+                                value={localSettings.smsApiUrl || ''} 
+                                onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
+                                placeholder="https://api.sparrowsms.com/v2/sms/" 
+                                icon={<Globe size={16} />} 
+                            />
+                        </div>
+                    </div>
+                )}
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                     {(() => {
                         const orgUsers = users.filter(u => u.organizationName === currentUser.organizationName);
