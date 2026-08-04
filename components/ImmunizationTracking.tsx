@@ -13,6 +13,7 @@ import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE, calculateImmunizationDate } fr
 import { FISCAL_YEARS } from '../constants';
 import { safeEncodeKey } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
+import axios from 'axios';
 
 interface ImmunizationTrackingProps {
   currentFiscalYear: string;
@@ -197,8 +198,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     setShowSmsModal(true);
   };
 
-  // Execute SMS Sending
-  const handleSendSmsExecute = (upcomingCount: number, defaulterCount: number) => {
+  // Execute SMS Sending via Backend API Proxy
+  const handleSendSmsExecute = async (upcomingCount: number, defaulterCount: number) => {
     if (smsMode === 'single' && !smsRecipientPhone.trim()) {
       alert("कृपया फोन नम्बर प्रविष्ट गर्नुहोस्।");
       return;
@@ -215,8 +216,30 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       return;
     }
 
+    // Collect recipient phone numbers
+    let recipientsList: string[] = [];
+    if (smsMode === 'single') {
+      recipientsList = [smsRecipientPhone.trim()];
+    } else {
+      const targetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
+      recipientsList = targetList.map(item => item.child.phone).filter(p => p && p.trim().length >= 8);
+      if (recipientsList.length === 0) {
+        alert("सूचीमा कुनै पनि वैध फोन नम्बर (Mobile Number) भेटिएन।");
+        return;
+      }
+    }
+
     setIsSendingSms(true);
-    setTimeout(() => {
+    try {
+      const response = await axios.post('/api/sms/send', {
+        provider: generalSettings?.smsApiProvider || 'Sparrow SMS',
+        apiKey: generalSettings?.smsApiKey || '',
+        senderId: generalSettings?.smsSenderId || '',
+        apiUrl: generalSettings?.smsApiUrl || '',
+        recipients: recipientsList,
+        message: smsMessageText.trim()
+      });
+
       setIsSendingSms(false);
       setShowSmsModal(false);
 
@@ -229,16 +252,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         });
       }
 
-      if (smsMode === 'single') {
-        const remainingStr = currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${Math.max(0, remainingQuota - neededSmsCount)} SMS`;
-        setSuccessMessage(`${smsSingleChild?.childName || 'बालबालिका'} को अभिभावक (${smsRecipientPhone}) लाई SMS सन्देश सफलतापूर्वक पठाइयो। (बाँकी कोटा: ${remainingStr})`);
+      const remainingStr = currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${Math.max(0, remainingQuota - neededSmsCount)} SMS`;
+
+      if (response.data.simulated) {
+        setSuccessMessage(`सिम्युलेसन सन्देश सफल भयो! (बाँकी कोटा: ${remainingStr})\nनोट: Sparrow SMS को वास्तविक API Token नराखिएकाले सिम्युलेसन मोडमा चलेको हो। Super Admin को General Settings मा Sparrow Token र Sender ID हालेपछि वास्तविक SMS जान्छ।`);
       } else {
-        const count = smsViewType === 'upcoming' ? upcomingCount : defaulterCount;
-        const remainingStr = currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${Math.max(0, remainingQuota - neededSmsCount)} SMS`;
-        setSuccessMessage(`जम्मा ${count} जना बालबालिकाका अभिभावकहरूलाई SMS सन्देश सफलतापूर्वक पठाइयो। (बाँकी कोटा: ${remainingStr})`);
+        setSuccessMessage(`Sparrow SMS गेटवे मार्फत वास्तविक ${neededSmsCount} SMS सन्देश मोबाईलमा सफलतापूर्वक पठाइयो! (बाँकी कोटा: ${remainingStr})`);
       }
-      setTimeout(() => setSuccessMessage(null), 6000);
-    }, 700);
+      setTimeout(() => setSuccessMessage(null), 8000);
+    } catch (err: any) {
+      setIsSendingSms(false);
+      const errorMsg = err.response?.data?.error || err.message || "SMS पठाउन असफल भयो।";
+      alert(`SMS पठाउने क्रममा त्रुटि: ${errorMsg}`);
+    }
   };
 
   const getVaccinesGivenCount = (vaccines: ChildImmunizationVaccine[] = []) => {

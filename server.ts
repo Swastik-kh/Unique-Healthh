@@ -274,6 +274,67 @@ async function startServer() {
     }
   });
 
+  // Universal SMS Proxy Endpoint (Sparrow SMS / Aakash SMS / Custom)
+  app.post("/api/sms/send", async (req, res) => {
+    try {
+      const { provider, apiKey, senderId, apiUrl, recipients, message } = req.body;
+
+      if (!recipients || (Array.isArray(recipients) && recipients.length === 0) || !message) {
+        return res.status(400).json({ error: "Recipients and message body are required" });
+      }
+
+      const token = apiKey || process.env.SPARROW_SMS_TOKEN || process.env.SMS_API_KEY;
+      const from = senderId || process.env.SPARROW_SMS_SENDER_ID || process.env.SMS_SENDER_ID || 'Info';
+      let targetUrl = apiUrl || process.env.SPARROW_SMS_URL || 'https://api.sparrowsms.com/v2/sms/';
+
+      const toStr = Array.isArray(recipients) ? recipients.join(',') : recipients;
+
+      console.log(`Sending SMS via ${provider || 'Sparrow SMS'} to: ${toStr}`);
+
+      if (token && token.trim() !== '') {
+        // Send request to actual Gateway API
+        const apiRes = await axios.post(targetUrl, {
+          token: token.trim(),
+          from: from.trim(),
+          to: toStr,
+          text: message
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 15000,
+          validateStatus: () => true
+        });
+
+        console.log("SMS Gateway Response Code:", apiRes.status, apiRes.data);
+
+        if (apiRes.status >= 200 && apiRes.status < 300) {
+          return res.json({
+            success: true,
+            apiResponse: apiRes.data,
+            message: "SMS गेटवे मार्फत वास्तविक सन्देश सफलतापूर्वक पठाइयो!"
+          });
+        } else {
+          return res.status(apiRes.status || 500).json({
+            error: typeof apiRes.data === 'string' ? apiRes.data : (apiRes.data?.response || apiRes.data?.error || "SMS API Error"),
+            status: apiRes.status
+          });
+        }
+      } else {
+        // Simulation mode when API key is not configured in settings
+        console.log("No SMS API key found in settings. Operating in simulation mode.");
+        return res.json({
+          success: true,
+          simulated: true,
+          message: "SMS API Token प्राप्त नभएकाले सिम्युलेसन (परीक्षण) प्रणालीबाट सन्देश पठाइयो। वास्तविक SMS पठाउन Super Admin को General Settings मा Sparrow SMS को API Token र Sender ID राख्नुहोस्।"
+        });
+      }
+    } catch (error: any) {
+      console.error("SMS Proxy Error:", error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        error: error.response?.data?.response || error.message || "SMS पठाउन असफल भयो।"
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
