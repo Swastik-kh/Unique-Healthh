@@ -1,0 +1,175 @@
+import axios from 'axios';
+
+export default async function handler(req: any, res: any) {
+  // Support CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  }
+
+  try {
+    const { provider, apiKey, senderId, apiUrl, recipients, message, campaign: reqCampaign, routeid: reqRouteid } = req.body || {};
+
+    if (!recipients || (Array.isArray(recipients) && recipients.length === 0) || !message) {
+      return res.status(400).json({ error: "Recipients and message body are required" });
+    }
+
+    // Clean recipient phone numbers (strip non-digits, remove +977 prefix)
+    const rawList = Array.isArray(recipients) ? recipients : String(recipients).split(',');
+    const cleanedList = rawList
+      .map(r => String(r).replace(/\D/g, '').replace(/^977/, ''))
+      .filter(p => p.length >= 10);
+
+    if (cleanedList.length === 0) {
+      return res.status(400).json({ error: "नेपाली १० अंकको मोबाइल नम्बर भेटिएन (उदा: 9841XXXXXX)" });
+    }
+
+    const toStr = cleanedList.join(',');
+    const pName = (provider || '').toLowerCase();
+    const urlStr = (apiUrl || '').toLowerCase();
+
+    // Route to SMSBit / SMS Pasal by default unless explicitly configured for sparrowsms.com domain
+    const isSparrowExplicit = urlStr.includes('sparrowsms') || (pName.includes('sparrow') && !urlStr.includes('smspasal') && apiKey !== '56A71A88EC9CA9');
+    const isSmsPasal = !isSparrowExplicit;
+
+    if (isSmsPasal) {
+      const key = apiKey || process.env.SMS_PASAL_KEY || '56A71A88EC9CA9';
+      const targetUrl = (apiUrl && apiUrl.includes('http')) ? apiUrl : 'https://sms.smspasal.com/smsapi/index.php';
+      const from = senderId || process.env.SMS_PASAL_SENDER || 'SMSBit';
+      const campaign = reqCampaign || process.env.SMS_PASAL_CAMPAIGN || '9674';
+      const routeid = reqRouteid || process.env.SMS_PASAL_ROUTEID || '10259';
+
+      const params = {
+        key: key.trim(),
+        campaign: campaign.trim(),
+        routeid: routeid.trim(),
+        type: 'text',
+        responsetype: 'json',
+        contacts: toStr,
+        senderid: from.trim(),
+        msg: message
+      };
+
+      let apiRes;
+      try {
+        apiRes = await axios.get(targetUrl, {
+          params,
+          timeout: 15000,
+          validateStatus: () => true
+        });
+      } catch (getErr: any) {
+        // Fallback to POST form-urlencoded
+        const formData = new URLSearchParams();
+        formData.append('key', key.trim());
+        formData.append('campaign', campaign.trim());
+        formData.append('routeid', routeid.trim());
+        formData.append('type', 'text');
+        formData.append('responsetype', 'json');
+        formData.append('contacts', toStr);
+        formData.append('senderid', from.trim());
+        formData.append('msg', message);
+
+        apiRes = await axios.post(targetUrl, formData.toString(), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 15000,
+          validateStatus: () => true
+        });
+      }
+
+      const responseDataStr = typeof apiRes.data === 'string' ? apiRes.data : JSON.stringify(apiRes.data || '');
+
+      if (apiRes.status >= 200 && apiRes.status < 300 && !responseDataStr.includes('ERR:')) {
+        let shootId = '';
+        if (responseDataStr.includes('SMS-SHOOT-ID/')) {
+          shootId = responseDataStr.split('SMS-SHOOT-ID/')[1]?.trim() || '';
+        }
+
+        return res.status(200).json({
+          success: true,
+          provider: "SMSBit / SMS Pasal",
+          shootId: shootId,
+          apiResponse: apiRes.data,
+          message: "SMSBit (SMS Pasal) गेटवे मार्फत वास्तविक SMS सन्देश मोवाइलमा सफलतापुर्वक पठाइयो!"
+        });
+      } else {
+        let userFriendlyError = responseDataStr;
+        if (responseDataStr.includes('INVALID API KEY') || responseDataStr.includes('INVALID KEY')) {
+          userFriendlyError = `SMSBit API Key (${key}) अमान्य वा निष्कृय छ। कृपया Super Admin को General Settings मा गएर SMSBit प्यानलको आफ्नो सही API Key राख्नुहोस्। (${responseDataStr})`;
+        } else if (responseDataStr.includes('SENDERID') || responseDataStr.includes('INVALID SENDER')) {
+          userFriendlyError = `SMSBit मा '${from}' Sender ID स्वीकृत छैन। कृपया आफ्नो प्यानलमा स्वीकृत भएको Sender ID राख्नुहोस्। (${responseDataStr})`;
+        } else if (responseDataStr.includes('CREDIT') || responseDataStr.includes('BALANCE')) {
+          userFriendlyError = `SMSBit मा सन्देश पठाउन बाँकी SMS Balance/Credit पुगेन। (${responseDataStr})`;
+        } else if (responseDataStr.includes('CONTACT')) {
+          userFriendlyError = `मोबाइल नम्बर अमान्य छ: (${toStr})। (${responseDataStr})`;
+        }
+
+        return res.status(400).json({
+          error: userFriendlyError,
+          rawError: responseDataStr,
+          status: apiRes.status
+        });
+      }
+    }
+
+    // Sparrow SMS or Custom Gateway API
+    const token = apiKey || process.env.SPARROW_SMS_TOKEN || process.env.SMS_API_KEY;
+    const from = senderId || process.env.SPARROW_SMS_SENDER_ID || process.env.SMS_SENDER_ID || 'Info';
+    let targetUrl = apiUrl || process.env.SPARROW_SMS_URL || 'https://api.sparrowsms.com/v2/sms/';
+
+    if (token && token.trim() !== '') {
+      const apiRes = await axios.post(targetUrl, {
+        token: token.trim(),
+        from: from.trim(),
+        to: toStr,
+        text: message
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000,
+        validateStatus: () => true
+      });
+
+      if (apiRes.status >= 200 && apiRes.status < 300) {
+        return res.status(200).json({
+          success: true,
+          provider: provider || "Sparrow SMS",
+          apiResponse: apiRes.data,
+          message: "SMS गेटवे मार्फत वास्तविक सन्देश सफलतापूर्वक पठाइयो!"
+        });
+      } else {
+        const rawErr = apiRes.data;
+        let errMsg = "SMS API Error";
+        if (typeof rawErr === 'string') {
+          errMsg = rawErr;
+        } else if (rawErr && typeof rawErr === 'object') {
+          errMsg = rawErr.response || rawErr.error || rawErr.message || JSON.stringify(rawErr);
+        }
+        return res.status(apiRes.status || 500).json({
+          error: String(errMsg),
+          status: apiRes.status
+        });
+      }
+    } else {
+      return res.status(200).json({
+        simulated: true,
+        success: true,
+        message: `[सिम्युलेसन मोड]: ${toStr} मा SMS सन्देश पठाइयो (${message})`
+      });
+    }
+  } catch (err: any) {
+    return res.status(500).json({
+      error: err.message || "Internal server error"
+    });
+  }
+}
