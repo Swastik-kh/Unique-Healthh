@@ -429,8 +429,18 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error("SMS Proxy Error:", error.response?.data || error.message);
+      const rawData = error.response?.data;
+      let errStr = "SMS पठाउन असफल भयो।";
+      if (typeof rawData === 'string') {
+        errStr = rawData;
+      } else if (rawData && typeof rawData === 'object') {
+        errStr = rawData.response || rawData.error || JSON.stringify(rawData);
+      } else if (error.message) {
+        errStr = error.message;
+      }
+
       res.status(error.response?.status || 500).json({
-        error: error.response?.data?.response || error.message || "SMS पठाउन असफल भयो।"
+        error: String(errStr)
       });
     }
   });

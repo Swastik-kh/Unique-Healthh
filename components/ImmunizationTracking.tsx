@@ -263,7 +263,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       setTimeout(() => setSuccessMessage(null), 8000);
     } catch (err: any) {
       setIsSendingSms(false);
-      const errorMsg = err.response?.data?.error || err.message || "SMS पठाउन असफल भयो।";
+      let errorMsg = "SMS पठाउन असफल भयो।";
+      const respData = err.response?.data;
+      if (respData) {
+        if (typeof respData.error === 'string') {
+          errorMsg = respData.error;
+        } else if (typeof respData.error === 'object') {
+          errorMsg = JSON.stringify(respData.error);
+        } else if (typeof respData === 'string') {
+          errorMsg = respData;
+        } else {
+          errorMsg = JSON.stringify(respData);
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
       alert(`SMS पठाउने क्रममा त्रुटि: ${errorMsg}`);
     }
   };
