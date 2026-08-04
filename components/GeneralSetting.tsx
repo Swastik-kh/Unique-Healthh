@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -21,6 +21,52 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
   const [showSmsApiKey, setShowSmsApiKey] = useState(false);
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+  const [smsBalanceInfo, setSmsBalanceInfo] = useState<{
+    totalBalance?: number;
+    routes?: Array<{ routeId?: string | number; routeName?: string; balance: number }>;
+    error?: string;
+    lastChecked?: string;
+  } | null>(null);
+
+  const fetchSmsBalance = async () => {
+    setIsFetchingBalance(true);
+    try {
+      const keyToUse = localSettings.smsApiKey || '56A71A88EC9CA9';
+      const res = await fetch('/api/sms/balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: keyToUse })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSmsBalanceInfo({
+          totalBalance: data.totalBalance,
+          routes: data.routes,
+          lastChecked: new Date().toLocaleTimeString('ne-NP')
+        });
+      } else {
+        setSmsBalanceInfo({
+          error: data.error || 'ब्यालेन्स चेक गर्न सकिएन।',
+          lastChecked: new Date().toLocaleTimeString('ne-NP')
+        });
+      }
+    } catch (err: any) {
+      setSmsBalanceInfo({
+        error: err.message || 'नेटवर्क त्रुटि भयो।',
+        lastChecked: new Date().toLocaleTimeString('ne-NP')
+      });
+    } finally {
+      setIsFetchingBalance(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser.role === 'SUPER_ADMIN') {
+      fetchSmsBalance();
+    }
+  }, [currentUser.role]);
+
   const [activeTab, setActiveTab] = useState<'general' | 'menu'>(
     (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') ? 'general' : 'menu'
   );
@@ -614,6 +660,93 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                 placeholder="उदा: 10259" 
                                 icon={<Server size={16} />} 
                             />
+
+                            {/* SMS Pasal Credit Balance Card */}
+                            <div className="md:col-span-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-indigo-800/50 space-y-3 mt-2">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-800/60 pb-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-300 border border-indigo-500/30">
+                                            <Wallet size={20} />
+                                        </div>
+                                        <div>
+                                            <h5 className="font-bold text-sm text-white font-nepali flex items-center gap-2">
+                                                SMS गेटवे क्रेडिट ब्यालेन्स (SMS Pasal Credit Balance)
+                                            </h5>
+                                            <p className="text-[11px] text-indigo-200/80 font-mono flex items-center gap-1.5 mt-0.5">
+                                                <span>API Call:</span>
+                                                <code className="bg-black/40 px-2 py-0.5 rounded border border-indigo-800 text-amber-300 text-[10px]">
+                                                    https://sms.smspasal.com/miscapi/{localSettings.smsApiKey || '56A71A88EC9CA9'}/getBalance/true/
+                                                </code>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={fetchSmsBalance}
+                                        disabled={isFetchingBalance}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer font-nepali"
+                                    >
+                                        <RefreshCw size={14} className={isFetchingBalance ? "animate-spin" : ""} />
+                                        {isFetchingBalance ? "ब्यालेन्स चेक हुँदैछ..." : "ब्यालेन्स अपडेट (Check Balance)"}
+                                    </button>
+                                </div>
+
+                                {smsBalanceInfo?.error ? (
+                                    <div className="bg-rose-950/70 border border-rose-700/60 text-rose-200 p-3 rounded-xl text-xs flex items-center gap-2.5 font-nepali">
+                                        <AlertCircle size={18} className="text-rose-400 shrink-0" />
+                                        <div>
+                                            <div className="font-bold">ब्यालेन्स प्राप्त हुन सकेन:</div>
+                                            <div>{smsBalanceInfo.error}</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                                        <div className="flex items-baseline gap-3">
+                                            <span className="text-xs text-indigo-200 font-nepali font-semibold">उपलब्ध कूल SMS ब्यालेन्स (Credit):</span>
+                                            <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${smsBalanceInfo?.totalBalance && smsBalanceInfo.totalBalance > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {smsBalanceInfo?.totalBalance !== undefined ? smsBalanceInfo.totalBalance : '...'} <span className="text-sm font-normal text-slate-300">SMS</span>
+                                            </span>
+                                        </div>
+
+                                        {smsBalanceInfo?.totalBalance !== undefined && (
+                                            <div className="flex items-center gap-2">
+                                                {smsBalanceInfo.totalBalance > 0 ? (
+                                                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1 rounded-full">
+                                                        <CheckCircle2 size={14} className="text-emerald-400" />
+                                                        पर्याप्त ब्यालेन्स (Active Balance)
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                                                        <AlertCircle size={14} className="text-rose-400" />
+                                                        ब्यालेन्स समाप्त (Recharge Required)
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {smsBalanceInfo?.routes && smsBalanceInfo.routes.length > 0 && (
+                                    <div className="pt-2 border-t border-indigo-900/60">
+                                        <span className="text-[11px] text-indigo-200/90 font-bold block mb-1.5 font-nepali">रुट अनुसारको ब्यालेन्स (Route Details):</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {smsBalanceInfo.routes.map((rt, idx) => (
+                                                <div key={idx} className="bg-indigo-900/60 border border-indigo-700/60 px-3 py-1.5 rounded-xl text-xs font-mono flex items-center gap-2">
+                                                    <span className="text-indigo-200 font-semibold">{rt.routeName || 'Default Route'}</span>
+                                                    {rt.routeId && <span className="text-[10px] text-indigo-300/70">(ID: {rt.routeId})</span>}
+                                                    <span className="text-emerald-400 font-bold ml-1">{rt.balance} SMS</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {smsBalanceInfo?.lastChecked && (
+                                    <div className="text-[10px] text-indigo-300/70 italic text-right font-nepali">
+                                        अन्तिम पटक चेक गरिएको समय: {smsBalanceInfo.lastChecked}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
