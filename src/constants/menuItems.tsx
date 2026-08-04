@@ -70,7 +70,15 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
           { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा', icon: <Baby size={16} /> },
         ]
       },
-      { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
+      { 
+        id: 'immunization_tracking', 
+        label: 'खोप अनुगमन', 
+        icon: <Baby size={16} />,
+        subItems: [
+          { id: 'sms_immunization_upcoming', label: 'आगामी सूची SMS पठाउने', icon: <MessageSquare size={16} /> },
+          { id: 'sms_immunization_defaulter', label: 'छुटेका सूची SMS पठाउने', icon: <MessageSquare size={16} /> },
+        ]
+      },
       { 
         id: 'karyakram', 
         label: 'कार्यक्रम (Programs)', 

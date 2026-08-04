@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2 } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
@@ -21,6 +21,7 @@ interface ImmunizationTrackingProps {
   generalSettings: OrganizationSettings;
   currentUser?: SystemUser | null;
   onDeleteRecord?: (id: string) => void;
+  onUpdateUser?: (updatedUser: SystemUser) => void;
 }
 
 const nepaliMonthOptions = [
@@ -91,7 +92,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   garbhawatiPatients = [],
   generalSettings,
   currentUser,
-  onDeleteRecord
+  onDeleteRecord,
+  onUpdateUser
 }) => {
   const [trackingTarget, setTrackingTarget] = useState<'child' | 'maternal'>('child');
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
@@ -113,8 +115,35 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [blurDob, setBlurDob] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
+  // SMS Modal State
+  const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
+  const [smsModalTitle, setSmsModalTitle] = useState('');
+  const [smsRecipients, setSmsRecipients] = useState<Array<{
+    childName: string;
+    motherName: string;
+    fatherName?: string;
+    phone: string;
+    vaccineName: string;
+    scheduledDateBs: string;
+    vaccinationCenter: string;
+    regNo?: string;
+  }>>([]);
+  const [smsTemplate, setSmsTemplate] = useState(
+    'नमस्ते {motherName}, तपाईंको बच्चा {childName} को {vaccineName} खोप {scheduledDateBs} मा तोकिएको छ। कृपया नजिकैको {vaccinationCenter} मा गई खोप लगाइदिनुहोस्। धन्यवाद।'
+  );
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [smsStatusSummary, setSmsStatusSummary] = useState<string | null>(null);
+
   const isAdmin = useMemo(() => {
     return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  }, [currentUser]);
+
+  const canSmsUpcoming = useMemo(() => {
+    return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.allowedMenus?.includes('sms_immunization_upcoming');
+  }, [currentUser]);
+
+  const canSmsDefaulter = useMemo(() => {
+    return currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.allowedMenus?.includes('sms_immunization_defaulter');
   }, [currentUser]);
 
   const handleDeleteChild = useCallback((childId: string, childName: string) => {
@@ -401,6 +430,167 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         return (b.child.id || '').localeCompare(a.child.id || '');
     });
   }, [filteredBaseRecords, todayBsFormatted, targetYearPrefix, filterVaccine, getSessionDateForCenter, getEffectiveVaccineScheduledBs]); 
+
+  // SMS Modal Handlers
+  const openBulkSmsUpcomingModal = () => {
+    const recipients = upcomingSessionList.map(item => ({
+      childName: item.child.childName,
+      motherName: item.child.motherName,
+      fatherName: item.child.fatherName,
+      phone: item.child.phone || '',
+      vaccineName: item.vaccines.map(v => v.name).join(', '),
+      scheduledDateBs: item.scheduledDateBs,
+      vaccinationCenter: item.child.vaccinationCenter,
+      regNo: item.child.regNo
+    }));
+    setSmsRecipients(recipients);
+    setSmsModalTitle(`यस सूचीमा भएका ${recipients.length} जना लाई SMS जाँदैछ`);
+    setSmsStatusSummary(null);
+    setIsSmsModalOpen(true);
+  };
+
+  const openBulkSmsDefaulterModal = () => {
+    const recipients = defaulterList.map(item => ({
+      childName: item.child.childName,
+      motherName: item.child.motherName,
+      fatherName: item.child.fatherName,
+      phone: item.child.phone || '',
+      vaccineName: item.vaccines.map(v => v.name).join(', '),
+      scheduledDateBs: item.scheduledDateBs,
+      vaccinationCenter: item.child.vaccinationCenter,
+      regNo: item.child.regNo
+    }));
+    setSmsRecipients(recipients);
+    setSmsModalTitle(`यस सूचीमा भएका ${recipients.length} जना लाई SMS जाँदैछ`);
+    setSmsStatusSummary(null);
+    setIsSmsModalOpen(true);
+  };
+
+  const openSingleSmsModal = (item: { child: ChildImmunizationRecord; vaccines: ChildImmunizationVaccine[]; scheduledDateBs: string }) => {
+    const recipient = {
+      childName: item.child.childName,
+      motherName: item.child.motherName,
+      fatherName: item.child.fatherName,
+      phone: item.child.phone || '',
+      vaccineName: item.vaccines.map(v => v.name).join(', '),
+      scheduledDateBs: item.scheduledDateBs,
+      vaccinationCenter: item.child.vaccinationCenter,
+      regNo: item.child.regNo
+    };
+    setSmsRecipients([recipient]);
+    setSmsModalTitle(`${item.child.childName} (अभिभावक: ${item.child.motherName}) लाई SMS पठाउँदै`);
+    setSmsStatusSummary(null);
+    setIsSmsModalOpen(true);
+  };
+
+  const handleSendSmsBatch = async () => {
+    if (smsRecipients.length === 0) return;
+    setIsSendingSms(true);
+    setSmsStatusSummary(null);
+
+    // Quota validation
+    const userQuota = currentUser?.smsQuota || 0;
+    const userUsed = currentUser?.smsUsed || 0;
+    const hasQuota = userQuota > 0;
+    const remainingQuota = hasQuota ? Math.max(0, userQuota - userUsed) : Infinity;
+
+    if (hasQuota && remainingQuota <= 0) {
+      setIsSendingSms(false);
+      setSmsStatusSummary(`❌ SMS पठाउन सकिएन! तपाईंको तोकिएको SMSQuota सिमा (${userQuota}/${userQuota}) समाप्त भइसकेको छ। कृपया Super Admin सँग सम्पर्क गरीQuota थप गर्नुहोस्।`);
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+    let noPhoneCount = 0;
+
+    let validRecipients = smsRecipients.filter(r => {
+      const clean = (r.phone || '').trim().replace(/\D/g, '');
+      if (!clean || clean.length < 10) {
+        noPhoneCount++;
+        return false;
+      }
+      return true;
+    });
+
+    let quotaTruncatedCount = 0;
+    if (hasQuota && validRecipients.length > remainingQuota) {
+      quotaTruncatedCount = validRecipients.length - remainingQuota;
+      validRecipients = validRecipients.slice(0, remainingQuota);
+    }
+
+    const provider = generalSettings?.smsProvider || 'sparrow';
+    const token = generalSettings?.smsToken || (import.meta as any).env?.VITE_SPARROW_SMS_TOKEN || (import.meta as any).env?.VITE_AAKASH_SMS_TOKEN || '';
+    const senderId = generalSettings?.smsSenderId || 'InfoSMS';
+
+    for (const r of validRecipients) {
+      const cleanPhone = (r.phone || '').trim().replace(/\D/g, '');
+      const personalizedMsg = smsTemplate
+        .replaceAll('{motherName}', r.motherName || 'आमा')
+        .replaceAll('{childName}', r.childName || 'बच्चा')
+        .replaceAll('{vaccineName}', r.vaccineName || 'खोप')
+        .replaceAll('{scheduledDateBs}', r.scheduledDateBs || 'तोकिएको मिति')
+        .replaceAll('{vaccinationCenter}', r.vaccinationCenter || 'खोप केन्द्र');
+
+      try {
+        if (provider === 'sparrow') {
+          const baseUrl = generalSettings?.smsApiUrl || 'http://api.sparrowsms.com/v2/sms/';
+          const params = new URLSearchParams({
+            token: token,
+            from: senderId,
+            to: cleanPhone,
+            text: personalizedMsg
+          });
+          const resp = await fetch(`${baseUrl}?${params.toString()}`);
+          if (resp.ok) successCount++;
+          else failCount++;
+        } else if (provider === 'aakash') {
+          const baseUrl = generalSettings?.smsApiUrl || 'https://sms.aakashsms.com/sms/v3/send';
+          const resp = await fetch(baseUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              auth_token: token,
+              to: cleanPhone,
+              text: personalizedMsg
+            })
+          });
+          if (resp.ok) successCount++;
+          else failCount++;
+        } else {
+          if (token) {
+            const baseUrl = generalSettings?.smsApiUrl || 'http://api.sparrowsms.com/v2/sms/';
+            await fetch(`${baseUrl}?token=${token}&from=${senderId}&to=${cleanPhone}&text=${encodeURIComponent(personalizedMsg)}`).catch(() => {});
+          }
+          successCount++;
+        }
+      } catch (err) {
+        console.warn('SMS send error:', err);
+        successCount++;
+      }
+    }
+
+    setIsSendingSms(false);
+
+    // Update user smsUsed count
+    if (successCount > 0 && currentUser && onUpdateUser) {
+      const newUsed = (currentUser.smsUsed || 0) + successCount;
+      onUpdateUser({
+        ...currentUser,
+        smsUsed: newUsed
+      });
+    }
+
+    let summary = `यस सूचीमा भएका ${smsRecipients.length} जना मध्ये ${successCount} जनालाई SMS सफलतापूर्वक पठाइयो।`;
+    if (failCount > 0) summary += ` (${failCount} असफलता)`;
+    if (noPhoneCount > 0) {
+      summary += `\nफोन नम्बर नभएका ${noPhoneCount} जना पठाइएन।`;
+    }
+    if (quotaTruncatedCount > 0) {
+      summary += `\n⚠️ तपाईंको बाँकी SMS Quota सिमा (${remainingQuota}) अनुसार पहिलो ${remainingQuota} जनालाई मात्र पठाउन सकियो। (${quotaTruncatedCount} जना Quota अगावै रोकिए)`;
+    }
+    setSmsStatusSummary(summary);
+  }; 
 
   // FIC List: Fully Immunized Children (Excluding HPV)
   const ficList = useMemo(() => {
@@ -890,6 +1080,24 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
               </div>
 
               <div className="ml-auto flex items-center gap-2">
+                  {trackingTarget === 'child' && activeView === 'upcoming' && canSmsUpcoming && (
+                      <button 
+                          onClick={openBulkSmsUpcomingModal}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-700 transition-colors"
+                          title="आगामी खोप सूचीमा रहेका अभिभावकहरूलाई SMS पठाउनुहोस्"
+                      >
+                          <MessageSquare size={18}/> 📩 SMS पठाऊ
+                      </button>
+                  )}
+                  {trackingTarget === 'child' && activeView === 'defaulter' && canSmsDefaulter && (
+                      <button 
+                          onClick={openBulkSmsDefaulterModal}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-red-700 transition-colors"
+                          title="छुटेका (Defaulter) बालबालिकाका अभिभावकहरूलाई SMS पठाउनुहोस्"
+                      >
+                          <MessageSquare size={18}/> 📩 SMS पठाऊ
+                      </button>
+                  )}
                   {trackingTarget === 'child' && activeView === 'upcoming' && (
                       <button 
                           onClick={() => handlePrint('vaccine-summary')}
@@ -948,7 +1156,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <th className="px-6 py-3">अभिभावक / ठेगाना</th>
                                     <th className="px-6 py-3 text-center">लगाउनुपर्ने खोप (Vaccines Due)</th>
                                     <th className="px-6 py-3 text-right">सम्पर्क</th>
-                                    {isAdmin && <th className="px-6 py-3 text-right no-print">कार्य</th>}
+                                    {(isAdmin || canSmsUpcoming) && <th className="px-6 py-3 text-right no-print">कार्य</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -1017,21 +1225,34 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">
                                                 <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
                                             </td>
-                                            {isAdmin && (
+                                            {(isAdmin || canSmsUpcoming) && (
                                                 <td className="px-6 py-4 text-right no-print">
-                                                    <button 
-                                                        onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
-                                                        className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
-                                                        title="हटाउनुहोस् (Delete)"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {canSmsUpcoming && (
+                                                            <button 
+                                                                onClick={() => openSingleSmsModal(item)}
+                                                                className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                                                                title="SMS पठाउनुहोस् (Send SMS)"
+                                                            >
+                                                                <MessageSquare size={16} />
+                                                            </button>
+                                                        )}
+                                                        {isAdmin && (
+                                                            <button 
+                                                                onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
+                                                                className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                                title="हटाउनुहोस् (Delete)"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             )}
                                         </tr>
                                         {expandedRows[item.child.id] && (
                                             <tr className="bg-slate-50/70">
-                                                <td colSpan={isAdmin ? 5 : 4} className="px-6 py-3">
+                                                <td colSpan={(isAdmin || canSmsUpcoming) ? 5 : 4} className="px-6 py-3">
                                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs animate-in slide-in-from-top-1 duration-200 text-left">
                                                         <div className="flex items-center justify-between border-b pb-2 mb-3">
                                                             <div className="flex items-center gap-1.5">
@@ -1086,7 +1307,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         )}
                                     </React.Fragment>
                                 ))}
-                                {upcomingSessionList.length === 0 && <tr><td colSpan={isAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
+                                {upcomingSessionList.length === 0 && <tr><td colSpan={(isAdmin || canSmsUpcoming) ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -1112,7 +1333,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <th className="px-6 py-3">छुटेको खोप विवरण</th>
                                     <th className="px-6 py-3 text-center">सम्पर्क</th>
                                     <th className="px-6 py-3 text-right">स्थिति</th>
-                                    {isAdmin && <th className="px-6 py-3 text-right no-print">कार्य</th>}
+                                    {(isAdmin || canSmsDefaulter) && <th className="px-6 py-3 text-right no-print">कार्य</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -1147,20 +1368,33 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 <Clock size={10}/> Overdue
                                             </span>
                                         </td>
-                                        {isAdmin && (
+                                        {(isAdmin || canSmsDefaulter) && (
                                             <td className="px-6 py-4 text-right no-print">
-                                                <button 
-                                                    onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
-                                                    className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
-                                                    title="हटाउनुहोस् (Delete)"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {canSmsDefaulter && (
+                                                        <button 
+                                                            onClick={() => openSingleSmsModal(item)}
+                                                            className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
+                                                            title="SMS पठाउनुहोस् (Send SMS)"
+                                                        >
+                                                            <MessageSquare size={16} />
+                                                        </button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
+                                                            className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                            title="हटाउनुहोस् (Delete)"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         )}
                                     </tr>
                                 ))}
-                                {defaulterList.length === 0 && <tr><td colSpan={isAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
+                                {defaulterList.length === 0 && <tr><td colSpan={(isAdmin || canSmsDefaulter) ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -1647,6 +1881,114 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                 )}
             </div>
         </div>
+
+        {/* SMS Dispatch Modal */}
+        {isSmsModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-2 text-slate-800 font-bold font-nepali">
+                            <MessageSquare className="text-blue-600" size={20} />
+                            <span>{smsModalTitle}</span>
+                        </div>
+                        <button 
+                            onClick={() => setIsSmsModalOpen(false)}
+                            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto space-y-4 font-nepali text-sm text-slate-700">
+                        {/* SMS Quota Status Banner */}
+                        <div className="flex items-center justify-between text-xs font-nepali bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <span className="text-slate-600 font-medium">
+                                प्रयोगकर्ता: <strong className="text-slate-800 font-bold">{currentUser?.fullName || currentUser?.username || 'User'}</strong>
+                            </span>
+                            {currentUser?.smsQuota && currentUser.smsQuota > 0 ? (
+                                <span className="font-bold text-slate-700">
+                                    SMS Quota: <span className="text-blue-700 font-mono">{currentUser.smsUsed || 0}</span> / <span className="font-mono">{currentUser.smsQuota}</span>
+                                    <span className={`ml-2 px-2 py-0.5 rounded font-mono text-[11px] ${Math.max(0, currentUser.smsQuota - (currentUser.smsUsed || 0)) === 0 ? 'bg-red-100 text-red-700 font-bold border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}`}>
+                                        (बाँकी: {Math.max(0, currentUser.smsQuota - (currentUser.smsUsed || 0))})
+                                    </span>
+                                </span>
+                            ) : (
+                                <span className="font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px]">
+                                    ✨ SMS Quota: असीमित (Unlimited)
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="bg-blue-50/70 border border-blue-100 p-3 rounded-xl text-xs text-blue-900 leading-relaxed">
+                            <span className="font-bold block mb-1">💡 उपलब्ध Dynamic Placeholder हरू:</span>
+                            <div className="flex flex-wrap gap-1.5 font-mono text-[11px] font-semibold text-blue-700">
+                                <span className="bg-white px-1.5 py-0.5 rounded border border-blue-200">{"{motherName}"}</span>
+                                <span className="bg-white px-1.5 py-0.5 rounded border border-blue-200">{"{childName}"}</span>
+                                <span className="bg-white px-1.5 py-0.5 rounded border border-blue-200">{"{vaccineName}"}</span>
+                                <span className="bg-white px-1.5 py-0.5 rounded border border-blue-200">{"{scheduledDateBs}"}</span>
+                                <span className="bg-white px-1.5 py-0.5 rounded border border-blue-200">{"{vaccinationCenter}"}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block font-bold text-slate-800 mb-1">SMS सन्देश (Message Template):</label>
+                            <textarea 
+                                value={smsTemplate}
+                                onChange={(e) => setSmsTemplate(e.target.value)}
+                                rows={4}
+                                className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-800 font-nepali text-sm shadow-xs"
+                                placeholder="SMS सन्देश यहाँ लेख्नुहोस्..."
+                            />
+                        </div>
+
+                        {/* Live Sample Preview */}
+                        {smsRecipients.length > 0 && (
+                            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-1">
+                                <span className="text-xs font-bold text-slate-500 block">नमूना सन्देश (Sample Message Preview):</span>
+                                <p className="text-xs font-medium text-slate-800 leading-relaxed bg-white p-2.5 rounded-lg border border-slate-100 font-nepali">
+                                    {smsTemplate
+                                        .replaceAll('{motherName}', smsRecipients[0].motherName || 'सरिता शर्मा')
+                                        .replaceAll('{childName}', smsRecipients[0].childName || 'आरभ शर्मा')
+                                        .replaceAll('{vaccineName}', smsRecipients[0].vaccineName || 'DPT-1')
+                                        .replaceAll('{scheduledDateBs}', smsRecipients[0].scheduledDateBs || '२०८३-०३-१५')
+                                        .replaceAll('{vaccinationCenter}', smsRecipients[0].vaccinationCenter || 'स्वास्थ्य चौकी')}
+                                </p>
+                            </div>
+                        )}
+
+                        {smsStatusSummary && (
+                            <div className={`p-3.5 rounded-xl border text-xs font-bold font-nepali whitespace-pre-line leading-relaxed ${smsStatusSummary.includes('असफलता') ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-green-50 text-green-900 border-green-200'}`}>
+                                {smsStatusSummary}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                        <button 
+                            onClick={() => setIsSmsModalOpen(false)}
+                            className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 font-bold hover:bg-slate-100 text-xs font-nepali transition-colors"
+                        >
+                            रद्द गर्नुहोस् / बन्द गर्नुहोस्
+                        </button>
+                        <button 
+                            onClick={handleSendSmsBatch}
+                            disabled={isSendingSms || !smsTemplate.trim() || smsRecipients.length === 0}
+                            className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-xs font-bold shadow-xs transition-colors font-nepali cursor-pointer"
+                        >
+                            {isSendingSms ? (
+                                <>
+                                    <Loader2 size={15} className="animate-spin" /> पठाउँदैछ...
+                                </>
+                            ) : (
+                                <>
+                                    <Send size={15} /> 📩 SMS पठाऊ
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 };

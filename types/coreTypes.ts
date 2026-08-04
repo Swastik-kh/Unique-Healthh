@@ -54,6 +54,8 @@ export interface User {
   canManageMenu?: boolean;
   editAccessMenus?: string[];
   deleteAccessMenus?: string[];
+  smsQuota?: number;
+  smsUsed?: number;
 }
 
 export interface WardConfig {
@@ -135,6 +137,10 @@ export interface OrganizationSettings {
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
   menuConfig?: MenuConfigItem[];
+  smsProvider?: 'sparrow' | 'aakash' | 'generic';
+  smsToken?: string;
+  smsSenderId?: string;
+  smsApiUrl?: string;
 }
 
 export interface DHIS2CellMapping {

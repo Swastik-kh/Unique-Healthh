@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
-import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders } from 'lucide-react';
+import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 
@@ -96,7 +96,14 @@ const PERMISSION_STRUCTURE = [
                     { id: 'uttar_prasuti_sewa', label: 'उत्तर प्रसूति सेवा (Post-Natal Service)' },
                 ]
             },
-            { id: 'immunization_tracking', label: 'खोप अनुगमन (Immunization Tracking)' }
+            { 
+                id: 'immunization_tracking', 
+                label: 'खोप अनुगमन (Immunization Tracking)',
+                children: [
+                    { id: 'sms_immunization_upcoming', label: 'आगामी खोप सूची SMS पठाउने (SMS Upcoming)' },
+                    { id: 'sms_immunization_defaulter', label: 'छुटेका सूची SMS पठाउने (SMS Defaulters)' },
+                ]
+            }
         ]
     },
     {
@@ -233,6 +240,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canEditBilling: boolean;
     canDeleteAmbulance: boolean;
     canManageMenu: boolean;
+    smsQuota: number;
+    smsUsed: number;
     parentId?: string;
   }>({
     id: '',
@@ -252,6 +261,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canEditBilling: false,
     canDeleteAmbulance: false,
     canManageMenu: false,
+    smsQuota: 0,
+    smsUsed: 0,
     parentId: currentUser.id
   });
 
@@ -307,6 +318,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         canEditBilling: false,
         canDeleteAmbulance: false,
         canManageMenu: false,
+        smsQuota: 0,
+        smsUsed: 0,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -330,6 +343,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           canEditBilling: user.canEditBilling ?? false,
           canDeleteAmbulance: user.canDeleteAmbulance ?? false,
           canManageMenu: user.canManageMenu ?? false,
+          smsQuota: user.smsQuota || 0,
+          smsUsed: user.smsUsed || 0,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -339,6 +354,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const togglePermission = (menuId: string) => {
+      if (menuId.includes('sms') && currentUser.role !== 'SUPER_ADMIN') {
+          alert('SMS पठाउने अधिकार केवल Super Admin ले मात्र व्यवस्थापन गर्न सक्छ।');
+          return;
+      }
       setFormData(prev => {
           const current = prev.allowedMenus;
           if (current.includes(menuId)) {
@@ -379,7 +398,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const toggleParentPermission = (parentId: string, groupChildren: any[]) => {
       setFormData(prev => {
           let newMenus = [...prev.allowedMenus];
-          const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
+          let allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
+          if (currentUser.role !== 'SUPER_ADMIN') {
+              allDescendantIds = allDescendantIds.filter(id => !id.includes('sms'));
+          }
           const isParentCurrentlyChecked = newMenus.includes(parentId) && allDescendantIds.every(id => newMenus.includes(id));
           if (isParentCurrentlyChecked) {
               newMenus = newMenus.filter(id => id !== parentId && !allDescendantIds.includes(id));
@@ -487,13 +509,35 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </div>
             {group.children && expandedPermissions.includes(group.id) && (
                 <div className="bg-white">
-                    {group.children.map((child: any) => (
-                        child.children ? renderPermissionGroup(child, level + 1) : (
+                    {group.children.map((child: any) => {
+                        const isSmsChild = child.id.startsWith('sms_') || child.id.includes('sms');
+                        const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+
+                        return child.children ? renderPermissionGroup(child, level + 1) : (
                             <div key={child.id} className="flex items-center justify-between p-2 rounded hover:bg-slate-50 ml-4 border-b border-slate-50">
-                                <div onClick={() => togglePermission(child.id)} className="flex items-center gap-3 cursor-pointer flex-1 py-1">
+                                <div 
+                                    onClick={() => {
+                                        if (isSmsChild && !isSuperAdmin) {
+                                            alert('SMS पठाउने अधिकार केवल Super Admin ले मात्र व्यवस्थापन गर्न सक्छ।');
+                                            return;
+                                        }
+                                        togglePermission(child.id);
+                                    }} 
+                                    className={`flex items-center gap-3 cursor-pointer flex-1 py-1 ${isSmsChild && !isSuperAdmin ? 'opacity-70' : ''}`}
+                                    title={isSmsChild && !isSuperAdmin ? 'SMS पठाउने अधिकार केवल Super Admin ले मात्र दिन सक्छ' : ''}
+                                >
                                     <div className="text-slate-300"><CornerDownRight size={14} /></div>
-                                    <div className={formData.allowedMenus.includes(child.id) ? 'text-primary-600' : 'text-slate-300'}>{formData.allowedMenus.includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}</div>
-                                    <span className={`text-sm ${formData.allowedMenus.includes(child.id) ? 'text-slate-800' : 'text-slate-500'} font-nepali`}>{child.label}</span>
+                                    <div className={formData.allowedMenus.includes(child.id) ? 'text-primary-600' : 'text-slate-300'}>
+                                        {formData.allowedMenus.includes(child.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                                    </div>
+                                    <span className={`text-sm ${formData.allowedMenus.includes(child.id) ? 'text-slate-800' : 'text-slate-500'} font-nepali flex items-center gap-2`}>
+                                        {child.label}
+                                        {isSmsChild && (
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-sans font-bold ${isSuperAdmin ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800 border border-amber-200'}`}>
+                                                {isSuperAdmin ? '📱 Super Admin Only' : '🔒 केवल Super Admin ले मात्र दिने'}
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                                 
                                 <div className="flex items-center gap-6 pr-2">
@@ -522,8 +566,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                     </div>
                                 </div>
                             </div>
-                        )
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -566,6 +610,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         canEditBilling: formData.canEditBilling,
         canDeleteAmbulance: formData.canDeleteAmbulance,
         canManageMenu: formData.canManageMenu,
+        smsQuota: formData.smsQuota || 0,
+        smsUsed: formData.smsUsed || 0,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -782,6 +828,46 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canManageMenu ? 'left-7' : 'left-1'}`}></div>
                 </button>
+            </div>
+
+            <div className="md:col-span-2 flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-blue-50/80 border border-blue-100 rounded-xl mt-2 gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 bg-white rounded-lg text-blue-600 shadow-xs">
+                        <MessageSquare size={20} />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-slate-800 font-nepali">SMS पठाउने सिमा (SMS Quota Limit)</p>
+                            {currentUser.role !== 'SUPER_ADMIN' && (
+                                <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full font-nepali">
+                                    🔒 Super Admin ले मात्र दिने
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-slate-500 font-nepali mt-0.5">
+                            प्रयोगकर्ताले खोप अनुगमनबाट पठाउन पाउने जम्मा SMS quota निर्धारण गर्नुहोस् (0 भए असीमित)।
+                        </p>
+                        {editingId && (
+                            <div className="mt-1 text-xs text-slate-600 font-nepali flex items-center gap-3 font-semibold">
+                                <span>पठाइएको SMS count: <span className="font-mono text-blue-700 bg-white px-1.5 py-0.5 rounded border border-slate-200">{formData.smsUsed || 0}</span></span>
+                                {formData.smsQuota > 0 && (
+                                    <span>बाँकी कोटा: <span className="font-mono text-emerald-700 bg-white px-1.5 py-0.5 rounded border border-slate-200">{Math.max(0, formData.smsQuota - (formData.smsUsed || 0))}</span></span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="w-full md:w-48">
+                    <Input 
+                        label="SMS कोटा (Quota Limit)"
+                        type="number"
+                        value={formData.smsQuota || 0}
+                        onChange={e => setFormData(prev => ({ ...prev, smsQuota: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        disabled={isSaving || currentUser.role !== 'SUPER_ADMIN'}
+                        placeholder="0 भए असीमित"
+                        className={currentUser.role !== 'SUPER_ADMIN' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}
+                    />
+                </div>
             </div>
 
             <div className="md:col-span-2 mt-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
