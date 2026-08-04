@@ -161,9 +161,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! बच्चा ${child.childName} को खोप (${vaxNames}) मिति ${scheduledDateBs} मा लगाउन खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! बच्चा ${child.childName} को खोप ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा आउनुहोला। - ${userOrg}`;
     } else {
-      template = `नमस्ते! बच्चा ${child.childName} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! बच्चा ${child.childName} को खोप छुटेकाले खोप कार्ड लिई ${center} मा आउनुहोला। - ${userOrg}`;
+    }
+    if (template.length > 70) {
+      template = template.slice(0, 70);
     }
 
     setSmsMode('single');
@@ -185,9 +188,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) आगामी मितिमा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप खोप कार्ड लिई {खोप_केन्द्र} मा आउनुहोला। - ${userOrg}`;
     } else {
-      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) छुटेकाले खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप छुटेकाले खोप कार्ड लिई {खोप_केन्द्र} मा आउनुहोला। - ${userOrg}`;
+    }
+    if (template.length > 70) {
+      template = template.slice(0, 70);
     }
 
     setSmsMode('bulk');
@@ -1961,17 +1967,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <label className="font-bold text-sm text-slate-800 flex items-center gap-2">
                           <span>SMS सन्देश पाठ (Short Message Body):</span>
                         </label>
-                        <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                          {smsMessageText.length} वर्ण | ~{Math.ceil(smsMessageText.length / 160) || 1} SMS
+                        <span className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border ${smsMessageText.length >= 70 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+                          {smsMessageText.length}/70 अक्षर (Max 70 Chars)
                         </span>
                       </div>
 
                       <textarea
                         rows={7}
+                        maxLength={70}
                         value={smsMessageText}
-                        onChange={(e) => setSmsMessageText(e.target.value)}
+                        onChange={(e) => setSmsMessageText(e.target.value.slice(0, 70))}
                         className="w-full text-xs sm:text-sm leading-relaxed p-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50 font-nepali shadow-xs grow"
-                        placeholder="सन्देशको पाठ प्रविष्ट गर्नुहोस्..."
+                        placeholder="अधिकतम ७० अक्षरको सन्देश प्रविष्ट गर्नुहोस्..."
                       />
                     </div>
 
