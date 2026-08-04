@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2 } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2 } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
@@ -154,16 +154,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   // Open Single Child SMS Modal
   const handleOpenSingleSms = (child: ChildImmunizationRecord, vaccines: ChildImmunizationVaccine[], scheduledDateBs: string, view: 'upcoming' | 'defaulter') => {
     const vaxNames = vaccines.map(v => v.name).join(', ');
-    const guardianName = child.motherName || child.fatherName || 'अभिभावक';
-    const orgName = generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
+    const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     const center = child.vaccinationCenter || 'खोप केन्द्र';
     const phone = child.phone || '';
 
     let template = '';
     if (view === 'upcoming') {
-      template = `आदरणीय अभिभावक श्री ${guardianName} ज्यु, खोप केन्द्र ${center} मा तपाईंको बच्चा ${child.childName} को खोप (${vaxNames}) मिति ${scheduledDateBs} मा लगाउने कार्यक्रम रहेकाले खोप कार्ड लिई समयमा नै उपस्थित हुनुहुन अनुरोध छ। - ${orgName}`;
+      template = `नमस्ते! बच्चा ${child.childName} को खोप (${vaxNames}) मिति ${scheduledDateBs} मा लगाउन खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
-      template = `आदरणीय अभिभावक श्री ${guardianName} ज्यु, खोप केन्द्र ${center} मा तपाईंको बच्चा ${child.childName} को खोप (${vaxNames}) छुटेकाले यथाशीघ्र सम्पर्क गरी खोप लगाउनुहुन हार्दिक अनुरोध छ। - ${orgName}`;
+      template = `नमस्ते! बच्चा ${child.childName} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
 
     setSmsMode('single');
@@ -182,12 +181,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       return;
     }
 
-    const orgName = generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
+    const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     let template = '';
     if (view === 'upcoming') {
-      template = `आदरणीय अभिभावक ज्यु, खोप केन्द्र {केन्द्र} मा तपाईंको बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) आगामी सञ्चालन मितिमा लगाउनुहुन अनुरोध गरिन्छ। खोप कार्ड साथमा ल्याउनुहोला। - ${orgName}`;
+      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) आगामी मितिमा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
-      template = `आदरणीय अभिभावक ज्यु, खोप केन्द्र {केन्द्र} मा तपाईंको बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) छुटेकाले यथाशीघ्र स्वास्थ्य संस्था वा खोप केन्द्रमा सम्पर्क गरी खोप लगाउनुहुन अनुरोध छ। - ${orgName}`;
+      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) छुटेकाले खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
 
     setSmsMode('bulk');
@@ -1801,130 +1800,198 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
         {/* SMS Sending Modal Dialog */}
         {showSmsModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 no-print">
-            <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col">
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 no-print overflow-y-auto">
+            <div className="bg-white w-full max-w-4xl lg:max-w-5xl my-auto rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
               {/* Modal Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 text-white flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
-                    <MessageSquare size={22} className="text-white" />
+              <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-800 p-5 sm:p-6 text-white flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3.5">
+                  <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner">
+                    <MessageSquare size={24} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg font-nepali leading-tight">
-                      {smsMode === 'single' ? 'अभिभावकलाई SMS पठाउनुहोस्' : 'सबै अभिभावकहरूलाई Bulk SMS पठाउनुहोस्'}
-                    </h3>
-                    <p className="text-xs text-blue-100 font-nepali">
-                      {smsViewType === 'upcoming' ? 'आगामी खोप तालिका सूचना' : 'खोप छुटेका बालबालिका खोप ताकेता सन्देश'}
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-lg sm:text-xl font-nepali leading-tight">
+                        {smsMode === 'single' ? 'अभिभावकलाई SMS सन्देश पठाउनुहोस्' : 'सबै अभिभावकहरूलाई Bulk SMS सन्देश पठाउनुहोस्'}
+                      </h3>
+                      <span className="bg-blue-500/40 text-blue-100 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 font-mono">
+                        {smsMode === 'single' ? 'Single SMS' : 'Bulk SMS'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-100/90 font-nepali mt-0.5 flex items-center gap-2">
+                      <span>{smsViewType === 'upcoming' ? 'आगामी खोप तालिका सूचना' : 'खोप छुटेका बालबालिका खोप ताकेता सन्देश'}</span>
+                      <span>•</span>
+                      <span className="font-semibold text-white">प्रेषक: {currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था'}</span>
                     </p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setShowSmsModal(false)}
-                  className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  className="text-white/80 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
+                  title="बन्द गर्नुहोस्"
                 >
-                  <X size={20} />
+                  <X size={22} />
                 </button>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-6 space-y-4 font-nepali">
-                {smsMode === 'single' && smsSingleChild ? (
-                  <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 space-y-2">
-                    <div className="flex justify-between items-start text-xs">
-                      <span className="text-slate-500">बच्चाको नाम:</span>
-                      <span className="font-bold text-slate-800">{smsSingleChild.childName} ({smsSingleChild.regNo})</span>
+              {/* Modal Body - Wide 2 Column Grid */}
+              <div className="p-6 sm:p-8 font-nepali overflow-y-auto grow space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                  {/* Left Column: Details & Status */}
+                  <div className="md:col-span-5 space-y-4">
+                    {smsMode === 'single' && smsSingleChild ? (
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 p-5 rounded-2xl border border-blue-100/80 space-y-3 shadow-xs">
+                        <h4 className="text-xs font-black text-blue-900 uppercase tracking-wider font-sans border-b border-blue-200/60 pb-2">
+                          प्राप्तकर्ता विवरण (Recipient Info)
+                        </h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 font-medium">बच्चाको नाम:</span>
+                            <span className="font-bold text-slate-800 text-sm">{smsSingleChild.childName}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 font-medium">दर्ता नम्बर (Reg No):</span>
+                            <span className="font-mono font-bold text-blue-700">{smsSingleChild.regNo}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 font-medium">अभिभावक:</span>
+                            <span className="font-bold text-slate-800">{smsSingleChild.motherName} {smsSingleChild.fatherName && `/ ${smsSingleChild.fatherName}`}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-500 font-medium">खोप केन्द्र:</span>
+                            <span className="font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-100">{smsSingleChild.vaccinationCenter || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-blue-200/60">
+                          <label className="block text-xs font-bold text-slate-700 mb-1">अभिभावकको फोन नम्बर (Phone):</label>
+                          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-xs focus-within:ring-2 focus-within:ring-blue-500">
+                            <Phone size={16} className="text-slate-400 ml-2 shrink-0" />
+                            <input 
+                              type="text"
+                              value={smsRecipientPhone}
+                              onChange={(e) => setSmsRecipientPhone(e.target.value)}
+                              placeholder="उदा: 9841234567"
+                              className="w-full text-xs font-mono font-bold p-1.5 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-br from-indigo-50 to-blue-50/60 p-5 rounded-2xl border border-indigo-100/80 space-y-3 shadow-xs">
+                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider font-sans border-b border-indigo-200/60 pb-2">
+                          समूह प्राप्तकर्ता जानकारी (Bulk Recipients)
+                        </h4>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-indigo-900 font-bold">जम्मा प्राप्तकर्ता बालबालिका:</span>
+                          <span className="bg-indigo-600 text-white text-sm font-black px-3 py-1 rounded-full font-mono shadow-xs">
+                            {smsViewType === 'upcoming' ? upcomingSessionList.length : defaulterList.length} जना
+                          </span>
+                        </div>
+                        <p className="text-xs text-indigo-800 leading-relaxed bg-white/70 p-3 rounded-xl border border-indigo-100">
+                          छानिएको आर्थिक वर्ष ({filterFiscalYear}) र महिना ({getSelectedMonthLabel()}) का सूचीकृत सबै अभिभावकहरूलाई सन्देश प्रवाहित हुनेछ।
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Sender Organization Tag */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block font-sans">
+                        सन्देश पठाउने संस्था (Sender Organization):
+                      </span>
+                      <p className="text-sm font-black text-blue-900 font-nepali flex items-center gap-1.5">
+                        <Building2 size={16} className="text-blue-600" />
+                        {currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था'}
+                      </p>
+                      <span className="text-[10px] text-slate-500 block">यो नाम सन्देशको अन्त्यमा स्वतः समावेश गरिएको छ।</span>
                     </div>
-                    <div className="flex justify-between items-start text-xs">
-                      <span className="text-slate-500">अभिभावक:</span>
-                      <span className="font-bold text-slate-800">{smsSingleChild.motherName} {smsSingleChild.fatherName && `/ ${smsSingleChild.fatherName}`}</span>
-                    </div>
-                    <div className="flex justify-between items-start text-xs">
-                      <span className="text-slate-500">खोप केन्द्र:</span>
-                      <span className="font-semibold text-blue-700">{smsSingleChild.vaccinationCenter || 'N/A'}</span>
-                    </div>
-                    <div className="pt-2 border-t border-blue-100">
-                      <label className="block text-xs font-bold text-slate-700 mb-1">प्राप्तकर्ता फोन नम्बर (Phone):</label>
-                      <div className="flex items-center gap-2">
-                        <Phone size={16} className="text-slate-400 shrink-0" />
-                        <input 
-                          type="text"
-                          value={smsRecipientPhone}
-                          onChange={(e) => setSmsRecipientPhone(e.target.value)}
-                          placeholder="उदा: 9841234567"
-                          className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
+
+                    {/* Quota & API Status */}
+                    <div className="bg-amber-50/80 p-4 rounded-2xl border border-amber-200 space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                        <Smartphone size={16} className="text-amber-600" />
+                        Universal SMS Gateway: {generalSettings?.smsApiProvider || 'Sparrow SMS'}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-amber-200/60 font-mono">
+                        <div className="bg-white p-2 rounded-lg border border-amber-100">
+                          <span className="text-[10px] text-slate-500 block">कुल कोटा (Quota):</span>
+                          <span className="font-bold text-amber-900">
+                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${currentUser?.smsQuota || 0} SMS`}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-amber-100">
+                          <span className="text-[10px] text-slate-500 block">बाँकी कोटा (Remaining):</span>
+                          <span className="font-black text-emerald-700">
+                            {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${remainingQuota} SMS`}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-indigo-50/80 p-4 rounded-xl border border-indigo-100 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-indigo-900 font-bold">जम्मा प्राप्तकर्ता संख्या (Total Recipients):</span>
-                      <span className="bg-indigo-600 text-white text-xs font-black px-2.5 py-0.5 rounded-full font-mono">
-                        {smsViewType === 'upcoming' ? upcomingSessionList.length : defaulterList.length} जना
-                      </span>
+
+                  {/* Right Column: Short SMS Message Textarea */}
+                  <div className="md:col-span-7 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2 grow flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                          <span>SMS सन्देश पाठ (Short Message Body):</span>
+                        </label>
+                        <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                          {smsMessageText.length} वर्ण | ~{Math.ceil(smsMessageText.length / 160) || 1} SMS
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={7}
+                        value={smsMessageText}
+                        onChange={(e) => setSmsMessageText(e.target.value)}
+                        className="w-full text-xs sm:text-sm leading-relaxed p-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50 font-nepali shadow-xs grow"
+                        placeholder="सन्देशको पाठ प्रविष्ट गर्नुहोस्..."
+                      />
                     </div>
-                    <p className="text-[11px] text-indigo-700">
-                      छानिएको अवधि ({filterFiscalYear} - {getSelectedMonthLabel()}) का सबै अभिभावकहरूको फोन नम्बरमा स्वतः एसएमएस पठाइनेछ।
-                    </p>
-                  </div>
-                )}
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <label className="font-bold text-slate-700">SMS सन्देश पाठ (Message Body):</label>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {smsMessageText.length} वर्ण | ~{Math.ceil(smsMessageText.length / 160) || 1} SMS
-                    </span>
-                  </div>
-                  <textarea
-                    rows={5}
-                    value={smsMessageText}
-                    onChange={(e) => setSmsMessageText(e.target.value)}
-                    className="w-full text-xs leading-relaxed p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50"
-                  />
-                </div>
-
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-800">
-                  <Smartphone size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="leading-relaxed">
-                      सुपर एडमिनबाट Universal SMS API ({generalSettings?.smsApiProvider || 'Sparrow SMS'}) गेटवे जोडिएको छ।
-                    </p>
-                    <div className="flex items-center gap-3 font-mono text-[10px] font-bold text-amber-900 pt-0.5">
-                      <span>तपाईंको कुल कोटा: {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${currentUser?.smsQuota || 0} SMS`}</span>
-                      <span>|</span>
-                      <span>उपलब्ध बाँकी: {currentUser?.role === 'SUPER_ADMIN' ? 'असीमित' : `${remainingQuota} SMS`}</span>
+                    <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-100 text-xs text-blue-800 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 size={15} className="text-blue-600" />
+                        छोटो तथा प्रभावकारी सन्देश नियम:
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-normal">
+                        अभिभावकको बुझाइ र दूरसञ्चार मापदण्ड अनुसार सन्देशलाई छोटो बनाइएको छ। सन्देशको अन्त्यमा तपाईंको संस्थाको नाम (<b>{currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था'}</b>) जोडिएको छ।
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Modal Footer */}
-              <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-end gap-3 font-nepali">
-                <button
-                  type="button"
-                  onClick={() => setShowSmsModal(false)}
-                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  रद्द गर्नुहोस्
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSendSmsExecute(upcomingSessionList.length, defaulterList.length)}
-                  disabled={isSendingSms}
-                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
-                >
-                  {isSendingSms ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" /> पठाउँदैछ...
-                    </>
-                  ) : (
-                    <>
-                      <Send size={16} /> SMS पठाउनुहोस्
-                    </>
-                  )}
-                </button>
+              <div className="bg-slate-50 p-4 sm:p-5 border-t border-slate-200 flex items-center justify-between gap-3 font-nepali shrink-0">
+                <span className="text-xs text-slate-500 hidden sm:inline">
+                  * SMS पठाएपछि तपाईंको खाताको कोटाबाट स्वतः कट्टा हुनेछ।
+                </span>
+                <div className="flex items-center gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setShowSmsModal(false)}
+                    className="px-5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
+                  >
+                    रद्द गर्नुहोस्
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendSmsExecute(upcomingSessionList.length, defaulterList.length)}
+                    disabled={isSendingSms}
+                    className="flex items-center gap-2 px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
+                  >
+                    {isSendingSms ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> पठाउँदैछ...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} /> SMS सन्देश पठाउनुहोस्
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
