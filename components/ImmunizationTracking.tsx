@@ -152,9 +152,27 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     }
   }, [onDeleteRecord]);
 
+  // Format vaccine names cleanly for SMS (e.g., BCG, DPT1, OPV1 instead of BCG (जन्ममा), DPT-HepB-Hib-1 (६ हप्ता))
+  const formatSingleVaccineForSms = (vaxName: string): string => {
+    if (!vaxName) return '';
+    let cleaned = vaxName
+      .replace(/\s*\([^)]*\)/g, '') // Remove anything in parentheses like (जन्ममा), (६ हप्ता)
+      .replace(/\s*(जन्ममा|हप्ता|महिना|वर्ष|हप्तामा|महिनामा|वर्षमा).*/g, '')
+      .trim();
+
+    cleaned = cleaned.replace(/DPT-HepB-Hib-?/gi, 'DPT');
+    cleaned = cleaned.replace(/([A-Za-z]+)-(\d+)/g, '$1$2'); // OPV-1 -> OPV1, PCV-1 -> PCV1, MR-1 -> MR1, FIPV-1 -> FIPV1, Rota-1 -> Rota1
+
+    return cleaned.trim();
+  };
+
+  const formatVaccinesForSms = (vaccines: { name: string }[]): string => {
+    return vaccines.map(v => formatSingleVaccineForSms(v.name)).filter(Boolean).join(', ');
+  };
+
   // Open Single Child SMS Modal
   const handleOpenSingleSms = (child: ChildImmunizationRecord, vaccines: ChildImmunizationVaccine[], scheduledDateBs: string, view: 'upcoming' | 'defaulter') => {
-    const vaxNames = vaccines.map(v => v.name).join(', ');
+    const vaxNames = formatVaccinesForSms(vaccines);
     const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     const center = child.vaccinationCenter || 'खोप केन्द्र';
     const phone = child.phone || '';
@@ -229,7 +247,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         if (!/^\d{10}$/.test(cleaned)) return; // Exclude invalid / non-10 digit numbers completely!
 
         const childName = item.child.childName || 'बालक/बालिका';
-        const vaxNames = item.vaccines.map(v => v.name).join(', ');
+        const vaxNames = formatVaccinesForSms(item.vaccines);
         const center = item.child.vaccinationCenter || 'खोप केन्द्र';
         const exactDate = item.scheduledDateBs || 'आगामी मिति';
 
@@ -2081,7 +2099,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                               const sampleItem = smsViewType === 'upcoming' ? upcomingSessionList[0] : defaulterList[0];
                               if (!sampleItem) return smsMessageText;
                               const childName = sampleItem.child.childName || 'राम श्रेष्ठ';
-                              const vaxNames = sampleItem.vaccines.map(v => v.name).join(', ') || 'खोपहरू';
+                              const vaxNames = formatVaccinesForSms(sampleItem.vaccines) || 'BCG, DPT1, OPV1';
                               const center = sampleItem.child.vaccinationCenter || 'हडिया स्वास्थ्य चौकी';
                               const exactDate = sampleItem.scheduledDateBs || '2083-04-15';
                               return smsMessageText
