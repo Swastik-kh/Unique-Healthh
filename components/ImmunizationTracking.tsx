@@ -234,8 +234,10 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       const response = await axios.post('/api/sms/send', {
         provider: generalSettings?.smsApiProvider || 'SMS Pasal',
         apiKey: generalSettings?.smsApiKey || '56A71A88EC9CA9',
-        senderId: generalSettings?.smsSenderId || 'Chaudandigadhi',
+        senderId: generalSettings?.smsSenderId || 'SMSBit',
         apiUrl: generalSettings?.smsApiUrl || 'https://sms.smspasal.com/smsapi/index.php',
+        campaign: generalSettings?.smsCampaignId || '9674',
+        routeid: generalSettings?.smsRouteId || '10259',
         recipients: recipientsList,
         message: smsMessageText.trim()
       });

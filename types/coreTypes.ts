@@ -114,10 +114,12 @@ export interface OrganizationSettings {
   vaccinationCenterDays?: Record<string, number[]>; // Added for managing days per center
   vaccineInventory?: Record<string, number>; // Added for tracking received vaccine doses/stock
   allowSmsAccess?: boolean; // Legacy/global toggle
-  smsApiProvider?: string; // Universal SMS API Provider (e.g. Sparrow SMS, Aakash SMS)
+  smsApiProvider?: string; // Universal SMS API Provider (e.g. Sparrow SMS, Aakash SMS, SMSBit)
   smsApiKey?: string; // Universal SMS API Token/Key
   smsSenderId?: string; // Universal SMS Sender ID / Identity
   smsApiUrl?: string; // Universal SMS API Endpoint URL
+  smsCampaignId?: string; // SMSBit / SMS Pasal Campaign ID
+  smsRouteId?: string; // SMSBit / SMS Pasal Route ID
   ipdWards?: WardConfig[]; 
   isSubscribed?: boolean;
   subscriptionExpiryDate?: string;

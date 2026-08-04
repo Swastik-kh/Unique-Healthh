@@ -561,6 +561,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         if (!localSettings.smsApiUrl) handleChange('smsApiUrl', 'https://sms.smspasal.com/smsapi/index.php');
                                         if (!localSettings.smsApiKey) handleChange('smsApiKey', '56A71A88EC9CA9');
                                         if (!localSettings.smsSenderId) handleChange('smsSenderId', 'SMSBit');
+                                        if (!localSettings.smsCampaignId) handleChange('smsCampaignId', '9674');
+                                        if (!localSettings.smsRouteId) handleChange('smsRouteId', '10259');
                                     }
                                 }} 
                                 icon={<Server size={16} />} 
@@ -586,6 +588,20 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                 onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
                                 placeholder="https://sms.smspasal.com/smsapi/index.php" 
                                 icon={<Globe size={16} />} 
+                            />
+                            <Input 
+                                label="SMS Campaign ID (SMS Pasal Dashboard बाट)" 
+                                value={localSettings.smsCampaignId || ''} 
+                                onChange={(e) => handleChange('smsCampaignId', e.target.value)} 
+                                placeholder="उदा: 9674" 
+                                icon={<Server size={16} />} 
+                            />
+                            <Input 
+                                label="SMS Route ID (SMS Pasal Dashboard बाट)" 
+                                value={localSettings.smsRouteId || ''} 
+                                onChange={(e) => handleChange('smsRouteId', e.target.value)} 
+                                placeholder="उदा: 10259" 
+                                icon={<Server size={16} />} 
                             />
                         </div>
                     </div>
