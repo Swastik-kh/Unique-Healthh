@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2 } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
@@ -185,7 +185,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) आगामी मितिमा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) मिति {खोप_मिति} मा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
       template = `नमस्ते! बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) छुटेकाले खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
@@ -198,6 +198,23 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     setShowSmsModal(true);
   };
 
+  const cleanPhone = useCallback((phone?: string) => {
+    if (!phone) return '';
+    return phone.trim().replace(/\D/g, '').replace(/^977/, '');
+  }, []);
+
+  const isValid10DigitMobile = useCallback((phone?: string) => {
+    const cleaned = cleanPhone(phone);
+    return /^\d{10}$/.test(cleaned);
+  }, [cleanPhone]);
+
+  const bulkTargetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
+  const validBulkRecipients = useMemo(() => {
+    return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone));
+  }, [bulkTargetList, isValid10DigitMobile]);
+
+  const invalidBulkCount = bulkTargetList.length - validBulkRecipients.length;
+
   // Execute SMS Sending via Backend API Proxy
   const handleSendSmsExecute = async (upcomingCount: number, defaulterCount: number) => {
     if (smsMode === 'single' && !smsRecipientPhone.trim()) {
@@ -209,24 +226,55 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       return;
     }
 
-    const neededSmsCount = smsMode === 'single' ? 1 : (smsViewType === 'upcoming' ? upcomingCount : defaulterCount);
-
-    if (currentUser?.role !== 'SUPER_ADMIN' && remainingQuota < neededSmsCount) {
-      alert(`तपाईंको SMS कोटा अपर्याप्त छ। पठाउन खोजिएको SMS: ${neededSmsCount}, तपाईंको उपलब्ध बाँकी कोटा: ${remainingQuota}। कृपया सुपर एडमिनसँग सम्पर्क गरी quota थप गराउनुहोस्।`);
-      return;
-    }
-
-    // Collect recipient phone numbers
+    // Prepare recipient items
     let recipientsList: string[] = [];
+    let itemsList: Array<{ recipient: string, message: string }> = [];
+
     if (smsMode === 'single') {
-      recipientsList = [smsRecipientPhone.trim()];
-    } else {
-      const targetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
-      recipientsList = targetList.map(item => item.child.phone).filter(p => p && p.trim().length >= 8);
-      if (recipientsList.length === 0) {
-        alert("सूचीमा कुनै पनि वैध फोन नम्बर (Mobile Number) भेटिएन।");
+      const cleaned = cleanPhone(smsRecipientPhone);
+      if (!/^\d{10}$/.test(cleaned)) {
+        alert("कृपया १० अंकको सही नेपाली फोन नम्बर प्रविष्ट गर्नुहोस् (उदा: 9841234567)।");
         return;
       }
+      recipientsList = [cleaned];
+    } else {
+      const targetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
+      
+      targetList.forEach(item => {
+        const rawPhone = item.child.phone;
+        const cleaned = cleanPhone(rawPhone);
+        if (!/^\d{10}$/.test(cleaned)) return; // Exclude invalid / non-10 digit numbers completely!
+
+        const childName = item.child.childName || 'बालक/बालिका';
+        const vaxNames = item.vaccines.map(v => v.name).join(', ');
+        const center = item.child.vaccinationCenter || 'खोप केन्द्र';
+        const exactDate = item.scheduledDateBs || 'आगामी मिति';
+
+        let personalizedMessage = smsMessageText
+          .replaceAll('{बच्चाको_नाम}', childName)
+          .replaceAll('{खोपहरू}', vaxNames)
+          .replaceAll('{खोप_केन्द्र}', center)
+          .replaceAll('{खोप_मिति}', exactDate)
+          .replaceAll('{आगामी_मिति}', exactDate)
+          .replaceAll('आगामी मितिमा', `मिति ${exactDate} मा`);
+
+        itemsList.push({
+          recipient: cleaned,
+          message: personalizedMessage
+        });
+      });
+
+      if (itemsList.length === 0) {
+        alert("छानिएको सूचीमा १० अंकको सही मोबाइल नम्बर भएको कुनै पनि अभिभावक भेटिएन।");
+        return;
+      }
+    }
+
+    const neededSmsCount = smsMode === 'single' ? 1 : itemsList.length;
+
+    if (currentUser?.role !== 'SUPER_ADMIN' && remainingQuota < neededSmsCount) {
+      alert(`तपाईंको SMS कोटा अपर्याप्त छ। पठाउन खोजिएको वैध SMS: ${neededSmsCount}, तपाईंको उपलब्ध बाँकी कोटा: ${remainingQuota}। कृपया सुपर एडमिनसँग सम्पर्क गरी quota थप गराउनुहोस्।`);
+      return;
     }
 
     setIsSendingSms(true);
@@ -238,7 +286,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         apiUrl: generalSettings?.smsApiUrl || 'https://sms.smspasal.com/smsapi/index.php',
         campaign: generalSettings?.smsCampaignId || '9674',
         routeid: generalSettings?.smsRouteId || '10259',
-        recipients: recipientsList,
+        items: smsMode === 'bulk' ? itemsList : undefined,
+        recipients: smsMode === 'single' ? recipientsList : undefined,
         message: smsMessageText.trim()
       });
 
@@ -1925,13 +1974,25 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                           समूह प्राप्तकर्ता जानकारी (Bulk Recipients)
                         </h4>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-indigo-900 font-bold">जम्मा प्राप्तकर्ता बालबालिका:</span>
+                          <span className="text-xs text-indigo-900 font-bold">जम्मा सूचीकृत बालबालिका:</span>
                           <span className="bg-indigo-600 text-white text-sm font-black px-3 py-1 rounded-full font-mono shadow-xs">
-                            {smsViewType === 'upcoming' ? upcomingSessionList.length : defaulterList.length} जना
+                            {bulkTargetList.length} जना
                           </span>
                         </div>
-                        <p className="text-xs text-indigo-800 leading-relaxed bg-white/70 p-3 rounded-xl border border-indigo-100">
-                          छानिएको आर्थिक वर्ष ({filterFiscalYear}) र महिना ({getSelectedMonthLabel()}) का सूचीकृत सबै अभिभावकहरूलाई सन्देश प्रवाहित हुनेछ।
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                          <div className="bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-xl text-emerald-950">
+                            <span className="text-[10px] text-emerald-700 font-bold block uppercase">वैध १०-अङ्क मोबाइल:</span>
+                            <span className="font-black text-sm text-emerald-900 font-mono">{validBulkRecipients.length} जना</span>
+                            <span className="text-[10px] text-emerald-700 block mt-0.5 font-medium">(SMS जानेछ)</span>
+                          </div>
+                          <div className={`border p-2.5 rounded-xl ${invalidBulkCount > 0 ? 'bg-rose-50 border-rose-200 text-rose-950' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                            <span className={`text-[10px] font-bold block uppercase ${invalidBulkCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>अमान्य / नम्बर नभएका:</span>
+                            <span className="font-black text-sm font-mono">{invalidBulkCount} जना</span>
+                            <span className="text-[10px] block mt-0.5 font-medium">{invalidBulkCount > 0 ? '(स्वतः हटाइनेछ)' : '(सबै सही छन्)'}</span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-indigo-800 leading-relaxed bg-white/70 p-2.5 rounded-xl border border-indigo-100 italic">
+                          * १० अंकको सही फोन नम्बर भएका <b>{validBulkRecipients.length} जना</b> अभिभावकलाई मात्र SMS पठाइनेछ।
                         </p>
                       </div>
                     )}
@@ -1984,12 +2045,46 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                       </div>
 
                       <textarea
-                        rows={7}
+                        rows={5}
                         value={smsMessageText}
                         onChange={(e) => setSmsMessageText(e.target.value)}
                         className="w-full text-xs sm:text-sm leading-relaxed p-4 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:outline-none bg-slate-50/50 font-nepali shadow-xs grow"
                         placeholder="सन्देशको पाठ प्रविष्ट गर्नुहोस्..."
                       />
+
+                      {smsMode === 'bulk' && (
+                        <div className="bg-indigo-50/80 p-3.5 rounded-xl border border-indigo-200 text-xs text-indigo-900 space-y-1.5 shadow-xs">
+                          <div className="flex items-center justify-between font-bold text-indigo-950 border-b border-indigo-200/60 pb-1.5">
+                            <span className="flex items-center gap-1.5">
+                              <Eye size={15} className="text-indigo-600" />
+                              पहिलो बच्चाको सन्देशको नमूना (Live Sample Preview):
+                            </span>
+                            <span className="text-[10px] bg-indigo-200/90 text-indigo-900 px-2 py-0.5 rounded font-bold">
+                              {smsViewType === 'upcoming' ? (upcomingSessionList[0]?.child?.childName || 'बालक/बालिका') : (defaulterList[0]?.child?.childName || 'बालक/बालिका')}
+                            </span>
+                          </div>
+                          <div className="p-2.5 bg-white rounded-lg border border-indigo-100 text-slate-800 leading-relaxed font-nepali font-medium">
+                            {(() => {
+                              const sampleItem = smsViewType === 'upcoming' ? upcomingSessionList[0] : defaulterList[0];
+                              if (!sampleItem) return smsMessageText;
+                              const childName = sampleItem.child.childName || 'राम श्रेष्ठ';
+                              const vaxNames = sampleItem.vaccines.map(v => v.name).join(', ') || 'खोपहरू';
+                              const center = sampleItem.child.vaccinationCenter || 'हडिया स्वास्थ्य चौकी';
+                              const exactDate = sampleItem.scheduledDateBs || '2083-04-15';
+                              return smsMessageText
+                                .replaceAll('{बच्चाको_नाम}', childName)
+                                .replaceAll('{खोपहरू}', vaxNames)
+                                .replaceAll('{खोप_केन्द्र}', center)
+                                .replaceAll('{खोप_मिति}', exactDate)
+                                .replaceAll('{आगामी_मिति}', exactDate)
+                                .replaceAll('आगामी मितिमा', `मिति ${exactDate} मा`);
+                            })()}
+                          </div>
+                          <div className="text-[10px] text-indigo-700 italic">
+                            * सन्देश पठाउँदा प्रत्येक अभिभावकलाई उहाँको बच्चाको नाम, खोप, खोप चल्ने ठ्याक्कै मिति र खोप केन्द्र अनुसार व्यक्तिगत SMS जानेछ।
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-100 text-xs text-blue-800 space-y-1">

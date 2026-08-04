@@ -133,8 +133,13 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     setValidationError(null);
     if (!formData.name.trim()) return "बिरामीको नाम आवश्यक छ।";
     if (!formData.address.trim()) return "ठेगाना आवश्यक छ।";
-    if (!formData.phone.trim()) return "फोन नम्बर आवश्यक छ।";
     if (!formData.vaccinationCenter) return "खोप केन्द्र आवश्यक छ।";
+    if (formData.phone && formData.phone.trim() !== '') {
+      const trimmedPhone = formData.phone.trim();
+      if (!/^\d{10}$/.test(trimmedPhone)) {
+        return "फोन नम्बर राखिएको खण्डमा ठ्याक्कै १० अंकको हुनुपर्छ। (उदा: 9841234567)";
+      }
+    }
     return null;
   };
 
@@ -334,7 +339,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
           <Select label="यस अघि TD खोप लिएको पटक" options={previousTdOptions} value={formData.previousTdCount || '0'} onChange={e => setFormData({...formData, previousTdCount: e.target.value})} />
 
           <Input label="ठेगाना (Address) *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
-          <Input label="फोन नं (Phone) *" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required icon={<Phone size={16} />} />
+          <Input label="फोन नं (Phone)" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} icon={<Phone size={16} />} placeholder="१० अंकको फोन नं (ऐच्छिक)" />
 
           <Select label="खोप केन्द्र (Vaccination Center) *" options={centerOptions} value={formData.vaccinationCenter || ''} onChange={e => setFormData({...formData, vaccinationCenter: e.target.value})} placeholder="-- केन्द्र छान्नुहोस् --" icon={<MapPinned size={16} />} />
 

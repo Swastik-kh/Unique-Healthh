@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -20,6 +20,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
+  const [showSmsApiKey, setShowSmsApiKey] = useState(false);
   const [activeTab, setActiveTab] = useState<'general' | 'menu'>(
     (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') ? 'general' : 'menu'
   );
@@ -575,12 +576,22 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                 icon={<Send size={16} />} 
                             />
                             <Input 
-                                label="API Token / Key" 
-                                type="text" 
+                                label="API Token / Key (गोप्य)" 
+                                type={showSmsApiKey ? "text" : "password"} 
                                 value={localSettings.smsApiKey || ''} 
                                 onChange={(e) => handleChange('smsApiKey', e.target.value)} 
                                 placeholder="56A71A88EC9CA9" 
                                 icon={<Key size={16} />} 
+                                suffix={
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowSmsApiKey(!showSmsApiKey)}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                    title={showSmsApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
+                                  >
+                                    {showSmsApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                  </button>
+                                }
                             />
                             <Input 
                                 label="API Endpoint URL" 

@@ -460,6 +460,14 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       return;
     }
 
+    if (formData.phone && formData.phone.trim() !== '') {
+      const trimmedPhone = formData.phone.trim();
+      if (!/^\d{10}$/.test(trimmedPhone)) {
+        setValidationError("फोन नम्बर राखिएको खण्डमा ठ्याक्कै १० अंकको हुनुपर्छ। (उदा: 9841234567)");
+        return;
+      }
+    }
+
     // Sanitize optional fields to null if they are undefined
     const sanitizedData = {
       ...formData,
@@ -796,7 +804,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           <Input label="आमाको नाम *" value={formData.motherName} onChange={e => setFormData({...formData, motherName: e.target.value})} required icon={<User size={16} />} />
           <Input label="बुबाको नाम *" value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} required icon={<User size={16} />} />
           <Input label="ठेगाना *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
-          <Input label="फोन नं *" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required icon={<Phone size={16} />} />
+          <Input label="फोन नं" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} icon={<Phone size={16} />} placeholder="१० अंकको फोन नं (ऐच्छिक)" />
           
           {/* Vaccine Status Card inside Form */}
           <div className="md:col-span-3 mt-4 border-t pt-6">
