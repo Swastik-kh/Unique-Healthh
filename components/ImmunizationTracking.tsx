@@ -1635,7 +1635,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         <td style={{ fontWeight: 'bold', color: '#0369a1' }}>
                                             {c.doses.join(', ')}
                                         </td>
-                                        <td style={{ fontFamily: 'monospace' }}><span className={blurPhone ? "blur-sm" : ""}>{c.regNo}</span></td>
+                                        <td style={{ fontFamily: 'monospace' }}><span className={blurPhone ? "blur-sm" : ""}>{c.phone || '-'}</span></td>
                                     </tr>
                                 ))}
                             </tbody>
