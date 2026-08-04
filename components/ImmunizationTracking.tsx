@@ -312,7 +312,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       } else if (err.message) {
         errorMsg = err.message;
       }
-      alert(`SMS पठाउने क्रममा त्रुटि: ${errorMsg}`);
+      if (errorMsg.includes('credit balance is not sufficient') || errorMsg.includes('validity has expired')) {
+        alert("⚠️ SMS गेटवे (SMS Pasal / SMSBit) ब्यालेन्स त्रुटि:\n\nतपाईंको SMS Pasal / SMSBit गेटवे खातामा SMS ब्यालेन्स (Credit) सकिएको छ वा अकाउन्टको म्याद (Validity Period) समाप्त भएको छ।\n\nकृपया SMS Pasal / SMSBit मा आफ्नो खाता रिचार्ज गर्नुहोस् वा सेवा प्रदायकसँग सम्पर्क गरी म्याद थप गराउनुहोस्।");
+      } else {
+        alert(`SMS पठाउने क्रममा त्रुटि: ${errorMsg}`);
+      }
     }
   };
 
