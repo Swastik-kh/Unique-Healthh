@@ -232,10 +232,10 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     setIsSendingSms(true);
     try {
       const response = await axios.post('/api/sms/send', {
-        provider: generalSettings?.smsApiProvider || 'Sparrow SMS',
-        apiKey: generalSettings?.smsApiKey || '',
-        senderId: generalSettings?.smsSenderId || '',
-        apiUrl: generalSettings?.smsApiUrl || '',
+        provider: generalSettings?.smsApiProvider || 'SMS Pasal',
+        apiKey: generalSettings?.smsApiKey || '56A71A88EC9CA9',
+        senderId: generalSettings?.smsSenderId || 'Chaudandigadhi',
+        apiUrl: generalSettings?.smsApiUrl || 'https://sms.smspasal.com/smsapi/index.php',
         recipients: recipientsList,
         message: smsMessageText.trim()
       });
@@ -253,11 +253,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       }
 
       const remainingStr = currentUser?.role === 'SUPER_ADMIN' ? 'असीमित (Unlimited)' : `${Math.max(0, remainingQuota - neededSmsCount)} SMS`;
+      const providerName = response.data.provider || generalSettings?.smsApiProvider || 'SMS Pasal';
 
       if (response.data.simulated) {
-        setSuccessMessage(`सिम्युलेसन सन्देश सफल भयो! (बाँकी कोटा: ${remainingStr})\nनोट: Sparrow SMS को वास्तविक API Token नराखिएकाले सिम्युलेसन मोडमा चलेको हो। Super Admin को General Settings मा Sparrow Token र Sender ID हालेपछि वास्तविक SMS जान्छ।`);
+        setSuccessMessage(`सिम्युलेसन सन्देश सफल भयो! (बाँकी कोटा: ${remainingStr})\nनोट: ${providerName} को API Key नराखिएकाले सिम्युलेसन मोडमा चलेको हो।`);
       } else {
-        setSuccessMessage(`Sparrow SMS गेटवे मार्फत वास्तविक ${neededSmsCount} SMS सन्देश मोबाईलमा सफलतापूर्वक पठाइयो! (बाँकी कोटा: ${remainingStr})`);
+        setSuccessMessage(`${providerName} गेटवे मार्फत वास्तविक ${neededSmsCount} SMS सन्देश मोबाईलमा सफलतापूर्वक पठाइयो! (बाँकी कोटा: ${remainingStr})`);
       }
       setTimeout(() => setSuccessMessage(null), 8000);
     } catch (err: any) {
@@ -1935,7 +1936,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     <div className="bg-amber-50/80 p-4 rounded-2xl border border-amber-200 space-y-2">
                       <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
                         <Smartphone size={16} className="text-amber-600" />
-                        Universal SMS Gateway: {generalSettings?.smsApiProvider || 'Sparrow SMS'}
+                        Universal SMS Gateway: {generalSettings?.smsApiProvider || 'SMS Pasal'}
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-amber-200/60 font-mono">
                         <div className="bg-white p-2 rounded-lg border border-amber-100">

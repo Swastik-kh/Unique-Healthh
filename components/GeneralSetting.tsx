@@ -548,34 +548,43 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                             <Select 
                                 label="SMS गेटवे प्रदायक (SMS Provider)" 
                                 options={[
+                                    { id: 'smspasal', value: 'SMS Pasal', label: 'SMSBit / SMS Pasal (sms.smspasal.com)' },
                                     { id: 'sparrow', value: 'Sparrow SMS', label: 'Sparrow SMS (नेपाल)' },
                                     { id: 'aakash', value: 'Aakash SMS', label: 'Aakash SMS (नेपाल)' },
                                     { id: 'custom', value: 'Custom Gateway', label: 'अन्य / Custom Gateway API' }
                                 ]} 
-                                value={localSettings.smsApiProvider || 'Sparrow SMS'} 
-                                onChange={(e) => handleChange('smsApiProvider', e.target.value)} 
+                                value={localSettings.smsApiProvider || 'SMS Pasal'} 
+                                onChange={(e) => {
+                                    const provider = e.target.value;
+                                    handleChange('smsApiProvider', provider);
+                                    if (provider === 'SMS Pasal') {
+                                        if (!localSettings.smsApiUrl) handleChange('smsApiUrl', 'https://sms.smspasal.com/smsapi/index.php');
+                                        if (!localSettings.smsApiKey) handleChange('smsApiKey', '56A71A88EC9CA9');
+                                        if (!localSettings.smsSenderId) handleChange('smsSenderId', 'SMSBit');
+                                    }
+                                }} 
                                 icon={<Server size={16} />} 
                             />
                             <Input 
                                 label="Sender ID / Header" 
                                 value={localSettings.smsSenderId || ''} 
                                 onChange={(e) => handleChange('smsSenderId', e.target.value)} 
-                                placeholder="उदा: HEALTH / SMARTHEALTH" 
+                                placeholder="उदा: SMSBit / Chaudandigadhi" 
                                 icon={<Send size={16} />} 
                             />
                             <Input 
                                 label="API Token / Key" 
-                                type="password" 
+                                type="text" 
                                 value={localSettings.smsApiKey || ''} 
                                 onChange={(e) => handleChange('smsApiKey', e.target.value)} 
-                                placeholder="API Token प्रविष्ट गर्नुहोस्" 
+                                placeholder="56A71A88EC9CA9" 
                                 icon={<Key size={16} />} 
                             />
                             <Input 
                                 label="API Endpoint URL" 
                                 value={localSettings.smsApiUrl || ''} 
                                 onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
-                                placeholder="https://api.sparrowsms.com/v2/sms/" 
+                                placeholder="https://sms.smspasal.com/smsapi/index.php" 
                                 icon={<Globe size={16} />} 
                             />
                         </div>

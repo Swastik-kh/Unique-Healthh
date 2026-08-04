@@ -274,7 +274,7 @@ async function startServer() {
     }
   });
 
-  // Universal SMS Proxy Endpoint (Sparrow SMS / Aakash SMS / Custom)
+  // Universal SMS Proxy Endpoint (SMS Pasal / Sparrow SMS / Custom)
   app.post("/api/sms/send", async (req, res) => {
     try {
       const { provider, apiKey, senderId, apiUrl, recipients, message } = req.body;
@@ -283,16 +283,70 @@ async function startServer() {
         return res.status(400).json({ error: "Recipients and message body are required" });
       }
 
+      const toStr = Array.isArray(recipients) ? recipients.join(',') : recipients;
+      const pName = (provider || '').toLowerCase();
+      const urlStr = (apiUrl || '').toLowerCase();
+
+      // Check if provider is SMS Pasal / SMSBit or if URL points to smspasal.com or if no custom provider specified
+      const isSmsPasal = pName.includes('pasal') || pName.includes('smsbit') || urlStr.includes('smspasal') || (!provider && !apiUrl) || provider === 'SMS Pasal' || provider === 'SMSBit';
+
+      if (isSmsPasal) {
+        const key = apiKey || process.env.SMS_PASAL_KEY || '56A71A88EC9CA9';
+        const targetUrl = apiUrl || process.env.SMS_PASAL_URL || 'https://sms.smspasal.com/smsapi/index.php';
+        const from = senderId || process.env.SMS_PASAL_SENDER || 'SMSBit';
+
+        console.log(`Sending SMS via SMS Pasal (${targetUrl}) to: ${toStr}`);
+
+        const params = {
+          key: key.trim(),
+          campaign: '9674',
+          routeid: '10259',
+          type: 'text',
+          responsetype: 'json',
+          contacts: toStr,
+          senderid: from.trim(),
+          msg: message
+        };
+
+        const apiRes = await axios.get(targetUrl, {
+          params,
+          timeout: 15000,
+          validateStatus: () => true
+        });
+
+        console.log("SMS Pasal Response:", apiRes.status, apiRes.data);
+
+        const responseDataStr = typeof apiRes.data === 'string' ? apiRes.data : JSON.stringify(apiRes.data || '');
+
+        if (apiRes.status >= 200 && apiRes.status < 300 && !responseDataStr.includes('ERR:')) {
+          let shootId = '';
+          if (responseDataStr.includes('SMS-SHOOT-ID/')) {
+            shootId = responseDataStr.split('SMS-SHOOT-ID/')[1]?.trim() || '';
+          }
+
+          return res.json({
+            success: true,
+            provider: "SMSBit / SMS Pasal",
+            shootId: shootId,
+            apiResponse: apiRes.data,
+            message: "SMSBit (SMS Pasal) गेटवे मार्फत वास्तविक SMS सन्देश मोवाइलमा सफलतापुर्वक पठाइयो!"
+          });
+        } else {
+          return res.status(400).json({
+            error: responseDataStr || "SMS API Error",
+            status: apiRes.status
+          });
+        }
+      }
+
+      // Sparrow SMS or Custom Gateway API
       const token = apiKey || process.env.SPARROW_SMS_TOKEN || process.env.SMS_API_KEY;
       const from = senderId || process.env.SPARROW_SMS_SENDER_ID || process.env.SMS_SENDER_ID || 'Info';
       let targetUrl = apiUrl || process.env.SPARROW_SMS_URL || 'https://api.sparrowsms.com/v2/sms/';
 
-      const toStr = Array.isArray(recipients) ? recipients.join(',') : recipients;
-
-      console.log(`Sending SMS via ${provider || 'Sparrow SMS'} to: ${toStr}`);
+      console.log(`Sending SMS via ${provider || 'Gateway'} to: ${toStr}`);
 
       if (token && token.trim() !== '') {
-        // Send request to actual Gateway API
         const apiRes = await axios.post(targetUrl, {
           token: token.trim(),
           from: from.trim(),
@@ -309,6 +363,7 @@ async function startServer() {
         if (apiRes.status >= 200 && apiRes.status < 300) {
           return res.json({
             success: true,
+            provider: provider || "Sparrow SMS",
             apiResponse: apiRes.data,
             message: "SMS गेटवे मार्फत वास्तविक सन्देश सफलतापूर्वक पठाइयो!"
           });
@@ -319,12 +374,11 @@ async function startServer() {
           });
         }
       } else {
-        // Simulation mode when API key is not configured in settings
         console.log("No SMS API key found in settings. Operating in simulation mode.");
         return res.json({
           success: true,
           simulated: true,
-          message: "SMS API Token प्राप्त नभएकाले सिम्युलेसन (परीक्षण) प्रणालीबाट सन्देश पठाइयो। वास्तविक SMS पठाउन Super Admin को General Settings मा Sparrow SMS को API Token र Sender ID राख्नुहोस्।"
+          message: "SMS API Token प्राप्त नभएकाले सिम्युलेसन मोडमा चलाइएको हो।"
         });
       }
     } catch (error: any) {
