@@ -453,6 +453,35 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     return finalVaccinesOrdered;
   }, []);
 
+  const cleanPhone = (phone?: string) => {
+    if (!phone) return '';
+    const nepaliToEnglishMap: Record<string, string> = {
+      '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+      '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+    };
+    let converted = String(phone).replace(/[०-९]/g, d => nepaliToEnglishMap[d] || d);
+    let digits = converted.replace(/\D/g, '');
+
+    if (digits.startsWith('977') && digits.length === 13) {
+      digits = digits.slice(3);
+    }
+    if (digits.startsWith('0') && digits.length === 11) {
+      digits = digits.slice(1);
+    }
+    if (digits.length > 10) {
+      const match = digits.match(/(9[678]\d{8})/);
+      if (match) return match[1];
+      const genMatch = digits.match(/(9\d{9})/);
+      if (genMatch) return genMatch[1];
+    }
+    return digits;
+  };
+
+  const isValid10DigitMobile = (phone?: string) => {
+    const cleaned = cleanPhone(phone);
+    return /^\d{10}$/.test(cleaned);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.childName.trim() || !formData.dobBs.trim() || !formData.jatCode?.trim() || !formData.vaccinationCenter) {
@@ -460,9 +489,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       return;
     }
 
+    let cleanedPhone = formData.phone ? cleanPhone(formData.phone) : '';
     if (formData.phone && formData.phone.trim() !== '') {
-      const trimmedPhone = formData.phone.trim();
-      if (!/^\d{10}$/.test(trimmedPhone)) {
+      if (!isValid10DigitMobile(formData.phone)) {
         setValidationError("फोन नम्बर राखिएको खण्डमा ठ्याक्कै १० अंकको हुनुपर्छ। (उदा: 9841234567)");
         return;
       }
@@ -471,6 +500,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     // Sanitize optional fields to null if they are undefined
     const sanitizedData = {
       ...formData,
+      phone: cleanedPhone || null,
       regDateBs: formData.regDateBs || getTodayBs(),
       regDateAd: formData.regDateAd || getTodayAd(),
       birthWeightKg: formData.birthWeightKg || null,

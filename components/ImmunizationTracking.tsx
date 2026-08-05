@@ -185,7 +185,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .replace(/\s*(जन्ममा|हप्ता|महिना|वर्ष|हप्तामा|महिनामा|वर्षमा).*/g, '')
       .trim();
 
-    cleaned = cleaned.replace(/DPT-HepB-Hib-?/gi, 'DPT');
+    cleaned = cleaned.replace(/DPT-HepB-Hib-?/gi, 'DPT-HepB-Hib');
     cleaned = cleaned.replace(/([A-Za-z]+)-(\d+)/g, '$1$2'); // OPV-1 -> OPV1, PCV-1 -> PCV1, MR-1 -> MR1, FIPV-1 -> FIPV1, Rota-1 -> Rota1
 
     return cleaned.trim();
@@ -2219,7 +2219,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                               const sampleItem = smsViewType === 'upcoming' ? upcomingSessionList[0] : defaulterList[0];
                               if (!sampleItem) return smsMessageText;
                               const childName = sampleItem.child.childName || 'राम श्रेष्ठ';
-                              const vaxNames = formatVaccinesForSms(sampleItem.vaccines) || 'BCG, DPT1, OPV1';
+                              const vaxNames = formatVaccinesForSms(sampleItem.vaccines) || 'BCG, DPT-HepB-Hib1, OPV1';
                               const center = sampleItem.child.vaccinationCenter || 'हडिया स्वास्थ्य चौकी';
                               const exactDate = sampleItem.scheduledDateBs || '2083-04-15';
                               return smsMessageText
