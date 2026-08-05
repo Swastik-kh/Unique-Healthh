@@ -616,7 +616,26 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
   const cleanPhone = useCallback((phone?: string) => {
     if (!phone) return '';
-    return phone.trim().replace(/\D/g, '').replace(/^977/, '');
+    const nepaliToEnglishMap: Record<string, string> = {
+      '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+      '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+    };
+    let converted = String(phone).replace(/[०-९]/g, d => nepaliToEnglishMap[d] || d);
+    let digits = converted.replace(/\D/g, '');
+
+    if (digits.startsWith('977') && digits.length === 13) {
+      digits = digits.slice(3);
+    }
+    if (digits.startsWith('0') && digits.length === 11) {
+      digits = digits.slice(1);
+    }
+    if (digits.length > 10) {
+      const match = digits.match(/(9[678]\d{8})/);
+      if (match) return match[1];
+      const genMatch = digits.match(/(9\d{9})/);
+      if (genMatch) return genMatch[1];
+    }
+    return digits;
   }, []);
 
   const isValid10DigitMobile = useCallback((phone?: string) => {
