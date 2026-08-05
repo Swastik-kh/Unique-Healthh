@@ -404,7 +404,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 ...justGivenVaccine, 
                 givenDateAd, 
                 givenDateBs, 
-                status: 'Given'
+                status: 'Given',
+                vaccinatedElsewhere: justGivenVaccine.vaccinatedElsewhere
             });
         }
     }
