@@ -48,6 +48,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
           { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता', icon: <MapPin size={16} /> },
           { id: 'lekha_prashasan', label: 'लेखा प्रशासन', icon: <Calculator size={16} /> },
           { id: 'bida_abedan', label: 'बिदा आवेदन', icon: <Calendar size={16} /> },
+          { id: 'sujhab_petika', label: 'सुझाव पेटिका', icon: <MessageSquare size={16} /> },
         ]
       },
       { 

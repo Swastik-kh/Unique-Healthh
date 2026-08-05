@@ -19,6 +19,7 @@ import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry,
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { TalimByabasthapan } from './TalimByabasthapan';
 import { LekhaPrashasan } from './LekhaPrashasan';
+import { SujhabPetika } from './SujhabPetika';
 import { UserManagement } from './UserManagement';
 import { OrganizationManagement } from './OrganizationManagement';
 import { Conference } from './Conference';
@@ -2010,6 +2011,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           </div>
         );
       }
+      case 'sujhab_petika': return <SujhabPetika currentUser={currentUser} />;
       case 'lekha_prashasan': return (
         <LekhaPrashasan 
           programs={financialPrograms || []}
