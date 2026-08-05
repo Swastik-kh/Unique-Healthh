@@ -702,8 +702,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
   const handleUpdateDoseStatus = () => {
     if (!selectedVaccineForUpdate) return;
-    const { record, vaccineIndex } = selectedVaccineForUpdate;
-    const currentVaccine = (record.vaccines || [])[vaccineIndex];
+    const { record: staleRecord, vaccineIndex } = selectedVaccineForUpdate;
+    
+    const latestRecord = (records || []).find(r => r.id === staleRecord.id) || staleRecord;
+    const currentVaccine = (latestRecord.vaccines || [])[vaccineIndex];
     if (!currentVaccine) return;
 
     if (!modalGivenDateBs.trim()) {
@@ -731,7 +733,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       }
     }
 
-    const preMappedVaccines = (record.vaccines || []).map((v, idx) => {
+    const preMappedVaccines = (latestRecord.vaccines || []).map((v, idx) => {
         if (idx === vaccineIndex) {
             return {
                 ...v,
@@ -744,18 +746,18 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         return v;
     });
 
-    const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, record.dobAd, record.gender);
-    onUpdateRecord({ ...record, vaccines: finalVaccines });
+    const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, latestRecord.dobAd, latestRecord.gender);
+    onUpdateRecord({ ...latestRecord, vaccines: finalVaccines });
     
     // If this record is currently being edited on the top form, update the form state as well
-    if (editingRecordId === record.id) {
+    if (editingRecordId === latestRecord.id) {
       setFormData(prev => ({
         ...prev,
         vaccines: finalVaccines
       }));
     }
 
-    setSuccessMessage(`${record.childName} को खोप '${currentVaccine.name}' को विवरण सफलतापूर्वक सुरक्षित गरियो (Vaccine details successfully updated)`);
+    setSuccessMessage(`${latestRecord.childName} को खोप '${currentVaccine.name}' को विवरण सफलतापूर्वक सुरक्षित गरियो (Vaccine details successfully updated)`);
     setSelectedVaccineForUpdate(null);
   };
 
