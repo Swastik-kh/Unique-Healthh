@@ -116,8 +116,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       setIsServicesLoading(true);
       const orgKey = (currentUser?.organizationName || '').trim();
       
-      const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
-      const unsubMapping = onSnapshot(mappingDocRef, (d) => {
+      const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
+      const unsubMapping = onSnapshot(settingsDocRef, (d) => {
           if (d.exists()) {
               setHiddenSharedServiceIds(d.data().hiddenSharedServiceIds || []);
           } else {
@@ -171,9 +171,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
         await setDoc(doc(sujhabDb, 'citizenServices', id), data);
         
         if (isEditingShared && editingService) {
-            const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+            const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
             const newHidden = Array.from(new Set([...hiddenSharedServiceIds, editingService.id]));
-            await setDoc(mappingDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
+            await setDoc(settingsDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
         }
 
         setShowServiceModal(false);
@@ -196,9 +196,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     try {
         if (isShared) {
             const orgKey = (currentUser?.organizationName || '').trim();
-            const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+            const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
             const newHidden = Array.from(new Set([...hiddenSharedServiceIds, service.id]));
-            await setDoc(mappingDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
+            await setDoc(settingsDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
         } else {
             await deleteDoc(doc(sujhabDb, 'citizenServices', service.id));
         }
