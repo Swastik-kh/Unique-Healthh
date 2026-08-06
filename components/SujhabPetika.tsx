@@ -47,6 +47,8 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSelectedOrg, setSettingsSelectedOrg] = useState('');
+  const [newManualOffice, setNewManualOffice] = useState('');
+  const [mappedOrgsInfo, setMappedOrgsInfo] = useState<{org: string, offices: string[]}[]>([]);
   const [allOffices, setAllOffices] = useState<string[]>([]);
   const [selectedOffices, setSelectedOffices] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,6 +70,25 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   useEffect(() => {
     fetchData();
   }, [currentUser]);
+  
+  useEffect(() => {
+    if (isSuperAdmin) {
+      const fetchAllMappings = async () => {
+        try {
+          const querySnapshot = await getDocs(collection(localDb, 'sujhabPetikaOfficeMap'));
+          const mappings: {org: string, offices: string[]}[] = [];
+          querySnapshot.forEach((doc) => {
+            mappings.push({ org: doc.id, offices: doc.data().officeNames || [] });
+          });
+          setMappedOrgsInfo(mappings);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      fetchAllMappings();
+    }
+  }, [isSuperAdmin, showSettings]);
+
 
   const chunkArray = (array: any[], size: number) => {
     const chunks = [];
@@ -132,6 +153,19 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
     }
   };
 
+
+  const addManualOffice = () => {
+    if (!newManualOffice.trim()) return;
+    const office = newManualOffice.trim();
+    if (!allOffices.includes(office)) {
+      setAllOffices(prev => [...prev, office].sort());
+    }
+    if (!selectedOffices.includes(office)) {
+      setSelectedOffices(prev => [...prev, office]);
+    }
+    setNewManualOffice('');
+  };
+
   const loadMappingForOrg = async (orgName: string) => {
       if (!orgName) {
           setSelectedOffices([]);
@@ -159,12 +193,23 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         const q = query(collection(sujhabDb, 'gunasos'));
         const querySnapshot = await getDocs(q);
         const offices = new Set<string>();
+        
+        // From gunasos collection
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (data.office) {
                 offices.add(data.office);
             }
         });
+
+        // From users prop (those with sujhab_petika access)
+        users.filter(u => u.allowedMenus?.includes('sujhab_petika'))
+             .forEach(u => {
+                 if (u.organizationName) {
+                     offices.add(u.organizationName);
+                 }
+             });
+
         setAllOffices(Array.from(offices).sort());
     } catch(err) {
         console.error("Error fetching distinct offices", err);
@@ -310,9 +355,15 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
     }
   };
 
-  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
-  const allOrganizations = Array.from(new Set(users?.map(u => u.organizationName).filter(Boolean))).sort();
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN';
+  const allOrganizations = useMemo(() => {
+    return Array.from(new Set(
+      users?.filter(u => u.allowedMenus?.includes('sujhab_petika'))
+            .map(u => u.organizationName)
+            .filter(Boolean)
+    )).sort();
+  }, [users]);
 
   if (loading) {
       return (
@@ -351,13 +402,15 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
             </div>
             
             
-            <button 
-              onClick={openQRModal}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2 font-nepali font-bold text-sm"
-            >
-                <QrCode size={18} />
-                QR पोस्टर
-            </button>
+            {isAdmin && (
+              <button 
+                onClick={openQRModal}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2 font-nepali font-bold text-sm"
+              >
+                  <QrCode size={18} />
+                  QR पोस्टर
+              </button>
+            )}
             
             {isSuperAdmin && (
                 <button 
@@ -790,6 +843,47 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
                   )}
               </div>
             </div>
+          </div>
+      )}
+
+      
+            {isSuperAdmin && allOrganizations.length > 0 && (
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mt-8">
+              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 font-nepali border-b border-slate-100 pb-2">
+                  सबै संस्थाहरूको सूची र म्यापिङ स्थिति
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allOrganizations.map((org, idx) => {
+                      const mapping = mappedOrgsInfo.find(m => m.org === org);
+                      return (
+                          <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col gap-2">
+                              <div className="font-bold text-slate-800 font-nepali text-sm flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <Building size={16} className={mapping ? "text-primary-600" : "text-slate-400"} />
+                                      {org}
+                                  </div>
+                                  {mapping ? (
+                                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
+                                  ) : (
+                                      <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">No Mapping</span>
+                                  )}
+                              </div>
+                              {mapping && mapping.offices.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-1">
+                                      {mapping.offices.map((off, oidx) => (
+                                          <span key={oidx} className="text-[10px] bg-white px-2 py-1 rounded-lg border border-slate-200 text-slate-500 font-nepali shadow-sm">
+                                              {off}
+                                          </span>
+                                      ))}
+                                  </div>
+                              )}
+                              {!mapping && (
+                                  <p className="text-[10px] text-slate-400 italic font-nepali">सेटिङ्सबाट म्यापिङ गर्नुहोस।</p>
+                              )}
+                          </div>
+                      );
+                  })}
+              </div>
           </div>
       )}
 
