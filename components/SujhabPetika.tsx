@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MessageSquare, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink, RefreshCw } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, orderBy, where, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db as localDb } from '../firestore';
@@ -407,6 +407,16 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
                 </div>
             </div>
             
+            
+            <button 
+              onClick={fetchData}
+              disabled={loading}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2 font-nepali font-bold text-sm disabled:opacity-50"
+              title="रिफ्रेस गर्नुहोस्"
+            >
+                <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+                रिफ्रेस
+            </button>
             
             {isAdmin && (
               <button 
