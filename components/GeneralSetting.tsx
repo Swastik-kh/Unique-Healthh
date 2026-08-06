@@ -9,6 +9,7 @@ import { OrganizationSettings, User as UserType, MenuConfigItem } from '../types
 import { MenuManagement } from './MenuManagement';
 import { SearchableSelect } from './SearchableSelect';
 import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } from '../constants/dhis2Metadata';
+import { db as localDb } from '../firestore';
 
 const sujhabFirebaseConfig = {
   apiKey: "AIzaSyAtt4_yw8_76inlXJPgMNRV0h0vqPpvgt8",
@@ -1119,8 +1120,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
 
       {showServiceModal && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+              <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
                       <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
                           {editingService ? 'सेवा सम्पादन गर्नुहोस्' : 'नयाँ सेवा थप्नुहोस्'}
                       </h3>
@@ -1128,79 +1129,81 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                           <X size={20} />
                       </button>
                   </div>
-                  <form onSubmit={handleSaveService} className="p-6">
-                      <div className="grid md:grid-cols-2 gap-4">
-                          <Input 
-                              label="सेवाको नाम (नेपाली)" 
-                              value={serviceForm.serviceNep || ''} 
-                              onChange={e => setServiceForm({...serviceForm, serviceNep: e.target.value})} 
-                              required 
-                          />
-                          <Input 
-                              label="सेवाको नाम (English)" 
-                              value={serviceForm.serviceEng || ''} 
-                              onChange={e => setServiceForm({...serviceForm, serviceEng: e.target.value})} 
-                          />
-                          <Input 
-                              label="शाखा/इकाई" 
-                              value={serviceForm.departmentNep || ''} 
-                              onChange={e => setServiceForm({...serviceForm, departmentNep: e.target.value})} 
-                          />
-                          <Select 
-                              label="श्रेणी (Category)" 
-                              options={[
-                                  { id: 'admin', value: 'admin', label: 'प्रशासन (Admin)' },
-                                  { id: 'opd', value: 'opd', label: 'OPD' },
-                                  { id: 'maternity', value: 'maternity', label: 'प्रसुती (Maternity)' },
-                                  { id: 'immunization', value: 'immunization', label: 'खोप (Immunization)' },
-                                  { id: 'pharmacy', value: 'pharmacy', label: 'फार्मेसी (Pharmacy)' },
-                                  { id: 'lab', value: 'lab', label: 'प्रयोगशाला (Lab)' },
-                                  { id: 'emergency', value: 'emergency', label: 'आकस्मिक (Emergency)' }
-                              ]} 
-                              value={serviceForm.category || 'admin'} 
-                              onChange={e => setServiceForm({...serviceForm, category: e.target.value as any})} 
-                          />
-                          <Input 
-                              label="लाग्ने समय" 
-                              value={serviceForm.timeNep || ''} 
-                              onChange={e => setServiceForm({...serviceForm, timeNep: e.target.value})} 
-                          />
-                          <Input 
-                              label="दस्तुर (Fee)" 
-                              value={serviceForm.feeNep || ''} 
-                              onChange={e => setServiceForm({...serviceForm, feeNep: e.target.value})} 
-                          />
-                          <Input 
-                              label="जिम्मेवार कर्मचारी" 
-                              value={serviceForm.officerNep || ''} 
-                              onChange={e => setServiceForm({...serviceForm, officerNep: e.target.value})} 
-                          />
-                          <Input 
-                              label="कक्ष नं." 
-                              value={serviceForm.roomNo || ''} 
-                              onChange={e => setServiceForm({...serviceForm, roomNo: e.target.value})} 
-                          />
+                  <form onSubmit={handleSaveService} className="flex flex-col overflow-hidden">
+                      <div className="p-6 overflow-y-auto">
+                          <div className="grid md:grid-cols-2 gap-4">
+                              <Input 
+                                  label="सेवाको नाम (नेपाली)" 
+                                  value={serviceForm.serviceNep || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, serviceNep: e.target.value})} 
+                                  required 
+                              />
+                              <Input 
+                                  label="सेवाको नाम (English)" 
+                                  value={serviceForm.serviceEng || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, serviceEng: e.target.value})} 
+                              />
+                              <Input 
+                                  label="शाखा/इकाई" 
+                                  value={serviceForm.departmentNep || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, departmentNep: e.target.value})} 
+                              />
+                              <Select 
+                                  label="श्रेणी (Category)" 
+                                  options={[
+                                      { id: 'admin', value: 'admin', label: 'प्रशासन (Admin)' },
+                                      { id: 'opd', value: 'opd', label: 'OPD' },
+                                      { id: 'maternity', value: 'maternity', label: 'प्रसुती (Maternity)' },
+                                      { id: 'immunization', value: 'immunization', label: 'खोप (Immunization)' },
+                                      { id: 'pharmacy', value: 'pharmacy', label: 'फार्मेसी (Pharmacy)' },
+                                      { id: 'lab', value: 'lab', label: 'प्रयोगशाला (Lab)' },
+                                      { id: 'emergency', value: 'emergency', label: 'आकस्मिक (Emergency)' }
+                                  ]} 
+                                  value={serviceForm.category || 'admin'} 
+                                  onChange={e => setServiceForm({...serviceForm, category: e.target.value as any})} 
+                              />
+                              <Input 
+                                  label="लाग्ने समय" 
+                                  value={serviceForm.timeNep || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, timeNep: e.target.value})} 
+                              />
+                              <Input 
+                                  label="दस्तुर (Fee)" 
+                                  value={serviceForm.feeNep || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, feeNep: e.target.value})} 
+                              />
+                              <Input 
+                                  label="जिम्मेवार कर्मचारी" 
+                                  value={serviceForm.officerNep || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, officerNep: e.target.value})} 
+                              />
+                              <Input 
+                                  label="कक्ष नं." 
+                                  value={serviceForm.roomNo || ''} 
+                                  onChange={e => setServiceForm({...serviceForm, roomNo: e.target.value})} 
+                              />
+                          </div>
+                          <div className="mt-4">
+                              <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">आवश्यक कागजातहरू</label>
+                              <textarea 
+                                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[100px]"
+                                  value={serviceForm.docsNep || ''}
+                                  onChange={e => setServiceForm({...serviceForm, docsNep: e.target.value})}
+                                  placeholder="कागजातहरूको सूची..."
+                              />
+                          </div>
                       </div>
-                      <div className="mt-4">
-                          <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">आवश्यक कागजातहरू</label>
-                          <textarea 
-                              className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[80px]"
-                              value={serviceForm.docsNep || ''}
-                              onChange={e => setServiceForm({...serviceForm, docsNep: e.target.value})}
-                              placeholder="कागजातहरूको सूची..."
-                          />
-                      </div>
-                      <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+                      <div className="p-4 flex justify-end gap-3 border-t bg-slate-50 shrink-0">
                           <button 
                               type="button" 
                               onClick={() => setShowServiceModal(false)}
-                              className="px-6 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+                              className="px-6 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
                           >
                               रद्द गर्नुहोस्
                           </button>
                           <button 
                               type="submit"
-                              className="px-8 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all flex items-center gap-2"
+                              className="px-8 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all flex items-center gap-2 shadow-sm"
                           >
                               <Save size={18} /> सुरक्षित गर्नुहोस्
                           </button>
