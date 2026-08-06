@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MessageSquare, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink, RefreshCw } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, orderBy, where, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, orderBy, where, doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db as localDb } from '../firestore';
 
 const firebaseConfig = {
@@ -285,6 +285,21 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
       }
   };
 
+  const handleDeleteGunaso = async (id: string) => {
+    if (!window.confirm("के तपाईं यो सुझाव स्थायी रूपमा मेटाउन चाहनुहुन्छ? यो कार्य फिर्ता हुँदैन।")) return;
+
+    try {
+      const gunasoRef = doc(sujhabDb, 'gunasos', id);
+      await deleteDoc(gunasoRef);
+      
+      setGunasos(prev => prev.filter(g => g.id !== id));
+      alert("सुझाव सफलतापूर्वक मेटाइयो।");
+    } catch (error) {
+      console.error("Error deleting gunaso:", error);
+      alert("त्रुटि: सुझाव मेटाउन सकिएन।");
+    }
+  };
+
   const openActionModal = (gunaso: Gunaso) => {
       setShowActionModal(gunaso);
       setActionStatus(gunaso.status || 'registered');
@@ -481,12 +496,21 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
                               {getStatusBadge(g.status)}
                               
                               {isAdmin && (
-                                  <button
-                                      onClick={() => openActionModal(g)}
-                                      className="ml-2 px-2 py-1 bg-white border border-primary-200 text-primary-600 rounded text-xs font-bold font-nepali hover:bg-primary-50 transition-colors"
-                                  >
-                                      कारबाही गर्नुहोस्
-                                  </button>
+                                  <div className="flex items-center gap-1">
+                                      <button
+                                          onClick={() => openActionModal(g)}
+                                          className="px-2 py-1 bg-white border border-primary-200 text-primary-600 rounded text-xs font-bold font-nepali hover:bg-primary-50 transition-colors"
+                                      >
+                                          कारबाही गर्नुहोस्
+                                      </button>
+                                      <button
+                                          onClick={() => handleDeleteGunaso(g.id)}
+                                          className="p-1 bg-white border border-red-200 text-red-500 rounded hover:bg-red-50 transition-colors"
+                                          title="मेटाउनुहोस्"
+                                      >
+                                          <Trash2 size={14} />
+                                      </button>
+                                  </div>
                               )}
                           </div>
                       </div>
