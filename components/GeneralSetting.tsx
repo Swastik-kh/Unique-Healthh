@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X } from 'lucide-react';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -7,6 +9,33 @@ import { OrganizationSettings, User as UserType, MenuConfigItem } from '../types
 import { MenuManagement } from './MenuManagement';
 import { SearchableSelect } from './SearchableSelect';
 import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } from '../constants/dhis2Metadata';
+
+const sujhabFirebaseConfig = {
+  apiKey: "AIzaSyAtt4_yw8_76inlXJPgMNRV0h0vqPpvgt8",
+  authDomain: "asymmetric-flow-scf5x.firebaseapp.com",
+  projectId: "asymmetric-flow-scf5x",
+  storageBucket: "asymmetric-flow-scf5x.firebasestorage.app",
+  messagingSenderId: "1047209545761",
+  appId: "1:1047209545761:web:d81af21e1f0d477cf31360"
+};
+
+const SUJHAB_APP_NAME = "sujhabPetikaSource";
+const sujhabApp = getApps().find(a => a.name === SUJHAB_APP_NAME) || initializeApp(sujhabFirebaseConfig, SUJHAB_APP_NAME);
+const sujhabDb = getFirestore(sujhabApp, "ai-studio-digitalsujabpeti-f3ba13ee-e50b-48cc-bf1e-2244437f6abf");
+
+interface CitizenService {
+    id: string;
+    serviceNep: string;
+    serviceEng?: string;
+    departmentNep: string;
+    docsNep: string;
+    timeNep: string;
+    feeNep: string;
+    officerNep: string;
+    roomNo: string;
+    category: 'opd' | 'maternity' | 'immunization' | 'pharmacy' | 'lab' | 'emergency' | 'admin';
+    office: string;
+}
 
 interface GeneralSettingProps {
     currentUser: UserType;
@@ -67,9 +96,115 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     }
   }, [currentUser.role]);
 
-  const [activeTab, setActiveTab] = useState<'general' | 'menu'>(
+  const [activeTab, setActiveTab] = useState<'general' | 'menu' | 'nagarik_badapatra'>(
     (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') ? 'general' : 'menu'
   );
+
+  const [citizenServices, setCitizenServices] = useState<CitizenService[]>([]);
+  const [hiddenSharedServiceIds, setHiddenSharedServiceIds] = useState<string[]>([]);
+  const [isServicesLoading, setIsServicesLoading] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [editingService, setEditingService] = useState<CitizenService | null>(null);
+  const [serviceForm, setServiceForm] = useState<Partial<CitizenService>>({
+      category: 'admin'
+  });
+
+  useEffect(() => {
+    if (activeTab === 'nagarik_badapatra') {
+      setIsServicesLoading(true);
+      const orgKey = (currentUser?.organizationName || '').trim();
+      
+      const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+      const unsubMapping = onSnapshot(mappingDocRef, (d) => {
+          if (d.exists()) {
+              setHiddenSharedServiceIds(d.data().hiddenSharedServiceIds || []);
+          } else {
+              setHiddenSharedServiceIds([]);
+          }
+      });
+
+      const unsubServices = onSnapshot(collection(sujhabDb, 'citizenServices'), (snapshot) => {
+        const services = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CitizenService));
+        setCitizenServices(services);
+        setIsServicesLoading(false);
+      }, (err) => {
+        console.error("Error fetching services:", err);
+        setIsServicesLoading(false);
+      });
+
+      return () => {
+          unsubMapping();
+          unsubServices();
+      };
+    }
+  }, [activeTab, currentUser.organizationName]);
+
+  const displayedServices = useMemo(() => {
+      const orgKey = (currentUser?.organizationName || '').trim();
+      return citizenServices.filter(s => {
+          const isOwn = (s.office || '').trim() === orgKey;
+          const isShared = s.office === 'all' || !s.office;
+          const isHidden = hiddenSharedServiceIds.includes(s.id);
+          return isOwn || (isShared && !isHidden);
+      }).sort((a, b) => a.serviceNep.localeCompare(b.serviceNep, 'ne'));
+  }, [citizenServices, hiddenSharedServiceIds, currentUser.organizationName]);
+
+  const handleSaveService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceForm.serviceNep) return;
+    
+    const orgKey = (currentUser?.organizationName || '').trim();
+    const isEditingShared = editingService && (editingService.office === 'all' || !editingService.office);
+    
+    // If editing shared, we create a NEW doc and hide the old one for this org
+    const id = isEditingShared ? `svc_${Date.now()}` : (editingService?.id || `svc_${Date.now()}`);
+    
+    const data = {
+        ...serviceForm,
+        id,
+        office: orgKey
+    };
+    
+    try {
+        await setDoc(doc(sujhabDb, 'citizenServices', id), data);
+        
+        if (isEditingShared && editingService) {
+            const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+            const newHidden = Array.from(new Set([...hiddenSharedServiceIds, editingService.id]));
+            await setDoc(mappingDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
+        }
+
+        setShowServiceModal(false);
+        setEditingService(null);
+        setServiceForm({ category: 'admin' });
+    } catch (err) {
+        console.error("Error saving service:", err);
+        alert("त्रुटि: डेटा सेभ गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteService = async (service: CitizenService) => {
+    const isShared = service.office === 'all' || !service.office;
+    const msg = isShared 
+        ? "के तपाईं यो साझा सेवालाई आफ्नो सूचीबाट हटाउन चाहनुहुन्छ? (यसले अरू संस्थालाई असर गर्ने छैन)" 
+        : "के तपाईं यो सेवा हटाउन चाहनुहुन्छ?";
+
+    if (!window.confirm(msg)) return;
+    
+    try {
+        if (isShared) {
+            const orgKey = (currentUser?.organizationName || '').trim();
+            const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+            const newHidden = Array.from(new Set([...hiddenSharedServiceIds, service.id]));
+            await setDoc(mappingDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
+        } else {
+            await deleteDoc(doc(sujhabDb, 'citizenServices', service.id));
+        }
+    } catch (err) {
+        console.error("Error deleting service:", err);
+        alert("त्रुटि: डेटा मेटाउन सकिएन।");
+    }
+  };
 
   // Security Guard: Admin, Super Admin, or users explicitly granted Menu Management Access
   const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || !!currentUser.canManageMenu;
@@ -185,10 +320,18 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 <GripVertical size={14} /> मेनु (Menu)
               </button>
             )}
+            {currentUser.allowedMenus?.includes('sujhab_petika') && (
+              <button 
+                onClick={() => setActiveTab('nagarik_badapatra')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'nagarik_badapatra' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <ClipboardList size={14} /> नागरिक बडापत्र (Citizen Charter)
+              </button>
+            )}
         </div>
       </div>
 
-      {activeTab === 'general' ? (
+      {activeTab === 'general' && (
         <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -871,8 +1014,200 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
               <button type="button" onClick={handleReset} className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-medium hover:bg-red-50"><RotateCcw size={18} />रिसेट (Reset)</button></div><p className="text-xs text-center text-slate-400 mt-4">Last updated: {new Date().toLocaleDateString()}</p></div>
         </div>
       </form>
-      ) : (
+      )}
+
+      {activeTab === 'menu' && (
         <MenuManagement currentConfig={localSettings.menuConfig} onSave={handleSaveMenuConfig} />
+      )}
+
+      {activeTab === 'nagarik_badapatra' && (
+          <div className="space-y-6 animate-in fade-in">
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b pb-4">
+                      <div>
+                          <h3 className="text-lg font-bold text-slate-800 font-nepali flex items-center gap-2">
+                              <ClipboardList className="text-primary-600" size={20} /> नागरिक बडापत्र व्यवस्थापन
+                          </h3>
+                          <p className="text-xs text-slate-500">तपाईंको संस्थाले प्रदान गर्ने सेवाहरूको विवरण (Citizen Charter)</p>
+                      </div>
+                      <button 
+                          onClick={() => {
+                              setEditingService(null);
+                              setServiceForm({ category: 'admin' });
+                              setShowServiceModal(true);
+                          }}
+                          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                      >
+                          <Plus size={18} /> नयाँ सेवा थप्नुहोस्
+                      </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left">
+                          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-y border-slate-200">
+                              <tr>
+                                  <th className="px-4 py-3 font-nepali">सेवा (Service)</th>
+                                  <th className="px-4 py-3 font-nepali">शाखा (Department)</th>
+                                  <th className="px-4 py-3 font-nepali">समय (Time)</th>
+                                  <th className="px-4 py-3 font-nepali text-center">दस्तुर (Fee)</th>
+                                  <th className="px-4 py-3 font-nepali">कर्मचारी (Officer)</th>
+                                  <th className="px-4 py-3 font-nepali text-center">कार्य (Action)</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                              {displayedServices.length > 0 ? (
+                                  displayedServices.map((svc) => (
+                                      <tr key={svc.id} className="hover:bg-slate-50/80 transition-colors group">
+                                          <td className="px-4 py-4">
+                                              <div className="font-bold text-slate-800 font-nepali">{svc.serviceNep}</div>
+                                              <div className="text-[10px] text-slate-400 font-mono uppercase">{svc.category}</div>
+                                          </td>
+                                          <td className="px-4 py-4 text-slate-600 font-nepali">{svc.departmentNep}</td>
+                                          <td className="px-4 py-4 text-slate-600 font-nepali">{svc.timeNep}</td>
+                                          <td className="px-4 py-4 text-slate-600 font-nepali text-center">{svc.feeNep}</td>
+                                          <td className="px-4 py-4 text-slate-600 font-nepali">
+                                              <div>{svc.officerNep}</div>
+                                              <div className="text-[10px] text-slate-400">कक्ष नं: {svc.roomNo}</div>
+                                          </td>
+                                          <td className="px-4 py-4">
+                                              <div className="flex justify-center items-center gap-1">
+                                                  <button 
+                                                      onClick={() => {
+                                                          setEditingService(svc);
+                                                          setServiceForm(svc);
+                                                          setShowServiceModal(true);
+                                                      }}
+                                                      className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                      title="सम्पादन गर्नुहोस्"
+                                                  >
+                                                      <Edit2 size={14} />
+                                                  </button>
+                                                  <button 
+                                                      onClick={() => handleDeleteService(svc)}
+                                                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                      title="मेटाउनुहोस्"
+                                                  >
+                                                      <Trash2 size={14} />
+                                                  </button>
+                                                  {(svc.office !== currentUser.organizationName) && (
+                                                      <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold">साझा</span>
+                                                  )}
+                                              </div>
+                                          </td>
+                                      </tr>
+                                  ))
+                              ) : (
+                                  <tr>
+                                      <td colSpan={6} className="px-4 py-16 text-center">
+                                          {isServicesLoading ? (
+                                              <div className="flex flex-col items-center gap-2">
+                                                  <RefreshCw className="animate-spin text-slate-300" size={24} />
+                                                  <p className="text-slate-400 text-xs">लोड हुँदैछ...</p>
+                                              </div>
+                                          ) : (
+                                              <p className="text-slate-400 text-xs italic">कुनै सेवा फेला परेन।</p>
+                                          )}
+                                      </td>
+                                  </tr>
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showServiceModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                      <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                          {editingService ? 'सेवा सम्पादन गर्नुहोस्' : 'नयाँ सेवा थप्नुहोस्'}
+                      </h3>
+                      <button onClick={() => setShowServiceModal(false)} className="text-slate-400 hover:text-slate-600">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <form onSubmit={handleSaveService} className="p-6">
+                      <div className="grid md:grid-cols-2 gap-4">
+                          <Input 
+                              label="सेवाको नाम (नेपाली)" 
+                              value={serviceForm.serviceNep || ''} 
+                              onChange={e => setServiceForm({...serviceForm, serviceNep: e.target.value})} 
+                              required 
+                          />
+                          <Input 
+                              label="सेवाको नाम (English)" 
+                              value={serviceForm.serviceEng || ''} 
+                              onChange={e => setServiceForm({...serviceForm, serviceEng: e.target.value})} 
+                          />
+                          <Input 
+                              label="शाखा/इकाई" 
+                              value={serviceForm.departmentNep || ''} 
+                              onChange={e => setServiceForm({...serviceForm, departmentNep: e.target.value})} 
+                          />
+                          <Select 
+                              label="श्रेणी (Category)" 
+                              options={[
+                                  { id: 'admin', value: 'admin', label: 'प्रशासन (Admin)' },
+                                  { id: 'opd', value: 'opd', label: 'OPD' },
+                                  { id: 'maternity', value: 'maternity', label: 'प्रसुती (Maternity)' },
+                                  { id: 'immunization', value: 'immunization', label: 'खोप (Immunization)' },
+                                  { id: 'pharmacy', value: 'pharmacy', label: 'फार्मेसी (Pharmacy)' },
+                                  { id: 'lab', value: 'lab', label: 'प्रयोगशाला (Lab)' },
+                                  { id: 'emergency', value: 'emergency', label: 'आकस्मिक (Emergency)' }
+                              ]} 
+                              value={serviceForm.category || 'admin'} 
+                              onChange={e => setServiceForm({...serviceForm, category: e.target.value as any})} 
+                          />
+                          <Input 
+                              label="लाग्ने समय" 
+                              value={serviceForm.timeNep || ''} 
+                              onChange={e => setServiceForm({...serviceForm, timeNep: e.target.value})} 
+                          />
+                          <Input 
+                              label="दस्तुर (Fee)" 
+                              value={serviceForm.feeNep || ''} 
+                              onChange={e => setServiceForm({...serviceForm, feeNep: e.target.value})} 
+                          />
+                          <Input 
+                              label="जिम्मेवार कर्मचारी" 
+                              value={serviceForm.officerNep || ''} 
+                              onChange={e => setServiceForm({...serviceForm, officerNep: e.target.value})} 
+                          />
+                          <Input 
+                              label="कक्ष नं." 
+                              value={serviceForm.roomNo || ''} 
+                              onChange={e => setServiceForm({...serviceForm, roomNo: e.target.value})} 
+                          />
+                      </div>
+                      <div className="mt-4">
+                          <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">आवश्यक कागजातहरू</label>
+                          <textarea 
+                              className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none min-h-[80px]"
+                              value={serviceForm.docsNep || ''}
+                              onChange={e => setServiceForm({...serviceForm, docsNep: e.target.value})}
+                              placeholder="कागजातहरूको सूची..."
+                          />
+                      </div>
+                      <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+                          <button 
+                              type="button" 
+                              onClick={() => setShowServiceModal(false)}
+                              className="px-6 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+                          >
+                              रद्द गर्नुहोस्
+                          </button>
+                          <button 
+                              type="submit"
+                              className="px-8 py-2 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all flex items-center gap-2"
+                          >
+                              <Save size={18} /> सुरक्षित गर्नुहोस्
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
       )}
     </div>
   );
