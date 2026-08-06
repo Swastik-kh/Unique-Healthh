@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MessageSquare, Clock, CheckCircle, AlertCircle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink } from 'lucide-react';
+import { MessageSquare, Clock, CheckCircle, AlertCircle, AlertTriangle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, orderBy, where, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db as localDb } from '../firestore';
@@ -47,13 +47,14 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   const allOrganizations = useMemo(() => {
     return Array.from(new Set(
       users?.filter(u => u.allowedMenus?.includes('sujhab_petika'))
-            .map(u => u.organizationName)
+            .map(u => (u.organizationName || '').trim())
             .filter(Boolean)
     )).sort();
   }, [users]);
 
   const [gunasos, setGunasos] = useState<Gunaso[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSelectedOrg, setSettingsSelectedOrg] = useState('');
@@ -109,17 +110,19 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const fetchData = async () => {
-    if (!currentUser?.organizationName) {
+    const orgKey = (currentUser?.organizationName || '').trim();
+    if (!orgKey) {
       setLoading(false);
       return;
     }
     
     setLoading(true);
     setIsUnconfigured(false);
+    setFetchError(null);
     
     try {
       // 1. Read mapping from local DB
-      const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', currentUser.organizationName);
+      const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
       const mappingDoc = await getDoc(mappingDocRef);
       
       let mappedOffices: string[] = [];
@@ -156,8 +159,9 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
       
       setGunasos(allFetchedGunasos);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
+      setFetchError(error?.message || 'अज्ञात त्रुटि');
     } finally {
       setLoading(false);
     }
@@ -177,12 +181,13 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const loadMappingForOrg = async (orgName: string) => {
-      if (!orgName) {
+      const trimmedOrg = (orgName || '').trim();
+      if (!trimmedOrg) {
           setSelectedOffices([]);
           return;
       }
       try {
-          const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgName);
+          const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', trimmedOrg);
           const mappingDoc = await getDoc(mappingDocRef);
           if (mappingDoc.exists()) {
               setSelectedOffices(mappingDoc.data().officeNames || []);
@@ -196,7 +201,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
 
   const openSettings = async () => {
     setShowSettings(true);
-    const targetOrg = currentUser?.organizationName || '';
+    const targetOrg = (currentUser?.organizationName || '').trim();
     setSettingsSelectedOrg(targetOrg);
     await loadMappingForOrg(targetOrg);
     try {
@@ -208,7 +213,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (data.office) {
-                offices.add(data.office);
+                offices.add(data.office.trim());
             }
         });
 
@@ -216,7 +221,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         users.filter(u => u.allowedMenus?.includes('sujhab_petika'))
              .forEach(u => {
                  if (u.organizationName) {
-                     offices.add(u.organizationName);
+                     offices.add(u.organizationName.trim());
                  }
              });
 
@@ -227,13 +232,14 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const saveSettings = async () => {
-    if (!settingsSelectedOrg) return;
+    const orgKey = (settingsSelectedOrg || '').trim();
+    if (!orgKey) return;
     setIsSaving(true);
     try {
-        const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', settingsSelectedOrg);
+        const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
         await setDoc(mappingDocRef, { officeNames: selectedOffices }, { merge: true });
         
-        if (settingsSelectedOrg === currentUser?.organizationName) {
+        if (orgKey === (currentUser?.organizationName || '').trim()) {
             fetchData();
         } else {
             alert("म्यापिङ सफलतापूर्वक सेभ भयो।");
@@ -424,6 +430,16 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         </div>
       </div>
       
+      {fetchError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 mb-6">
+              <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={20} />
+              <div>
+                  <h3 className="text-sm font-bold text-red-800 font-nepali">डाटा ल्याउन समस्या भयो</h3>
+                  <p className="text-xs text-red-600 mt-1 font-mono">{fetchError}</p>
+              </div>
+          </div>
+      )}
+
       {isUnconfigured || gunasos.length === 0 ? (
         <div className="bg-white p-12 rounded-xl border border-slate-200 text-center shadow-sm">
           <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
