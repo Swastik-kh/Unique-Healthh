@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MessageSquare, Clock, CheckCircle, AlertCircle, FileText, User, Phone, Mail, Building, Archive, Settings, X, CheckSquare, Square, QrCode, Printer, Plus, Download, ExternalLink } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, orderBy, where, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
@@ -42,6 +42,16 @@ interface SujhabPetikaProps {
 }
 
 export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users = [] }) => {
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN';
+  const allOrganizations = useMemo(() => {
+    return Array.from(new Set(
+      users?.filter(u => u.allowedMenus?.includes('sujhab_petika'))
+            .map(u => u.organizationName)
+            .filter(Boolean)
+    )).sort();
+  }, [users]);
+
   const [gunasos, setGunasos] = useState<Gunaso[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -354,16 +364,6 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
       return '';
     }
   };
-
-  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN';
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN';
-  const allOrganizations = useMemo(() => {
-    return Array.from(new Set(
-      users?.filter(u => u.allowedMenus?.includes('sujhab_petika'))
-            .map(u => u.organizationName)
-            .filter(Boolean)
-    )).sort();
-  }, [users]);
 
   if (loading) {
       return (
