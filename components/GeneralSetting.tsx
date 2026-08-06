@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
@@ -105,6 +105,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [hiddenSharedServiceIds, setHiddenSharedServiceIds] = useState<string[]>([]);
   const [isServicesLoading, setIsServicesLoading] = useState(false);
   const [showServiceModal, setShowServiceModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [editingService, setEditingService] = useState<CitizenService | null>(null);
   const [serviceForm, setServiceForm] = useState<Partial<CitizenService>>({
       category: 'admin'
@@ -1031,16 +1032,24 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                           </h3>
                           <p className="text-xs text-slate-500">तपाईंको संस्थाले प्रदान गर्ने सेवाहरूको विवरण (Citizen Charter)</p>
                       </div>
-                      <button 
-                          onClick={() => {
-                              setEditingService(null);
-                              setServiceForm({ category: 'admin' });
-                              setShowServiceModal(true);
-                          }}
-                          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
-                      >
-                          <Plus size={18} /> नयाँ सेवा थप्नुहोस्
-                      </button>
+                      <div className="flex flex-wrap items-center gap-3">
+                          <button 
+                              onClick={() => setShowQrModal(true)}
+                              className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm"
+                          >
+                              <QrCode size={18} /> QR पोस्टर
+                          </button>
+                          <button 
+                              onClick={() => {
+                                  setEditingService(null);
+                                  setServiceForm({ category: 'admin' });
+                                  setShowServiceModal(true);
+                              }}
+                              className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                          >
+                              <Plus size={18} /> नयाँ सेवा थप्नुहोस्
+                          </button>
+                      </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -1209,6 +1218,54 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                           </button>
                       </div>
                   </form>
+              </div>
+          </div>
+      )}
+
+      {showQrModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                      <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                          <QrCode size={18} /> नागरिक बडापत्र QR पोस्टर
+                      </h3>
+                      <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-slate-600">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="p-8 overflow-y-auto flex flex-col items-center text-center">
+                      <div className="mb-6 p-4 bg-white border-2 border-slate-100 rounded-2xl shadow-sm print:shadow-none print:border-0">
+                          <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://gunaso-petika.vercel.app?office=${encodeURIComponent(currentUser.organizationName)}&view=charter`)}`}
+                              alt="QR Code"
+                              className="w-64 h-64"
+                          />
+                      </div>
+                      <h4 className="text-xl font-bold text-slate-800 font-nepali mb-2">{currentUser.organizationName}</h4>
+                      <p className="text-slate-600 font-nepali text-sm max-w-xs mb-8">
+                          यो QR कोड स्क्यान गरेर नागरिकहरूले हाम्रो संस्थाको डिजिटल नागरिक बडापत्र हेर्न सक्नुहुन्छ।
+                      </p>
+
+                      <div className="flex flex-wrap justify-center gap-3 w-full">
+                          <button 
+                              onClick={() => window.print()}
+                              className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-900 transition-all shadow-md"
+                          >
+                              <Printer size={18} /> प्रिन्ट गर्नुहोस्
+                          </button>
+                          <a 
+                              href={`https://gunaso-petika.vercel.app?office=${encodeURIComponent(currentUser.organizationName)}&view=charter`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 flex items-center justify-center gap-2 bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all"
+                          >
+                              <ExternalLink size={18} /> लिङ्क खोल्नुहोस्
+                          </a>
+                      </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border-t text-center">
+                      <p className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Generated for Digital Sujhab Petika</p>
+                  </div>
               </div>
           </div>
       )}
