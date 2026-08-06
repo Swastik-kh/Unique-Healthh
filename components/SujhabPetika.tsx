@@ -38,13 +38,15 @@ interface Gunaso {
 
 interface SujhabPetikaProps {
   currentUser?: any;
+  users?: any[];
 }
 
-export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
+export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users = [] }) => {
   const [gunasos, setGunasos] = useState<Gunaso[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsSelectedOrg, setSettingsSelectedOrg] = useState('');
   const [allOffices, setAllOffices] = useState<string[]>([]);
   const [selectedOffices, setSelectedOffices] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -130,8 +132,29 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
     }
   };
 
+  const loadMappingForOrg = async (orgName: string) => {
+      if (!orgName) {
+          setSelectedOffices([]);
+          return;
+      }
+      try {
+          const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgName);
+          const mappingDoc = await getDoc(mappingDocRef);
+          if (mappingDoc.exists()) {
+              setSelectedOffices(mappingDoc.data().officeNames || []);
+          } else {
+              setSelectedOffices([]);
+          }
+      } catch (e) {
+          console.error(e);
+      }
+  };
+
   const openSettings = async () => {
     setShowSettings(true);
+    const targetOrg = currentUser?.organizationName || '';
+    setSettingsSelectedOrg(targetOrg);
+    await loadMappingForOrg(targetOrg);
     try {
         const q = query(collection(sujhabDb, 'gunasos'));
         const querySnapshot = await getDocs(q);
@@ -149,13 +172,18 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
   };
 
   const saveSettings = async () => {
-    if (!currentUser?.organizationName) return;
+    if (!settingsSelectedOrg) return;
     setIsSaving(true);
     try {
-        const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', currentUser.organizationName);
+        const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', settingsSelectedOrg);
         await setDoc(mappingDocRef, { officeNames: selectedOffices }, { merge: true });
+        
+        if (settingsSelectedOrg === currentUser?.organizationName) {
+            fetchData();
+        } else {
+            alert("म्यापिङ सफलतापूर्वक सेभ भयो।");
+        }
         setShowSettings(false);
-        fetchData(); // Reload data with new settings
     } catch(err) {
         console.error("Error saving mapping", err);
     } finally {
@@ -282,7 +310,9 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
     }
   };
 
-  const isAdmin = currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const allOrganizations = Array.from(new Set(users?.map(u => u.organizationName).filter(Boolean))).sort();
 
   if (loading) {
       return (
@@ -329,8 +359,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
                 QR पोस्टर
             </button>
             
-            {isAdmin && (
-
+            {isSuperAdmin && (
                 <button 
                   onClick={openSettings}
                   className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
@@ -484,10 +513,31 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser }) => {
                 </button>
               </div>
               
+
               <div className="p-6 overflow-y-auto flex-1 bg-white">
+                 <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <label className="block text-sm font-bold text-slate-700 font-nepali mb-2">
+                        संस्था छान्नुहोस्:
+                    </label>
+                    <select 
+                        value={settingsSelectedOrg}
+                        onChange={(e) => {
+                            setSettingsSelectedOrg(e.target.value);
+                            loadMappingForOrg(e.target.value);
+                        }}
+                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm font-nepali focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                        <option value="">-- संस्था छान्नुहोस् --</option>
+                        {allOrganizations.map((org, idx) => (
+                            <option key={idx} value={org}>{org}</option>
+                        ))}
+                    </select>
+                 </div>
+                 
                  <p className="text-sm text-slate-500 font-nepali mb-4">
-                     तपाईंको संस्था "{currentUser?.organizationName}" मा कुन-कुन कार्यालयका सुझावहरू देखाउने भनेर छनोट गर्नुहोस्:
+                     लक्षित संस्थामा कुन-कुन कार्यालयका सुझावहरू देखाउने भनेर छनोट गर्नुहोस्:
                  </p>
+
                  
                  {allOffices.length === 0 ? (
                      <div className="flex justify-center p-6"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div></div>

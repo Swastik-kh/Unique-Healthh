@@ -2011,7 +2011,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           </div>
         );
       }
-      case 'sujhab_petika': return <SujhabPetika currentUser={currentUser} />;
+      case 'sujhab_petika': return <SujhabPetika currentUser={currentUser} users={allUsers} />;
       case 'lekha_prashasan': return (
         <LekhaPrashasan 
           programs={financialPrograms || []}
