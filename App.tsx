@@ -36,13 +36,13 @@ const INITIAL_SETTINGS: OrganizationSettings = {
     allServiceOptions: AVAILABLE_SERVICES,
     hibBaseUrl: 'https://imislegacy.hib.gov.np/',
     hibUsername: 'testuser',
-    hibPassword: 'f/\\N6k@67',
+    hibPassword: '', // Protected
     hibRemoteUser: 'hib_testuser_testfhir',
     hibPartnerId: '7aa79c53-057e-4e77-8576-dfcfb03584a8',
     hibLocationId: '1ac457d3-efd3-4a67-89b3-bf8cbe18045d',
     dhis2BaseUrl: 'https://play.dhis2.org/2.40.0/api/',
     dhis2Username: 'admin',
-    dhis2Password: 'district',
+    dhis2Password: '', // Protected
     dhis2DataSetId: 'a2JkM9Uvfa2',
     dhis2OrgUnitId: 'fBTyYLt6u8l'
 };
@@ -50,7 +50,7 @@ const INITIAL_SETTINGS: OrganizationSettings = {
 const DEFAULT_ADMIN: User = {
     id: 'superadmin',
     username: 'admin',
-    password: 'admin',
+    password: hashPassword('admin'),
     role: 'SUPER_ADMIN',
     organizationName: 'Smart Inventory HQ',
     fullName: 'Administrator',
@@ -99,6 +99,38 @@ const App: React.FC = () => {
   const [sentLetters, setSentLetters] = useState<SentLetter[]>([]);
   const [receivedLetters, setReceivedLetters] = useState<ReceivedLetter[]>([]);
   const [bharmanAdeshEntries, setBharmanAdeshEntries] = useState<BharmanAdeshEntry[]>([]);
+
+  // Auto-logout after 15 minutes of inactivity
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timeoutId: any;
+    const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout();
+        alert("सुरक्षाका कारण: तपाईंको सेसन निष्क्रिय भएकाले लगआउट गरिएको छ।");
+      }, INACTIVITY_LIMIT);
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => document.addEventListener(event, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activityEvents.forEach(event => document.removeEventListener(event, resetTimer));
+    };
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setActiveOrgName('');
+    // Clear any sensitive local states if needed
+  };
   const [garbhawotiRecords, setGarbhawotiRecords] = useState<GarbhawotiRecord[]>([]);
   const [prasutiRecords, setPrasutiRecords] = useState<PrasutiRecord[]>([]);
   const [serviceSeekerRecords, setServiceSeekerRecords] = useState<ServiceSeekerRecord[]>([]);
