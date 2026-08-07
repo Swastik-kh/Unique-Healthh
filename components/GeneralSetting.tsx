@@ -123,7 +123,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       const mappingRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
       const unsubOfficeMap = onSnapshot(mappingRef, (d) => {
         const names = d.exists() ? (d.data().officeNames || []) : [];
-        setMappedOfficeNames(names.length > 0 ? names : [orgKey]);
+        const uniqueNames = Array.from(new Set(names.map((n: string) => (n || '').trim()).filter(Boolean)));
+        setMappedOfficeNames(uniqueNames.length > 0 ? uniqueNames : [orgKey]);
       });
 
       const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
@@ -1158,7 +1159,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                   <div className="md:col-span-2">
                                       <Select 
                                           label="कुन कार्यालयको लागि थप्ने? (Select Office)" 
-                                          options={mappedOfficeNames.map(name => ({ id: name, value: name, label: name }))} 
+                                          options={Array.from(new Set(mappedOfficeNames)).map(name => ({ id: name, value: name, label: name }))} 
                                           value={serviceForm.office || mappedOfficeNames[0]} 
                                           onChange={e => setServiceForm({...serviceForm, office: e.target.value})} 
                                           required
