@@ -41,22 +41,13 @@ interface SujhabPetikaProps {
   users?: any[];
 }
 
-function normalizeNepaliOrgName(name: string): string {
-  if (!name) return '';
-  return name
-    .trim()
-    .replace(/\u093E\u0948/g, '\u094C')  // ा + ै  ->  ौ
-    .replace(/\u093E\u0947/g, '\u094B')  // ा + े  ->  ो
-    .replace(/\s+/g, ' ');               // एकभन्दा बढी space एउटै मा
-}
-
 export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users = [] }) => {
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'ADMIN';
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'SUPERADMIN';
   const allOrganizations = useMemo(() => {
     return Array.from(new Set(
       users?.filter(u => u.allowedMenus?.includes('sujhab_petika'))
-            .map(u => normalizeNepaliOrgName(u.organizationName || ''))
+            .map(u => (u.organizationName || '').trim())
             .filter(Boolean)
     )).sort();
   }, [users]);
@@ -119,7 +110,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const fetchData = async () => {
-    const orgKey = normalizeNepaliOrgName(currentUser?.organizationName || '');
+    const orgKey = (currentUser?.organizationName || '').trim();
     if (!orgKey) {
       setLoading(false);
       return;
@@ -149,8 +140,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
       
       // 2. Fetch from sujhabDb using 'in' chunks
       let allFetchedGunasos: Gunaso[] = [];
-      const normalizedMappedOffices = mappedOffices.map(off => normalizeNepaliOrgName(off));
-      const chunks = chunkArray(normalizedMappedOffices, 10);
+      const chunks = chunkArray(mappedOffices, 10);
       
       for (const chunk of chunks) {
         const q = query(collection(sujhabDb, 'gunasos'), where('office', 'in', chunk));
@@ -180,7 +170,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
 
   const addManualOffice = () => {
     if (!newManualOffice.trim()) return;
-    const office = normalizeNepaliOrgName(newManualOffice);
+    const office = newManualOffice.trim();
     if (!allOffices.includes(office)) {
       setAllOffices(prev => [...prev, office].sort());
     }
@@ -191,7 +181,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const loadMappingForOrg = async (orgName: string) => {
-      const trimmedOrg = normalizeNepaliOrgName(orgName);
+      const trimmedOrg = (orgName || '').trim();
       if (!trimmedOrg) {
           setSelectedOffices([]);
           return;
@@ -211,7 +201,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
 
   const openSettings = async () => {
     setShowSettings(true);
-    const targetOrg = normalizeNepaliOrgName(currentUser?.organizationName || '');
+    const targetOrg = (currentUser?.organizationName || '').trim();
     setSettingsSelectedOrg(targetOrg);
     await loadMappingForOrg(targetOrg);
     try {
@@ -223,7 +213,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             if (data.office) {
-                offices.add(normalizeNepaliOrgName(data.office));
+                offices.add(data.office.trim());
             }
         });
 
@@ -231,7 +221,7 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         users.filter(u => u.allowedMenus?.includes('sujhab_petika'))
              .forEach(u => {
                  if (u.organizationName) {
-                     offices.add(normalizeNepaliOrgName(u.organizationName));
+                     offices.add(u.organizationName.trim());
                  }
              });
 
@@ -242,14 +232,14 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   };
 
   const saveSettings = async () => {
-    const orgKey = normalizeNepaliOrgName(settingsSelectedOrg);
+    const orgKey = (settingsSelectedOrg || '').trim();
     if (!orgKey) return;
     setIsSaving(true);
     try {
         const mappingDocRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
-        await setDoc(mappingDocRef, { officeNames: selectedOffices.map(off => normalizeNepaliOrgName(off)) }, { merge: true });
+        await setDoc(mappingDocRef, { officeNames: selectedOffices }, { merge: true });
         
-        if (orgKey === normalizeNepaliOrgName(currentUser?.organizationName || '')) {
+        if (orgKey === (currentUser?.organizationName || '').trim()) {
             fetchData();
         } else {
             alert("म्यापिङ सफलतापूर्वक सेभ भयो।");
@@ -261,7 +251,6 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
         setIsSaving(false);
     }
   };
-
 
   
   const handleAction = async () => {

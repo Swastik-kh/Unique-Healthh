@@ -47,15 +47,6 @@ interface GeneralSettingProps {
     activeOrgName: string;
 }
 
-function normalizeNepaliOrgName(name: string): string {
-  if (!name) return '';
-  return name
-    .trim()
-    .replace(/\u093E\u0948/g, '\u094C')  // ा + ै  ->  ौ
-    .replace(/\u093E\u0947/g, '\u094B')  // ा + े  ->  ो
-    .replace(/\s+/g, ' ');               // एकभन्दा बढी space एउटै मा
-}
-
 export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, settings, onUpdateSettings, onUpdateGlobalDhis2Mappings, users, activeOrgName }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
@@ -124,7 +115,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   useEffect(() => {
     if (activeTab === 'nagarik_badapatra') {
       setIsServicesLoading(true);
-      const orgKey = normalizeNepaliOrgName(activeOrgName || currentUser?.organizationName || '');
+      const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
       
       const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
       const unsubMapping = onSnapshot(settingsDocRef, (d) => {
@@ -152,9 +143,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   }, [activeTab, currentUser.organizationName, activeOrgName]);
 
   const displayedServices = useMemo(() => {
-      const orgKey = normalizeNepaliOrgName(activeOrgName || currentUser?.organizationName || '');
+      const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
       return citizenServices.filter(s => {
-          const isOwn = normalizeNepaliOrgName(s.office || '') === orgKey;
+          const isOwn = (s.office || '').trim() === orgKey;
           const isShared = s.office === 'all' || !s.office;
           const isHidden = hiddenSharedServiceIds.includes(s.id);
           return isOwn || (isShared && !isHidden);
@@ -165,7 +156,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     e.preventDefault();
     if (!serviceForm.serviceNep) return;
     
-    const orgKey = normalizeNepaliOrgName(activeOrgName || currentUser?.organizationName || '');
+    const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
     const isEditingShared = editingService && (editingService.office === 'all' || !editingService.office);
     
     // If editing shared, we create a NEW doc and hide the old one for this org
@@ -205,7 +196,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     
     try {
         if (isShared) {
-            const orgKey = normalizeNepaliOrgName(activeOrgName || currentUser?.organizationName || '');
+            const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
             const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
             const newHidden = Array.from(new Set([...hiddenSharedServiceIds, service.id]));
             await setDoc(settingsDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
