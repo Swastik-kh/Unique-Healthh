@@ -114,6 +114,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [blurPhone, setBlurPhone] = useState(false);
   const [blurDob, setBlurDob] = useState(false);
+  const [hideQrColumn, setHideQrColumn] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   // Individual SMS permission access control check
@@ -1214,6 +1215,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   </label>
               </div>
 
+              <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/50">
+                  <input 
+                      type="checkbox" 
+                      id="hide-qr-checkbox"
+                      checked={hideQrColumn}
+                      onChange={(e) => setHideQrColumn(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                  />
+                  <label htmlFor="hide-qr-checkbox" className="text-xs font-bold text-slate-700 select-none cursor-pointer font-nepali">
+                      प्रिन्टमा QR हटाउने
+                  </label>
+              </div>
+
               <div className="w-44">
                   <Select 
                       label="प्रिन्ट लेआउट" 
@@ -1810,7 +1824,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>लगाउनुपर्ने खोपहरू (Vaccines Due)</th>
                         <th>निर्धारित मिति</th>
                         <th>फोन नं</th>
-                        <th>दर्ता नं. QR</th>
+                        {!hideQrColumn && <th>दर्ता नं. QR</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -1826,9 +1840,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             </td>
                             <td>{item.scheduledDateBs} (Main)</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
-                            <td className="text-center">
-                                <QRCodeSVG value={item.child.regNo || 'N/A'} size={45} level="M" />
-                            </td>
+                            {!hideQrColumn && (
+                                <td className="text-center">
+                                    <QRCodeSVG value={item.child.regNo || 'N/A'} size={45} level="M" />
+                                </td>
+                            )}
                         </tr>
                     ))}
                 </tbody>
@@ -1944,7 +1960,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>टी.डी. १ प्राप्त मिति</th>
                         <th>टी.डी. २ लगाउनुपर्ने महिना</th>
                         <th>सम्पर्क नम्बर</th>
-                        <th>दर्ता नं. QR</th>
+                        {!hideQrColumn && <th>दर्ता नं. QR</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -1958,14 +1974,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td style={{textAlign: 'center'}}>{item.patient.td1DateBs}</td>
                             <td style={{textAlign: 'center', fontWeight: 'bold'}}>{item.expectedMonthName}, {item.expectedYear}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.patient.phone}</span></td>
-                            <td className="text-center">
-                                <QRCodeSVG value={item.patient.regNo || 'N/A'} size={45} level="M" />
-                            </td>
+                            {!hideQrColumn && (
+                                <td className="text-center">
+                                    <QRCodeSVG value={item.patient.regNo || 'N/A'} size={45} level="M" />
+                                </td>
+                            )}
                         </tr>
                     ))}
                     {upcomingTdList.length === 0 && (
                         <tr>
-                            <td colSpan={9} style={{textAlign: 'center', fontStyle: 'italic', padding: '20px'}}>
+                            <td colSpan={hideQrColumn ? 8 : 9} style={{textAlign: 'center', fontStyle: 'italic', padding: '20px'}}>
                                 छानिएको अवधि र केन्द्रमा कुनै टी.डी. खोप तालिका छैन।
                             </td>
                         </tr>
