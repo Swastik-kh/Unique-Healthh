@@ -108,8 +108,10 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [editingService, setEditingService] = useState<CitizenService | null>(null);
+  const [mappedOfficeNames, setMappedOfficeNames] = useState<string[]>([]);
   const [serviceForm, setServiceForm] = useState<Partial<CitizenService>>({
-      category: 'admin'
+      category: 'admin',
+      office: ''
   });
 
   useEffect(() => {
@@ -117,6 +119,13 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       setIsServicesLoading(true);
       const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
       
+      // Office Mapping from localDb
+      const mappingRef = doc(localDb, 'sujhabPetikaOfficeMap', orgKey);
+      const unsubOfficeMap = onSnapshot(mappingRef, (d) => {
+        const names = d.exists() ? (d.data().officeNames || []) : [];
+        setMappedOfficeNames(names.length > 0 ? names : [orgKey]);
+      });
+
       const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
       const unsubMapping = onSnapshot(settingsDocRef, (d) => {
           if (d.exists()) {
@@ -136,6 +145,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       });
 
       return () => {
+          unsubOfficeMap();
           unsubMapping();
           unsubServices();
       };
@@ -145,18 +155,20 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const displayedServices = useMemo(() => {
       const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
       return citizenServices.filter(s => {
-          const isOwn = (s.office || '').trim() === orgKey;
+          const isOwn = mappedOfficeNames.includes((s.office || '').trim());
           const isShared = s.office === 'all' || !s.office;
           const isHidden = hiddenSharedServiceIds.includes(s.id);
           return isOwn || (isShared && !isHidden);
       }).sort((a, b) => a.serviceNep.localeCompare(b.serviceNep, 'ne'));
-  }, [citizenServices, hiddenSharedServiceIds, currentUser.organizationName, activeOrgName]);
+  }, [citizenServices, hiddenSharedServiceIds, currentUser.organizationName, activeOrgName, mappedOfficeNames]);
 
   const handleSaveService = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!serviceForm.serviceNep) return;
     
     const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
+    const targetOffice = serviceForm.office || mappedOfficeNames[0] || orgKey;
+    
     const isEditingShared = editingService && (editingService.office === 'all' || !editingService.office);
     
     // If editing shared, we create a NEW doc and hide the old one for this org
@@ -165,7 +177,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     const data = {
         ...serviceForm,
         id,
-        office: orgKey
+        office: targetOffice
     };
     
     try {
@@ -179,7 +191,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
 
         setShowServiceModal(false);
         setEditingService(null);
-        setServiceForm({ category: 'admin' });
+        setServiceForm({ category: 'admin', office: '' });
     } catch (err) {
         console.error("Error saving service:", err);
         alert("त्रुटि: डेटा सेभ गर्न सकिएन।");
@@ -195,8 +207,8 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     if (!window.confirm(msg)) return;
     
     try {
+        const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
         if (isShared) {
-            const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
             const settingsDocRef = doc(sujhabDb, 'officeSettings', orgKey);
             const newHidden = Array.from(new Set([...hiddenSharedServiceIds, service.id]));
             await setDoc(settingsDocRef, { hiddenSharedServiceIds: newHidden }, { merge: true });
@@ -1142,6 +1154,17 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                   <form onSubmit={handleSaveService} className="flex flex-col overflow-hidden">
                       <div className="p-6 overflow-y-auto">
                           <div className="grid md:grid-cols-2 gap-4">
+                              {mappedOfficeNames.length > 1 && (
+                                  <div className="md:col-span-2">
+                                      <Select 
+                                          label="कुन कार्यालयको लागि थप्ने? (Select Office)" 
+                                          options={mappedOfficeNames.map(name => ({ id: name, value: name, label: name }))} 
+                                          value={serviceForm.office || mappedOfficeNames[0]} 
+                                          onChange={e => setServiceForm({...serviceForm, office: e.target.value})} 
+                                          required
+                                      />
+                                  </div>
+                              )}
                               <Input 
                                   label="सेवाको नाम (नेपाली)" 
                                   value={serviceForm.serviceNep || ''} 
