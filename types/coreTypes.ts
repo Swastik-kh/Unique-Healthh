@@ -46,6 +46,7 @@ export interface User {
   createdAt?: string; // ISO date string
   subscriptionExpiryDate?: string; // ISO date string
   isSubscribed?: boolean;
+  isFrozen?: boolean;
   biometricCredential?: BiometricCredential;
   hasSaveAccess?: boolean;
   canDeleteBilling?: boolean;

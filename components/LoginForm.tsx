@@ -77,6 +77,31 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       });
 
       if (foundUser) {
+          // Check if user is frozen
+          if (foundUser.isFrozen) {
+              setErrors(prev => ({ ...prev, form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
+              setIsLoading(false);
+              return;
+          }
+
+          // Check if any ancestor is frozen
+          let currentParentId = foundUser.parentId;
+          let depth = 0;
+          while (currentParentId && depth < 20) {
+              const ancestor = users.find(u => u.id === currentParentId);
+              if (ancestor) {
+                  if (ancestor.isFrozen) {
+                      setErrors(prev => ({ ...prev, form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
+                      setIsLoading(false);
+                      return;
+                  }
+                  currentParentId = ancestor.parentId;
+                  depth++;
+              } else {
+                  break;
+              }
+          }
+
           // Auto-migrate legacy plain text passwords in the cloud database to secure hashed values
           const dbPassword = String(foundUser.password || '').trim();
           if (dbPassword === inputPassword && foundUser.id !== 'superadmin') {
