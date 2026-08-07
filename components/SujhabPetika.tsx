@@ -7,17 +7,17 @@ import { db as localDb } from '../firestore';
 const env: any = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
 
 const firebaseConfig = {
-  apiKey: env.VITE_SUJHAB_API_KEY,
-  authDomain: env.VITE_SUJHAB_AUTH_DOMAIN,
-  projectId: env.VITE_SUJHAB_PROJECT_ID,
-  storageBucket: env.VITE_SUJHAB_STORAGE_BUCKET,
-  messagingSenderId: env.VITE_SUJHAB_MESSAGING_SENDER_ID,
-  appId: env.VITE_SUJHAB_APP_ID
+  apiKey: env.VITE_SUJHAB_API_KEY || "AIzaSyAtt4_yw8_76inlXJPgMNRV0h0vqPpvgt8",
+  authDomain: env.VITE_SUJHAB_AUTH_DOMAIN || "asymmetric-flow-scf5x.firebaseapp.com",
+  projectId: env.VITE_SUJHAB_PROJECT_ID || "asymmetric-flow-scf5x",
+  storageBucket: env.VITE_SUJHAB_STORAGE_BUCKET || "asymmetric-flow-scf5x.firebasestorage.app",
+  messagingSenderId: env.VITE_SUJHAB_MESSAGING_SENDER_ID || "1047209545761",
+  appId: env.VITE_SUJHAB_APP_ID || "1:1047209545761:web:d81af21e1f0d477cf31360"
 };
 
 const appName = "sujhabPetikaSource";
-const sujhabApp = getApps().find(a => a.name === appName) || (firebaseConfig.apiKey ? initializeApp(firebaseConfig, appName) : null);
-const sujhabDb = sujhabApp ? getFirestore(sujhabApp, env.VITE_SUJHAB_DATABASE_ID || "ai-studio-digitalsujabpeti-f3ba13ee-e50b-48cc-bf1e-2244437f6abf") : null;
+const sujhabApp = getApps().find(a => a.name === appName) || initializeApp(firebaseConfig, appName);
+const sujhabDb = getFirestore(sujhabApp, env.VITE_SUJHAB_DATABASE_ID || "ai-studio-digitalsujabpeti-f3ba13ee-e50b-48cc-bf1e-2244437f6abf");
 
 interface Gunaso {
   id: string;
@@ -121,12 +121,6 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
     setLoading(true);
     setIsUnconfigured(false);
     setFetchError(null);
-    
-    if (!sujhabDb) {
-      setFetchError("Sujhab Petika database is not configured. Please check environment variables.");
-      setLoading(false);
-      return;
-    }
     
     try {
       // 1. Read mapping from local DB
@@ -263,10 +257,6 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
   
   const handleAction = async () => {
       if (!showActionModal) return;
-      if (!sujhabDb) {
-          alert("Sujhab Petika database is not configured.");
-          return;
-      }
       setIsUpdating(true);
       try {
           const gunasoRef = doc(sujhabDb, 'gunasos', showActionModal.id);
@@ -299,10 +289,6 @@ export const SujhabPetika: React.FC<SujhabPetikaProps> = ({ currentUser, users =
 
   const handleDeleteGunaso = async (id: string) => {
     if (!window.confirm("के तपाईं यो सुझाव स्थायी रूपमा मेटाउन चाहनुहुन्छ? यो कार्य फिर्ता हुँदैन।")) return;
-    if (!sujhabDb) {
-        alert("Sujhab Petika database is not configured.");
-        return;
-    }
 
     try {
       const gunasoRef = doc(sujhabDb, 'gunasos', id);
