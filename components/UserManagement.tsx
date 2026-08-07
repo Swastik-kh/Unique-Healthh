@@ -200,6 +200,15 @@ const PERMISSION_STRUCTURE = [
     }
 ];
 
+function normalizeNepaliOrgName(name: string): string {
+  if (!name) return '';
+  return name
+    .trim()
+    .replace(/\u093E\u0948/g, '\u094C')  // ा + ै  ->  ौ
+    .replace(/\u093E\u0947/g, '\u094B')  // ा + े  ->  ो
+    .replace(/\s+/g, ' ');               // एकभन्दा बढी space एउटै मा
+}
+
 export const UserManagement: React.FC<UserManagementProps> = ({ 
   currentUser, 
   users, 
@@ -283,7 +292,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           let isVisible = false;
           if (currentUser.role === 'SUPER_ADMIN') isVisible = true;
           else if (currentUser.role === 'HEALTH_SECTION') isVisible = u.parentId === currentUser.id;
-          else if (currentUser.role === 'ADMIN') isVisible = u.organizationName === currentUser.organizationName;
+          else if (currentUser.role === 'ADMIN') isVisible = normalizeNepaliOrgName(u.organizationName) === normalizeNepaliOrgName(currentUser.organizationName);
 
           if (!isVisible) return false;
 

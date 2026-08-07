@@ -59,6 +59,15 @@ const DEFAULT_ADMIN: User = {
     allowedMenus: ['dashboard', 'inventory', 'settings', 'services', 'khop_sewa', 'emergency_sewa', 'cbimnci_sewa', 'conference', 'karyakram', 'vitamin_a', 'khop_abhiyan', 'online_report']
 };
 
+const normalizeNepaliOrgName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .trim()
+    .replace(/\u093E\u0948/g, '\u094C')  // ा + ै  ->  ौ
+    .replace(/\u093E\u0947/g, '\u094B')  // ा + े  ->  ो
+    .replace(/\s+/g, ' ');               // एकभन्दा बढी space एउटै मा
+};
+
 const App: React.FC = () => {
   const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_ADMIN]); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -209,8 +218,8 @@ const App: React.FC = () => {
       if (currentUser?.role !== 'HEALTH_SECTION') return [];
       const orgs = allUsers
         .filter(u => u.parentId === currentUser.id && u.role === 'ADMIN')
-        .map(u => u.organizationName);
-      return Array.from(new Set([currentUser.organizationName, ...orgs]));
+        .map(u => normalizeNepaliOrgName(u.organizationName));
+      return Array.from(new Set([normalizeNepaliOrgName(currentUser.organizationName), ...orgs]));
   }, [allUsers, currentUser]);
 
   useEffect(() => {
@@ -255,13 +264,13 @@ const App: React.FC = () => {
     }
 
     if (!activeOrgName) {
-      setActiveOrgName(currentUser.organizationName);
+      setActiveOrgName(normalizeNepaliOrgName(currentUser.organizationName));
       return;
     }
 
     const safeOrgName = sanitizeOrgName(activeOrgName);
     
-    const allUniqueOrgs = Array.from(new Set(allUsers.map(u => u.organizationName).filter(Boolean)));
+    const allUniqueOrgs = Array.from(new Set(allUsers.map(u => normalizeNepaliOrgName(u.organizationName)).filter(Boolean)));
     const isAllOrgs = activeOrgName === 'All';
     const targetOrgs = (currentUser.role === 'HEALTH_SECTION') ? allUniqueOrgs : (isAllOrgs ? managedOrgs : [activeOrgName]);
 
@@ -426,13 +435,13 @@ const App: React.FC = () => {
 
   const handleLoginSuccess = (user: User, fiscalYear: string) => {
     setCurrentUser(user);
-    setActiveOrgName(user.organizationName);
+    setActiveOrgName(normalizeNepaliOrgName(user.organizationName));
     setCurrentFiscalYear(fiscalYear);
     localStorage.removeItem('smart_inv_active_item');
   };
 
   const sanitizeOrgName = (name: string) => {
-    return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
+    return normalizeNepaliOrgName(name).replace(/[.#$[\]]/g, "_") || "unknown";
   };
 
   const getOrgRef = (subPath: string) => {
