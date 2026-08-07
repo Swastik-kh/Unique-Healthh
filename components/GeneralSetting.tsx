@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS, AVAILABLE_SERVICES } from '../constants';
@@ -21,6 +21,11 @@ const sujhabFirebaseConfig = {
 };
 
 const SUJHAB_APP_NAME = "sujhabPetikaSource";
+
+const normalizeName = (name: string) => {
+    return (name || '').toLowerCase().trim().replace(/\s+/g, '');
+};
+
 const sujhabApp = getApps().find(a => a.name === SUJHAB_APP_NAME) || initializeApp(sujhabFirebaseConfig, SUJHAB_APP_NAME);
 const sujhabDb = getFirestore(sujhabApp, "ai-studio-digitalsujabpeti-f3ba13ee-e50b-48cc-bf1e-2244437f6abf");
 
@@ -108,6 +113,9 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [editingService, setEditingService] = useState<CitizenService | null>(null);
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
+  const [reconcileItems, setReconcileItems] = useState<CitizenService[]>([]);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [serviceForm, setServiceForm] = useState<Partial<CitizenService>>({
       category: 'admin'
   });
@@ -206,6 +214,44 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     } catch (err) {
         console.error("Error deleting service:", err);
         alert("त्रुटि: डेटा मेटाउन सकिएन।");
+    }
+  };
+
+  const handleReconcileSearch = () => {
+    const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
+    const normalizedOrgKey = normalizeName(orgKey);
+
+    const legacy = citizenServices.filter(s => {
+      const office = (s.office || '').trim();
+      if (office === orgKey || office === 'all' || !office) return false;
+      
+      const normalizedOffice = normalizeName(office);
+      return normalizedOffice === normalizedOrgKey;
+    });
+
+    setReconcileItems(legacy);
+    setShowReconcileModal(true);
+  };
+
+  const handleMergeItem = async (id: string) => {
+    const orgKey = (activeOrgName || currentUser?.organizationName || '').trim();
+    try {
+      await updateDoc(doc(sujhabDb, 'citizenServices', id), { office: orgKey });
+      setReconcileItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("Error merging item:", err);
+      alert("मर्ज गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteReconcileItem = async (id: string) => {
+    if (!window.confirm("के तपाईं यो प्रविष्टि स्थायी रूपमा मेटाउन चाहनुहुन्छ?")) return;
+    try {
+      await deleteDoc(doc(sujhabDb, 'citizenServices', id));
+      setReconcileItems(prev => prev.filter(item => item.id !== id));
+    } catch (err) {
+      console.error("Error deleting item:", err);
+      alert("मेटाउन सकिएन।");
     }
   };
 
@@ -1035,6 +1081,12 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
                           <button 
+                              onClick={handleReconcileSearch}
+                              className="flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-100 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-100 transition-colors shadow-sm"
+                          >
+                              <RefreshCw size={18} className={isReconciling ? 'animate-spin' : ''} /> मिलान (Reconcile)
+                          </button>
+                          <button 
                               onClick={() => setShowQrModal(true)}
                               className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm"
                           >
@@ -1266,6 +1318,69 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                   </div>
                   <div className="p-4 bg-slate-50 border-t text-center">
                       <p className="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Generated for Digital Sujhab Petika</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showReconcileModal && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                      <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                          <RefreshCw size={18} className="text-indigo-600" /> सम्भावित नमिलेका प्रविष्टिहरू (Legacy Items)
+                      </h3>
+                      <button onClick={() => setShowReconcileModal(false)} className="text-slate-400 hover:text-slate-600">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="p-6 overflow-y-auto">
+                      <p className="text-xs text-slate-500 mb-6 font-nepali">
+                          तलका सेवाहरू हालको संस्थाको नामसँग ठ्याक्कै नमिले पनि (स्पेस वा हिज्जेका कारण) प्रणालीमा भेटिएका छन्। यिनलाई मर्ज वा व्यवस्थापन गर्नुहोस्:
+                      </p>
+                      
+                      <div className="space-y-3">
+                          {reconcileItems.length > 0 ? (
+                              reconcileItems.map(item => (
+                                  <div key={item.id} className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
+                                      <div className="flex-1">
+                                          <div className="font-bold text-rose-900 font-nepali text-sm">{item.serviceNep}</div>
+                                          <div className="flex items-center gap-2 mt-1">
+                                              <span className="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Raw Office Name:</span>
+                                              <span className="text-[10px] font-mono text-rose-700 bg-white px-1.5 py-0.5 rounded border border-rose-100 italic">"{item.office}"</span>
+                                          </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                          <button 
+                                              onClick={() => handleMergeItem(item.id)}
+                                              className="bg-white text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-indigo-50 transition-all flex items-center gap-1 shadow-sm"
+                                          >
+                                              संस्थामा मर्ज गर्नुहोस्
+                                          </button>
+                                          <button 
+                                              onClick={() => handleDeleteReconcileItem(item.id)}
+                                              className="bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-rose-700 transition-all shadow-sm"
+                                          >
+                                              मेटाउनुहोस्
+                                          </button>
+                                      </div>
+                                  </div>
+                              ))
+                          ) : (
+                              <div className="text-center py-12 text-slate-400">
+                                  <CheckCircle2 size={48} className="mx-auto mb-3 text-emerald-400 opacity-50" />
+                                  <p className="text-sm font-nepali italic">कुनै पनि legacy वा नमिलेका प्रविष्टिहरू फेला परेनन्।</p>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border-t flex justify-end">
+                      <button 
+                          onClick={() => setShowReconcileModal(false)}
+                          className="px-6 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-all"
+                      >
+                          बन्द गर्नुहोस्
+                      </button>
                   </div>
               </div>
           </div>
