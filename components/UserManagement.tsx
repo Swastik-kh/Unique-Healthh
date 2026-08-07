@@ -1004,7 +1004,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         </td>
                         <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                            {currentUser.role === 'SUPER_ADMIN' && (
+                            {currentUser.role === 'SUPER_ADMIN' && user.role !== 'SUPER_ADMIN' && (
                                 <button 
                                     onClick={async () => {
                                         const action = user.isFrozen ? 'अनफ्रिज' : 'फ्रिज';

@@ -78,7 +78,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
 
       if (foundUser) {
           // Check if user is frozen
-          if (foundUser.isFrozen) {
+          if (foundUser.isFrozen && foundUser.role !== 'SUPER_ADMIN') {
               setErrors(prev => ({ ...prev, form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
               setIsLoading(false);
               return;
