@@ -39,7 +39,6 @@ export interface User {
   fullName: string;
   designation: string;
   phoneNumber: string;
-  email?: string;
   allowedMenus?: string[]; 
   serviceType?: 'Permanent' | 'Temporary' | 'Contract';
   readNotifications?: string[];
