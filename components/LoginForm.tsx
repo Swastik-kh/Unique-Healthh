@@ -127,6 +127,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         }
       }
 
+      const safeOrg = (foundUser.organizationName || '').trim().replace(/[.#$[\]]/g, "_");
+      const orgSettingsSnap = await get(ref(db, `orgData/${safeOrg}/settings`));
+      const orgSettings = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
+
       // Rate limit check
       const resetRef = ref(db, `passwordResets/${foundUser.id}`);
       const snapshot = await get(resetRef);
@@ -152,13 +156,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       });
 
       // Send Email
-      if (!settings.emailApiKey || !settings.emailSenderAddress) {
+      if (!orgSettings.emailApiKey || !orgSettings.emailSenderAddress) {
         setErrors({ form: 'प्रणालीमा Email सेटिङ मिलाइएको छैन। कृपया एडमिनलाई सम्पर्क गर्नुहोस्।' });
         setIsLoading(false);
         return;
       }
 
       const emailResponse = await axios.post('/api/email/send', {
+        apiKey: orgSettings.emailApiKey,
+        senderAddress: orgSettings.emailSenderAddress,
+        senderName: orgSettings.emailSenderName,
         to: foundUser.email,
         subject: "पासवर्ड रिसेट कोड - Unique Health",
         htmlBody: `
