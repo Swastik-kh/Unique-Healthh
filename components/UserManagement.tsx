@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
-import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock } from 'lucide-react';
+import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 
@@ -239,6 +239,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     fullName: string;
     designation: string;
     phoneNumber: string;
+    email: string;
     organizationName: string;
     role: UserRole;
     allowedMenus: string[];
@@ -258,6 +259,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     fullName: '',
     designation: '',
     phoneNumber: '',
+    email: '',
     organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
     allowedMenus: [],
@@ -313,6 +315,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       setFormData({ 
         id: generateUniqueId(), 
         username: '', password: '', fullName: '', designation: '', phoneNumber: '',
+        email: '',
         organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
         allowedMenus: [],
@@ -339,6 +342,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           id: user.id,
           username: user.username, password: user.password, fullName: user.fullName,
           designation: user.designation, phoneNumber: user.phoneNumber,
+          email: user.email || '',
           organizationName: user.organizationName,
           role: user.role,
           allowedMenus: user.allowedMenus || [],
@@ -579,6 +583,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         fullName: formData.fullName.trim(), 
         designation: formData.designation.trim(),
         phoneNumber: formData.phoneNumber.trim(), 
+        email: formData.email.trim(),
         organizationName: formData.organizationName.trim(),
         allowedMenus: finalMenus,
         editAccessMenus: Array.from(new Set([...formData.editAccessMenus])),
@@ -720,6 +725,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             />
             <Input label="पद" value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} required icon={<Briefcase size={16} />} disabled={isSaving} />
             <Input label="फोन नं." value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} required icon={<Phone size={16} />} disabled={isSaving} />
+            <Input 
+                label="Email ठेगाना" 
+                type="email"
+                value={formData.email} 
+                onChange={e => setFormData({...formData, email: e.target.value})} 
+                placeholder="पासवर्ड बिर्सिएमा प्रयोग हुन्छ"
+                icon={<Mail size={16} />} 
+                disabled={isSaving} 
+            />
             <Input 
                 label="संस्था (कार्यालयको नाम)" 
                 value={formData.organizationName} 
@@ -952,6 +966,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <thead className="bg-slate-50 border-b">
                 <tr>
                     <th className="px-6 py-4">प्रयोगकर्ता</th>
+                    <th className="px-6 py-4">सम्पर्क (Email/Phone)</th>
                     <th className="px-6 py-4">भूमिका</th>
                     <th className="px-6 py-4">संस्था</th>
                     <th className="px-6 py-4">SMS पहुँच / कोटा</th>
@@ -965,6 +980,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     managedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50">
                         <td className="px-6 py-4"><div><p className="font-bold text-slate-800">{user.fullName}</p><p className="text-xs text-slate-400">@{user.username}</p></div></td>
+                        <td className="px-6 py-4">
+                            <div className="space-y-1">
+                                {user.email && <p className="text-xs text-blue-600 font-medium flex items-center gap-1"><Mail size={10} /> {user.email}</p>}
+                                <p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={10} /> {user.phoneNumber}</p>
+                            </div>
+                        </td>
                         <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">{user.role}</span></td>
                         <td className="px-6 py-4 text-xs font-medium text-slate-600">{user.organizationName}</td>
                         <td className="px-6 py-4 text-xs font-nepali">

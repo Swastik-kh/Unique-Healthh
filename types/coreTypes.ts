@@ -39,6 +39,7 @@ export interface User {
   fullName: string;
   designation: string;
   phoneNumber: string;
+  email?: string; // Password reset को लागि प्रयोग हुने email ठेगाना
   allowedMenus?: string[]; 
   serviceType?: 'Permanent' | 'Temporary' | 'Contract';
   readNotifications?: string[];
@@ -121,6 +122,10 @@ export interface OrganizationSettings {
   smsApiUrl?: string; // Universal SMS API Endpoint URL
   smsCampaignId?: string; // SMSBit / SMS Pasal Campaign ID
   smsRouteId?: string; // SMSBit / SMS Pasal Route ID
+  emailApiProvider?: string; // default: "Resend"
+  emailApiKey?: string; // Resend बाट लिएको re_xxxx... key
+  emailSenderAddress?: string; // जस्तै: noreply@smartinventoryy.com
+  emailSenderName?: string; // जस्तै: "Unique Health"
   ipdWards?: WardConfig[]; 
   isSubscribed?: boolean;
   subscriptionExpiryDate?: string;

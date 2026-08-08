@@ -2042,6 +2042,7 @@ const App: React.FC = () => {
                     users={allUsers} 
                     onLoginSuccess={handleLoginSuccess} 
                     initialFiscalYear={'2083/084'} 
+                    settings={generalSettings}
                 />
               </div>
               <div className="bg-slate-50 p-5 text-center border-t border-slate-100 flex items-center justify-center gap-3">

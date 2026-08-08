@@ -52,6 +52,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [isSaved, setIsSaved] = useState(false);
   const [newService, setNewService] = useState('');
   const [showSmsApiKey, setShowSmsApiKey] = useState(false);
+  const [showEmailApiKey, setShowEmailApiKey] = useState(false);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
   const [smsBalanceInfo, setSmsBalanceInfo] = useState<{
     totalBalance?: number;
@@ -905,6 +906,59 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         अन्तिम पटक चेक गरिएको समय: {smsBalanceInfo.lastChecked}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Email API Settings (Resend) - Added for SUPER_ADMIN */}
+                            <div className="mt-8 border-t pt-6">
+                                <h4 className="font-bold text-indigo-900 mb-1 flex items-center gap-2 font-nepali text-sm">
+                                    <Mail size={18} className="text-indigo-600"/>
+                                    Email API सेटिङ (Resend) - (Super Admin Only)
+                                </h4>
+                                <p className="text-xs text-slate-500 font-nepali mb-4">
+                                    Resend API प्रयोग गरेर प्रणालीबाट स्वचालित ईमेल पठाउनको लागि यहाँ विवरणहरू भर्नुहोस्।
+                                </p>
+                                <div className="grid md:grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                                    <Input 
+                                        label="Email API Provider" 
+                                        value={localSettings.emailApiProvider || 'Resend'} 
+                                        onChange={(e) => handleChange('emailApiProvider', e.target.value)} 
+                                        placeholder="Resend"
+                                        readOnly
+                                        icon={<Server size={16} />} 
+                                    />
+                                    <Input 
+                                        label="Resend API Key (गोप्य)" 
+                                        type={showEmailApiKey ? "text" : "password"}
+                                        value={localSettings.emailApiKey || ''} 
+                                        onChange={(e) => handleChange('emailApiKey', e.target.value)} 
+                                        placeholder="re_xxxx..." 
+                                        icon={<Key size={16} />}
+                                        suffix={
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowEmailApiKey(!showEmailApiKey)}
+                                            className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                            title={showEmailApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
+                                          >
+                                            {showEmailApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                          </button>
+                                        }
+                                    />
+                                    <Input 
+                                        label="Email Sender Address" 
+                                        value={localSettings.emailSenderAddress || ''} 
+                                        onChange={(e) => handleChange('emailSenderAddress', e.target.value)} 
+                                        placeholder="noreply@smartinventoryy.com"
+                                        icon={<Mail size={16} />} 
+                                    />
+                                    <Input 
+                                        label="Email Sender Name" 
+                                        value={localSettings.emailSenderName || ''} 
+                                        onChange={(e) => handleChange('emailSenderName', e.target.value)} 
+                                        placeholder="Unique Health"
+                                        icon={<UserCog size={16} />} 
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

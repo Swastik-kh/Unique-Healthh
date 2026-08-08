@@ -10,7 +10,8 @@ import {
   Flame, 
   Key, 
   ShieldCheck, 
-  Timer
+  Timer,
+  Mail
 } from 'lucide-react';
 
 export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
@@ -339,7 +340,8 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
                                 <ShieldCheck className="h-4 w-4 text-blue-500" title="Administrator" />
                               )}
                             </div>
-                            <div className="text-xs text-slate-400 font-mono">@{user.username}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">@{user.username}</div>
+                            {user.email && <div className="text-[10px] text-blue-500 font-medium truncate max-w-[150px] flex items-center gap-1"><Mail size={10} /> {user.email}</div>}
                           </div>
                         </div>
                       </td>
