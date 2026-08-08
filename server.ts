@@ -20,7 +20,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '20mb' }));
 
   // HIB Helper to get auth header
   const getHIBAuth = (req: express.Request) => {
@@ -635,7 +635,7 @@ async function startServer() {
             'Authorization': `Bearer ${apiKey.trim()}`,
             'Content-Type': 'application/json'
           },
-          timeout: 15000,
+          timeout: 30000,
           validateStatus: () => true
         });
 

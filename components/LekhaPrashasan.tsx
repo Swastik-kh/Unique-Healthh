@@ -2016,7 +2016,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           margin: 10,
           filename: `${title}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: { scale: 1.5, useCORS: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: printOrientation }
         };
 
