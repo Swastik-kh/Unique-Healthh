@@ -4,14 +4,16 @@ import {
   ArrowUpCircle, ArrowDownCircle, Users, Briefcase, 
   TrendingUp, TrendingDown, LayoutDashboard, ChevronRight,
   Filter, Calendar, ExternalLink, X, DollarSign, CreditCard, Download,
-  ClipboardList, Building2, Eye, Book, FileText, CheckSquare
+  ClipboardList, Building2, Eye, Book, FileText, CheckSquare, Mail, Loader2
 } from 'lucide-react';
+import axios from 'axios';
+import html2pdf from 'html2pdf.js';
 import { utils, writeFile } from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher, JournalEntry } from '../types/financeTypes';
-import { OrganizationSettings } from '../types/coreTypes';
+import { OrganizationSettings, User } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -46,6 +48,7 @@ interface LekhaPrashasanProps {
   generalSettings: OrganizationSettings;
   currentFiscalYear: string;
   isAdmin: boolean;
+  currentUser: User;
 }
 
 export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
@@ -72,7 +75,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   onDeletePayment,
   generalSettings,
   currentFiscalYear,
-  isAdmin
+  isAdmin,
+  currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'programs' | 'transactions' | 'vendors' | 'payments' | 'payment_requests' | 'allowances' | 'reports' | 'journal_voucher' | 'bank_cash_book' | 'kharcha_fatbari' | 'bank_reconciliation'>('dashboard');
   const [selectedMonth, setSelectedMonth] = useState<string>('All');
@@ -124,6 +128,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const [isOtherProgramSelected, setIsOtherProgramSelected] = useState(false);
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [isEmailing, setIsEmailing] = useState(false);
 
   const [txnItems, setTxnItems] = useState<{
     remarks: string, 
@@ -1919,6 +1924,129 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       printWin.print();
     };
 
+    const handleEmailReport = async () => {
+      if (!currentUser.email) {
+        alert("तपाईंको account मा Email राखिएको छैन, User Management बाट राख्नुहोस्");
+        return;
+      }
+
+      setIsEmailing(true);
+      try {
+        const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
+                      reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month.split('-')[0]} ${getNepaliMonthName(reportFilter.month + '-01')})` : 
+                      `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
+
+        const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
+
+        const content = `
+        <html>
+          <head>
+            <title>${title}</title>
+            <style>
+               @page { size: A4 ${printOrientation}; margin: 10mm; } 
+               body { font-family: 'Mukta', sans-serif; } 
+               table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
+               th, td { border: 1px solid black; padding: 10px; text-align: left; } 
+               th { background: #f3f4f6; text-align: center; }
+               .text-right { text-align: right; }
+               .text-center { text-align: center; }
+               .summary { margin-top: 20px; display: flex; gap: 20px; }
+               .box { border: 1px solid #ccc; padding: 15px; flex: 1; text-align: center; }
+            </style>
+          </head>
+          <body>
+            <div style="display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px;">
+              <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px; position: absolute; left: 0;">
+              <div style="text-align: center; width: 100%;">
+                <h1 style="color: #e11d48; margin: 0; font-size: 24px;">${generalSettings.orgNameNepali}</h1>
+                <div style="font-size: 14px; font-weight: bold; margin: 5px 0;">
+                    ${generalSettings.subTitleNepali || ''} ${generalSettings.subTitleNepali2 ? '| ' + generalSettings.subTitleNepali2 : ''} ${generalSettings.subTitleNepali3 ? '| ' + generalSettings.subTitleNepali3 : ''}
+                </div>
+                <h2 style="margin: 0; font-size: 20px;">${title}</h2>
+                <p style="margin: 5px 0;">आर्थिक वर्ष: ${reportFilter.fiscalYear}</p>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr><th>मिति (गते)</th><th>विवरण</th><th>आम्दानी</th><th>खर्च</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="text-center">-</td>
+                  <td><strong>ओपनिङ बैंक मौज्दात (गत आ.व. को बैंक मौज्दात)</strong></td>
+                  <td class="text-right">${prevFyOpeningBalance.toLocaleString()}</td>
+                  <td class="text-right">-</td>
+                </tr>
+                ${reportData.map(t => {
+                  const parts = t.dateBs.split(/[-/]/);
+                  const displayDate = reportFilter.type === 'Monthly' ? (parts[2] || t.dateBs) : t.dateBs;
+                  const recordIncomeVal = t.type === 'Income' ? (t.amountWithVAT || t.amount || 0) : 0;
+                  const recordExpenseVal = t.type === 'Expense' ? ((t.amountWithVAT || t.amount || 0) - (t.tdsAmount || 0) - (t.sasukarAmount || 0)) : 0;
+                  return `<tr><td class="text-center">${displayDate}</td><td>${getProgramName(t.programId)} (${t.remarks || ''})</td><td class="text-right">${recordIncomeVal > 0 ? recordIncomeVal.toLocaleString() : '-'}</td><td class="text-right">${recordExpenseVal > 0 ? recordExpenseVal.toLocaleString() : '-'}</td></tr>`
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="font-weight: bold;">
+                  <td colspan="2" style="text-align: right;">Total</td>
+                  <td class="text-right">${(reportIncome + prevFyOpeningBalance).toLocaleString()}</td>
+                  <td class="text-right">${reportExpense.toLocaleString()}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="summary">
+              <div class="box">
+                <p>मौज्दात रकम</p>
+                <h3>रू ${closingBalance.toLocaleString()}</h3>
+              </div>
+              <div class="box">
+                <p>भुक्तानी गर्न बाँकी</p>
+                <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
+              </div>
+            </div>
+          </body>
+        </html>`;
+
+        const hiddenDiv = document.createElement('div');
+        hiddenDiv.innerHTML = content;
+        hiddenDiv.style.position = 'absolute';
+        hiddenDiv.style.left = '-9999px';
+        document.body.appendChild(hiddenDiv);
+
+        const options: any = {
+          margin: 10,
+          filename: `${title}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: printOrientation }
+        };
+
+        const dataUriString = await html2pdf().from(hiddenDiv).set(options).outputPdf('datauristring');
+        const base64Pdf = dataUriString.split(',')[1];
+
+        document.body.removeChild(hiddenDiv);
+
+        await axios.post('/api/email/send', {
+          apiKey: generalSettings.emailApiKey,
+          senderAddress: generalSettings.emailSenderAddress,
+          senderName: generalSettings.emailSenderName,
+          to: currentUser.email,
+          subject: title,
+          htmlBody: `<p>नमस्ते ${currentUser.name || currentUser.username}, तपाईंले अनुरोध गर्नुभएको रिपोर्ट यसमा संलग्न छ।</p>`,
+          attachments: [{
+            filename: `${title}.pdf`,
+            content: base64Pdf
+          }]
+        });
+
+        alert("रिपोर्ट तपाईंको Email मा पठाइयो");
+      } catch (error) {
+        console.error("Email sending failed:", error);
+        alert("Email पठाउन सकिएन। कृपया फेरि प्रयास गर्नुहोस्।");
+      } finally {
+        setIsEmailing(false);
+      }
+    };
+
     const handleDownloadExcel = () => {
       const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
                     reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month})` : 
@@ -1986,6 +2114,14 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           )}
           <div className="flex gap-2 ml-auto">
             <button onClick={handleDownloadExcel} className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700"><Download size={18} /> Excel</button>
+            <button 
+              disabled={isEmailing}
+              onClick={handleEmailReport} 
+              className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {isEmailing ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />} 
+              Email Report
+            </button>
             <button onClick={handlePrint} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900"><Printer size={18} /> Print</button>
           </div>
         </div>

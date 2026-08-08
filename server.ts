@@ -600,7 +600,7 @@ async function startServer() {
   // Email Proxy Endpoint (Resend API)
   app.post("/api/email/send", async (req, res) => {
     try {
-      let { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body;
+      let { apiKey, senderAddress, senderName, to, subject, htmlBody, attachments } = req.body;
 
       // Secure: If apiKey is missing, fetch from Firebase Admin
       if (!apiKey || !senderAddress) {
@@ -628,7 +628,8 @@ async function startServer() {
           from: `${senderName || 'Notification'} <${senderAddress}>`,
           to: Array.isArray(to) ? to : [to],
           subject: subject,
-          html: htmlBody
+          html: htmlBody,
+          attachments: attachments || []
         }, {
           headers: {
             'Authorization': `Bearer ${apiKey.trim()}`,

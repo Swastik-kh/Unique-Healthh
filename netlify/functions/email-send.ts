@@ -36,7 +36,7 @@ export const handler = async (event: any, context: any) => {
 
   try {
     const body = event.body ? JSON.parse(event.body) : {};
-    let { apiKey, senderAddress, senderName, to, subject, htmlBody } = body;
+    let { apiKey, senderAddress, senderName, to, subject, htmlBody, attachments } = body;
 
     // Secure: Fetch from Firebase if missing
     if (!apiKey || !senderAddress) {
@@ -66,7 +66,8 @@ export const handler = async (event: any, context: any) => {
         from: `${senderName || 'Notification'} <${senderAddress}>`,
         to: Array.isArray(to) ? to : [to],
         subject: subject,
-        html: htmlBody
+        html: htmlBody,
+        attachments: attachments || []
       }, {
         headers: {
           'Authorization': `Bearer ${apiKey.trim()}`,

@@ -33,7 +33,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    let { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body || {};
+    let { apiKey, senderAddress, senderName, to, subject, htmlBody, attachments } = req.body || {};
 
     // Secure: Fetch from Firebase if missing
     if (!apiKey || !senderAddress) {
@@ -59,7 +59,8 @@ export default async function handler(req: any, res: any) {
         from: `${senderName || 'Notification'} <${senderAddress}>`,
         to: Array.isArray(to) ? to : [to],
         subject: subject,
-        html: htmlBody
+        html: htmlBody,
+        attachments: attachments || []
       }, {
         headers: {
           'Authorization': `Bearer ${apiKey.trim()}`,

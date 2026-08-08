@@ -2038,6 +2038,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
           generalSettings={generalSettings}
           currentFiscalYear={currentFiscalYear}
           isAdmin={currentUser?.role === 'ADMIN'}
+          currentUser={currentUser!}
         />
       );
       case 'talim_byabasthapan': return <TalimByabasthapan 
