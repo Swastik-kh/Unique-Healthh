@@ -566,6 +566,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
+        <div className="flex justify-end -mt-2">
+            <button 
+              type="button" 
+              onClick={() => {
+                  setMode('forgot');
+                  setResetStep('verify');
+                  setErrors({});
+              }}
+              className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline transition-all font-nepali"
+            >
+              पासवर्ड बिर्सनुभयो?
+            </button>
+        </div>
       </div>
 
       <button
@@ -576,20 +589,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         {isLoading ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
         <span>{isLoading ? 'प्रक्रियामा छ...' : 'लगइन गर्नुहोस्'}</span>
       </button>
-
-      <div className="text-center">
-          <button 
-            type="button" 
-            onClick={() => {
-                setMode('forgot');
-                setResetStep('verify');
-                setErrors({});
-            }}
-            className="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline transition-all font-nepali"
-          >
-            पासवर्ड बिर्सनुभयो?
-          </button>
-      </div>
 
       <div className="text-center pt-2">
           <div className="flex items-center justify-center gap-1.5 text-slate-400">
