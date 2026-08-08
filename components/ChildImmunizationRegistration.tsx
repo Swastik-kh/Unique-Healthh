@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -250,6 +250,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [selectedVaccineForUpdate, setSelectedVaccineForUpdate] = useState<{ record: ChildImmunizationRecord; vaccineIndex: number; } | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
   const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const stats = useMemo(() => {
+    const total = records.length;
+    const thisFy = records.filter(r => r.fiscalYear === currentFiscalYear).length;
+    const fullyImmunized = records.filter(r => isChildFullyImmunized(r)).length;
+    const partiallyImmunized = total - fullyImmunized;
+    
+    return { total, thisFy, fullyImmunized, partiallyImmunized };
+  }, [records, currentFiscalYear]);
 
   const getTodayAd = () => toLocalISO(new Date());
   const getTodayBs = () => {
@@ -596,6 +606,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     };
     const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines || [], "", "", "", loadedRecord.dobAd, loadedRecord.gender);
     setFormData({ ...loadedRecord, vaccines: reEvaluatedVaccines });
+    setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Focus child's name field when Edit is clicked
@@ -606,6 +617,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
   const handleReset = () => {
     setEditingRecordId(null);
+    setIsFormOpen(false);
     setFormData(prev => ({
       ...prev,
       id: '',
@@ -798,12 +810,79 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
   return (
     <div className="space-y-6">
+      {/* Attractive Dashboard for Child Immunization */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <UsersRound size={120} />
+          </div>
+          <div className="flex justify-between items-start">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+              <UsersRound size={24} />
+            </div>
+            <TrendingUp size={20} className="text-white/40" />
+          </div>
+          <div className="mt-4">
+            <p className="text-blue-100 text-xs font-bold font-nepali">कुल दर्ता संख्या</p>
+            <h3 className="text-3xl font-black mt-1 font-mono">{stats.total}</h3>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <Baby size={120} />
+          </div>
+          <div className="flex justify-between items-start">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+              <Baby size={24} />
+            </div>
+            <Activity size={20} className="text-white/40" />
+          </div>
+          <div className="mt-4">
+            <p className="text-emerald-100 text-xs font-bold font-nepali">चालु आ.व. ({currentFiscalYear})</p>
+            <h3 className="text-3xl font-black mt-1 font-mono">{stats.thisFy}</h3>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <ShieldCheck size={120} />
+          </div>
+          <div className="flex justify-between items-start">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+              <ShieldCheck size={24} />
+            </div>
+            <Award size={20} className="text-white/40" />
+          </div>
+          <div className="mt-4">
+            <p className="text-indigo-100 text-xs font-bold font-nepali">पूर्ण खोप सुनिश्चित</p>
+            <h3 className="text-3xl font-black mt-1 font-mono">{stats.fullyImmunized}</h3>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+            <AlertTriangle size={120} />
+          </div>
+          <div className="flex justify-between items-start">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+              <AlertTriangle size={24} />
+            </div>
+            <Activity size={20} className="text-white/40" />
+          </div>
+          <div className="mt-4">
+            <p className="text-amber-100 text-xs font-bold font-nepali">आंशिक/बाँकी खोप</p>
+            <h3 className="text-3xl font-black mt-1 font-mono">{stats.partiallyImmunized}</h3>
+          </div>
+        </div>
+      </div>
+
       {validationError && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm flex items-start gap-3 animate-in slide-in-from-top-2 no-print">
           <AlertTriangle size={24} className="text-red-500 mt-0.5" />
           <div className="flex-1">
-            <h3 className="text-red-800 font-bold text-sm">त्रुटि</h3>
-            <p className="text-red-700 text-sm mt-1">{validationError}</p>
+            <h3 className="text-red-800 font-bold text-sm font-nepali">त्रुटि (Error)</h3>
+            <p className="text-red-700 text-sm mt-1 font-nepali">{validationError}</p>
           </div>
           <button onClick={() => setValidationError(null)} className="text-red-400 hover:text-red-600"><X size={20} /></button>
         </div>
@@ -813,19 +892,47 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-sm flex items-center gap-3 animate-in slide-in-from-top-2 no-print">
           <CheckCircle2 size={24} className="text-green-500" />
           <div className="flex-1">
-            <h3 className="text-green-800 font-bold text-lg font-nepali">सफल भयो</h3>
-            <p className="text-green-700 text-sm">{successMessage}</p>
+            <h3 className="text-green-800 font-bold text-lg font-nepali">सफल भयो (Success)</h3>
+            <p className="text-green-700 text-sm font-nepali">{successMessage}</p>
           </div>
           <button onClick={() => setSuccessMessage(null)} className="text-green-400 hover:text-green-600"><X size={20} /></button>
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-xl border shadow-sm no-print">
-        <div className="flex items-center gap-2 mb-6 text-green-800 bg-green-50 p-3 rounded-lg border border-green-100">
-            <Baby size={20} />
-            <span className="font-semibold font-nepali">बच्चाको विवरण र खोप दर्ता</span>
-        </div>
-        <form onSubmit={handleSubmit} className="grid md:grid-cols-3 gap-6">
+      <div className="flex justify-center no-print">
+        {!isFormOpen && (
+          <button
+            onClick={() => setIsFormOpen(true)}
+            className="flex items-center gap-3 bg-green-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:bg-green-700 hover:scale-105 transition-all animate-in zoom-in duration-300 font-nepali"
+          >
+            <UserPlus size={24} /> बच्चा दर्ता गर्नुहोस् (नयाँ फारम)
+          </button>
+        )}
+      </div>
+
+      {isFormOpen && (
+        <div className="bg-white p-6 rounded-2xl border-2 border-green-100 shadow-xl no-print animate-in slide-in-from-top-4 duration-300 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-green-600"></div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3 text-green-800">
+              <div className="bg-green-100 p-2 rounded-xl">
+                <Baby size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl font-nepali">{editingRecordId ? 'बच्चाको विवरण परिमार्जन गर्नुहोस्' : 'नयाँ बच्चाको विवरण र खोप दर्ता'}</h3>
+                <p className="text-xs text-slate-500">तारा चिन्हित (*) विवरणहरू अनिवार्य छन्</p>
+              </div>
+            </div>
+            <button 
+              onClick={handleReset}
+              className="p-2 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-colors"
+              title="बन्द गर्नुहोस्"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit} className="grid md:grid-cols-3 gap-6">
           <Input label="दर्ता नम्बर" value={formData.regNo} readOnly className="bg-slate-50 font-bold text-green-700" icon={<FileDigit size={16} />} />
           <NepaliDatePicker label="जन्म मिति *" value={formData.dobBs} onChange={handleDOBBsChange} required />
           <Input ref={childNameRef} label="बच्चाको नाम *" value={formData.childName} onChange={e => setFormData({...formData, childName: e.target.value})} required icon={<User size={16} />} />
@@ -986,6 +1093,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
         </form>
       </div>
+    )}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
