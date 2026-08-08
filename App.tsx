@@ -424,12 +424,47 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('smart_inv_active_item');
+  };
+
   const handleLoginSuccess = (user: User, fiscalYear: string) => {
     setCurrentUser(user);
     setActiveOrgName(user.organizationName);
     setCurrentFiscalYear(fiscalYear);
     localStorage.removeItem('smart_inv_active_item');
   };
+
+  // Auto-logout after 5 minutes of inactivity
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout();
+        alert("तपाईंको सत्र निष्क्रियताका कारण समाप्त भएको छ। कृपया पुनः लगइन गर्नुहोस्।");
+      }, 5 * 60 * 1000); // 5 minutes
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [currentUser]);
 
   const sanitizeOrgName = (name: string) => {
     return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
@@ -1801,10 +1836,7 @@ const App: React.FC = () => {
     <>
       {currentUser ? (
         <Dashboard 
-          onLogout={() => {
-            setCurrentUser(null);
-            localStorage.removeItem('smart_inv_active_item');
-          }} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
+          onLogout={handleLogout} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
           users={allUsers} onAddUser={handleSaveUser}
           onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
           onDeleteOrganization={handleDeleteOrganization}
