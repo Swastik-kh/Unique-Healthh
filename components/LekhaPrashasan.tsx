@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
 import { toNepaliNumber } from './nepaliUtils';
 import { db } from '../firebase';
-import { ref, onValue, remove } from 'firebase/database';
+import { ref, onValue, remove, get } from 'firebase/database';
 
 interface LekhaPrashasanProps {
   programs: FinancialProgram[];
@@ -1932,6 +1932,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
       setIsEmailing(true);
       try {
+        const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
+        const emailConfig = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
+
+        if (!emailConfig.emailApiKey || !emailConfig.emailSenderAddress) {
+          alert('प्रणालीमा Email सेटिङ मिलाइएको छैन। कृपया एडमिनलाई सम्पर्क गर्नुहोस्।');
+          setIsEmailing(false);
+          return;
+        }
+
         const title = reportFilter.type === 'Daily' ? `दैनिक आय-व्यय विवरण (${reportFilter.date})` : 
                       reportFilter.type === 'Monthly' ? `मासिक आय-व्यय विवरण (${reportFilter.month.split('-')[0]} ${getNepaliMonthName(reportFilter.month + '-01')})` : 
                       `आर्थिक वर्ष ${reportFilter.fiscalYear} को वार्षिक आय-व्यय विवरण`;
@@ -2026,9 +2035,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         document.body.removeChild(hiddenDiv);
 
         await axios.post('/api/email/send', {
-          apiKey: generalSettings.emailApiKey,
-          senderAddress: generalSettings.emailSenderAddress,
-          senderName: generalSettings.emailSenderName,
+          apiKey: emailConfig.emailApiKey,
+          senderAddress: emailConfig.emailSenderAddress,
+          senderName: emailConfig.emailSenderName,
           to: currentUser.email,
           subject: title,
           htmlBody: `<p>नमस्ते ${currentUser.name || currentUser.username}, तपाईंले अनुरोध गर्नुभएको रिपोर्ट यसमा संलग्न छ।</p>`,
