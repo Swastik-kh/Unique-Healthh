@@ -239,6 +239,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     fullName: string;
     designation: string;
     phoneNumber: string;
+    email: string;
     organizationName: string;
     role: UserRole;
     allowedMenus: string[];
@@ -258,6 +259,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     fullName: '',
     designation: '',
     phoneNumber: '',
+    email: '',
     organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
     allowedMenus: [],
@@ -312,7 +314,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const resetForm = () => {
       setFormData({ 
         id: generateUniqueId(), 
-        username: '', password: '', fullName: '', designation: '', phoneNumber: '',
+        username: '', password: '', fullName: '', designation: '', phoneNumber: '', email: '',
         organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
         allowedMenus: [],
@@ -338,7 +340,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       setFormData({
           id: user.id,
           username: user.username, password: user.password, fullName: user.fullName,
-          designation: user.designation, phoneNumber: user.phoneNumber,
+          designation: user.designation, phoneNumber: user.phoneNumber, email: user.email || '',
           organizationName: user.organizationName,
           role: user.role,
           allowedMenus: user.allowedMenus || [],
@@ -579,6 +581,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         fullName: formData.fullName.trim(), 
         designation: formData.designation.trim(),
         phoneNumber: formData.phoneNumber.trim(), 
+        email: formData.email.trim(),
         organizationName: formData.organizationName.trim(),
         allowedMenus: finalMenus,
         editAccessMenus: Array.from(new Set([...formData.editAccessMenus])),
@@ -720,6 +723,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             />
             <Input label="पद" value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} required icon={<Briefcase size={16} />} disabled={isSaving} />
             <Input label="फोन नं." value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} required icon={<Phone size={16} />} disabled={isSaving} />
+            <Input label="इमेल (वैकल्पिक)" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} icon={<MessageSquare size={16} />} disabled={isSaving} placeholder="example@gmail.com" />
             <Input 
                 label="संस्था (कार्यालयको नाम)" 
                 value={formData.organizationName} 
