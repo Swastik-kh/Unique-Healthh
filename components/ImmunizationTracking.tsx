@@ -1795,8 +1795,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
                     {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
                     {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
-                    <h2 className="mt-3 font-bold" style={{ fontSize: '15px', textDecoration: 'underline' }}>बच्चा खोप अनुगमन - आगामी खोप तालिका (Child Upcoming Vaccination Schedule)</h2>
-                    <p>अवधि: {filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा संख्या: {upcomingSessionList.length}</p>
+                    <h2 className="mt-3 font-bold" style={{ fontSize: '15px', textDecoration: 'underline' }}>आ.ब. {filterFiscalYear} {getSelectedMonthLabel()} महिनामा खोप लगाउनु पर्ने बालबालिकाको सुची</h2>
+                    <p>{filterCenter && `केन्द्र: ${filterCenter} | `}जम्मा संख्या: {upcomingSessionList.length}</p>
                 </div>
             </div>
             <table className="print-table">
