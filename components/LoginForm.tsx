@@ -127,8 +127,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         }
       }
 
-      const safeOrg = (foundUser.organizationName || '').trim().replace(/[.#$[\]]/g, "_");
-      const orgSettingsSnap = await get(ref(db, `orgData/${safeOrg}/settings`));
+      const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
       const orgSettings = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
 
       // Rate limit check

@@ -10,6 +10,8 @@ import { MenuManagement } from './MenuManagement';
 import { SearchableSelect } from './SearchableSelect';
 import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } from '../constants/dhis2Metadata';
 import { db as localDb } from '../firestore';
+import { db as rtdb } from '../firebase';
+import { ref, set } from 'firebase/database';
 
 const sujhabFirebaseConfig = {
   apiKey: "AIzaSyAtt4_yw8_76inlXJPgMNRV0h0vqPpvgt8",
@@ -276,16 +278,30 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     setIsSaved(false);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateSettings(localSettings);
     
     // If superadmin, also update global DHIS2 mappings
-    if (currentUser.role === 'SUPER_ADMIN' && onUpdateGlobalDhis2Mappings) {
-        onUpdateGlobalDhis2Mappings({
-            dhis2DatasetMappings: localSettings.dhis2DatasetMappings,
-            dhis2CellMappings: localSettings.dhis2CellMappings
-        });
+    if (currentUser.role === 'SUPER_ADMIN') {
+        if (onUpdateGlobalDhis2Mappings) {
+            onUpdateGlobalDhis2Mappings({
+                dhis2DatasetMappings: localSettings.dhis2DatasetMappings,
+                dhis2CellMappings: localSettings.dhis2CellMappings
+            });
+        }
+        
+        // Save Email Settings Globally to organizationSettings/config
+        try {
+            await set(ref(rtdb, 'organizationSettings/config'), {
+                emailApiKey: localSettings.emailApiKey || '',
+                emailSenderAddress: localSettings.emailSenderAddress || '',
+                emailSenderName: localSettings.emailSenderName || '',
+                emailApiProvider: localSettings.emailApiProvider || 'Resend'
+            });
+        } catch (err) {
+            console.error("Global Email Config Save Failed:", err);
+        }
     }
     
     setIsSaved(true);
