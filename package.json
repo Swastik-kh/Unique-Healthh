@@ -27,6 +27,7 @@
     "esbuild": "^0.28.1",
     "express": "^5.2.1",
     "firebase": "^12.7.0",
+    "firebase-admin": "^14.2.0",
     "hot-formula-parser": "^4.0.0",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.561.0",

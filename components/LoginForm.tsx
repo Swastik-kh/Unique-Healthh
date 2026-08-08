@@ -159,9 +159,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       }
 
       const emailResponse = await axios.post('/api/email/send', {
-        apiKey: settings.emailApiKey,
-        senderAddress: settings.emailSenderAddress,
-        senderName: settings.emailSenderName || 'Unique Health',
         to: foundUser.email,
         subject: "पासवर्ड रिसेट कोड - Unique Health",
         htmlBody: `

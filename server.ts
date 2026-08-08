@@ -2,6 +2,19 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import axios from "axios";
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
+
+// Initialize Firebase Admin
+try {
+  if (getApps().length === 0) {
+    initializeApp({
+      databaseURL: "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
+    });
+  }
+} catch (e: any) {
+  console.warn("Firebase Admin Initialization Warning:", e.message);
+}
 
 async function startServer() {
   const app = express();
@@ -587,7 +600,21 @@ async function startServer() {
   // Email Proxy Endpoint (Resend API)
   app.post("/api/email/send", async (req, res) => {
     try {
-      const { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body;
+      let { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body;
+
+      // Secure: If apiKey is missing, fetch from Firebase Admin
+      if (!apiKey || !senderAddress) {
+        try {
+          const snapshot = await getDatabase().ref("organizationSettings/config").once("value");
+          const config = snapshot.val() || {};
+          apiKey = apiKey || config.emailApiKey;
+          senderAddress = senderAddress || config.emailSenderAddress;
+          senderName = senderName || config.emailSenderName;
+          console.log("Fetched Email Config from Firebase");
+        } catch (dbErr: any) {
+          console.error("Failed to fetch email config from Firebase:", dbErr.message);
+        }
+      }
 
       if (!apiKey || !senderAddress || !to || !subject || !htmlBody) {
         return res.status(400).json({ error: "Missing required fields: apiKey, senderAddress, to, subject, and htmlBody are required." });

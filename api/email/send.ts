@@ -1,4 +1,17 @@
 import axios from 'axios';
+import { getApps, initializeApp } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
+
+// Initialize Firebase Admin
+if (getApps().length === 0) {
+  try {
+    initializeApp({
+      databaseURL: "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
+    });
+  } catch (e) {
+    console.error("Firebase Admin Init Error:", e);
+  }
+}
 
 export default async function handler(req: any, res: any) {
   // Support CORS
@@ -20,7 +33,20 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body || {};
+    let { apiKey, senderAddress, senderName, to, subject, htmlBody } = req.body || {};
+
+    // Secure: Fetch from Firebase if missing
+    if (!apiKey || !senderAddress) {
+      try {
+        const snapshot = await getDatabase().ref("organizationSettings/config").once("value");
+        const config = snapshot.val() || {};
+        apiKey = apiKey || config.emailApiKey;
+        senderAddress = senderAddress || config.emailSenderAddress;
+        senderName = senderName || config.emailSenderName;
+      } catch (dbErr: any) {
+        console.error("DB Fetch Error:", dbErr.message);
+      }
+    }
 
     if (!apiKey || !senderAddress || !to || !subject || !htmlBody) {
       return res.status(400).json({ error: "Missing required fields: apiKey, senderAddress, to, subject, and htmlBody are required." });
