@@ -267,6 +267,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       const targetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
       
       targetList.forEach(item => {
+        if (item.child.isOtherAddress) return; // Exclude children with other address (अन्य ठेगाना)
         const rawPhone = item.child.phone;
         const cleaned = cleanPhone(rawPhone);
         if (!/^\d{10}$/.test(cleaned)) return; // Exclude invalid / non-10 digit numbers completely!
@@ -640,7 +641,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     regNo: item.child.regNo,
                     dobBs: item.child.dobBs,
                     guardian: `${item.child.motherName}${item.child.fatherName ? ` / ${item.child.fatherName}` : ''}`,
-                    address: item.child.address,
+                    address: `${item.child.address}${item.child.isOtherAddress ? ' (अन्य)' : ''}`,
                     center: item.child.vaccinationCenter,
                     phone: item.child.phone,
                     doses: []
@@ -734,7 +735,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
   const bulkTargetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
   const validBulkRecipients = useMemo(() => {
-    return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone));
+    return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone) && !item.child.isOtherAddress);
   }, [bulkTargetList, isValid10DigitMobile]);
 
   const invalidBulkCount = bulkTargetList.length - validBulkRecipients.length;
@@ -1342,7 +1343,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 <div className="text-slate-700 font-medium">
                                                     आमा: {item.child.motherName} {item.child.fatherName && `/ बुबा: ${item.child.fatherName}`}
                                                 </div>
-                                                <div className="text-[10px] text-slate-400 mt-0.5">{item.child.address}</div>
+                                                <div className="text-[10px] text-slate-400 mt-0.5">{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</div>
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex flex-col gap-2 justify-center">
@@ -1494,7 +1495,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
                                                 <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                 <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
-                                                <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}</div>
+                                                <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</div>
                                                 <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
                                             </div>
                                         </td>
@@ -1587,7 +1588,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             {child.motherName} {child.fatherName && `/ ${child.fatherName}`}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600">
-                                            <div>{child.address}</div>
+                                            <div>{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</div>
                                             <div className="text-[10px] text-slate-400 mt-1 font-mono font-bold">फोन: <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{child.phone}</span></div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -1718,7 +1719,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 <div className="space-y-0.5">
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">आमाको नाम:</span> <span className="font-bold">{selectedChildForCard.motherName}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बुबाको नाम:</span> <span className="font-bold">{selectedChildForCard.fatherName}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">ठेगाना:</span> <span className="font-bold truncate max-w-[150px] text-right">{selectedChildForCard.address}</span></p>
+                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">ठेगाना:</span> <span className="font-bold truncate max-w-[150px] text-right">{selectedChildForCard.address}{selectedChildForCard.isOtherAddress ? ' (अन्य)' : ''}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">फोन:</span> <span className={`font-bold font-mono ${blurPhone ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.phone}</span></p>
                                 </div>
                             </div>
@@ -1819,7 +1820,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
                             <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
                             <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
-                            <td>{item.child.address}</td>
+                            <td>{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</td>
                             <td>{item.child.vaccinationCenter}</td>
                             <td style={{fontWeight: 'bold'}}>
                                 {item.vaccines.map(v => `${v.name}`).join(', ')}
@@ -1866,7 +1867,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
                             <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
                             <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
-                            <td>{item.child.address}</td>
+                            <td>{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</td>
                             <td>{item.child.vaccinationCenter}</td>
                             <td style={{color: 'red', fontWeight: 'bold'}}>
                                 {item.vaccines.map(v => v.name).join(', ')}
@@ -1912,7 +1913,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td><span className={blurDob ? "blur-sm" : ""}>{child.dobBs}</span></td>
                             <td>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</td>
                             <td>{child.vaccinationCenter}</td>
-                            <td>{child.address}</td>
+                            <td>{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{child.phone}</span></td>
                             <td>{getCompletionDate(child)}</td>
                         </tr>
@@ -2128,13 +2129,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <span className="text-[10px] text-emerald-700 block mt-0.5 font-medium">(SMS जानेछ)</span>
                           </div>
                           <div className={`border p-2.5 rounded-xl ${invalidBulkCount > 0 ? 'bg-rose-50 border-rose-200 text-rose-950' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                            <span className={`text-[10px] font-bold block uppercase ${invalidBulkCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>अमान्य / नम्बर नभएका:</span>
+                            <span className={`text-[10px] font-bold block uppercase ${invalidBulkCount > 0 ? 'text-rose-700' : 'text-slate-500'}`}>अमान्य / नम्बर नभएका / अन्य ठेगाना:</span>
                             <span className="font-black text-sm font-mono">{invalidBulkCount} जना</span>
                             <span className="text-[10px] block mt-0.5 font-medium">{invalidBulkCount > 0 ? '(स्वतः हटाइनेछ)' : '(सबै सही छन्)'}</span>
                           </div>
                         </div>
                         <p className="text-[11px] text-indigo-800 leading-relaxed bg-white/70 p-2.5 rounded-xl border border-indigo-100 italic">
-                          * १० अंकको सही फोन नम्बर भएका <b>{validBulkRecipients.length} जना</b> अभिभावकलाई मात्र SMS पठाइनेछ।
+                          * १० अंकको सही फोन नम्बर भएका र अन्य ठेगाना नभएका <b>{validBulkRecipients.length} जना</b> अभिभावकलाई मात्र SMS पठाइनेछ।
                         </p>
                       </div>
                     )}

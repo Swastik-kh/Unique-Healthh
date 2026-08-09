@@ -1139,7 +1139,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                                           <div><span className="text-slate-500 font-nepali">आमा:</span> <span className="font-medium text-slate-700">{child.motherName || '-'}</span></div>
                                       </td>
                                       <td className="border-r border-slate-200 p-2 text-[11px] leading-relaxed">
-                                          <div className="text-slate-700">{child.address}</div>
+                                          <div className="text-slate-700">{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</div>
                                           <div className="font-mono text-slate-500 font-semibold">{child.phone || '-'}</div>
                                       </td>
                                       <td className="border-r border-slate-200 p-2 text-[11px]">

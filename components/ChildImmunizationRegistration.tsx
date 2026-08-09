@@ -630,6 +630,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       motherName: '',
       fatherName: '',
       address: '',
+      isOtherAddress: false,
       phone: '',
       birthWeightKg: undefined,
       regDateBs: getTodayBs(),
@@ -944,6 +945,18 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           <Input label="आमाको नाम *" value={formData.motherName} onChange={e => setFormData({...formData, motherName: e.target.value})} required icon={<User size={16} />} />
           <Input label="बुबाको नाम *" value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} required icon={<User size={16} />} />
           <Input label="ठेगाना *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
+          <div className="flex items-center gap-2 bg-white/50 border border-slate-200 p-2.5 rounded-lg">
+            <input
+              type="checkbox"
+              id="isOtherAddress"
+              checked={!!formData.isOtherAddress}
+              onChange={(e) => setFormData({...formData, isOtherAddress: e.target.checked})}
+              className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="isOtherAddress" className="text-sm font-medium text-slate-600 font-nepali cursor-pointer select-none">
+              अन्य ठेगाना (Other Address)
+            </label>
+          </div>
           <Input label="फोन नं" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} icon={<Phone size={16} />} placeholder="१० अंकको फोन नं (ऐच्छिक)" />
           
           {/* Vaccine Status Card inside Form */}
@@ -1131,7 +1144,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     <div className="text-[11px] text-slate-600 mt-1 space-y-0.5">
                       <div><span className="font-medium text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{record.dobBs}</span></div>
                       <div><span className="font-medium text-slate-400">अभिभावक:</span> {record.motherName} (आमा) {record.fatherName && `/ ${record.fatherName} (बुबा)`}</div>
-                      <div><span className="font-medium text-slate-400">ठेगाना:</span> {record.address} | <span className="font-medium text-slate-400">फोन:</span> <span className="font-mono">{record.phone}</span></div>
+                      <div><span className="font-medium text-slate-400">ठेगाना:</span> {record.address}{record.isOtherAddress ? ' (अन्य)' : ''} | <span className="font-medium text-slate-400">फोन:</span> <span className="font-mono">{record.phone}</span></div>
                     </div>
                   </td>
                   <td className="px-6 py-4">

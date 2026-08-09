@@ -157,6 +157,7 @@ export interface ChildImmunizationRecord {
   motherName: string;
   fatherName: string;
   address: string;
+  isOtherAddress?: boolean;
   phone: string;
   birthWeightKg?: number;
   regDateBs?: string;
