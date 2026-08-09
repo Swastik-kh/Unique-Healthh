@@ -139,6 +139,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [smsMessageText, setSmsMessageText] = useState('');
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [showSmsLogModal, setShowSmsLogModal] = useState(false);
+  const [showRecipientDetailsModal, setShowRecipientDetailsModal] = useState(false);
+  const [recipientFilterTab, setRecipientFilterTab] = useState<'all' | 'valid' | 'invalid'>('all');
+  const [recipientListSearch, setRecipientListSearch] = useState('');
   const [smsLogs, setSmsLogs] = useState<Array<{
     id: string;
     timestamp: string;
@@ -738,7 +741,46 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     return bulkTargetList.filter(item => isValid10DigitMobile(item.child.phone) && !item.child.isOtherAddress);
   }, [bulkTargetList, isValid10DigitMobile]);
 
-  const invalidBulkCount = bulkTargetList.length - validBulkRecipients.length;
+  const invalidBulkRecipients = useMemo(() => {
+    return bulkTargetList
+      .filter(item => !isValid10DigitMobile(item.child.phone) || item.child.isOtherAddress)
+      .map(item => {
+        let reason = '';
+        if (item.child.isOtherAddress) {
+          reason = 'अन्य ठेगाना (Other Address)';
+        } else if (!item.child.phone || item.child.phone.trim() === '') {
+          reason = 'नम्बर नभएको (No Phone)';
+        } else {
+          reason = `अमान्य नम्बर (${item.child.phone})`;
+        }
+        return { ...item, reason };
+      });
+  }, [bulkTargetList, isValid10DigitMobile]);
+
+  const invalidBulkCount = invalidBulkRecipients.length;
+
+  const allBulkRecipientsDetailed = useMemo(() => {
+    return bulkTargetList.map(item => {
+      const isValidMobile = isValid10DigitMobile(item.child.phone);
+      const isOtherAddr = !!item.child.isOtherAddress;
+      const isValid = isValidMobile && !isOtherAddr;
+      
+      let reason = 'वैध (Valid)';
+      if (isOtherAddr) {
+        reason = 'अन्य ठेगाना (Other Address)';
+      } else if (!item.child.phone || item.child.phone.trim() === '') {
+        reason = 'नम्बर नभएको (No Phone)';
+      } else if (!isValidMobile) {
+        reason = `अमान्य फोन (${item.child.phone})`;
+      }
+
+      return {
+        ...item,
+        isValid,
+        reason
+      };
+    });
+  }, [bulkTargetList, isValid10DigitMobile]);
 
   // FIC List: Fully Immunized Children (Excluding HPV)
   const ficList = useMemo(() => {
@@ -2044,10 +2086,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     <MessageSquare size={24} className="text-white" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-extrabold text-lg sm:text-xl font-nepali leading-tight">
                         {smsMode === 'single' ? 'अभिभावकलाई SMS सन्देश पठाउनुहोस्' : 'सबै अभिभावकहरूलाई Bulk SMS सन्देश पठाउनुहोस्'}
                       </h3>
+                      {smsMode === 'bulk' && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRecipientDetailsModal(true)}
+                          className="bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-semibold shadow-xs border border-white/20 cursor-pointer"
+                          title="प्राप्तकर्ता तथा अमान्य विवरण सूची हेर्नुहोस्"
+                        >
+                          <Eye size={15} />
+                          <span className="hidden sm:inline font-nepali">प्राप्तकर्ता सूची हेर्नुहोस्</span>
+                        </button>
+                      )}
                       <span className="bg-blue-500/40 text-blue-100 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 font-mono">
                         {smsMode === 'single' ? 'Single SMS' : 'Bulk SMS'}
                       </span>
@@ -2113,9 +2166,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                       </div>
                     ) : (
                       <div className="bg-gradient-to-br from-indigo-50 to-blue-50/60 p-5 rounded-2xl border border-indigo-100/80 space-y-3 shadow-xs">
-                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider font-sans border-b border-indigo-200/60 pb-2">
-                          समूह प्राप्तकर्ता जानकारी (Bulk Recipients)
-                        </h4>
+                        <div className="flex items-center justify-between border-b border-indigo-200/60 pb-2">
+                          <h4 className="text-xs font-black text-indigo-900 uppercase tracking-wider font-sans">
+                            समूह प्राप्तकर्ता जानकारी (Bulk Recipients)
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => setShowRecipientDetailsModal(true)}
+                            className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors border border-indigo-200 shadow-2xs cursor-pointer"
+                            title="सबै वैध र अमान्य विवरणहरू हेर्नुहोस्"
+                          >
+                            <Eye size={14} className="text-indigo-600" />
+                            <span>सूची हेर्नुहोस्</span>
+                          </button>
+                        </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-indigo-900 font-bold">जम्मा सूचीकृत बालबालिका:</span>
                           <span className="bg-indigo-600 text-white text-sm font-black px-3 py-1 rounded-full font-mono shadow-xs">
@@ -2441,6 +2505,208 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSmsLogModal(false)}
+                className="px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors cursor-pointer"
+              >
+                बन्द गर्नुहोस् (Close)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Recipients Breakdown Details Modal */}
+      {showRecipientDetailsModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-200 no-print">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 font-nepali">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-indigo-800 via-blue-800 to-slate-900 text-white p-5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shadow-inner">
+                  <Users size={22} className="text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold">समूह SMS प्राप्तकर्ताहरूको विस्तृत विवरण</h3>
+                    <span className="bg-blue-500/40 text-blue-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 font-mono">
+                      {smsViewType === 'upcoming' ? 'आगामी खोप सूची' : 'खोप छुटेका सूची'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-indigo-100/90 mt-0.5">
+                    वैध १०-अङ्क मोबाइल भएका (SMS जाने) र अमान्य/अन्य ठेगाना भएका (हटाइने) को पूर्ण विवरण
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowRecipientDetailsModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+                title="बन्द गर्नुहोस्"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Subheader: Filter Tabs & Search */}
+            <div className="bg-slate-50 border-b border-slate-200 p-4 shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Tabs */}
+              <div className="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setRecipientFilterTab('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    recipientFilterTab === 'all' 
+                      ? 'bg-white text-slate-800 shadow-2xs font-black' 
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  सबै ({allBulkRecipientsDetailed.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientFilterTab('valid')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    recipientFilterTab === 'valid' 
+                      ? 'bg-emerald-600 text-white shadow-2xs font-black' 
+                      : 'text-emerald-700 hover:bg-emerald-100/60'
+                  }`}
+                >
+                  <CheckCircle2 size={13} />
+                  वैध ({validBulkRecipients.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecipientFilterTab('invalid')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    recipientFilterTab === 'invalid' 
+                      ? 'bg-rose-600 text-white shadow-2xs font-black' 
+                      : 'text-rose-700 hover:bg-rose-100/60'
+                  }`}
+                >
+                  <AlertOctagon size={13} />
+                  अमान्य/हटाइने ({invalidBulkRecipients.length})
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div className="relative w-full sm:w-64">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={recipientListSearch}
+                  onChange={(e) => setRecipientListSearch(e.target.value)}
+                  placeholder="नाम, दर्ता नं, फोन, ठेगाना खोज्नुहोस्..."
+                  className="w-full text-xs pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-nepali"
+                />
+                {recipientListSearch && (
+                  <button 
+                    type="button" 
+                    onClick={() => setRecipientListSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable Table Area */}
+            <div className="p-4 sm:p-6 overflow-y-auto grow max-h-[60vh] bg-slate-100/50">
+              {(() => {
+                const query = recipientListSearch.toLowerCase().trim();
+                const filtered = allBulkRecipientsDetailed.filter(item => {
+                  if (recipientFilterTab === 'valid' && !item.isValid) return false;
+                  if (recipientFilterTab === 'invalid' && item.isValid) return false;
+
+                  if (!query) return true;
+
+                  const nameMatch = (item.child.childName || '').toLowerCase().includes(query);
+                  const regMatch = (item.child.regNo || '').toLowerCase().includes(query);
+                  const phoneMatch = (item.child.phone || '').includes(query);
+                  const addrMatch = (item.child.address || '').toLowerCase().includes(query);
+                  const motherMatch = (item.child.motherName || '').toLowerCase().includes(query);
+                  const fatherMatch = (item.child.fatherName || '').toLowerCase().includes(query);
+                  const centerMatch = (item.child.vaccinationCenter || '').toLowerCase().includes(query);
+
+                  return nameMatch || regMatch || phoneMatch || addrMatch || motherMatch || fatherMatch || centerMatch;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 p-6">
+                      <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <Search size={24} />
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-700">कुनै रेकर्ड भेटिएन</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">छानिएको फिल्टर वा खोज शब्द अनुसार कुनै पनि बालबालिका फेला परेन।</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider sticky top-0 z-10">
+                          <tr>
+                            <th className="px-3 py-2.5 text-center w-12">क्र.सं.</th>
+                            <th className="px-3 py-2.5">बच्चाको नाम र दर्ता नं</th>
+                            <th className="px-3 py-2.5">अभिभावक (आमा/बुबा)</th>
+                            <th className="px-3 py-2.5">ठेगाना र खोप केन्द्र</th>
+                            <th className="px-3 py-2.5">फोन नम्बर</th>
+                            <th className="px-3 py-2.5 text-right">SMS स्थिति / कैफियत</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filtered.map((item, index) => (
+                            <tr key={item.child.id || index} className={`hover:bg-slate-50 transition-colors ${!item.isValid ? 'bg-rose-50/30' : ''}`}>
+                              <td className="px-3 py-2.5 text-center font-mono text-slate-400 font-semibold">
+                                {index + 1}
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <div className="font-bold text-slate-800">{item.child.childName}</div>
+                                <div className="text-[10px] font-mono font-bold text-blue-600">{item.child.regNo}</div>
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-700">
+                                <div className="font-medium">{item.child.motherName || '-'}</div>
+                                {item.child.fatherName && <div className="text-[10px] text-slate-500">बुबा: {item.child.fatherName}</div>}
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-600">
+                                <div>{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</div>
+                                <div className="text-[10px] text-indigo-600 font-semibold">{item.child.vaccinationCenter || 'N/A'}</div>
+                              </td>
+                              <td className="px-3 py-2.5 font-mono font-bold text-slate-800">
+                                {item.child.phone ? item.child.phone : <span className="text-slate-400 italic font-normal">नभएको</span>}
+                              </td>
+                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                {item.isValid ? (
+                                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                                    <CheckCircle2 size={12} className="text-emerald-600" /> योग्य (SMS जानेछ)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-full text-[10px] font-bold" title={item.reason}>
+                                    <AlertOctagon size={12} className="text-rose-600" /> {item.reason}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-100 p-4 border-t border-slate-200 flex items-center justify-between shrink-0">
+              <div className="text-xs text-slate-600">
+                वैध SMS जाने: <b className="text-emerald-700 font-mono">{validBulkRecipients.length} जना</b> | 
+                अमान्य/अन्य ठेगाना: <b className="text-rose-700 font-mono">{invalidBulkRecipients.length} जना</b>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRecipientDetailsModal(false)}
                 className="px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors cursor-pointer"
               >
                 बन्द गर्नुहोस् (Close)
