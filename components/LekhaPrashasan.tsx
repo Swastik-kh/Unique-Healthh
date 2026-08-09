@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import html2pdf from 'html2pdf.js';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { utils, writeFile } from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
@@ -1932,6 +1934,24 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
       setIsEmailing(true);
       try {
+        const getLogoBase64 = async (): Promise<string> => {
+          const fallbackUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
+          const url = generalSettings.logoUrl || fallbackUrl;
+          try {
+            const response = await fetch(url, { mode: 'cors' });
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (e) {
+            console.warn('Logo fetch failed, PDF will render without logo:', e);
+            return ''; 
+          }
+        };
+
         const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
         const emailConfig = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
 
@@ -1947,25 +1967,23 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
         const getProgramName = (id?: string) => programs.find(p => p.id === id)?.name || '-';
 
+        const logoBase64 = await getLogoBase64();
+
         const content = `
-        <html>
-          <head>
-            <title>${title}</title>
-            <style>
-               @page { size: A4 ${printOrientation}; margin: 10mm; } 
-               body { font-family: 'Mukta', sans-serif; } 
-               table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
-               th, td { border: 1px solid black; padding: 10px; text-align: left; } 
-               th { background: #f3f4f6; text-align: center; }
-               .text-right { text-align: right; }
-               .text-center { text-align: center; }
-               .summary { margin-top: 20px; display: flex; gap: 20px; }
-               .box { border: 1px solid #ccc; padding: 15px; flex: 1; text-align: center; }
-            </style>
-          </head>
-          <body>
+          <style>
+             @page { size: A4 ${printOrientation}; margin: 10mm; } 
+             body { font-family: 'Mukta', sans-serif; } 
+             table { width: 100%; border-collapse: collapse; margin-top: 20px; } 
+             th, td { border: 1px solid black; padding: 10px; text-align: left; } 
+             th { background: #f3f4f6; text-align: center; }
+             .text-right { text-align: right; }
+             .text-center { text-align: center; }
+             .summary { margin-top: 20px; display: flex; gap: 20px; }
+             .box { border: 1px solid #ccc; padding: 15px; flex: 1; text-align: center; }
+          </style>
+          <div style="padding: 20px;">
             <div style="display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px;">
-              <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px; position: absolute; left: 0;">
+              ${logoBase64 ? `<img src="${logoBase64}" style="width: 80px; position: absolute; left: 0;">` : ''}
               <div style="text-align: center; width: 100%;">
                 <h1 style="color: #e11d48; margin: 0; font-size: 24px;">${generalSettings.orgNameNepali}</h1>
                 <div style="font-size: 14px; font-weight: bold; margin: 5px 0;">
@@ -2012,27 +2030,96 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                 <h3>रू ${stats.totalRemaining.toLocaleString()}</h3>
               </div>
             </div>
-          </body>
-        </html>`;
+          </div>`;
 
         const hiddenDiv = document.createElement('div');
-        hiddenDiv.innerHTML = content;
         hiddenDiv.style.position = 'absolute';
         hiddenDiv.style.left = '-9999px';
+        hiddenDiv.style.top = '0';
+        hiddenDiv.style.width = '750px';
+        hiddenDiv.style.background = '#ffffff';
+        hiddenDiv.innerHTML = content;
         document.body.appendChild(hiddenDiv);
 
-        const options: any = {
-          margin: 10,
-          filename: `${title}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 1.5, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: printOrientation }
-        };
+        // Wait for images to load
+        const imgs = hiddenDiv.querySelectorAll('img');
+        await Promise.all(Array.from(imgs).map(img => 
+          img.complete ? Promise.resolve() : new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          })
+        ));
 
-        const dataUriString = await html2pdf().from(hiddenDiv).set(options).outputPdf('datauristring');
+        const canvas = await html2canvas(hiddenDiv, { 
+          scale: 2, 
+          useCORS: true, 
+          backgroundColor: '#ffffff' 
+        });
+
+        // Row हरूको exact position पत्ता लगाउने (page cut row भित्रबाट नजाओस् भनेर)
+        const scaleFactor = 2; // html2canvas scale सँग मिल्नुपर्छ
+        const rows = Array.from(hiddenDiv.querySelectorAll('tr'));
+        const rowBoundaries = rows.map(row => {
+          const rect = row.getBoundingClientRect();
+          const containerRect = hiddenDiv.getBoundingClientRect();
+          return (rect.bottom - containerRect.top) * scaleFactor; // canvas px मा row को तल्लो किनारा
+        });
+
+        const pdfWidth = printOrientation === 'landscape' ? 297 : 210;
+        const pageHeightMM = printOrientation === 'landscape' ? 210 : 297;
+        const pxPerMM = canvas.width / pdfWidth;
+        const pageHeightPx = pageHeightMM * pxPerMM;
+
+        const doc = new jsPDF(printOrientation === 'landscape' ? 'l' : 'p', 'mm', 'a4');
+
+        let currentY = 0;
+        let isFirstPage = true;
+
+        while (currentY < canvas.height) {
+          let targetEnd = currentY + pageHeightPx;
+
+          // यदि अन्तिम page होइन भने, नजिकैको row boundary खोज्ने 
+          // (त्यसभन्दा पछाडि row नकाटियोस्)
+          if (targetEnd < canvas.height) {
+            const nearestRowBoundary = rowBoundaries
+              .filter(b => b > currentY && b <= targetEnd)
+              .pop();
+            if (nearestRowBoundary) {
+              targetEnd = nearestRowBoundary;
+            }
+          } else {
+            targetEnd = canvas.height;
+          }
+
+          const sliceHeight = targetEnd - currentY;
+
+          // यो page को खण्ड मात्र crop गर्ने
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = sliceHeight;
+          const ctx = pageCanvas.getContext('2d')!;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, currentY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+          const pageImgHeightMM = (sliceHeight * pdfWidth) / canvas.width;
+
+          if (!isFirstPage) doc.addPage();
+          doc.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, pageImgHeightMM);
+          isFirstPage = false;
+
+          currentY = targetEnd;
+        }
+
+        const dataUriString = doc.output('datauristring');
         const base64Pdf = dataUriString.split(',')[1];
 
         document.body.removeChild(hiddenDiv);
+
+        if (!base64Pdf || base64Pdf.length < 2000) {
+          throw new Error('PDF generate हुँदा समस्या भयो। पुनः प्रयास गर्नुहोस्।');
+        }
 
         await axios.post('/api/email/send', {
           apiKey: emailConfig.emailApiKey,
