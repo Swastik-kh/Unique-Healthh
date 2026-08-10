@@ -208,7 +208,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! हजुरको बच्चा ${child.childName} को खोप (${vaxNames}) मिति ${scheduledDateBs} मा लगाउन खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको बच्चा ${child.childName} को खोप (${vaxNames}) लगाउन मिति ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
       template = `नमस्ते! हजुरको बच्चा ${child.childName} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
@@ -232,7 +232,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     const userOrg = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! हजुरको बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) मिति {खोप_मिति} मा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) लगाउन मिति {खोप_मिति} मा खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
       template = `नमस्ते! हजुरको बच्चा {बच्चाको_नाम} को खोप ({खोपहरू}) छुटेकाले खोप कार्ड लिई {खोप_केन्द्र} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
