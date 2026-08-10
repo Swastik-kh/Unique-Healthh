@@ -1861,12 +1861,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 <div style={{ fontSize: '7pt', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>केन्द्र: {item.child.vaccinationCenter || 'N/A'}</div>
                             </div>
                             <div style={{ width: '18mm', height: '18mm', flexShrink: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <QRCodeSVG value={`Reg:${item.child.regNo}|Name:${item.child.childName}|Center:${item.child.vaccinationCenter}`} size={64} level="M" />
+                                <QRCodeSVG value={item.child.regNo || 'N/A'} size={64} level="M" />
                             </div>
                         </div>
-                        <div style={{ fontSize: '6.5pt', borderTop: '1px dotted #999', paddingTop: '1mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '38mm' }}>खोप: {item.vaccines.map(v => v.name).join(', ')}</span>
-                            <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>{item.child.phone || '-'}</span>
+                        <div style={{ fontSize: '7pt', borderTop: '1px dotted #999', paddingTop: '1mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>सम्पर्क: <strong style={{ fontFamily: 'monospace' }}>{item.child.phone || '-'}</strong></span>
+                            <span style={{ fontSize: '6.5pt', color: '#555' }}>{item.child.address || ''}</span>
                         </div>
                     </div>
                 ))}
