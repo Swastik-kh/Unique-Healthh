@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, QrCode, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -244,6 +245,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 }) => {
   const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('all');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -783,6 +785,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         return !isChildFullyImmunized(r);
       })
       .filter(r => {
+        if (selectedMonthFilter === 'all') return true;
+        if (!r.regDateBs) return false;
+        const parts = r.regDateBs.split('-');
+        if (parts.length < 2) return false;
+        return parts[1] === selectedMonthFilter;
+      })
+      .filter(r => {
         const query = (searchTerm || '').toLowerCase();
         return (
           (r.childName || '').toLowerCase().includes(query) || 
@@ -807,7 +816,70 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
-  }, [records, currentFiscalYear, searchTerm]);
+  }, [records, currentFiscalYear, searchTerm, selectedMonthFilter]);
+
+  const handlePrintQrLabels = useCallback(() => {
+    const printElement = document.getElementById('child-registration-qr-labels-print');
+    if (!printElement || filteredRecords.length === 0) {
+      alert('प्रिन्ट गर्नको लागि कुनै बच्चाको डाटा भेटिएन।');
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write('<html><head><title>दर्ता बालबालिका QR लेबलहरू</title>');
+    
+    Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).forEach(style => {
+        doc.write(style.outerHTML);
+    });
+    
+    doc.write(`
+      <style>
+        body { 
+          margin: 0; 
+          padding: 10px; 
+          background: white !important; 
+          color: black !important;
+          font-family: 'Mukta', sans-serif !important; 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact;
+        }
+        .print-container { display: block !important; }
+        @page { size: A4 portrait; margin: 5mm; }
+      </style>
+    `);
+    
+    doc.write('</head><body>');
+    const clonedElement = printElement.cloneNode(true) as HTMLElement;
+    clonedElement.classList.remove('hidden');
+    clonedElement.style.display = 'block';
+    
+    doc.write(clonedElement.outerHTML);
+    doc.write('</body></html>');
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1000);
+    }, 500);
+  }, [filteredRecords]);
 
   return (
     <div className="space-y-6">
@@ -1109,16 +1181,57 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     )}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-slate-700 font-nepali">खोप तालिका विवरण</h3>
             <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full font-nepali">
               जम्मा: {filteredRecords.length} जना
             </span>
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम, दर्ता नं वा केन्द्र..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-sm" />
+          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs shadow-xs">
+              <Calendar size={14} className="text-slate-400 shrink-0" />
+              <span className="text-slate-500 font-medium font-nepali whitespace-nowrap">दर्ता महिना:</span>
+              <select
+                value={selectedMonthFilter}
+                onChange={(e) => setSelectedMonthFilter(e.target.value)}
+                className="bg-transparent font-bold text-slate-700 font-nepali border-none focus:outline-none cursor-pointer text-xs"
+              >
+                <option value="all">सबै दर्ता महिना (All)</option>
+                <option value="01">बैशाख (01)</option>
+                <option value="02">जेठ (02)</option>
+                <option value="03">असार (03)</option>
+                <option value="04">साउन (04)</option>
+                <option value="05">भदौ (05)</option>
+                <option value="06">असोज (06)</option>
+                <option value="07">कार्तिक (07)</option>
+                <option value="08">मंसिर (08)</option>
+                <option value="09">पुष (09)</option>
+                <option value="10">माघ (10)</option>
+                <option value="11">फागुन (11)</option>
+                <option value="12">चैत्र (12)</option>
+              </select>
+            </div>
+
+            <div className="relative flex-1 min-w-[180px] sm:w-56">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                placeholder="नाम, दर्ता नं वा केन्द्र..." 
+                className="w-full pl-9 pr-4 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500" 
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePrintQrLabels}
+              className="flex items-center gap-2 px-4 py-1.5 bg-purple-700 text-white rounded-lg text-xs sm:text-sm font-bold shadow-sm hover:bg-purple-800 transition-colors font-nepali cursor-pointer shrink-0"
+              title="दर्ता भएका बालबालिकाको QR लेबलहरू (58x30mm - 3 Column) प्रिन्ट गर्नुहोस्"
+            >
+              <QrCode size={16} /> QR लेबल प्रिन्ट (58x30mm)
+            </button>
           </div>
         </div>
 
@@ -1260,6 +1373,57 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             </div>
         </div>
       )}
+      {/* Registered Children QR Labels Printable Sheet (3 Column 58x30mm) */}
+      <div id="child-registration-qr-labels-print" className="hidden print-container font-nepali">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 58mm)', gap: '3mm', justifyContent: 'center' }}>
+          {filteredRecords.map((record) => (
+            <div 
+              key={record.id}
+              style={{
+                width: '58mm',
+                height: '30mm',
+                border: '1px solid #1e293b',
+                borderRadius: '4px',
+                padding: '2.5mm',
+                boxSizing: 'border-box',
+                pageBreakInside: 'avoid',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                fontFamily: "'Mukta', sans-serif"
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', items: 'flex-start', gap: '2mm' }}>
+                <div style={{ flex: '1', minWidth: '0' }}>
+                  <div style={{ fontSize: '8pt', fontWeight: 'bold', color: '#1e293b', lineHeight: '1.1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {record.childName || 'N/A'}
+                  </div>
+                  <div style={{ fontSize: '7pt', color: '#15803d', fontWeight: 'bold', fontFamily: 'monospace', margin: '0.5mm 0' }}>
+                    दर्ता: {record.regNo || 'N/A'}
+                  </div>
+                  <div style={{ fontSize: '6.5pt', color: '#334155', lineHeight: '1.1' }}>
+                    आमा: {record.motherName || 'N/A'}
+                  </div>
+                  <div style={{ fontSize: '6.5pt', color: '#334155', lineHeight: '1.1' }}>
+                    जन्म: {record.dobBs || 'N/A'}
+                  </div>
+                  <div style={{ fontSize: '6.5pt', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    केन्द्र: {record.vaccinationCenter || 'N/A'}
+                  </div>
+                </div>
+                <div style={{ width: '18mm', height: '18mm', flexShrink: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <QRCodeSVG value={record.regNo || 'N/A'} size={64} level="M" />
+                </div>
+              </div>
+              <div style={{ fontSize: '7pt', borderTop: '1px dotted #999', paddingTop: '1mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>सम्पर्क: <strong style={{ fontFamily: 'monospace' }}>{record.phone || '-'}</strong></span>
+                <span style={{ fontSize: '6.5pt', color: '#555' }}>{record.address || ''}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
