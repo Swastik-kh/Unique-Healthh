@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
-import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye, Coins, ClipboardList } from 'lucide-react';
+import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye, Coins, ClipboardList, QrCode } from 'lucide-react';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
@@ -140,6 +140,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [showSmsLogModal, setShowSmsLogModal] = useState(false);
   const [showRecipientDetailsModal, setShowRecipientDetailsModal] = useState(false);
+  const [showQrLabelsModal, setShowQrLabelsModal] = useState(false);
   const [recipientFilterTab, setRecipientFilterTab] = useState<'all' | 'valid' | 'invalid'>('all');
   const [recipientListSearch, setRecipientListSearch] = useState('');
   const [smsLogs, setSmsLogs] = useState<Array<{
@@ -900,13 +901,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .sort((a, b) => a.dueYearMonth.localeCompare(b.dueYearMonth));
   }, [garbhawatiPatients, targetYearPrefix, filterCenter, searchTerm, getNepaliMonthName]);
 
-  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td' | 'vaccine-summary') => {
+  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td' | 'vaccine-summary' | 'qr-labels') => {
     const printContentId = 
         listType === 'upcoming' ? 'upcoming-list-print' : 
         listType === 'defaulter' ? 'defaulter-list-print' : 
         listType === 'fic' ? 'fic-list-print' : 
         listType === 'maternal-td' ? 'maternal-td-print' : 
-        listType === 'vaccine-summary' ? 'vaccine-summary-print' : 'single-card-print';
+        listType === 'vaccine-summary' ? 'vaccine-summary-print' : 
+        listType === 'qr-labels' ? 'qr-labels-print' : 'single-card-print';
         
     const printElement = document.getElementById(printContentId);
 
@@ -1034,7 +1036,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           display: flex;
           flex-direction: column;
         }
-        @page { size: A4 ${listType === 'single-card' ? 'portrait' : printOrientation}; margin: 10mm; }
+        @page { size: A4 ${listType === 'single-card' || listType === 'qr-labels' ? 'portrait' : printOrientation}; margin: ${listType === 'qr-labels' ? '5mm' : '10mm'}; }
       </style>
     `);
     
@@ -1300,9 +1302,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                           )}
                       </button>
                   )}
+                  {trackingTarget === 'child' && activeView === 'upcoming' && (
+                      <button 
+                          type="button"
+                          onClick={() => handlePrint('qr-labels')}
+                          className="flex items-center gap-2 px-5 py-2.5 bg-purple-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-purple-800 transition-colors font-nepali cursor-pointer"
+                          title="आगामी खोप बालबालिकाको QR लेबलहरू (58x30mm - 3 Column) प्रिन्ट गर्नुहोस्"
+                      >
+                          <QrCode size={18}/> QR लेबल प्रिन्ट (58x30mm)
+                      </button>
+                  )}
                   <button 
+                      type="button"
                       onClick={() => handlePrint(trackingTarget === 'child' ? activeView : 'maternal-td')}
-                      className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 font-nepali"
+                      className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-900 font-nepali cursor-pointer"
                   >
                       <Printer size={18}/> सूची प्रिन्ट गर्नुहोस्
                   </button>
@@ -1830,6 +1843,36 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         )}
 
         {/* PRINT SECTIONS */}
+        <div id="qr-labels-print" className="hidden print-container">
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: '0 0 4px 0' }}>{generalSettings.orgNameNepali}</h2>
+                <h3 style={{ fontSize: '13px', margin: '0' }}>आगामी खोप बालबालिकाको QR लेबलहरू (58x30mm - 3 Column)</h3>
+                <p style={{ fontSize: '11px', margin: '4px 0 0 0' }}>{filterFiscalYear} - {getSelectedMonthLabel()} {filterCenter ? `| केन्द्र: ${filterCenter}` : ''} | जम्मा: {upcomingSessionList.length}</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 58mm)', gap: '2mm', justifyContent: 'start' }}>
+                {upcomingSessionList.map((item, idx) => (
+                    <div key={idx} style={{ width: '58mm', height: '30mm', boxSizing: 'border-box', border: '1px solid #000', padding: '1.5mm', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pageBreakInside: 'avoid', breakInside: 'avoid', background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '2mm' }}>
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <div style={{ fontSize: '9pt', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.child.childName}</div>
+                                <div style={{ fontSize: '7.5pt', fontFamily: 'monospace', fontWeight: 'bold' }}>Reg: {item.child.regNo}</div>
+                                <div style={{ fontSize: '7pt', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>आमा: {item.child.motherName}</div>
+                                <div style={{ fontSize: '7pt' }}>जन्म: {item.child.dobBs}</div>
+                                <div style={{ fontSize: '7pt', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>केन्द्र: {item.child.vaccinationCenter || 'N/A'}</div>
+                            </div>
+                            <div style={{ width: '18mm', height: '18mm', flexShrink: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <QRCodeSVG value={`Reg:${item.child.regNo}|Name:${item.child.childName}|Center:${item.child.vaccinationCenter}`} size={64} level="M" />
+                            </div>
+                        </div>
+                        <div style={{ fontSize: '6.5pt', borderTop: '1px dotted #999', paddingTop: '1mm', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '38mm' }}>खोप: {item.vaccines.map(v => v.name).join(', ')}</span>
+                            <span style={{ fontWeight: 'bold', fontFamily: 'monospace' }}>{item.child.phone || '-'}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+
         <div id="upcoming-list-print" className="hidden print-container">
             <div className="print-header">
                 <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
