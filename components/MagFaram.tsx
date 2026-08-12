@@ -5,6 +5,7 @@ import { User, Option, OrganizationSettings } from '../types/coreTypes';
 import { MagItem, MagFormEntry, InventoryItem, Store, StoreKeeperSignature, ItemEntry } from '../types/inventoryTypes';
 import { SearchableSelect } from './SearchableSelect';
 import { LogoDisplay } from './LogoDisplay';
+import { toNepaliNumber } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -36,7 +37,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
   // State for Stock Tooltip
   const [hoveredStock, setHoveredStock] = useState<{ x: number; y: number; content: React.ReactNode } | null>(null);
 
-  const isStoreKeeper = currentUser.role === 'STOREKEEPER';
+  const isStoreKeeper = ['STOREKEEPER', 'ADMIN', 'SUPER_ADMIN'].includes(currentUser.role);
   const isAccount = currentUser.role === 'ACCOUNT';
   const isApprover = ['ADMIN', 'SUPER_ADMIN', 'APPROVAL'].includes(currentUser.role);
   const isPrivileged = isStoreKeeper || isAccount || isApprover;
@@ -65,29 +66,21 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
         if (!isPrivileged && f.demandBy?.name !== currentUser.fullName) return false;
         
         if (activeTab === 'requests') {
-            // Storekeeper sees 'Pending' requests to Verify
-            if (isStoreKeeper) return f.status === 'Pending';
-            // Approver sees 'Verified' requests to Approve
-            if (isApprover) return f.status === 'Verified';
-            // Fallback
+            // Show all pending or verified requests currently active in process
             return f.status === 'Pending' || f.status === 'Verified';
         } else {
-            // History tab logic
-            if (isStoreKeeper) return f.status !== 'Pending';
-            if (isApprover) return f.status === 'Approved' || f.status === 'Rejected';
-            return f.status === 'Approved' || f.status === 'Rejected' || f.status === 'Verified';
+            // History tab logic (Approved or Rejected)
+            return f.status === 'Approved' || f.status === 'Rejected';
         }
     }).sort((a, b) => b.formNo.localeCompare(a.formNo));
-  }, [existingForms, activeTab, isStoreKeeper, isApprover, isPrivileged, currentUser.fullName, searchTerm]);
+  }, [existingForms, activeTab, isPrivileged, currentUser.fullName, searchTerm]);
 
   const pendingBadgeCount = useMemo(() => {
       return existingForms.filter(f => {
           if (!isPrivileged) return f.demandBy?.name === currentUser.fullName && (f.status === 'Pending' || f.status === 'Verified');
-          if (isStoreKeeper) return f.status === 'Pending';
-          if (isApprover) return f.status === 'Verified';
-          return false;
+          return f.status === 'Pending' || f.status === 'Verified';
       }).length;
-  }, [existingForms, isStoreKeeper, isApprover, isPrivileged, currentUser.fullName]);
+  }, [existingForms, isPrivileged, currentUser.fullName]);
 
   const itemOptions = useMemo(() => {
     const itemMap = new Map<string, { totalQty: number, type: string, unit: string }>();
@@ -193,8 +186,8 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
     let finalStoreKeeper = { ...formDetails.storeKeeper };
 
     // WORKFLOW LOGIC:
-    // 1. If Storekeeper is saving a 'Pending' form, it becomes 'Verified'.
-    if (isStoreKeeper && formDetails.status === 'Pending') {
+    // 1. If Storekeeper/Admin is verifying an EXISTING 'Pending' form (editingId is an existing form, not 'new')
+    if (isStoreKeeper && formDetails.status === 'Pending' && editingId && editingId !== 'new') {
         if (!formDetails.storeKeeper?.marketRequired && !formDetails.storeKeeper?.inStock) {
             setValidationError("बजारबाट खरिद गर्ने वा मौज्दातमा रहेको मध्ये कम्तिमा एउटा छान्नुहोस्।");
             return;
@@ -240,8 +233,8 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
             verified: true
         };
     } 
-    // 2. If Approver is saving a 'Verified' form, it becomes 'Approved'.
-    else if (isApprover && formDetails.status === 'Verified') {
+    // 2. If Approver is approving an EXISTING 'Verified' form
+    else if (isApprover && formDetails.status === 'Verified' && editingId && editingId !== 'new') {
         finalStatus = 'Approved';
         finalApprovedBy = { name: currentUser.fullName, designation: currentUser.designation, date: todayBS };
     }
@@ -278,11 +271,11 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
 
       const rowsHtml = printableItems.map((item, idx) => `
         <tr>
-          <td style="text-align: center;">${idx + 1}</td>
+          <td style="text-align: center;">${toNepaliNumber(idx + 1)}</td>
           <td style="text-align: left; padding-left: 8px; font-weight: 600;">${item.name}</td>
-          <td style="text-align: center;">${item.specification || '-'}</td>
+          <td style="text-align: center;">${item.specification ? toNepaliNumber(item.specification) : '-'}</td>
           <td style="text-align: center;">${item.unit}</td>
-          <td style="text-align: center; font-weight: bold;">${item.quantity}</td>
+          <td style="text-align: center; font-weight: bold;">${toNepaliNumber(item.quantity)}</td>
           <td style="text-align: left; padding-left: 8px;">${item.remarks || ''}</td>
         </tr>
       `).join('');
@@ -368,11 +361,11 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
             <!-- Meta Info Section (Fiscal Year Left, Date/No Right) -->
             <div class="meta-info-container">
                <div>
-                  आर्थिक वर्ष: <span class="dotted-line">${formDetails.fiscalYear}</span>
+                  आर्थिक वर्ष: <span class="dotted-line">${toNepaliNumber(formDetails.fiscalYear)}</span>
                </div>
                <div style="text-align: right;">
-                  <div style="margin-bottom: 6px;">माग नं: <span class="header-red dotted-line">#${formDetails.formNo}</span></div>
-                  <div>मिति: <span class="dotted-line">${formDetails.date}</span></div>
+                  <div style="margin-bottom: 6px;">माग नं: <span class="header-red dotted-line">#${toNepaliNumber(formDetails.formNo)}</span></div>
+                  <div>मिति: <span class="dotted-line">${toNepaliNumber(formDetails.date)}</span></div>
                </div>
             </div>
 
@@ -404,7 +397,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   <div class="sig-title">माग गर्नेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span style="font-weight: bold;">${formDetails.demandBy?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span>${formDetails.demandBy?.designation || ''}</span></div>
-                  <div class="sig-line"><span class="w-label">मिति:</span> <span>${formDetails.demandBy?.date || ''}</span></div>
+                  <div class="sig-line"><span class="w-label">मिति:</span> <span>${toNepaliNumber(formDetails.demandBy?.date || '')}</span></div>
                   <div class="sig-line"><span class="w-label">प्रयोजन:</span> <span class="dotted-line" style="text-align: left; padding-left: 5px; min-width: 150px;">${formDetails.demandBy?.purpose || ''}</span></div>
                 </div>
 
@@ -412,7 +405,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   <div class="sig-title">मालसामान बुझिलिनेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span class="dotted-line">${formDetails.receiver?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span class="dotted-line">${formDetails.receiver?.designation || ''}</span></div>
-                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${formDetails.receiver?.date || ''}</span></div>
+                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${toNepaliNumber(formDetails.receiver?.date || '')}</span></div>
                 </div>
               </div>
 
@@ -426,14 +419,14 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   <div class="sig-title">सिफारिस गर्नेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span class="dotted-line">${formDetails.recommendedBy?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span class="dotted-line">${formDetails.recommendedBy?.designation || ''}</span></div>
-                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${formDetails.recommendedBy?.date || ''}</span></div>
+                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${toNepaliNumber(formDetails.recommendedBy?.date || '')}</span></div>
                 </div>
 
                 <div class="sig-block" style="margin-top: 40px;">
                   <div class="sig-title">स्वीकृत गर्नेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span class="dotted-line">${formDetails.approvedBy?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span class="dotted-line">${formDetails.approvedBy?.designation || ''}</span></div>
-                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${formDetails.approvedBy?.date || ''}</span></div>
+                  <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${toNepaliNumber(formDetails.approvedBy?.date || '')}</span></div>
                 </div>
               </div>
             </div>
@@ -487,8 +480,10 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
 
     const getButtonLabel = () => {
         if (isSaved) return 'सुरक्षित भयो';
-        if (isStoreKeeper && formDetails.status === 'Pending') return 'प्रमाणित गरी पठाउनुहोस् (Verify)';
-        if (isApprover && formDetails.status === 'Verified') return 'स्वीकृत गर्नुहोस् (Approve)';
+        if (editingId && editingId !== 'new') {
+            if (isStoreKeeper && formDetails.status === 'Pending') return 'प्रमाणित गरी पठाउनुहोस् (Verify)';
+            if (isApprover && formDetails.status === 'Verified') return 'स्वीकृत गर्नुहोस् (Approve)';
+        }
         return 'सुरक्षित गर्नुहोस्';
     };
 
@@ -521,8 +516,8 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                         <tbody className="divide-y divide-slate-100">
                             {filteredForms.map(f => (
                                 <tr key={f.id} className="hover:bg-slate-50/50 transition-colors group">
-                                    <td className="px-6 py-4 font-mono font-bold text-indigo-600">#{f.formNo}</td>
-                                    <td className="px-6 py-4 font-nepali text-slate-600">{f.date}</td>
+                                    <td className="px-6 py-4 font-mono font-bold text-indigo-600">#{toNepaliNumber(f.formNo)}</td>
+                                    <td className="px-6 py-4 font-nepali text-slate-600">{toNepaliNumber(f.date)}</td>
                                     <td className="px-6 py-4"><div><p className="font-bold text-slate-800">{f.demandBy?.name}</p><p className="text-[10px] text-slate-400 uppercase font-black">{f.demandBy?.designation}</p></div></td>
                                     <td className="px-6 py-4"><span className={`px-2.5 py-1 rounded-full text-[10px] font-black border flex items-center gap-1 w-fit ${f.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-200' : f.status === 'Verified' ? 'bg-blue-50 text-blue-700 border-blue-200' : f.status === 'Pending' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-red-50 text-red-700 border-red-200'}`}>{f.status === 'Approved' ? <CheckCircle2 size={12}/> : f.status === 'Verified' ? <ShieldCheck size={12}/> : <Clock size={12}/>} {f.status}</span></td>
                                     <td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><button onClick={() => handleLoadForm(f, activeTab === 'history' || (!isPrivileged && f.status === 'Approved'))} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-full"><Eye size={20} /></button><button onClick={() => { handleLoadForm(f, true); setTimeout(printOfficialForm, 300); }} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full"><Printer size={20} /></button></div></td>
@@ -589,10 +584,10 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
           {/* UPDATED: Meta Info Layout */}
           <div className="flex justify-between items-end mb-6 text-sm font-bold">
               <div>
-                  आर्थिक वर्ष: <span className="border-b border-dotted border-black px-4">{formDetails.fiscalYear}</span>
+                  आर्थिक वर्ष: <span className="border-b border-dotted border-black px-4">{toNepaliNumber(formDetails.fiscalYear)}</span>
               </div>
               <div className="text-right space-y-1">
-                  <p>माग नं: <span className="text-red-600 border-b border-dotted border-black px-4">#{formDetails.formNo}</span></p>
+                  <p>माग नं: <span className="text-red-600 border-b border-dotted border-black px-4">#{toNepaliNumber(formDetails.formNo)}</span></p>
                   <p>मिति: <input value={formDetails.date} onChange={e => setFormDetails({...formDetails, date: e.target.value})} disabled={isViewOnly} className="border-b border-dotted border-black px-1 outline-none w-32 text-right bg-transparent" /></p>
               </div>
           </div>
@@ -612,7 +607,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                             onMouseEnter={(e) => handleSnMouseEnter(e, item.name)}
                             onMouseLeave={handleSnMouseLeave}
                           >
-                            {index + 1}
+                            {toNepaliNumber(index + 1)}
                           </td>
                           <td className="border border-black p-1 text-left font-bold">{!isViewOnly ? <SearchableSelect options={itemOptions} value={item.name} onChange={val => handleItemNameChange(item.id, val)} onSelect={opt => handleItemNameChange(item.id, opt.value)} placeholder="..." className="!border-none" /> : item.name}</td>
                           <td className="border border-black p-1"><input value={item.specification || ''} onChange={e => updateItemField(item.id, 'specification', e.target.value)} disabled={isViewOnly || item.isFromInventory} className="w-full bg-transparent outline-none text-center" /></td>
