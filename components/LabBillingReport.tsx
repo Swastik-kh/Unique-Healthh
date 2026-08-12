@@ -1627,13 +1627,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <div className="flex-1 min-w-[140px] bg-slate-50 border border-slate-300 p-3 rounded-xl text-center">
                   <span className="block text-[10px] text-slate-700 font-bold tracking-wide uppercase font-nepali">कुल ल्याब खुद बिक्री</span>
                   <span className="block text-sm font-black text-slate-800 font-mono mt-0.5">
-                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.netLabAmount, 0).toFixed(2))}
+                    रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.netLabAmount, 0).toFixed(2))}
                   </span>
                 </div>
                 <div className="flex-1 min-w-[140px] bg-emerald-50/50 border border-emerald-200 p-3 rounded-xl text-center">
                   <span className="block text-[10px] text-emerald-800 font-bold tracking-wide uppercase font-nepali">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</span>
                   <span className="block text-sm font-black text-emerald-700 font-mono mt-0.5">
-                    Rs. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
+                    रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
                   </span>
                 </div>
                 {protsahanRecipients.map(recipient => {
@@ -1645,7 +1645,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     <div key={recipient.id} className="flex-1 min-w-[140px] bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
                       <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">{recipient.nameNe} हिस्सा ({toNepaliDigits(recipient.sharePercent)}%)</span>
                       <span className="block text-sm font-black text-sky-700 font-mono mt-0.5">
-                        Rs. {toNepaliDigits(totalForRecipient.toFixed(2))}
+                        रू. {toNepaliDigits(totalForRecipient.toFixed(2))}
                       </span>
                     </div>
                   );
@@ -1673,9 +1673,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <tr key={index} className="hover:bg-slate-50/50">
                           <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(index + 1)}</td>
                           <td className="border border-slate-950 p-2 font-semibold text-slate-800">{item.name}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-medium">Rs. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">Rs. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-bold text-sky-700">Rs. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-medium">रू. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">रू. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
+                          <td className="border border-slate-950 p-2 text-right font-mono font-bold text-sky-700">रू. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
                         </tr>
                       ))
                     ) : (
@@ -1689,13 +1689,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <tr className="bg-slate-50 font-bold">
                         <td colSpan={2} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">कुल जम्मा (Total Sum):</td>
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
-                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
+                          रू. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
                         </td>
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-800">
-                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
+                          रू. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
                         </td>
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-sky-800">
-                          Rs. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
+                          रू. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
                         </td>
                       </tr>
                     )}
@@ -1738,12 +1738,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                             <td className="border border-slate-950 p-2 font-medium">{item.record.patientName || '-'}</td>
                             <td className="border border-slate-950 p-2 text-center font-mono">{displayBillNo}</td>
                             <td className="border border-slate-950 p-2 text-center">{displayDate}</td>
-                            <td className="border border-slate-950 p-2 text-right font-mono font-medium">Rs. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
-                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">Rs. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium">रू. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">रू. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
                             <td className="border border-slate-950 p-2 text-slate-800">{item.referrerName}</td>
                             {item.recipientShares.map(share => (
                               <td key={share.id} className="border border-slate-950 p-2 text-right font-mono font-medium text-slate-800">
-                                Rs. {toNepaliDigits(share.shareAmount.toFixed(2))}
+                                रू. {toNepaliDigits(share.shareAmount.toFixed(2))}
                               </td>
                             ))}
                           </tr>
@@ -1760,10 +1760,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <tr className="bg-slate-50 font-bold">
                         <td colSpan={4} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">कुल जम्मा (Total Sum):</td>
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
-                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
+                          रू. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.netLabAmount, 0).toFixed(2))}
                         </td>
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-800">
-                          Rs. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
+                          रू. {toNepaliDigits(protsahanReportData.reduce((s, i) => s + i.totalIncentive, 0).toFixed(2))}
                         </td>
                         <td className="border-2 border-slate-950 p-2.5"></td>
                         {protsahanRecipients.map(recipient => {
@@ -1773,7 +1773,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                           }, 0);
                           return (
                             <td key={recipient.id} className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-slate-800">
-                              Rs. {toNepaliDigits(totalForRecipient.toFixed(2))}
+                              रू. {toNepaliDigits(totalForRecipient.toFixed(2))}
                             </td>
                           );
                         })}
