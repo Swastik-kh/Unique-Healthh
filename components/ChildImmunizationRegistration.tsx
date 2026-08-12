@@ -6,6 +6,7 @@ import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { Option, OrganizationSettings } from '../types/coreTypes';
 import { ChildImmunizationRecord, ChildImmunizationVaccine } from '../types/healthTypes';
+import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -775,20 +776,28 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   };
 
   const filteredRecords = useMemo(() => {
+    const query = (searchTerm || '').trim().toLowerCase();
     return (records || [])
       .filter(r => {
         if (!r) return false;
-        // Show if child belongs to the current fiscal year, OR if they are from an earlier/other fiscal year but not fully immunized
-        if (r.fiscalYear === currentFiscalYear) return true;
-        return !isChildFullyImmunized(r);
+        // When searching, bypass fiscal year / immunization status check to find any matching child
+        if (!query) {
+          if (r.fiscalYear === currentFiscalYear) return true;
+          return !isChildFullyImmunized(r);
+        }
+        return true;
       })
       .filter(r => {
-        const query = (searchTerm || '').toLowerCase();
+        if (!query) return true;
         return (
           (r.childName || '').toLowerCase().includes(query) || 
-          (r.regNo || '').toLowerCase().includes(query) ||
+          matchRegNo(r.regNo, query) ||
           (r.jatCode || '').toLowerCase().includes(query) ||
-          (r.vaccinationCenter || '').toLowerCase().includes(query)
+          (r.vaccinationCenter || '').toLowerCase().includes(query) ||
+          (r.address || '').toLowerCase().includes(query) ||
+          (r.motherName || '').toLowerCase().includes(query) ||
+          (r.fatherName || '').toLowerCase().includes(query) ||
+          (r.phone || '').includes(query)
         );
       })
       .sort((a, b) => {

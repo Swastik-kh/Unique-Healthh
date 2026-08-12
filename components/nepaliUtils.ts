@@ -16,6 +16,58 @@ export const toNepaliNumber = (val: number | string | undefined | null): string 
   return result;
 };
 
+export const matchRegNo = (regNo: string | undefined | null, searchInput: string | undefined | null): boolean => {
+  if (!regNo || !searchInput) return false;
+
+  const rawQuery = searchInput.trim();
+  if (!rawQuery) return false;
+
+  // Convert Nepali digits to English digits
+  const toEng = (s: string) => {
+    const nep = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+    return s.split('').map(c => {
+      const idx = nep.indexOf(c);
+      return idx !== -1 ? String(idx) : c;
+    }).join('');
+  };
+
+  const regEng = toEng(regNo).toLowerCase();
+  const queryEng = toEng(rawQuery).toLowerCase();
+
+  // Standard substring check
+  if (regEng.includes(queryEng)) return true;
+
+  // Remove hyphens/slashes/spaces and check inclusion
+  const cleanReg = regEng.replace(/[-/\s]/g, '');
+  const cleanQuery = queryEng.replace(/[-/\s]/g, '');
+  if (cleanQuery && cleanReg.includes(cleanQuery)) return true;
+
+  // Match numeric parts split by hyphens or slashes
+  const parts = regEng.split(/[-/\s]+/);
+  for (const part of parts) {
+    if (part === queryEng || part === cleanQuery) return true;
+
+    // Compare as integer if both part and cleanQuery are digits
+    if (/^\d+$/.test(part) && /^\d+$/.test(cleanQuery)) {
+      if (parseInt(part, 10) === parseInt(cleanQuery, 10)) {
+        return true;
+      }
+    }
+  }
+
+  // Also match numeric suffix at the end of regNo
+  if (/^\d+$/.test(cleanQuery)) {
+    const numericMatch = regEng.match(/\d+$/);
+    if (numericMatch) {
+      if (parseInt(numericMatch[0], 10) === parseInt(cleanQuery, 10)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: string; uniquePatientId?: string }, nextPatient?: { name: string; paloNo?: string; uniquePatientId?: string }) => {
   if (typeof window !== 'undefined' && localStorage.getItem('queue_voice_muted') === 'true') {
     return;

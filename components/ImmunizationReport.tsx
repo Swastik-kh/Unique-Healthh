@@ -6,6 +6,7 @@ import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient } from '../types/healthTypes';
 import { Option, OrganizationSettings } from '../types/coreTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration'; // Import the template
+import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import axios from 'axios';
@@ -247,7 +248,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       (c.fatherName && c.fatherName.toLowerCase().includes(query)) ||
       (c.address && c.address.toLowerCase().includes(query)) ||
       (c.phone && c.phone.includes(query)) ||
-      c.regNo.toLowerCase().includes(query)
+      matchRegNo(c.regNo, query)
     );
   }, [childrenDetailsThisMonth, searchQuery]);
 

@@ -11,6 +11,7 @@ import NepaliDate from 'nepali-date-converter';
 // Add missing import for NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE, calculateImmunizationDate } from './ChildImmunizationRegistration';
 import { FISCAL_YEARS } from '../constants';
+import { matchRegNo } from './nepaliUtils';
 import { safeEncodeKey } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
@@ -543,8 +544,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const filteredBaseRecords = useMemo(() => {
     return records
       .filter(r => {
-        const matchesSearch = r.childName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             r.regNo.toLowerCase().includes(searchTerm.toLowerCase());
+        const query = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || 
+                             r.childName.toLowerCase().includes(query) || 
+                             matchRegNo(r.regNo, query) ||
+                             (r.motherName && r.motherName.toLowerCase().includes(query)) ||
+                             (r.fatherName && r.fatherName.toLowerCase().includes(query)) ||
+                             (r.address && r.address.toLowerCase().includes(query)) ||
+                             (r.phone && r.phone.includes(query));
         const matchesCenter = filterCenter ? r.vaccinationCenter === filterCenter : true;
         return matchesSearch && matchesCenter;
       });
@@ -875,7 +882,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         const query = searchTerm.toLowerCase();
         const matchesSearch = !searchTerm || 
           (p.name || '').toLowerCase().includes(query) ||
-          (p.regNo || '').toLowerCase().includes(query) ||
+          matchRegNo(p.regNo, query) ||
           (p.address && p.address.toLowerCase().includes(query));
 
         return matchesDate && matchesCenter && matchesSearch;
@@ -2663,7 +2670,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   if (!query) return true;
 
                   const nameMatch = (item.child.childName || '').toLowerCase().includes(query);
-                  const regMatch = (item.child.regNo || '').toLowerCase().includes(query);
+                  const regMatch = matchRegNo(item.child.regNo, query);
                   const phoneMatch = (item.child.phone || '').includes(query);
                   const addrMatch = (item.child.address || '').toLowerCase().includes(query);
                   const motherMatch = (item.child.motherName || '').toLowerCase().includes(query);

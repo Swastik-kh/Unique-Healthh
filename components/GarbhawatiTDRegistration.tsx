@@ -7,6 +7,7 @@ import { NepaliDatePicker } from './NepaliDatePicker';
 import { EnglishDatePicker } from './EnglishDatePicker';
 import { Option, OrganizationSettings } from '../types/coreTypes'; // Corrected import path
 import { GarbhawatiPatient } from '../types/healthTypes'; // Corrected import path
+import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -263,16 +264,22 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   };
 
   const filteredPatients = useMemo(() => {
+    const query = (searchTerm || '').trim().toLowerCase();
     return (patients || [])
-      .filter(p => p && p.fiscalYear === currentFiscalYear)
+      .filter(p => {
+        if (!p) return false;
+        if (!query) return p.fiscalYear === currentFiscalYear;
+        return true;
+      })
       .filter(p => {
         if (filterCenter && p.vaccinationCenter !== filterCenter) return false;
-        const query = (searchTerm || '').toLowerCase();
+        if (!query) return true;
         return (
           (p.name || '').toLowerCase().includes(query) || 
-          (p.regNo || '').toLowerCase().includes(query) ||
+          matchRegNo(p.regNo, query) ||
           (p.address || '').toLowerCase().includes(query) ||
-          (p.vaccinationCenter || '').toLowerCase().includes(query)
+          (p.vaccinationCenter || '').toLowerCase().includes(query) ||
+          (p.phone || '').includes(query)
         );
       })
       .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
