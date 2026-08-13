@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle, Plus, Trash2, GripVertical, ChevronUp, RotateCcw } from 'lucide-react';
 import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
@@ -149,6 +149,31 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [isSettingsEditing, setIsSettingsEditing] = useState<boolean>(false);
   const [tempIncentivePercent, setTempIncentivePercent] = useState<number>(10);
   const [tempRecipients, setTempRecipients] = useState<ProtsahanRecipient[]>([]);
+
+  // Drag and drop ordering for Referrer Summary table
+  const [customReferrerOrder, setCustomReferrerOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('lab_referrer_custom_order');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (customReferrerOrder.length > 0) {
+        localStorage.setItem('lab_referrer_custom_order', JSON.stringify(customReferrerOrder));
+      } else {
+        localStorage.removeItem('lab_referrer_custom_order');
+      }
+    } catch (e) {
+      console.error('Failed to save referrer custom order to localStorage', e);
+    }
+  }, [customReferrerOrder]);
+
+  const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
 
   const handleSaveProtsahanSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -854,7 +879,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }).filter(d => d.grossLabAmount > 0); // Only keep records that have lab services
   }, [filteredRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory]);
 
-  const protsahanByReferrer = useMemo(() => {
+  const protsahanByReferrerRaw = useMemo(() => {
     const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number }>();
     protsahanReportData.forEach(item => {
       const key = item.record.referredBy && item.record.referredBy !== 'All' && item.record.referredBy !== '-' ? item.referrerName : 'स्वतन्त्र (Self / direct)';
@@ -871,6 +896,48 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     });
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
   }, [protsahanReportData]);
+
+  const protsahanByReferrer = useMemo(() => {
+    if (customReferrerOrder.length === 0) return protsahanByReferrerRaw;
+
+    const orderMap = new Map<string, number>();
+    customReferrerOrder.forEach((name, idx) => orderMap.set(name, idx));
+
+    const sorted = [...protsahanByReferrerRaw];
+    sorted.sort((a, b) => {
+      const orderA = orderMap.has(a.name) ? orderMap.get(a.name)! : 99999;
+      const orderB = orderMap.has(b.name) ? orderMap.get(b.name)! : 99999;
+      return orderA - orderB;
+    });
+    return sorted;
+  }, [protsahanByReferrerRaw, customReferrerOrder]);
+
+  const handleReorderReferrer = useCallback((fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    const currentList = [...protsahanByReferrer];
+    if (fromIndex >= currentList.length || toIndex >= currentList.length) return;
+
+    const [movedItem] = currentList.splice(fromIndex, 1);
+    currentList.splice(toIndex, 0, movedItem);
+
+    setCustomReferrerOrder(currentList.map(item => item.name));
+  }, [protsahanByReferrer]);
+
+  const handleMoveReferrerUp = (index: number) => {
+    if (index > 0) {
+      handleReorderReferrer(index, index - 1);
+    }
+  };
+
+  const handleMoveReferrerDown = (index: number) => {
+    if (index < protsahanByReferrer.length - 1) {
+      handleReorderReferrer(index, index + 1);
+    }
+  };
+
+  const handleResetReferrerOrder = () => {
+    setCustomReferrerOrder([]);
+  };
 
   // Export to CSV function
   const handleExportCSV = () => {
@@ -1654,9 +1721,30 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
               {/* 1. Referrer-wise Incentive Allocation Summary */}
               <div className="mb-6">
-                <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali mb-2">
-                  १. सिफारिसकर्ता अनुसारको प्रोत्साहन बाँडफाँड सारांश (Referrer-wise Incentive Allocation Summary)
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali">
+                    १. सिफारिसकर्ता अनुसारको प्रोत्साहन बाँडफाँड सारांश (Referrer-wise Incentive Allocation Summary)
+                  </h3>
+                  {customReferrerOrder.length > 0 && (
+                    <button
+                      onClick={handleResetReferrerOrder}
+                      type="button"
+                      className="print:hidden text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all"
+                      title="मूल क्रम कायम गर्नुहोस्"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>मूल क्रम बनाउनुहोस् (Reset Order)</span>
+                    </button>
+                  )}
+                </div>
+
+                {protsahanByReferrer.length > 1 && (
+                  <div className="text-[11px] text-slate-500 font-nepali mb-2 print:hidden flex items-center gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    <GripVertical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span>सिफारिसकर्ताको नाम अगाडिको निसान समातेर वा ड्र्याग (Drag & Drop) गरी वा <b>क्रम (▲/▼)</b> बटन थची लहरको क्रम परिवर्तन गर्न सकिन्छ।</span>
+                  </div>
+                )}
+
                 <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
                   <thead>
                     <tr className="bg-slate-100">
@@ -1665,22 +1753,94 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">खुद ल्याब रकम</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">जम्मा प्रोत्साहन</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-36">सिफारिस हिस्सा ({toNepaliDigits(referrerRecipient?.sharePercent || 0)}%)</th>
+                      <th className="border-2 border-slate-950 p-1 text-center font-bold tracking-wide w-16 print:hidden font-nepali">क्रम</th>
                     </tr>
                   </thead>
                   <tbody>
                     {protsahanByReferrer.length > 0 ? (
-                      protsahanByReferrer.map((item, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50">
-                          <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(index + 1)}</td>
-                          <td className="border border-slate-950 p-2 font-semibold text-slate-800">{item.name}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-medium">रू. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">रू. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
-                          <td className="border border-slate-950 p-2 text-right font-mono font-bold text-sky-700">रू. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
-                        </tr>
-                      ))
+                      protsahanByReferrer.map((item, index) => {
+                        const isDragging = draggedRowIndex === index;
+                        const isOver = dragOverRowIndex === index && draggedRowIndex !== index;
+
+                        return (
+                          <tr
+                            key={item.name}
+                            draggable={true}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', index.toString());
+                              e.dataTransfer.effectAllowed = 'move';
+                              setDraggedRowIndex(index);
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                              if (dragOverRowIndex !== index) {
+                                setDragOverRowIndex(index);
+                              }
+                            }}
+                            onDragLeave={() => {
+                              if (dragOverRowIndex === index) setDragOverRowIndex(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const fromIdx = Number(e.dataTransfer.getData('text/plain'));
+                              handleReorderReferrer(fromIdx, index);
+                              setDraggedRowIndex(null);
+                              setDragOverRowIndex(null);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedRowIndex(null);
+                              setDragOverRowIndex(null);
+                            }}
+                            className={`transition-colors select-none ${
+                              isDragging ? 'opacity-40 bg-indigo-100/70 border-2 border-dashed border-indigo-400' :
+                              isOver ? 'bg-sky-100 border-t-2 border-t-indigo-600' :
+                              'hover:bg-slate-50/80'
+                            }`}
+                          >
+                            <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(index + 1)}</td>
+                            <td className="border border-slate-950 p-2 font-semibold text-slate-800">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  title="Drag to reorder"
+                                  className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 print:hidden p-0.5 rounded hover:bg-slate-100 transition-colors"
+                                >
+                                  <GripVertical className="w-4 h-4" />
+                                </span>
+                                <span>{item.name}</span>
+                              </div>
+                            </td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium">रू. {toNepaliDigits(item.netLabAmount.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-medium text-emerald-700">रू. {toNepaliDigits(item.totalIncentive.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-bold text-sky-700">रू. {toNepaliDigits(item.referrerShare.toFixed(2))}</td>
+                            <td className="border border-slate-950 p-1 text-center print:hidden">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => handleMoveReferrerUp(index)}
+                                  className="p-1 text-slate-500 hover:text-indigo-700 disabled:opacity-20 disabled:hover:text-slate-500 rounded hover:bg-slate-100 transition-colors"
+                                  title="माथि सार्नुहोस्"
+                                >
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === protsahanByReferrer.length - 1}
+                                  onClick={() => handleMoveReferrerDown(index)}
+                                  className="p-1 text-slate-500 hover:text-indigo-700 disabled:opacity-20 disabled:hover:text-slate-500 rounded hover:bg-slate-100 transition-colors"
+                                  title="तल सार्नुहोस्"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan={5} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                        <td colSpan={6} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
                           प्रोत्साहन गणनाको लागि कुनै रेकर्ड फेला परेन।
                         </td>
                       </tr>
@@ -1697,6 +1857,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-sky-800">
                           रू. {toNepaliDigits(protsahanByReferrer.reduce((s, i) => s + i.referrerShare, 0).toFixed(2))}
                         </td>
+                        <td className="border-2 border-slate-950 p-2.5 print:hidden"></td>
                       </tr>
                     )}
                   </tbody>
