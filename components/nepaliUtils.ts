@@ -16,6 +16,25 @@ export const toNepaliNumber = (val: number | string | undefined | null): string 
   return result;
 };
 
+export const parseNepaliNumber = (val: string | number | undefined | null): number => {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const str = val.toString();
+  const nepali = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+  const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  let converted = '';
+  for (let char of str) {
+    const idx = nepali.indexOf(char);
+    if (idx !== -1) {
+      converted += english[idx];
+    } else if ((char >= '0' && char <= '9') || char === '.' || char === '-') {
+      converted += char;
+    }
+  }
+  const num = parseFloat(converted);
+  return isNaN(num) ? 0 : num;
+};
+
 export const matchRegNo = (regNo: string | undefined | null, searchInput: string | undefined | null): boolean => {
   if (!regNo || !searchInput) return false;
 

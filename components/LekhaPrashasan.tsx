@@ -21,7 +21,7 @@ import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
-import { toNepaliNumber } from './nepaliUtils';
+import { toNepaliNumber, parseNepaliNumber } from './nepaliUtils';
 import { db } from '../firebase';
 import { ref, onValue, remove, get } from 'firebase/database';
 
@@ -118,7 +118,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const [txnFormDate, setTxnFormDate] = useState(today);
   const [txnRefNo, setTxnRefNo] = useState('');
   const [txnIsVatBill, setTxnIsVatBill] = useState(false);
-  const [txnVatTaxableAmount, setTxnVatTaxableAmount] = useState<number | ''>('');
+  const [txnVatTaxableAmount, setTxnVatTaxableAmount] = useState<number | string>('');
 
   const getNepaliMonthName = (dateBs: string) => {
     const parts = dateBs.split(/[-/]/);
@@ -134,32 +134,32 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const [txnItems, setTxnItems] = useState<{
     remarks: string, 
-    amount: number, 
+    amount: number | string, 
     programId?: string, 
     partyName?: string,
     isVatBill?: boolean,
-    vatTaxableAmount?: number,
+    vatTaxableAmount?: number | string,
     applyTds?: boolean,
     applySasukar?: boolean,
     applyTax15?: boolean,
     needsBharpai?: boolean,
     bharpaiUnitType?: 'days' | 'qty',
-    bharpaiDays?: number,
-    bharpaiRate?: number,
-    bharpaiPersons?: { name: string; days: number; rate: number }[]
+    bharpaiDays?: number | string,
+    bharpaiRate?: number | string,
+    bharpaiPersons?: { name: string; days: number | string; rate: number | string }[]
   }[]>([{remarks: '', amount: 0, isVatBill: false, vatTaxableAmount: 0, applyTds: false, applySasukar: false, applyTax15: false, needsBharpai: false, bharpaiUnitType: 'days', bharpaiDays: 0, bharpaiRate: 0, bharpaiPersons: []}]);
   const [txnPaymentMethod, setTxnPaymentMethod] = useState<'Bank' | 'Cash'>('Cash');
   const [txnCheckNo, setTxnCheckNo] = useState<string>('');
   const [txnType, setTxnType] = useState<'Income' | 'Expense'>('Expense');
   const [editNeedsBharpai, setEditNeedsBharpai] = useState<boolean>(false);
   const [editBharpaiUnitType, setEditBharpaiUnitType] = useState<'days' | 'qty'>('days');
-  const [editBharpaiPersons, setEditBharpaiPersons] = useState<{ name: string; days: number; rate: number }[]>([]);
-  const [editTxnAmount, setEditTxnAmount] = useState<number | ''>('');
-  const [editBharpaiDays, setEditBharpaiDays] = useState<number | ''>('');
-  const [editBharpaiRate, setEditBharpaiRate] = useState<number | ''>('');
+  const [editBharpaiPersons, setEditBharpaiPersons] = useState<{ name: string; days: number | string; rate: number | string }[]>([]);
+  const [editTxnAmount, setEditTxnAmount] = useState<number | string>('');
+  const [editBharpaiDays, setEditBharpaiDays] = useState<number | string>('');
+  const [editBharpaiRate, setEditBharpaiRate] = useState<number | string>('');
 
   const [unclearedIds, setUnclearedIds] = useState<string[]>([]);
-  const [bankStatementBalance, setBankStatementBalance] = useState<number>(0);
+  const [bankStatementBalance, setBankStatementBalance] = useState<number | string>(0);
 
   const handleDeleteVoucher = async (id: string) => {
     if (window.confirm('के तपाईं निश्चित रूपमा यो गोश्वारा भौचर हटाउन चाहनुहुन्छ?')) {
@@ -191,10 +191,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   useEffect(() => {
     if (editNeedsBharpai) {
       if (editBharpaiPersons && editBharpaiPersons.length > 0) {
-        const total = editBharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+        const total = editBharpaiPersons.reduce((sum, p) => sum + (parseNepaliNumber(p.days) * parseNepaliNumber(p.rate)), 0);
         setEditTxnAmount(total || '');
       } else {
-        const total = Number(editBharpaiDays || 0) * Number(editBharpaiRate || 0);
+        const total = parseNepaliNumber(editBharpaiDays) * parseNepaliNumber(editBharpaiRate);
         setEditTxnAmount(total || '');
       }
     }
@@ -303,7 +303,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       ...editingItem,
       name: formData.get('name') as string,
       source: formData.get('source') as any,
-      totalBudget: Number(formData.get('budget')),
+      totalBudget: parseNepaliNumber(formData.get('budget') as string),
       fiscalYear: editingItem?.fiscalYear || currentFiscalYear,
       createdAt: editingItem?.createdAt || today,
       spentAmount: editingItem?.spentAmount || 0
@@ -318,8 +318,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const progId = formData.get('programId') as string;
     const payload: any = {
       programId: progId,
-      amountRequested: Number(formData.get('amountRequested')),
-      amountPaid: Number(formData.get('amountPaid')),
+      amountRequested: parseNepaliNumber(formData.get('amountRequested') as string),
+      amountPaid: parseNepaliNumber(formData.get('amountPaid') as string),
       status: formData.get('status') as any,
       dateBs: txnFormDate,
       remarks: (formData.get('remarks') as string) || '',
@@ -348,7 +348,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const payload: any = {
       programId: progId,
       employeeName: formData.get('employeeName') as string,
-      amount: Number(formData.get('amount')),
+      amount: parseNepaliNumber(formData.get('amount') as string),
       dateBs: txnFormDate,
       isPaid: formData.get('isPaid') === 'on',
       remarks: (formData.get('remarks') as string) || '',
@@ -394,13 +394,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         let isVatBill = false;
 
         txnItems.forEach(item => {
-          if (item.amount <= 0) return;
+          const amount = parseNepaliNumber(item.amount);
+          if (amount <= 0) return;
 
-          const amount = Number(item.amount);
           const itemIsVatBill = !!item.isVatBill;
           if (itemIsVatBill) isVatBill = true;
           
-          const vatTaxableAmount = itemIsVatBill ? (item.vatTaxableAmount || amount / 1.13) : 0;
+          const vatTaxableAmount = itemIsVatBill ? (parseNepaliNumber(item.vatTaxableAmount) || amount / 1.13) : 0;
           const vatAmount = itemIsVatBill ? vatTaxableAmount * 0.13 : 0;
           const amountWithoutVAT = amount - vatAmount;
           const amountWithVAT = amount;
@@ -431,9 +431,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             programId: item.programId || (formData.get('programId') as string) || undefined,
             needsBharpai: item.needsBharpai,
             bharpaiUnitType: item.bharpaiUnitType || 'days',
-            bharpaiDays: item.bharpaiDays,
-            bharpaiRate: item.bharpaiRate,
-            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || (formData.get('partyName') as string) || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
+            bharpaiDays: parseNepaliNumber(item.bharpaiDays),
+            bharpaiRate: parseNepaliNumber(item.bharpaiRate),
+            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons.map(p => ({ ...p, days: parseNepaliNumber(p.days), rate: parseNepaliNumber(p.rate) })) : [{ name: item.partyName || (formData.get('partyName') as string) || item.remarks || '', days: parseNepaliNumber(item.bharpaiDays) || 1, rate: parseNepaliNumber(item.bharpaiRate) || amount || 0 }]) : undefined
           });
         });
 
@@ -465,11 +465,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       } else if (!editingItem) {
         // New Single item
         txnItems.forEach(item => {
-          if (item.amount <= 0) return;
+          const amount = parseNepaliNumber(item.amount);
+          if (amount <= 0) return;
 
-          const amount = Number(item.amount);
           const isVatBill = !!item.isVatBill;
-          const vatTaxableAmount = isVatBill ? (item.vatTaxableAmount || amount / 1.13) : 0;
+          const vatTaxableAmount = isVatBill ? (parseNepaliNumber(item.vatTaxableAmount) || amount / 1.13) : 0;
           const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
           const amountWithoutVAT = amount - vatAmount;
           const amountWithVAT = amount;
@@ -500,15 +500,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
             checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
             needsBharpai: item.needsBharpai,
             bharpaiUnitType: item.bharpaiUnitType || 'days',
-            bharpaiDays: item.bharpaiDays,
-            bharpaiRate: item.bharpaiRate,
-            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons : [{ name: item.partyName || item.remarks || '', days: item.bharpaiDays || 1, rate: item.bharpaiRate || item.amount || 0 }]) : undefined
+            bharpaiDays: parseNepaliNumber(item.bharpaiDays),
+            bharpaiRate: parseNepaliNumber(item.bharpaiRate),
+            bharpaiPersons: item.needsBharpai ? (item.bharpaiPersons && item.bharpaiPersons.length > 0 ? item.bharpaiPersons.map(p => ({ ...p, days: parseNepaliNumber(p.days), rate: parseNepaliNumber(p.rate) })) : [{ name: item.partyName || item.remarks || '', days: parseNepaliNumber(item.bharpaiDays) || 1, rate: parseNepaliNumber(item.bharpaiRate) || amount || 0 }]) : undefined
           });
         });
       } else {
         // Editing a single item transaction
-        const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
-        const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
+        const amount = editTxnAmount !== '' ? parseNepaliNumber(editTxnAmount) : parseNepaliNumber(formData.get('amount') as string);
+        const vatTaxableAmount = isVatBill ? parseNepaliNumber(txnVatTaxableAmount) : 0;
         const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
         const amountWithoutVAT = amount - vatAmount;
         const amountWithVAT = amount;
@@ -544,16 +544,16 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
           needsBharpai: editNeedsBharpai,
           bharpaiUnitType: editBharpaiUnitType || 'days',
-          bharpaiDays: Number(editBharpaiDays || 0),
-          bharpaiRate: Number(editBharpaiRate || 0),
-          bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined,
+          bharpaiDays: parseNepaliNumber(editBharpaiDays),
+          bharpaiRate: parseNepaliNumber(editBharpaiRate),
+          bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons.map(p => ({ ...p, days: parseNepaliNumber(p.days), rate: parseNepaliNumber(p.rate) })) : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: parseNepaliNumber(editBharpaiDays) || 1, rate: parseNepaliNumber(editBharpaiRate) || amount || 0 }]) : undefined,
           items: undefined // Ensure multi-item is removed if saved as single
         });
       }
     } else {
       // Income transaction (always single)
-      const amount = editTxnAmount !== '' ? Number(editTxnAmount) : Number(formData.get('amount') || 0);
-      const vatTaxableAmount = isVatBill ? Number(txnVatTaxableAmount || 0) : 0;
+      const amount = editTxnAmount !== '' ? parseNepaliNumber(editTxnAmount) : parseNepaliNumber(formData.get('amount') as string);
+      const vatTaxableAmount = isVatBill ? parseNepaliNumber(txnVatTaxableAmount) : 0;
       const vatAmount = isVatBill ? vatTaxableAmount * 0.13 : 0;
       const amountWithoutVAT = amount - vatAmount;
       const amountWithVAT = amount;
@@ -589,9 +589,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
         checkNo: (txnPaymentMethod === 'Bank' && type !== 'Income') ? txnCheckNo : undefined,
         needsBharpai: editNeedsBharpai,
         bharpaiUnitType: editBharpaiUnitType || 'days',
-        bharpaiDays: Number(editBharpaiDays || 0),
-        bharpaiRate: Number(editBharpaiRate || 0),
-        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: Number(editBharpaiDays || 1), rate: Number(editBharpaiRate || amount || 0) }]) : undefined
+        bharpaiDays: parseNepaliNumber(editBharpaiDays),
+        bharpaiRate: parseNepaliNumber(editBharpaiRate),
+        bharpaiPersons: editNeedsBharpai ? (editBharpaiPersons && editBharpaiPersons.length > 0 ? editBharpaiPersons.map(p => ({ ...p, days: parseNepaliNumber(p.days), rate: parseNepaliNumber(p.rate) })) : [{ name: (formData.get('partyName') as string) || (formData.get('remarks') as string) || '', days: parseNepaliNumber(editBharpaiDays) || 1, rate: parseNepaliNumber(editBharpaiRate) || amount || 0 }]) : undefined
       });
     }
 
@@ -618,7 +618,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       panNumber: formData.get('panNumber') as string,
       address: formData.get('address') as string,
       phone: formData.get('phone') as string,
-      totalContractAmount: Number(formData.get('contractAmount')),
+      totalContractAmount: parseNepaliNumber(formData.get('contractAmount') as string),
       totalPaidAmount: editingItem?.totalPaidAmount || 0
     });
     handleCloseForm();
@@ -627,7 +627,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const handlePaymentSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const amount = Number(formData.get('amount'));
+    const amount = parseNepaliNumber(formData.get('amount') as string);
     const partyId = formData.get('partyId') as string;
     const manualPartyName = formData.get('manualPartyName') as string;
     const programId = formData.get('programId') as string;
@@ -2729,7 +2729,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const totalAdd = addItems.reduce((sum, i) => sum + (i as any).amount, 0);
     const totalLess = lessItems.reduce((sum, i) => sum + (i as any).amount, 0);
     const adjustedBalance = currentBookBalance + totalAdd - totalLess;
-    const difference = adjustedBalance - bankStatementBalance;
+    const difference = adjustedBalance - parseNepaliNumber(bankStatementBalance);
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -2792,10 +2792,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                        <div className="relative">
                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">रू</span>
                          <input 
-                           type="number"
+                           type="text"
+                           inputMode="decimal"
                            value={bankStatementBalance}
-                           onChange={(e) => setBankStatementBalance(Number(e.target.value))}
-                           className="w-32 bg-white border border-slate-300 rounded-lg px-2 py-1.5 pl-6 font-mono text-right font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
+                           onChange={(e) => setBankStatementBalance(e.target.value)}
+                           className="w-32 bg-white border border-slate-300 rounded-lg px-2 py-1.5 pl-6 font-mono font-nepali text-right font-bold focus:ring-2 focus:ring-primary-500 outline-none transition-all shadow-sm"
                          />
                        </div>
                     </div>
@@ -3587,7 +3588,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           {label: 'अन्य (Other)', value: 'Other'}
                         ]} 
                       />
-                      <Input label="कुल बजेट (Total Budget)" name="budget" type="number" defaultValue={editingItem?.totalBudget} required />
+                      <Input label="कुल बजेट (Total Budget)" name="budget" type="text" inputMode="decimal" defaultValue={editingItem?.totalBudget} required />
                     </>
                   )}
 
@@ -3597,7 +3598,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       <Input label="PAN नम्बर" name="panNumber" defaultValue={editingItem?.panNumber} />
                       <Input label="ठेगाना" name="address" defaultValue={editingItem?.address} />
                       <Input label="सम्पर्क नम्बर" name="phone" defaultValue={editingItem?.phone} />
-                      <Input label="कुल सम्झौता रकम (Total Contract Amount)" name="contractAmount" type="number" defaultValue={editingItem?.totalContractAmount} />
+                      <Input label="कुल सम्झौता रकम (Total Contract Amount)" name="contractAmount" type="text" inputMode="decimal" defaultValue={editingItem?.totalContractAmount} />
                     </>
                   )}
 
@@ -3654,9 +3655,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           <Input 
                             label="रकम (Amount)" 
                             name="amount" 
-                            type="number" 
+                            type="text" 
+                            inputMode="decimal"
                             value={editTxnAmount} 
-                            onChange={(e) => setEditTxnAmount(e.target.value === '' ? '' : Number(e.target.value))} 
+                            onChange={(e) => setEditTxnAmount(e.target.value)} 
                             required 
                           />
                           <Input label="विवरण (Remarks)" name="remarks" defaultValue={editingItem?.remarks} required />
@@ -3727,14 +3729,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">रकम (Amount)</label>
                                     <input 
-                                      type="number" 
+                                      type="text" 
+                                      inputMode="decimal"
                                       value={item.amount || ''} 
                                       onChange={(e) => {
                                         const newItems = [...txnItems];
-                                        newItems[index].amount = Number(e.target.value);
+                                        newItems[index].amount = e.target.value;
                                         setTxnItems(newItems);
                                       }}
-                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 font-nepali"
                                       placeholder="रकम"
                                       required
                                     />
@@ -3781,8 +3784,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                         onChange={(e) => {
                                           const newItems = [...txnItems];
                                           newItems[index].isVatBill = e.target.checked;
-                                          if (e.target.checked && item.amount > 0) {
-                                            newItems[index].vatTaxableAmount = Number((item.amount / 1.13).toFixed(2));
+                                          if (e.target.checked && parseNepaliNumber(item.amount) > 0) {
+                                            newItems[index].vatTaxableAmount = Number((parseNepaliNumber(item.amount) / 1.13).toFixed(2));
                                           }
                                           setTxnItems(newItems);
                                         }}
@@ -3793,14 +3796,15 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                    {item.isVatBill && (
                                      <div className="col-span-1 space-y-1">
                                        <input 
-                                         type="number" 
+                                         type="text" 
+                                         inputMode="decimal"
                                          value={item.vatTaxableAmount || ''} 
                                          onChange={(e) => {
                                            const newItems = [...txnItems];
-                                           newItems[index].vatTaxableAmount = Number(e.target.value);
+                                           newItems[index].vatTaxableAmount = e.target.value;
                                            setTxnItems(newItems);
                                          }}
-                                         className="w-full bg-white border border-rose-200 rounded-lg px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-rose-500"
+                                         className="w-full bg-white border border-rose-200 rounded-lg px-2 py-1 text-[10px] outline-none focus:ring-1 focus:ring-rose-500 font-nepali"
                                          placeholder="Taxable Amt"
                                        />
                                      </div>
@@ -3909,44 +3913,48 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                           {item.bharpaiUnitType === 'qty' ? 'संख्या (Qty)' : 'दिन (Days)'}
                                         </label>
                                         <input 
-                                          type="number" 
+                                          type="text" 
+                                          inputMode="decimal"
                                           value={item.bharpaiDays || ''} 
                                           onChange={(e) => {
                                             const newItems = [...txnItems];
-                                            const val = Number(e.target.value);
-                                            newItems[index].bharpaiDays = val;
+                                            const valStr = e.target.value;
+                                            const val = parseNepaliNumber(valStr);
+                                            newItems[index].bharpaiDays = valStr;
                                             if (item.needsBharpai) {
                                               if (item.bharpaiPersons && item.bharpaiPersons.length > 0) {
-                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (parseNepaliNumber(p.days) * parseNepaliNumber(p.rate)), 0);
                                               } else {
-                                                newItems[index].amount = val * Number(item.bharpaiRate || 0);
+                                                newItems[index].amount = val * parseNepaliNumber(item.bharpaiRate);
                                               }
                                             }
                                             setTxnItems(newItems);
                                           }}
-                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500 font-nepali"
                                           placeholder={item.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                         />
                                       </div>
                                       <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
                                         <input 
-                                          type="number" 
+                                          type="text" 
+                                          inputMode="decimal"
                                           value={item.bharpaiRate || ''} 
                                           onChange={(e) => {
                                             const newItems = [...txnItems];
-                                            const val = Number(e.target.value);
-                                            newItems[index].bharpaiRate = val;
+                                            const valStr = e.target.value;
+                                            const val = parseNepaliNumber(valStr);
+                                            newItems[index].bharpaiRate = valStr;
                                             if (item.needsBharpai) {
                                               if (item.bharpaiPersons && item.bharpaiPersons.length > 0) {
-                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                newItems[index].amount = item.bharpaiPersons.reduce((sum, p) => sum + (parseNepaliNumber(p.days) * parseNepaliNumber(p.rate)), 0);
                                               } else {
-                                                newItems[index].amount = Number(item.bharpaiDays || 0) * val;
+                                                newItems[index].amount = parseNepaliNumber(item.bharpaiDays) * val;
                                               }
                                             }
                                             setTxnItems(newItems);
                                           }}
-                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                                          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary-500 font-nepali"
                                           placeholder="दर"
                                         />
                                       </div>
@@ -3995,44 +4003,46 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                             </div>
                                             <div className="col-span-3">
                                               <input 
-                                                type="number" 
+                                                type="text" 
+                                                inputMode="decimal"
                                                 value={person.days || ''} 
                                                 onChange={(e) => {
                                                   const newItems = [...txnItems];
                                                   const persons = [...(item.bharpaiPersons || [])];
-                                                  persons[pIdx].days = Number(e.target.value);
+                                                  persons[pIdx].days = e.target.value;
                                                   newItems[index].bharpaiPersons = persons;
                                                   
                                                   if (item.needsBharpai) {
-                                                    const totalAmount = persons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                    const totalAmount = persons.reduce((sum, p) => sum + (parseNepaliNumber(p.days) * parseNepaliNumber(p.rate)), 0);
                                                     newItems[index].amount = totalAmount;
                                                   }
                                                   
                                                   setTxnItems(newItems);
                                                 }}
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500 font-nepali"
                                                 placeholder={item.bharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                                 required
                                               />
                                             </div>
                                             <div className="col-span-3">
                                               <input 
-                                                type="number" 
+                                                type="text" 
+                                                inputMode="decimal"
                                                 value={person.rate || ''} 
                                                 onChange={(e) => {
                                                   const newItems = [...txnItems];
                                                   const persons = [...(item.bharpaiPersons || [])];
-                                                  persons[pIdx].rate = Number(e.target.value);
+                                                  persons[pIdx].rate = e.target.value;
                                                   newItems[index].bharpaiPersons = persons;
                                                   
                                                   if (item.needsBharpai) {
-                                                    const totalAmount = persons.reduce((sum, p) => sum + (Number(p.days || 0) * Number(p.rate || 0)), 0);
+                                                    const totalAmount = persons.reduce((sum, p) => sum + (parseNepaliNumber(p.days) * parseNepaliNumber(p.rate)), 0);
                                                     newItems[index].amount = totalAmount;
                                                   }
                                                   
                                                   setTxnItems(newItems);
                                                 }}
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-md px-1.5 py-1 text-[11px] outline-none focus:ring-1 focus:ring-primary-500 font-nepali"
                                                 placeholder="दर"
                                                 required
                                               />
@@ -4157,22 +4167,24 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                   {editBharpaiUnitType === 'qty' ? 'संख्या (Qty)' : 'दिन (Days)'}
                                 </label>
                                 <input 
-                                  type="number" 
+                                  type="text" 
+                                  inputMode="decimal"
                                   name="bharpaiDays" 
                                   value={editBharpaiDays} 
-                                  onChange={(e) => setEditBharpaiDays(e.target.value === '' ? '' : Number(e.target.value))}
+                                  onChange={(e) => setEditBharpaiDays(e.target.value)}
                                   placeholder={editBharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
-                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 font-nepali" 
                                 />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">दर (Rate)</label>
                                 <input 
-                                  type="number" 
+                                  type="text" 
+                                  inputMode="decimal"
                                   name="bharpaiRate" 
                                   value={editBharpaiRate} 
-                                  onChange={(e) => setEditBharpaiRate(e.target.value === '' ? '' : Number(e.target.value))}
-                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500" 
+                                  onChange={(e) => setEditBharpaiRate(e.target.value)}
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 font-nepali" 
                                 />
                             </div>
                           </div>
@@ -4211,28 +4223,30 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                                   </div>
                                   <div className="col-span-3">
                                     <input 
-                                      type="number" 
+                                      type="text" 
+                                      inputMode="decimal"
                                       value={person.days || ''} 
                                       onChange={(e) => {
                                         const updated = [...editBharpaiPersons];
-                                        updated[pIdx].days = Number(e.target.value);
+                                        updated[pIdx].days = e.target.value;
                                         setEditBharpaiPersons(updated);
                                       }}
-                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
+                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500 font-nepali"
                                       placeholder={editBharpaiUnitType === 'qty' ? 'संख्या' : 'दिन'}
                                       required
                                     />
                                   </div>
                                   <div className="col-span-3">
                                     <input 
-                                      type="number" 
+                                      type="text" 
+                                      inputMode="decimal"
                                       value={person.rate || ''} 
                                       onChange={(e) => {
                                         const updated = [...editBharpaiPersons];
-                                        updated[pIdx].rate = Number(e.target.value);
+                                        updated[pIdx].rate = e.target.value;
                                         setEditBharpaiPersons(updated);
                                       }}
-                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500"
+                                      className="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-500 font-nepali"
                                       placeholder="दर"
                                       required
                                     />
@@ -4262,19 +4276,20 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-100 space-y-2 mt-2">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">VAT लाग्ने रकम (VAT Taxable Amount)</label>
                           <input 
-                            type="number" 
+                            type="text" 
+                            inputMode="decimal"
                             name="vatTaxableAmount" 
                             value={txnVatTaxableAmount} 
-                            onChange={(e) => setTxnVatTaxableAmount(e.target.value === '' ? '' : Number(e.target.value))} 
+                            onChange={(e) => setTxnVatTaxableAmount(e.target.value)} 
                             required 
                             placeholder="VAT लाग्ने रकम प्रविष्ट गर्नुहोस्" 
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-rose-500 outline-none font-nepali"
                           />
                           {txnVatTaxableAmount !== '' && (
                             <div className="text-[10px] text-slate-500 font-nepali flex justify-between px-1">
-                              <span>VAT बाहेक: रू {Number(txnVatTaxableAmount).toLocaleString()}</span>
-                              <span>VAT (१३%): रू {Math.round(Number(txnVatTaxableAmount) * 0.13).toLocaleString()}</span>
-                              <span className="font-bold text-rose-700">VAT सहित: रू {Math.round(Number(txnVatTaxableAmount) * 1.13).toLocaleString()}</span>
+                              <span>VAT बाहेक: रू {parseNepaliNumber(txnVatTaxableAmount).toLocaleString()}</span>
+                              <span>VAT (१३%): रू {Math.round(parseNepaliNumber(txnVatTaxableAmount) * 0.13).toLocaleString()}</span>
+                              <span className="font-bold text-rose-700">VAT सहित: रू {Math.round(parseNepaliNumber(txnVatTaxableAmount) * 1.13).toLocaleString()}</span>
                             </div>
                           )}
                         </div>
@@ -4341,7 +4356,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           helperText="यो कार्यक्रमको कुन खर्च विवरणको भुक्तानी हो छान्नुहोस् ।"
                         />
                       )}
-                      <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
+                      <Input label="भुक्तानी रकम (Payment Amount)" name="amount" type="text" inputMode="decimal" defaultValue={editingItem?.amount} required />
                       
                       <div className="flex flex-wrap gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -4403,8 +4418,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                       {(isOtherProgramSelected || editingItem?.programId === 'other') && (
                         <Input label="कार्यक्रमको नाम (Custom Program Name)" name="customProgramName" defaultValue={editingItem?.customProgramName} required />
                       )}
-                      <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="number" defaultValue={editingItem?.amountRequested} required />
-                      <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="number" defaultValue={editingItem?.amountPaid} required />
+                      <Input label="माग गरिएको रकम (Amount Requested)" name="amountRequested" type="text" inputMode="decimal" defaultValue={editingItem?.amountRequested} required />
+                      <Input label="भुक्तानी भएको रकम (Amount Paid)" name="amountPaid" type="text" inputMode="decimal" defaultValue={editingItem?.amountPaid} required />
                       <Select label="अवस्था (Status)" name="status" defaultValue={editingItem?.status} options={[
                         {label: 'Submitted (पेश गरिएको)', value: 'Submitted'},
                         {label: 'Partial (आंशिक भुक्तानी)', value: 'Partial'},
@@ -4438,7 +4453,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         <Input label="कार्यक्रमको नाम (Custom Program Name)" name="customProgramName" defaultValue={editingItem?.customProgramName} required />
                       )}
                       <Input label="कर्मचारीको नाम (Employee Name)" name="employeeName" defaultValue={editingItem?.employeeName} required />
-                      <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="number" defaultValue={editingItem?.amount} required />
+                      <Input label="भत्ता रकम (Allowance Amount)" name="amount" type="text" inputMode="decimal" defaultValue={editingItem?.amount} required />
                       <div className="flex items-center gap-2">
                         <input type="checkbox" name="isPaid" id="isPaid" defaultChecked={editingItem?.isPaid} className="form-checkbox h-5 w-5 text-primary-600 rounded" />
                         <label htmlFor="isPaid" className="text-sm font-bold text-slate-700">भुक्तानी भयो (Paid)</label>
