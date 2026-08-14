@@ -939,6 +939,31 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     setCustomReferrerOrder([]);
   };
 
+  const renderPrintPageHeaderRow = (colSpan: number, subTitleText?: string) => {
+    const isAllMonths = selectedMonth === 'all';
+    const monthName = isAllMonths ? 'वार्षिक (सबै महिना)' : `${NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र'} महिना`;
+    const displayFiscalYear = useNepaliNumerals ? toNepaliDigits(selectedFiscalYear) : selectedFiscalYear;
+    const title = subTitleText || activeReportTitle;
+
+    return (
+      <tr className="bg-slate-100 text-slate-900 border-2 border-slate-950 font-nepali">
+        <th colSpan={colSpan} className="border-2 border-slate-950 px-3 py-1.5 text-xs font-bold tracking-wide">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-slate-800">
+            <span className="text-left font-semibold whitespace-nowrap">
+              आ.व.: <strong className="text-slate-950 font-mono font-black">{displayFiscalYear}</strong>
+            </span>
+            <span className="text-center font-black text-slate-950 text-xs md:text-sm">
+              {title}
+            </span>
+            <span className="text-right font-semibold whitespace-nowrap">
+              महिना: <strong className="text-slate-950 font-black">{monthName}</strong>
+            </span>
+          </div>
+        </th>
+      </tr>
+    );
+  };
+
   // Export to CSV function
   const handleExportCSV = () => {
     if (reportSource === 'Protsahan') {
@@ -1747,6 +1772,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
                 <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
                   <thead>
+                    {renderPrintPageHeaderRow(6, '१. सिफारिसकर्ता अनुसारको प्रोत्साहन बाँडफाँड सारांश')}
                     <tr className="bg-slate-100">
                       <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">सिफारिसकर्ताको नाम (Referrer Name)</th>
@@ -1871,6 +1897,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 </h3>
                 <table className="w-full border-collapse border-2 border-slate-950 text-xs text-slate-900">
                   <thead>
+                    {renderPrintPageHeaderRow(7 + protsahanRecipients.length, '२. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण')}
                     <tr className="bg-slate-100">
                       <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[120px]">बिरामीको नाम</th>
@@ -1947,6 +1974,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : reportSource === 'Sewa' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
+                {renderPrintPageHeaderRow(8)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
@@ -2060,6 +2088,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : ambulanceReportType === 'expense' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
+                {renderPrintPageHeaderRow(8)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
@@ -2157,6 +2186,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
+                {renderPrintPageHeaderRow(9)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
