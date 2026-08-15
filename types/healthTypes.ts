@@ -301,6 +301,24 @@ export interface AmbulanceExpenseRecord {
   remarks?: string;
 }
 
+export interface AmbulanceOdometerRecord {
+  id: string;
+  fiscalYear: string;
+  month: string; // "04", "05", ..., "12", "01", "02", "03" or "1"..."12"
+  monthName?: string;
+  ambulanceNo?: string;
+  driverName?: string;
+  startOdometer: number;
+  endOdometer: number;
+  totalDistanceKm: number; // endOdometer - startOdometer
+  fuelLiters?: number;
+  remarks?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  recordedAt?: string;
+  recordedBy?: string;
+}
+
 export interface GaunGharClinicRecord {
   id: string;
   fiscalYear: string;

@@ -109,7 +109,8 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ currentConfig, o
 
     // Ensure any newly added nested items in ALL_MENU_ITEMS are also present in loadedConfig
     const syncWithBase = (cfgList: MenuConfigItem[], baseItems: MenuItem[]): MenuConfigItem[] => {
-      const updatedList = [...cfgList];
+      // Keep only items that belong to this tier in baseItems
+      const updatedList = cfgList.filter(c => baseItems.some(b => b.id === c.id));
       baseItems.forEach(base => {
         let existing = updatedList.find(c => c.id === base.id);
         if (!existing) {

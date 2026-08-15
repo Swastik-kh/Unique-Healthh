@@ -79,7 +79,8 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         subItems: [
           { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम', icon: <CheckCircle2 size={16} /> },
           { id: 'khop_abhiyan', label: 'खोप अभियान', icon: <Syringe size={16} /> },
-          { id: 'fchv_karyakram', label: 'FCHV कार्यक्रम', icon: <Users size={16} /> }
+          { id: 'fchv_karyakram', label: 'FCHV कार्यक्रम', icon: <Users size={16} /> },
+          { id: 'talim_byabasthapan', label: 'तालिम व्यवस्थापन', icon: <BookOpen size={16} /> }
         ]
       }
     ] 
@@ -141,11 +142,6 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
     id: 'conference',
     label: 'कन्फरेन्स (Conference)',
     icon: <MessageSquare size={20} />,
-  },
-  {
-    id: 'talim_byabasthapan',
-    label: 'तालिम व्यवस्थापन',
-    icon: <BookOpen size={20} />
   },
   {
     id: 'settings',

@@ -1,22 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass } from 'lucide-react';
+import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { AmbulanceTracker } from './AmbulanceTracker';
+import { AmbulanceOdometerView } from './AmbulanceOdometerView';
 import { LogoDisplay } from './LogoDisplay';
 import { toNepaliDigits } from '../lib/tableUtils';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
   expenseRecords?: AmbulanceExpenseRecord[];
+  odometerRecords?: AmbulanceOdometerRecord[];
   serviceSeekerRecords: ServiceSeekerRecord[];
   currentUser?: User | null;
   onSave: (record: AmbulanceRecord) => void;
   onDelete: (id: string) => void;
   onSaveExpense?: (record: AmbulanceExpenseRecord) => void;
   onDeleteExpense?: (id: string) => void;
+  onSaveOdometer?: (record: AmbulanceOdometerRecord) => void;
+  onDeleteOdometer?: (id: string) => void;
   currentFiscalYear: string;
   generalSettings?: OrganizationSettings;
   users: User[];
@@ -25,12 +29,15 @@ interface AmbulanceSewaProps {
 export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   records = [],
   expenseRecords = [],
+  odometerRecords = [],
   serviceSeekerRecords = [],
   currentUser,
   onSave,
   onDelete,
   onSaveExpense,
   onDeleteExpense,
+  onSaveOdometer,
+  onDeleteOdometer,
   currentFiscalYear,
   generalSettings,
   users
@@ -101,7 +108,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     return (expenseRecords || []).filter(e => e.fiscalYear === currentFiscalYear);
   }, [expenseRecords, currentFiscalYear]);
 
-  const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'tracking'>('trips');
+  const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'odometer' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AmbulanceRecord | null>(null);
   const isEditingAndNonAdmin = useMemo(() => {
@@ -482,10 +489,10 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     }).filter(r => r.from || r.to);
   }, [generalSettings?.ambulanceRoutes]);
 
-  const hasTabAccess = (tab: 'trips' | 'expenses' | 'logbook' | 'tracking') => {
+  const hasTabAccess = (tab: 'trips' | 'expenses' | 'logbook' | 'odometer' | 'tracking') => {
     if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
-    const key = `ambulance_${tab === 'trips' ? 'trips' : tab === 'expenses' ? 'expenses' : tab === 'logbook' ? 'logbook' : 'tracking'}`;
+    const key = `ambulance_${tab}`;
     return currentUser.allowedMenus?.includes(key) || false;
   };
 
@@ -496,6 +503,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       currentUser.allowedMenus?.includes('ambulance_trips') ||
       currentUser.allowedMenus?.includes('ambulance_expenses') ||
       currentUser.allowedMenus?.includes('ambulance_logbook') ||
+      currentUser.allowedMenus?.includes('ambulance_odometer') ||
       currentUser.allowedMenus?.includes('ambulance_tracking')
     );
   }, [currentUser]);
@@ -504,7 +512,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   React.useEffect(() => {
     if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
       if (!hasTabAccess(activeTab)) {
-        const tabs: ('trips' | 'expenses' | 'logbook' | 'tracking')[] = ['trips', 'expenses', 'logbook', 'tracking'];
+        const tabs: ('trips' | 'expenses' | 'logbook' | 'odometer' | 'tracking')[] = ['trips', 'expenses', 'logbook', 'odometer', 'tracking'];
         const firstAllowed = tabs.find(t => hasTabAccess(t));
         if (firstAllowed) {
           setActiveTab(firstAllowed);
@@ -585,6 +593,19 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   >
                     <FileText size={15} />
                     <span>लगबुक (Log Book)</span>
+                  </button>
+                )}
+                {hasTabAccess('odometer') && (
+                  <button
+                    onClick={() => setActiveTab('odometer')}
+                    className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                      activeTab === 'odometer'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Gauge size={15} />
+                    <span>ओडोमिटर रेकर्ड (Odometer Record)</span>
                   </button>
                 )}
                 {hasTabAccess('tracking') && (
@@ -1519,6 +1540,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </table>
             </div>
           </div>
+        ) : activeTab === 'odometer' ? (
+          <AmbulanceOdometerView
+            odometerRecords={odometerRecords}
+            tripRecords={records}
+            expenseRecords={expenseRecords}
+            currentFiscalYear={currentFiscalYear}
+            generalSettings={generalSettings}
+            currentUser={currentUser}
+            users={users}
+            onSaveOdometer={onSaveOdometer}
+            onDeleteOdometer={onDeleteOdometer}
+          />
         ) : activeTab === 'tracking' ? (
           <AmbulanceTracker currentUser={currentUser} generalSettings={generalSettings} />
         ) : (

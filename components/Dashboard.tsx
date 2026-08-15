@@ -240,6 +240,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     physiotherapyRecords = [], onSavePhysiotherapyRecord: rawOnSavePhysiotherapyRecord, onDeletePhysiotherapyRecord: rawOnDeletePhysiotherapyRecord,
     ambulanceRecords = [], onSaveAmbulanceRecord: rawOnSaveAmbulanceRecord, onDeleteAmbulanceRecord: rawOnDeleteAmbulanceRecord,
     ambulanceExpenseRecords = [], onSaveAmbulanceExpense: rawOnSaveAmbulanceExpense = () => {}, onDeleteAmbulanceExpense: rawOnDeleteAmbulanceExpense = () => {},
+    ambulanceOdometerRecords = [], onSaveAmbulanceOdometerRecord: rawOnSaveAmbulanceOdometerRecord = () => {}, onDeleteAmbulanceOdometerRecord: rawOnDeleteAmbulanceOdometerRecord = () => {},
     ipdRecords = [], onSaveIPDRecord: rawOnSaveIPDRecord, onDeleteIPDRecord: rawOnDeleteIPDRecord, onDeleteAllIPDRecords: rawOnDeleteAllIPDRecords,
     interFacilityRequests = [], onAddInterFacilityRequest: rawOnAddInterFacilityRequest, onUpdateInterFacilityRequest: rawOnUpdateInterFacilityRequest,
     onUpdateReadNotifications,
@@ -407,6 +408,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const onDeleteAmbulanceRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceRecord?.(...args);
   const onSaveAmbulanceExpense = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceExpense?.(...args);
   const onDeleteAmbulanceExpense = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceExpense?.(...args);
+  const onSaveAmbulanceOdometerRecord = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceOdometerRecord?.(...args);
+  const onDeleteAmbulanceOdometerRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceOdometerRecord?.(...args);
   const onSaveIPDRecord = (...args: any[]) => checkEditPermission() && rawOnSaveIPDRecord?.(...args);
   const onDeleteIPDRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteIPDRecord?.(...args);
   const onDeleteAllIPDRecords = (...args: any[]) => checkDeletePermission() && rawOnDeleteAllIPDRecords?.(...args);
@@ -764,6 +767,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       // Reconstruct menu from config
       const reconstruct = (cfgList: any[]): MenuItem[] => {
         return cfgList.map(cfg => {
+          // If this config item is top-level but ALL_MENU_ITEMS has it nested elsewhere, ignore it at top-level
+          const isTopLevelInBase = ALL_MENU_ITEMS.some(m => m.id === cfg.id);
           const base = getBaseItem(cfg.id, ALL_MENU_ITEMS);
           if (!base) return null;
           
@@ -790,7 +795,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         }).filter(Boolean) as MenuItem[];
       };
       
-      sourceItems = reconstruct(config);
+      sourceItems = reconstruct(config.filter(c => ALL_MENU_ITEMS.some(m => m.id === c.id)));
       
       // Add any missing top-level items (in case of updates)
       ALL_MENU_ITEMS.forEach(baseItem => {
@@ -2250,12 +2255,15 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
       case 'ambulance_sewa': return <AmbulanceSewa 
                                       records={ambulanceRecords}
                                       expenseRecords={ambulanceExpenseRecords}
+                                      odometerRecords={ambulanceOdometerRecords}
                                       serviceSeekerRecords={serviceSeekerRecords}
                                       currentUser={currentUser}
                                       onSave={onSaveAmbulanceRecord}
                                       onDelete={onDeleteAmbulanceRecord}
                                       onSaveExpense={onSaveAmbulanceExpense}
                                       onDeleteExpense={onDeleteAmbulanceExpense}
+                                      onSaveOdometer={onSaveAmbulanceOdometerRecord}
+                                      onDeleteOdometer={onDeleteAmbulanceOdometerRecord}
                                       currentFiscalYear={currentFiscalYear}
                                       generalSettings={generalSettings}
                                       users={users}

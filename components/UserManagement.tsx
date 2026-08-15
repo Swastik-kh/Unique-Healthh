@@ -42,6 +42,7 @@ const PERMISSION_STRUCTURE = [
                     { id: 'vitamin_a', label: 'भिटामिन ए कार्यक्रम (Vitamin A)' },
                     { id: 'khop_abhiyan', label: 'खोप अभियान (Campaign)' },
                     { id: 'fchv_karyakram', label: 'FCHV कार्यक्रम (FCHV Program)' },
+                    { id: 'talim_byabasthapan', label: 'तालिम व्यवस्थापन (Training Mgmt)' },
                 ] 
             },
             { id: 'opd_sewa', label: 'ओ.पी.डी. सेवा (OPD Service)' },
@@ -77,6 +78,7 @@ const PERMISSION_STRUCTURE = [
                     { id: 'ambulance_trips', label: 'एम्बुलेन्स यात्रा विवरण (Travel logs)' },
                     { id: 'ambulance_expenses', label: 'खर्च विवरण (Expenses)' },
                     { id: 'ambulance_logbook', label: 'लग बुक (Log Book)' },
+                    { id: 'ambulance_odometer', label: 'ओडोमिटर रेकर्ड (Odometer Record)' },
                     { id: 'ambulance_tracking', label: 'लाइभ ट्र्याकिङ (Live Tracking)' }
                 ]
             },
@@ -90,7 +92,6 @@ const PERMISSION_STRUCTURE = [
                     { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता (Travel Order)' },
                     { id: 'lekha_prashasan', label: 'लेखा प्रशासन (Lekha Prashasan)' },
                     { id: 'bida_abedan', label: 'बिदा आवेदन (Leave Application)' },
-                    { id: 'talim_byabasthapan', label: 'तालिम व्यवस्थापन (Training Mgmt)' },
                     { id: 'sujhab_petika', label: 'सुझाव पेटिका (Sujhab Petika)' },
                 ]
             },

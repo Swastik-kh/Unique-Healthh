@@ -12,7 +12,7 @@ import {
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
   GaunGharClinicRecord,
-  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, GoswaraVoucher, JournalEntry
+  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry
 } from './types';
 import { db } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -116,6 +116,7 @@ const App: React.FC = () => {
   const [physiotherapyRecords, setPhysiotherapyRecords] = useState<PhysiotherapyRecord[]>([]);
   const [ambulanceRecords, setAmbulanceRecords] = useState<AmbulanceRecord[]>([]);
   const [ambulanceExpenseRecords, setAmbulanceExpenseRecords] = useState<AmbulanceExpenseRecord[]>([]);
+  const [ambulanceOdometerRecords, setAmbulanceOdometerRecords] = useState<AmbulanceOdometerRecord[]>([]);
   const [ipdRecords, setIpdRecords] = useState<IPDRecord[]>([]);
   const [interFacilityRequests, setInterFacilityRequests] = useState<InterFacilityRequest[]>([]);
   const [itemList, setItemList] = useState<ItemEntry[]>([]);
@@ -349,6 +350,7 @@ const App: React.FC = () => {
     setupOrgListener('physiotherapyRecords', setPhysiotherapyRecords);
     setupOrgListener('ambulanceRecords', setAmbulanceRecords);
     setupOrgListener('ambulanceExpenseRecords', setAmbulanceExpenseRecords);
+    setupOrgListener('ambulanceOdometerRecords', setAmbulanceOdometerRecords);
     setupOrgListener('ipdRecords', setIpdRecords);
     // Global Talim Listener
     const globalTalimRef = ref(db, 'globalData/talimEntries');
@@ -1063,6 +1065,25 @@ const App: React.FC = () => {
       await remove(getOrgRef(`ambulanceExpenseRecords/${id}`));
     } catch (error) {
       alert("एम्बुलेन्स खर्च रेकर्ड हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveAmbulanceOdometerRecord = async (record: AmbulanceOdometerRecord) => {
+    if (!currentUser) return;
+    try {
+      const sanitized = JSON.parse(JSON.stringify(record));
+      await set(getOrgRef(`ambulanceOdometerRecords/${record.id}`), sanitized);
+    } catch (error) {
+      alert("ओडोमिटर रेकर्ड सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteAmbulanceOdometerRecord = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      await remove(getOrgRef(`ambulanceOdometerRecords/${id}`));
+    } catch (error) {
+      alert("ओडोमिटर रेकर्ड हटाउन सकिएन।");
     }
   };
 
@@ -1971,6 +1992,9 @@ const App: React.FC = () => {
     ambulanceExpenseRecords={ambulanceExpenseRecords}
     onSaveAmbulanceExpense={handleSaveAmbulanceExpense}
     onDeleteAmbulanceExpense={handleDeleteAmbulanceExpense}
+    ambulanceOdometerRecords={ambulanceOdometerRecords}
+    onSaveAmbulanceOdometerRecord={handleSaveAmbulanceOdometerRecord}
+    onDeleteAmbulanceOdometerRecord={handleDeleteAmbulanceOdometerRecord}
     ipdRecords={ipdRecords}
     onSaveIPDRecord={handleSaveIPDRecord}
     onDeleteIPDRecord={handleDeleteIPDRecord}

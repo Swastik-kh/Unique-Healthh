@@ -5,7 +5,7 @@ import {
   InventoryItem, Store, StockEntryRequest, DakhilaPratibedanEntry, ReturnEntry, 
   MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry
 } from './inventoryTypes';
-import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord } from './healthTypes';
+import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from './healthTypes';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from './financeTypes';
 
 export interface LoginFormProps {
@@ -179,6 +179,9 @@ export interface DashboardProps {
   ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
   onSaveAmbulanceExpense?: (record: AmbulanceExpenseRecord) => void;
   onDeleteAmbulanceExpense?: (id: string) => void;
+  ambulanceOdometerRecords?: AmbulanceOdometerRecord[];
+  onSaveAmbulanceOdometerRecord?: (record: AmbulanceOdometerRecord) => void;
+  onDeleteAmbulanceOdometerRecord?: (id: string) => void;
 
   onClearData: (sectionId: string) => void; 
   onUploadData?: (sectionId: string, data: any[]) => void;
