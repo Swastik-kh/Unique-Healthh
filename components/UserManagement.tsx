@@ -217,6 +217,52 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+  const userAllowedMenusSet = useMemo(() => new Set(currentUser.allowedMenus || []), [currentUser.allowedMenus]);
+
+  // Restrict visible and assignable permission structure based on currentUser's allowed menus
+  const visiblePermissionStructure = useMemo(() => {
+    if (isSuperAdmin) return PERMISSION_STRUCTURE;
+
+    const filterGroup = (items: any[], parentAllowed: boolean = false): any[] => {
+      return items.map(item => {
+        const isSelfAllowed = parentAllowed || userAllowedMenusSet.has(item.id);
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = filterGroup(item.children, isSelfAllowed);
+          if (filteredChildren.length > 0) {
+            return {
+              ...item,
+              children: filteredChildren
+            };
+          }
+          return null;
+        } else {
+          if (isSelfAllowed || userAllowedMenusSet.has(item.id)) {
+            return item;
+          }
+          return null;
+        }
+      }).filter(Boolean);
+    };
+
+    return filterGroup(PERMISSION_STRUCTURE);
+  }, [isSuperAdmin, userAllowedMenusSet]);
+
+  const adminManageableIds = useMemo(() => {
+    if (isSuperAdmin) return null;
+    const ids = new Set<string>();
+    const collectIds = (items: any[]) => {
+      items.forEach(item => {
+        ids.add(item.id);
+        if (item.children && item.children.length > 0) {
+          collectIds(item.children);
+        }
+      });
+    };
+    collectIds(visiblePermissionStructure);
+    return ids;
+  }, [isSuperAdmin, visiblePermissionStructure]);
+
   const allCreatableRoles: Option[] = [
     { id: 'health_section', value: 'HEALTH_SECTION', label: 'स्वास्थ्य शाखा (Health Section)' },
     { id: 'admin', value: 'ADMIN', label: 'एडमिन (Admin)' },
@@ -575,7 +621,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         return;
     }
 
-    const finalMenus = Array.from(new Set([...formData.allowedMenus]));
+    let finalMenus = Array.from(new Set([...formData.allowedMenus]));
+    let finalEditMenus = Array.from(new Set([...formData.editAccessMenus]));
+    let finalDeleteMenus = Array.from(new Set([...formData.deleteAccessMenus]));
+
+    if (!isSuperAdmin && adminManageableIds) {
+        finalMenus = finalMenus.filter(id => adminManageableIds.has(id));
+        finalEditMenus = finalEditMenus.filter(id => adminManageableIds.has(id));
+        finalDeleteMenus = finalDeleteMenus.filter(id => adminManageableIds.has(id));
+    }
+
     const userToSave: User = {
         id: newId,
         username: formData.username.trim().toLowerCase(), 
@@ -587,17 +642,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         email: formData.email.trim(),
         organizationName: formData.organizationName.trim(),
         allowedMenus: finalMenus,
-        editAccessMenus: Array.from(new Set([...formData.editAccessMenus])),
-        deleteAccessMenus: Array.from(new Set([...formData.deleteAccessMenus])),
+        editAccessMenus: finalEditMenus,
+        deleteAccessMenus: finalDeleteMenus,
         serviceType: formData.serviceType,
         hasSaveAccess: formData.hasSaveAccess,
-        canDeleteBilling: formData.canDeleteBilling,
-        canEditBilling: formData.canEditBilling,
-        canDeleteAmbulance: formData.canDeleteAmbulance,
-        canManageMenu: formData.canManageMenu,
-        allowSmsAccess: formData.allowSmsAccess,
-        smsQuota: formData.smsQuota,
-        smsUsedCount: formData.smsUsedCount,
+        canDeleteBilling: (isSuperAdmin || currentUser.canDeleteBilling) ? formData.canDeleteBilling : false,
+        canEditBilling: (isSuperAdmin || currentUser.canEditBilling || userAllowedMenusSet.has('service_billing') || userAllowedMenusSet.has('services')) ? formData.canEditBilling : false,
+        canDeleteAmbulance: (isSuperAdmin || currentUser.canDeleteAmbulance || userAllowedMenusSet.has('ambulance_sewa') || userAllowedMenusSet.has('ambulance_trips')) ? formData.canDeleteAmbulance : false,
+        canManageMenu: (isSuperAdmin || currentUser.canManageMenu) ? formData.canManageMenu : false,
+        allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : false,
+        smsQuota: isSuperAdmin ? formData.smsQuota : 0,
+        smsUsedCount: isSuperAdmin ? formData.smsUsedCount : 0,
         parentId: formData.parentId || currentUser.id
     };
 
@@ -778,7 +833,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </button>
             </div>
 
-            <div className="md:col-span-2 flex items-center justify-between p-4 bg-amber-50 border border-amber-100 rounded-xl mt-2">
+            {(isSuperAdmin || currentUser.canEditBilling || userAllowedMenusSet.has('service_billing') || userAllowedMenusSet.has('services')) && (
+              <div className="md:col-span-2 flex items-center justify-between p-4 bg-amber-50 border border-amber-100 rounded-xl mt-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg text-amber-600 shadow-sm">
                         <Pencil size={20} />
@@ -795,9 +851,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canEditBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
-            </div>
+              </div>
+            )}
 
-            <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
+            {(isSuperAdmin || currentUser.canDeleteBilling) && (
+              <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg text-rose-600 shadow-sm">
                         <Trash2 size={20} />
@@ -814,9 +872,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
-            </div>
+              </div>
+            )}
 
-            <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
+            {(isSuperAdmin || currentUser.canDeleteAmbulance || userAllowedMenusSet.has('ambulance_sewa') || userAllowedMenusSet.has('ambulance_trips')) && (
+              <div className="md:col-span-2 flex items-center justify-between p-4 bg-rose-50 border border-rose-100 rounded-xl mt-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg text-rose-600 shadow-sm">
                         <Trash2 size={20} />
@@ -833,9 +893,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteAmbulance ? 'left-7' : 'left-1'}`}></div>
                 </button>
-            </div>
+              </div>
+            )}
 
-            <div className="md:col-span-2 flex items-center justify-between p-4 bg-sky-50 border border-sky-100 rounded-xl mt-2">
+            {(isSuperAdmin || currentUser.canManageMenu) && (
+              <div className="md:col-span-2 flex items-center justify-between p-4 bg-sky-50 border border-sky-100 rounded-xl mt-2">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg text-sky-600 shadow-sm">
                         <Sliders size={20} />
@@ -852,7 +914,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canManageMenu ? 'left-7' : 'left-1'}`}></div>
                 </button>
-            </div>
+              </div>
+            )}
 
             {/* Super Admin Individual SMS Access and Quota */}
             {currentUser?.role === 'SUPER_ADMIN' && (
@@ -922,13 +985,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             )}
 
             <div className="md:col-span-2 mt-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2"><Shield size={16} className="text-primary-600"/>मेनु र सब-मेनु पहुँच अधिकार (Permissions)</h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                        <Shield size={16} className="text-primary-600"/>
+                        मेनु र सब-मेनु पहुँच अधिकार (Permissions)
+                    </h4>
+                    {!isSuperAdmin && (
+                        <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            तपाईँले पाउनुभएको मेनु अधिकारहरू मात्र दिन मिल्छ
+                        </span>
+                    )}
+                </div>
                 <div className="space-y-3">
-                    {PERMISSION_STRUCTURE.map((group) => (
+                    {visiblePermissionStructure.map((group) => (
                         <div key={group.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden">
                             {renderPermissionGroup(group)}
                         </div>
                     ))}
+                    {visiblePermissionStructure.length === 0 && (
+                        <div className="p-4 text-center text-sm text-slate-400 font-nepali">
+                            तपाईँलाई कुनै मेनु पहुँच अधिकार तोकिएको छैन।
+                        </div>
+                    )}
                 </div>
             </div>
 
