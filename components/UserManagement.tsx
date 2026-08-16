@@ -321,6 +321,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     parentId: currentUser.id
   });
 
+  // Check if current logged-in user is editing their own user profile
+  const isEditingSelf = useMemo(() => {
+    if (isSuperAdmin) return false;
+    return (
+      (editingId !== null && editingId === currentUser.id) ||
+      (formData.id !== '' && formData.id.trim() === currentUser.id) ||
+      (formData.username !== '' && formData.username.trim().toLowerCase() === currentUser.username.trim().toLowerCase())
+    );
+  }, [isSuperAdmin, editingId, formData.id, formData.username, currentUser.id, currentUser.username]);
+
   const canManageUsers = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' || currentUser.role === 'HEALTH_SECTION';
 
   // Visibility logic for managed users with search
@@ -413,6 +423,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const togglePermission = (menuId: string) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           const current = prev.allowedMenus;
           if (current.includes(menuId)) {
@@ -424,6 +435,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const toggleEditPermission = (menuId: string) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           const current = prev.editAccessMenus || [];
           if (current.includes(menuId)) {
@@ -435,6 +447,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const toggleDeletePermission = (menuId: string) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           const current = prev.deleteAccessMenus || [];
           if (current.includes(menuId)) {
@@ -451,6 +464,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const toggleParentPermission = (parentId: string, groupChildren: any[]) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           let newMenus = [...prev.allowedMenus];
           const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
@@ -465,6 +479,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const toggleParentEditPermission = (parentId: string, groupChildren: any[]) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           let newMenus = [...(prev.editAccessMenus || [])];
           const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
@@ -479,6 +494,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const toggleParentDeletePermission = (parentId: string, groupChildren: any[]) => {
+      if (isEditingSelf) return;
       setFormData(prev => {
           let newMenus = [...(prev.deleteAccessMenus || [])];
           const allDescendantIds = groupChildren.flatMap((child: any) => flattenDescendantIds(child));
@@ -625,7 +641,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     let finalEditMenus = Array.from(new Set([...formData.editAccessMenus]));
     let finalDeleteMenus = Array.from(new Set([...formData.deleteAccessMenus]));
 
-    if (!isSuperAdmin && adminManageableIds) {
+    if (isEditingSelf) {
+        // Enforce that self-editing cannot modify permissions, roles, or special privileges
+        finalMenus = currentUser.allowedMenus || [];
+        finalEditMenus = currentUser.editAccessMenus || [];
+        finalDeleteMenus = currentUser.deleteAccessMenus || [];
+    } else if (!isSuperAdmin && adminManageableIds) {
         finalMenus = finalMenus.filter(id => adminManageableIds.has(id));
         finalEditMenus = finalEditMenus.filter(id => adminManageableIds.has(id));
         finalDeleteMenus = finalDeleteMenus.filter(id => adminManageableIds.has(id));
@@ -635,24 +656,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         id: newId,
         username: formData.username.trim().toLowerCase(), 
         password: formData.password.trim(),
-        role: formData.role, 
+        role: isEditingSelf ? currentUser.role : formData.role, 
         fullName: formData.fullName.trim(), 
         designation: formData.designation.trim(),
         phoneNumber: formData.phoneNumber.trim(), 
         email: formData.email.trim(),
         organizationName: formData.organizationName.trim(),
-        allowedMenus: finalMenus,
-        editAccessMenus: finalEditMenus,
-        deleteAccessMenus: finalDeleteMenus,
+        allowedMenus: isEditingSelf ? (currentUser.allowedMenus || []) : finalMenus,
+        editAccessMenus: isEditingSelf ? (currentUser.editAccessMenus || []) : finalEditMenus,
+        deleteAccessMenus: isEditingSelf ? (currentUser.deleteAccessMenus || []) : finalDeleteMenus,
         serviceType: formData.serviceType,
-        hasSaveAccess: formData.hasSaveAccess,
-        canDeleteBilling: (isSuperAdmin || currentUser.canDeleteBilling) ? formData.canDeleteBilling : false,
-        canEditBilling: (isSuperAdmin || currentUser.canEditBilling || userAllowedMenusSet.has('service_billing') || userAllowedMenusSet.has('services')) ? formData.canEditBilling : false,
-        canDeleteAmbulance: (isSuperAdmin || currentUser.canDeleteAmbulance || userAllowedMenusSet.has('ambulance_sewa') || userAllowedMenusSet.has('ambulance_trips')) ? formData.canDeleteAmbulance : false,
-        canManageMenu: (isSuperAdmin || currentUser.canManageMenu) ? formData.canManageMenu : false,
-        allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : false,
-        smsQuota: isSuperAdmin ? formData.smsQuota : 0,
-        smsUsedCount: isSuperAdmin ? formData.smsUsedCount : 0,
+        hasSaveAccess: isEditingSelf ? (currentUser.hasSaveAccess ?? true) : formData.hasSaveAccess,
+        canDeleteBilling: isEditingSelf ? (currentUser.canDeleteBilling ?? false) : ((isSuperAdmin || currentUser.canDeleteBilling) ? formData.canDeleteBilling : false),
+        canEditBilling: isEditingSelf ? (currentUser.canEditBilling ?? false) : ((isSuperAdmin || currentUser.canEditBilling || userAllowedMenusSet.has('service_billing') || userAllowedMenusSet.has('services')) ? formData.canEditBilling : false),
+        canDeleteAmbulance: isEditingSelf ? (currentUser.canDeleteAmbulance ?? false) : ((isSuperAdmin || currentUser.canDeleteAmbulance || userAllowedMenusSet.has('ambulance_sewa') || userAllowedMenusSet.has('ambulance_trips')) ? formData.canDeleteAmbulance : false),
+        canManageMenu: isEditingSelf ? (currentUser.canManageMenu ?? false) : ((isSuperAdmin || currentUser.canManageMenu) ? formData.canManageMenu : false),
+        allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : (isEditingSelf ? (currentUser.allowSmsAccess ?? false) : false),
+        smsQuota: isSuperAdmin ? formData.smsQuota : (isEditingSelf ? (currentUser.smsQuota ?? 0) : 0),
+        smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
         parentId: formData.parentId || currentUser.id
     };
 
@@ -808,7 +829,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   onChange={e => setFormData({...formData, role: e.target.value as UserRole})} 
                   options={rolesForDropdown} 
                   icon={<Users size={16} />} 
-                  disabled={isSaving}
+                  disabled={isSaving || isEditingSelf}
               />
             )}
             <Input label="प्रयोगकर्ता नाम" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} required icon={<UserIcon size={16} />} disabled={isSaving} />
@@ -826,8 +847,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <button 
                   type="button"
+                  disabled={isSaving || isEditingSelf}
                   onClick={() => setFormData(prev => ({ ...prev, hasSaveAccess: !prev.hasSaveAccess }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.hasSaveAccess ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.hasSaveAccess ? 'bg-indigo-600' : 'bg-slate-300'} ${isEditingSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.hasSaveAccess ? 'left-7' : 'left-1'}`}></div>
                 </button>
@@ -846,8 +868,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <button 
                   type="button"
+                  disabled={isSaving || isEditingSelf}
                   onClick={() => setFormData(prev => ({ ...prev, canEditBilling: !prev.canEditBilling }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canEditBilling ? 'bg-amber-600' : 'bg-slate-300'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canEditBilling ? 'bg-amber-600' : 'bg-slate-300'} ${isEditingSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canEditBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
@@ -867,8 +890,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <button 
                   type="button"
+                  disabled={isSaving || isEditingSelf}
                   onClick={() => setFormData(prev => ({ ...prev, canDeleteBilling: !prev.canDeleteBilling }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteBilling ? 'bg-rose-600' : 'bg-slate-300'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteBilling ? 'bg-rose-600' : 'bg-slate-300'} ${isEditingSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteBilling ? 'left-7' : 'left-1'}`}></div>
                 </button>
@@ -888,8 +912,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <button 
                   type="button"
+                  disabled={isSaving || isEditingSelf}
                   onClick={() => setFormData(prev => ({ ...prev, canDeleteAmbulance: !prev.canDeleteAmbulance }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteAmbulance ? 'bg-rose-600' : 'bg-slate-300'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canDeleteAmbulance ? 'bg-rose-600' : 'bg-slate-300'} ${isEditingSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canDeleteAmbulance ? 'left-7' : 'left-1'}`}></div>
                 </button>
@@ -909,8 +934,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <button 
                   type="button"
+                  disabled={isSaving || isEditingSelf}
                   onClick={() => setFormData(prev => ({ ...prev, canManageMenu: !prev.canManageMenu }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canManageMenu ? 'bg-sky-600' : 'bg-slate-300'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${formData.canManageMenu ? 'bg-sky-600' : 'bg-slate-300'} ${isEditingSelf ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${formData.canManageMenu ? 'left-7' : 'left-1'}`}></div>
                 </button>
@@ -990,13 +1016,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         <Shield size={16} className="text-primary-600"/>
                         मेनु र सब-मेनु पहुँच अधिकार (Permissions)
                     </h4>
-                    {!isSuperAdmin && (
+                    {!isSuperAdmin && !isEditingSelf && (
                         <span className="text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                             तपाईँले पाउनुभएको मेनु अधिकारहरू मात्र दिन मिल्छ
                         </span>
                     )}
                 </div>
-                <div className="space-y-3">
+
+                {isEditingSelf && (
+                    <div className="mb-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-xs font-nepali">
+                        <ShieldAlert size={20} className="shrink-0 text-amber-600 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-amber-950 text-sm mb-0.5">सुरक्षा प्रतिबन्ध (Security Restriction)</p>
+                            <p>तपाईंले आफ्नो खाताको मेनु पहुँच अधिकार तथा प्रणाली विशेष अधिकार आफैं परिवर्तन गर्न पाउनुहुन्न। मेनु वा अधिकार थपघट गर्न सुपर एडमिनसँग सम्पर्क गर्नुहोस्।</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className={`space-y-3 ${isEditingSelf ? 'opacity-60 pointer-events-none' : ''}`}>
                     {visiblePermissionStructure.map((group) => (
                         <div key={group.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden">
                             {renderPermissionGroup(group)}
