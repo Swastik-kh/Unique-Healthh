@@ -75,6 +75,7 @@ export interface PurchaseOrderEntry {
   };
   vatAmount?: number; // Added VAT amount field
   vatTaxableAmount?: number; // Added manual/computed VAT taxable amount field
+  hideFinanceSection?: boolean; // Added option to hide financial administration name and date in report
   preparedBy?: Signature; // Storekeeper
   recommendedBy?: Signature; // (Optional)
   financeBy?: Signature; // Account

@@ -52,8 +52,11 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
   // Load form data when an order is selected
   useEffect(() => {
     if (selectedOrder) {
+      const today = selectedOrder.decisionDate || selectedOrder.requestDate || new NepaliDate().format('YYYY-MM-DD');
       const initializedOrder = {
           ...selectedOrder,
+          decisionDate: selectedOrder.decisionDate || selectedOrder.requestDate || today,
+          hideFinanceSection: selectedOrder.hideFinanceSection || false,
           items: selectedOrder.items.map(item => ({
               ...item,
               rate: item.rate || 0,
@@ -63,14 +66,39 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
               hasVat: item.hasVat !== undefined ? item.hasVat : false
           })),
           decisionNo: selectedOrder.decisionNo || '',
-          decisionDate: selectedOrder.decisionDate || '',
           budgetDetails: selectedOrder.budgetDetails || { budgetSubHeadNo: '', expHeadNo: '', activityNo: '' },
           vatAmount: selectedOrder.vatAmount || 0,
-          vatTaxableAmount: selectedOrder.vatTaxableAmount !== undefined ? selectedOrder.vatTaxableAmount : selectedOrder.items.reduce((acc, item) => item.hasVat ? acc + (item.totalAmount || 0) : acc, 0)
+          vatTaxableAmount: selectedOrder.vatTaxableAmount !== undefined ? selectedOrder.vatTaxableAmount : selectedOrder.items.reduce((acc, item) => item.hasVat ? acc + (item.totalAmount || 0) : acc, 0),
+          preparedBy: {
+              name: selectedOrder.preparedBy?.name || currentUser.fullName,
+              designation: selectedOrder.preparedBy?.designation || currentUser.designation,
+              date: selectedOrder.decisionDate || selectedOrder.requestDate || today
+          },
+          financeBy: {
+              name: selectedOrder.financeBy?.name || '',
+              designation: selectedOrder.financeBy?.designation || '',
+              date: selectedOrder.decisionDate || selectedOrder.requestDate || today
+          },
+          approvedBy: {
+              name: selectedOrder.approvedBy?.name || '',
+              designation: selectedOrder.approvedBy?.designation || '',
+              date: selectedOrder.decisionDate || selectedOrder.requestDate || today
+          }
       };
       setFormData(JSON.parse(JSON.stringify(initializedOrder)));
     }
-  }, [selectedOrder]);
+  }, [selectedOrder, currentUser]);
+
+  const handleDecisionDateChange = (date: string) => {
+      if (!formData) return;
+      setFormData({
+          ...formData,
+          decisionDate: date,
+          preparedBy: formData.preparedBy ? { ...formData.preparedBy, date } : { name: currentUser.fullName, designation: currentUser.designation, date },
+          financeBy: formData.financeBy ? { ...formData.financeBy, date } : { name: '', designation: '', date },
+          approvedBy: formData.approvedBy ? { ...formData.approvedBy, date } : { name: '', designation: '', date }
+      });
+  };
 
   const itemOptions = useMemo(() => {
     const uniqueItems = Array.from(new Set(inventoryItems.map(i => i.itemName))).map(name => {
@@ -330,7 +358,17 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           </div>
                       </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-nepali hover:bg-slate-100 transition-colors">
+                          <input 
+                              type="checkbox" 
+                              checked={!!formData.hideFinanceSection} 
+                              onChange={(e) => setFormData({...formData, hideFinanceSection: e.target.checked})}
+                              className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4"
+                          />
+                          <span className="font-bold text-slate-700">आर्थिक प्रशासन नदिखाउने</span>
+                      </label>
+                      <div className="flex gap-2">
                       {!isViewOnly && (
                           <>
                               {isStoreKeeper && (formData.status === 'Pending' || formData.status === 'Pending Account') && (
@@ -388,6 +426,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <Copy size={16} /> नयाँ आदेश (Duplicate)
                           </button>
                       )}
+                      </div>
                       
                       <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
                           <button 
