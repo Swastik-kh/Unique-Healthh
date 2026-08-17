@@ -537,7 +537,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <span>खरिद आदेश मिति :</span>
                               <NepaliDatePicker 
                                   value={formData.decisionDate || new NepaliDate().format('YYYY-MM-DD')} 
-                                  onChange={(v) => setFormData({...formData, decisionDate: v})} 
+                                  onChange={(v) => handleDecisionDateChange(v)} 
                                   hideIcon 
                                   label="" 
                                   inputClassName="text-right w-24 border-b border-dotted border-slate-800 bg-transparent outline-none" 
@@ -556,7 +556,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <span>निर्णय मिति :</span>
                               <NepaliDatePicker 
                                   value={formData.decisionDate || ''} 
-                                  onChange={(v) => setFormData({...formData, decisionDate: v})} 
+                                  onChange={(v) => handleDecisionDateChange(v)} 
                                   hideIcon 
                                   label="" 
                                   inputClassName="text-right w-24 border-b border-dotted border-slate-800 bg-transparent outline-none" 
@@ -805,9 +805,13 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                   <div className="grid grid-cols-2 gap-10 text-xs mt-6">
                       <div className="space-y-1">
                           <p className="font-bold mb-4">आर्थिक प्रशासन शाखा : ........</p>
-                          <div className="flex gap-2"><span>नाम:</span> <span>{formData.financeBy?.name}</span></div>
-                          <div className="flex gap-2"><span>पद:</span> <span>{formData.financeBy?.designation}</span></div>
-                          <div className="flex gap-2"><span>मिति:</span> <span>{formData.financeBy?.date}</span></div>
+                          {!formData.hideFinanceSection && (
+                              <>
+                                  <div className="flex gap-2"><span>नाम:</span> <span>{formData.financeBy?.name}</span></div>
+                                  <div className="flex gap-2"><span>पद:</span> <span>{formData.financeBy?.designation}</span></div>
+                                  <div className="flex gap-2"><span>मिति:</span> <span>{formData.financeBy?.date}</span></div>
+                              </>
+                          )}
                       </div>
                       <div className="space-y-1 text-right">
                           <p className="font-bold mb-4 text-left pl-20">स्वीकृत गर्ने :</p>
