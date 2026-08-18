@@ -248,29 +248,43 @@ async function startServer() {
   });
 
   // DHIS2 Proxy Endpoint
-  app.post("/api/dhis2/push", async (req, res) => {
+  app.all("/api/dhis2/push", async (req, res) => {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: "Method not allowed. Use POST." });
+    }
     try {
-      const { payload, baseUrl, username, password } = req.body;
+      const { payload, baseUrl, username, password } = req.body || {};
       
       if (!baseUrl || !username || !password || !payload) {
-        return res.status(400).json({ error: "Missing required DHIS2 configuration or payload" });
+        return res.status(400).json({ error: "Missing required DHIS2 configuration (Base URL, Username, Password) or payload" });
       }
 
       const auth = Buffer.from(`${username}:${password}`).toString('base64');
       
-      // Ensure target URL is correct
-      let targetUrl = baseUrl;
-      if (!targetUrl.endsWith('/')) targetUrl += '/';
-      targetUrl += 'api/dataValueSets';
+      // Clean and normalize baseUrl to prevent duplicate /api/api/ paths
+      let cleanBase = String(baseUrl).trim();
+      if (!cleanBase.startsWith('http://') && !cleanBase.startsWith('https://')) {
+        cleanBase = `https://${cleanBase}`;
+      }
+      // Remove trailing slashes
+      cleanBase = cleanBase.replace(/\/+$/, '');
+      
+      // If cleanBase ends with /api, strip it so appending /api/dataValueSets won't produce /api/api/dataValueSets
+      if (cleanBase.toLowerCase().endsWith('/api')) {
+        cleanBase = cleanBase.slice(0, -4);
+      }
+
+      const targetUrl = `${cleanBase}/api/dataValueSets`;
 
       console.log(`Pushing to DHIS2: ${targetUrl}`);
 
       const response = await axios.post(targetUrl, payload, {
         headers: {
           'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        timeout: 30000 // 30 second timeout for DHIS2
+        timeout: 45000 // 45 second timeout for DHIS2
       });
 
       res.status(response.status).json(response.data);
@@ -279,8 +293,10 @@ async function startServer() {
       const errorData = error.response?.data;
       console.error(`DHIS2 Proxy Error [${status}]:`, errorData || error.message);
       
+      const errorMsg = errorData?.message || errorData?.description || (typeof errorData === 'string' ? errorData : null) || error.message || "DHIS2 push failed";
+
       res.status(status).json({
-        error: errorData?.message || errorData?.description || error.message || "DHIS2 push failed",
+        error: errorMsg,
         details: errorData,
         status: status
       });

@@ -371,7 +371,7 @@ export const GESIReport: React.FC<GESIReportProps> = ({
 
       const dataSetId = generalSettings.dhis2DatasetMappings?.['GESI Report'] || generalSettings.dhis2DataSetId || "";
       const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
-      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
+      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.orgNameNepali || generalSettings.officeName || generalSettings.orgNameEnglish || currentUser?.organizationName || 'Not Specified';
 
       const confirmMessage = `DHIS2 मा GESI डाटा पठाउन चाहनुहुन्छ?\n\n` +
         `संस्था (DHIS2): ${orgName}\n` +
@@ -401,9 +401,10 @@ export const GESIReport: React.FC<GESIReportProps> = ({
       });
 
       alert('DHIS2 मा सफलतापूर्वक GESI डाटा पठाइयो।');
-    } catch (error) {
+    } catch (error: any) {
       console.error("DHIS2 push error:", error);
-      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+      const serverErrMsg = error.response?.data?.error || error.response?.data?.description || error.message || "अज्ञात त्रुटि";
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + serverErrMsg);
     } finally {
       setIsPushing(false);
     }

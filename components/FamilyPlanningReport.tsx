@@ -135,7 +135,7 @@ export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ reco
 
       const dataSetId = settings.dhis2DatasetMappings?.['Family Planning Report'] || settings.dhis2DataSetId || "";
       const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
-      const orgName = settings.dhis2OrgUnitName || settings.officeName || 'Not Specified';
+      const orgName = settings.dhis2OrgUnitName || settings.orgNameNepali || settings.officeName || settings.orgNameEnglish || currentUser?.organizationName || 'Not Specified';
 
       const confirmMessage = `DHIS2 मा Family Planning डाटा पठाउन चाहनुहुन्छ?\n\n` +
         `संस्था (DHIS2): ${orgName}\n` +
@@ -165,9 +165,10 @@ export const FamilyPlanningReport: React.FC<FamilyPlanningReportProps> = ({ reco
       });
 
       alert('DHIS2 मा सफलतापूर्वक Family Planning डाटा पठाइयो।');
-    } catch (error) {
+    } catch (error: any) {
       console.error("DHIS2 push error:", error);
-      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+      const serverErrMsg = error.response?.data?.error || error.response?.data?.description || error.message || "अज्ञात त्रुटि";
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + serverErrMsg);
     } finally {
       setIsPushing(false);
     }

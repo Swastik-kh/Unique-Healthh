@@ -626,7 +626,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
       const dataSetId = generalSettings.dhis2DatasetMappings?.['Immunization'] || generalSettings.dhis2DataSetId || "a2JkM9Uvfa2";
       const dataSetLabel = DHIS2_DATASETS.find(ds => ds.value === dataSetId)?.label || dataSetId;
-      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.officeName || 'Not Specified';
+      const orgName = generalSettings.dhis2OrgUnitName || generalSettings.orgNameNepali || generalSettings.officeName || generalSettings.orgNameEnglish || currentUser?.organizationName || 'Not Specified';
 
       const confirmMessage = `DHIS2 मा डाटा पठाउन चाहनुहुन्छ?\n\n` +
         `संस्था (DHIS2): ${orgName}\n` +
@@ -655,9 +655,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       });
 
       alert('DHIS2 मा सफलतापूर्वक डेटा पठाइयो।');
-    } catch (error) {
+    } catch (error: any) {
       console.error("DHIS2 push error:", error);
-      alert("DHIS2 मा डेटा पठाउन सकिएन: " + (error instanceof Error ? error.message : "अज्ञात त्रुटि"));
+      const serverErrMsg = error.response?.data?.error || error.response?.data?.description || error.message || "अज्ञात त्रुटि";
+      alert("DHIS2 मा डेटा पठाउन सकिएन: " + serverErrMsg);
     } finally {
       setIsPushing(false);
     }
