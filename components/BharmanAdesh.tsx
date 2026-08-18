@@ -57,16 +57,31 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
       today = new NepaliDate().format('YYYY-MM-DD');
     } catch (e) {}
 
+    const rawFy = (currentFiscalYear || '2083/084').replace(/\//g, '');
+    const fyPrefix = rawFy.length === 6 ? rawFy.replace(/^(\d{4})(\d{2})$/, '$10$2') : rawFy;
+
+    const getSerialNumber = (chalaniStr: string) => {
+      if (!chalaniStr) return 0;
+      const parts = chalaniStr.split('-');
+      if (parts.length >= 2) {
+        const secondPart = parseInt(parts[1], 10);
+        if (!isNaN(secondPart)) return secondPart;
+        const firstPart = parseInt(parts[0], 10);
+        if (!isNaN(firstPart)) return firstPart;
+      }
+      const num = parseInt(chalaniStr, 10);
+      return isNaN(num) ? 0 : num;
+    };
+
     const entriesForYear = bharmanAdeshEntries.filter(e => e.fiscalYear === currentFiscalYear);
-    const sortedEntries = [...entriesForYear].sort((a, b) => {
-        const numA = parseInt(a.chalaniNo.split('-')[0]) || 0;
-        const numB = parseInt(b.chalaniNo.split('-')[0]) || 0;
-        return numB - numA;
-    });
-    const nextSerialNumber = sortedEntries.length > 0 ? (parseInt(sortedEntries[0].chalaniNo.split('-')[0]) || 0) + 1 : 1;
-    const fiscalYearSuffix = currentFiscalYear.slice(2, 4) + currentFiscalYear.slice(7, 9);
+    const maxSerial = entriesForYear.reduce((max, entry) => {
+      const serial = getSerialNumber(entry.chalaniNo);
+      return serial > max ? serial : max;
+    }, 0);
+
+    const nextSerialNumber = maxSerial + 1;
     const paddedSerialNumber = nextSerialNumber.toString().padStart(3, '0');
-    const nextChalaniNo = `${paddedSerialNumber}-${fiscalYearSuffix}`;
+    const nextChalaniNo = `${fyPrefix}-${paddedSerialNumber}`;
 
     return {
       date: today,
@@ -538,24 +553,30 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
                   <div className="flex"><span className="w-6 shrink-0">९.</span><span>भ्रमण सम्बन्धि अन्य आदेश : {selectedEntry.otherOrders || '-'}</span></div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-8 mt-12">
-                  <div className="text-left">
-                    <div className="border-b border-dashed border-black mb-2 w-full text-left font-bold">{selectedEntry.employeeName}</div>
+                <div className="grid grid-cols-3 gap-6 mt-12 items-start">
+                  <div className="text-left space-y-1">
+                    <div className="border-b border-dashed border-black mb-2 h-6 flex items-end font-bold text-sm">
+                      {selectedEntry.employeeName}
+                    </div>
                     <div className="font-bold text-sm">भ्रमण गर्ने कर्मचारी</div>
-                    <div className="mt-1 text-xs">मिति :- {toNepaliDigits(selectedEntry.date)}</div>
+                    <div className="text-xs">{selectedEntry.designation || '....................'}</div>
+                    <div className="text-xs">मिति :- {toNepaliDigits(selectedEntry.date)}</div>
                   </div>
-                  <div className="text-center">
-                    <div className="border-b border-dashed border-black mb-2 w-full"></div>
+
+                  <div className="text-center space-y-1">
+                    <div className="border-b border-dashed border-black mb-2 h-6"></div>
                     <div className="font-bold text-sm">सिफारिस गर्ने</div>
-                    <div className="mt-1 text-xs">मिति :- ....................</div>
+                    <div className="text-xs">....................</div>
+                    <div className="text-xs">मिति :- ....................</div>
                   </div>
-                  <div className="text-right">
-                    <div className="border-b border-dashed border-black mb-2 w-full text-right font-bold">
+
+                  <div className="text-right space-y-1">
+                    <div className="border-b border-dashed border-black mb-2 h-6 flex items-end justify-end font-bold text-sm">
                       {selectedEntry.status === 'Approved' ? selectedEntry.approvedBy : '....................'}
                     </div>
                     <div className="font-bold text-sm">भ्रमण स्वीकृत गर्ने पदाधिकारी</div>
                     <div className="text-xs">{selectedEntry.status === 'Approved' ? selectedEntry.approverDesignation : '....................'}</div>
-                    <div className="mt-1 text-xs">मिति :- {selectedEntry.status === 'Approved' ? toNepaliDigits(selectedEntry.approvalDate || '') : '....................'}</div>
+                    <div className="text-xs">मिति :- {selectedEntry.status === 'Approved' ? toNepaliDigits(selectedEntry.approvalDate || '') : '....................'}</div>
                     {selectedEntry.status === 'Rejected' && (
                       <div className="text-red-600 text-xs mt-1 font-bold">अस्वीकृत (कारण: {selectedEntry.rejectionReason})</div>
                     )}
