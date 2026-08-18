@@ -107,6 +107,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance' | 'Protsahan'>('Sewa');
   const [ambulanceReportType, setAmbulanceReportType] = useState<'income' | 'expense'>('income');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
+
+  React.useEffect(() => {
+    setSelectedFiscalYear(currentFiscalYear);
+  }, [currentFiscalYear]);
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');

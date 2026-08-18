@@ -108,6 +108,13 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     fiscalYear: currentFiscalYear
   });
 
+  useEffect(() => {
+    setReportFilter(prev => ({
+      ...prev,
+      fiscalYear: currentFiscalYear
+    }));
+  }, [currentFiscalYear]);
+
   const generateReferenceNo = () => {
     const prefix = 'TXN';
     const timestamp = Date.now().toString().slice(-6);
@@ -222,36 +229,34 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   }, []);
 
   const stats = useMemo(() => {
-    const fyTransactions = transactions.filter(t => t.fiscalYear === currentFiscalYear);
-    const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    
-    // Include all expense transactions immediately
-    const expense = fyTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
-
+    const fyTransactions = transactions.filter(t => (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
+    const income = fyTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expense = fyTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t.amount || 0), 0);
     const balance = income - expense;
 
-    // Vendor Totals
+    const fyPayments = payments.filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear);
+    const totalPaid = fyPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
     const totalContract = parties.reduce((sum, p) => sum + (p.totalContractAmount || 0), 0);
-    const totalPaid = parties.reduce((sum, p) => sum + (p.totalPaidAmount || 0), 0);
     const totalRemaining = totalContract - totalPaid;
     
     return { income, expense, balance, totalContract, totalPaid, totalRemaining };
-  }, [transactions, parties, currentFiscalYear]);
+  }, [transactions, payments, parties, currentFiscalYear]);
 
   const filteredData = useMemo(() => {
     const term = searchTerm.toLowerCase();
     switch (activeTab) {
-      case 'programs': return programs.filter(p => p.name.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear);
-      case 'vendors': return parties.filter(p => p.name.toLowerCase().includes(term) || p.panNumber.includes(term));
-      case 'transactions': return [...transactions].filter(t => t.remarks.toLowerCase().includes(term) && t.fiscalYear === currentFiscalYear).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
-      case 'payments': return [...payments].filter(p => p.remarks.toLowerCase().includes(term) && p.fiscalYear === currentFiscalYear).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+      case 'programs': return programs.filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear && (p.name || '').toLowerCase().includes(term));
+      case 'vendors': return parties.filter(p => (p.name || '').toLowerCase().includes(term) || (p.panNumber || '').includes(term));
+      case 'transactions': return [...transactions].filter(t => (t.fiscalYear || currentFiscalYear) === currentFiscalYear && (t.remarks || '').toLowerCase().includes(term)).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+      case 'payments': return [...payments].filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear && (p.remarks || '').toLowerCase().includes(term)).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
       case 'payment_requests': {
         return paymentRequests
           .filter(p => 
+            (p.fiscalYear || currentFiscalYear) === currentFiscalYear &&
             ((p.remarks || '').toLowerCase().includes(term) || 
               (p.customProgramName || '').toLowerCase().includes(term) ||
-              (programs.find(prog => prog.id === p.programId)?.name || '').toLowerCase().includes(term)) && 
-            p.fiscalYear === currentFiscalYear
+              (programs.find(prog => prog.id === p.programId)?.name || '').toLowerCase().includes(term))
           )
           .map(p => ({ ...p, _type: 'PaymentRequest' }))
           .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
@@ -259,11 +264,11 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
       case 'allowances': {
         return allowances
           .filter(a => 
+            (a.fiscalYear || currentFiscalYear) === currentFiscalYear &&
             ((a.remarks || '').toLowerCase().includes(term) || 
-              a.employeeName.toLowerCase().includes(term) || 
+              (a.employeeName || '').toLowerCase().includes(term) || 
               (a.customProgramName || '').toLowerCase().includes(term) ||
-              (programs.find(prog => prog.id === a.programId)?.name || '').toLowerCase().includes(term)) && 
-            a.fiscalYear === currentFiscalYear
+              (programs.find(prog => prog.id === a.programId)?.name || '').toLowerCase().includes(term))
           )
           .map(a => ({ ...a, _type: 'Allowance' }))
           .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
@@ -696,7 +701,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
           </thead>
           <tbody>
             ${parties.map(p => {
-              const partyTxns = transactions.filter(t => t.partyId === p.id);
+              const partyTxns = transactions.filter(t => t.partyId === p.id && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
               return `
                 <tr>
                   <td>
@@ -721,7 +726,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
   const handleDownloadPartiesExcel = () => {
     const data = parties.map(p => {
-      const partyTxns = transactions.filter(t => t.partyId === p.id);
+      const partyTxns = transactions.filter(t => t.partyId === p.id && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
       const bibaran = partyTxns.map(t => `${t.remarks} (रू ${t.amount})`).join(', ');
       return {
         'पार्टीको नाम': p.name,
@@ -783,20 +788,24 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   const pendingPayments = useMemo(() => {
     if (activeTab !== 'payments' || paymentSubTab !== 'pending') return [];
     
-    return transactions.filter(t => t.type === 'Expense').map(txn => {
-      const totalPaidForTxn = payments
-        .filter(p => p.transactionId === txn.id)
-        .reduce((sum, p) => sum + p.amount, 0);
-      
-      const balance = (txn.amountWithVAT || txn.amount || 0) - totalPaidForTxn;
-      
-      return {
-        ...txn,
-        totalPaid: totalPaidForTxn,
-        balance: balance
-      };
-    }).filter(p => p.balance > 0).sort((a, b) => b.dateBs.localeCompare(a.dateBs));
-  }, [activeTab, paymentSubTab, transactions, payments]);
+    return transactions
+      .filter(t => t.type === 'Expense' && (t.fiscalYear || currentFiscalYear) === currentFiscalYear)
+      .map(txn => {
+        const totalPaidForTxn = payments
+          .filter(p => p.transactionId === txn.id && (p.fiscalYear || currentFiscalYear) === currentFiscalYear)
+          .reduce((sum, p) => sum + p.amount, 0);
+        
+        const balance = (txn.amountWithVAT || txn.amount || 0) - totalPaidForTxn;
+        
+        return {
+          ...txn,
+          totalPaid: totalPaidForTxn,
+          balance: balance
+        };
+      })
+      .filter(p => p.balance > 0)
+      .sort((a, b) => b.dateBs.localeCompare(a.dateBs));
+  }, [activeTab, paymentSubTab, transactions, payments, currentFiscalYear]);
 
   const handlePrintPendingPayments = () => {
     const printWindow = window.open('', '_blank');
@@ -1165,8 +1174,9 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     const currentMonthNum = todayParts.length >= 2 ? parseInt(todayParts[1]) : 1;
     const currentMonthIdx = currentMonthNum - 1;
 
-    const fatbariData = programs.map(program => {
-      const allProgramPayments = payments.filter(p => p.programId === program.id);
+    const currentPrograms = programs.filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear);
+    const fatbariData = currentPrograms.map(program => {
+      const allProgramPayments = payments.filter(p => p.programId === program.id && (p.fiscalYear || currentFiscalYear) === currentFiscalYear);
       
       let prevMonthExp = 0;
       let thisMonthExp = 0;
@@ -2339,8 +2349,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
 
 
   const renderBankCashBook = () => {
-    const incomeItems = transactions.filter(t => t.type === 'Income');
-    const paymentItems = payments;
+    const incomeItems = transactions.filter(t => t.type === 'Income' && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
+    const paymentItems = payments.filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear);
 
     const mergedItems = [
       ...incomeItems.map(t => ({
@@ -2685,8 +2695,8 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
   };
 
   const renderBankReconciliation = () => {
-    const incomeItems = transactions.filter(t => t.type === 'Income');
-    const paymentItems = payments;
+    const incomeItems = transactions.filter(t => t.type === 'Income' && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
+    const paymentItems = payments.filter(p => (p.fiscalYear || currentFiscalYear) === currentFiscalYear);
     
     // Process all historical items to get a true book balance at any point in time
     const allItemsParsed = [
@@ -3050,10 +3060,10 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         </td>
                       </tr>
                       {groupedPrograms[source].map((item: any) => {
-                        const programTransactions = transactions.filter(t => t.programId === item.id);
+                        const programTransactions = transactions.filter(t => t.programId === item.id && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
                         const income = programTransactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
                         const expense = programTransactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0);
-                        const payment = payments.filter(p => p.programId === item.id).reduce((s, p) => s + p.amount, 0);
+                        const payment = payments.filter(p => p.programId === item.id && (p.fiscalYear || currentFiscalYear) === currentFiscalYear).reduce((s, p) => s + p.amount, 0);
                         
                         const p1 = item.totalBudget > 0 ? Math.min((income / item.totalBudget) * 100, 100) : 0;
                         const p2 = income > 0 ? Math.min((expense / income) * 100, 100) : 0;
@@ -3142,7 +3152,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                         )}
 
                         {activeTab === 'vendors' && (() => {
-                          const partyTxns = transactions.filter(t => t.partyId === item.id);
+                          const partyTxns = transactions.filter(t => t.partyId === item.id && (t.fiscalYear || currentFiscalYear) === currentFiscalYear);
                           return (
                             <>
                               <td className="px-6 py-4">
@@ -4350,7 +4360,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
                           value={paymentSelectedTransaction || editingItem?.transactionId || ''}
                           onChange={(e) => setPaymentSelectedTransaction(e.target.value)}
                           options={transactions
-                            .filter(t => t.programId === (paymentSelectedProgram || editingItem?.programId) && t.type === 'Expense')
+                            .filter(t => t.programId === (paymentSelectedProgram || editingItem?.programId) && t.type === 'Expense' && (t.fiscalYear || currentFiscalYear) === currentFiscalYear)
                             .map(t => ({ label: `${t.remarks} (रू ${t.amount})`, value: t.id }))
                             .sort((a, b) => a.label.localeCompare(b.label))} 
                           helperText="यो कार्यक्रमको कुन खर्च विवरणको भुक्तानी हो छान्नुहोस् ।"
