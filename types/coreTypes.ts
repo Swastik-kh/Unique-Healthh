@@ -59,6 +59,11 @@ export interface User {
   allowSmsAccess?: boolean; // Toggled by Super Admin in User Management
   smsQuota?: number; // Pre-set SMS limit
   smsUsedCount?: number; // Count of SMS sent
+  createdFromApp?: string;
+  updatedFromApp?: string;
+  appSignature?: string;
+  appOrigin?: string;
+  passwordLastChangedFrom?: string;
 }
 
 export interface WardConfig {

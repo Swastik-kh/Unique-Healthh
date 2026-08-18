@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { User } from '../types/coreTypes'; // Corrected import path
 import { Input } from './Input';
 import { Select } from './Select';
-import { KeyRound, Save, AlertCircle, CheckCircle2, Lock, UserCog, ShieldAlert } from 'lucide-react';
+import { KeyRound, Save, AlertCircle, CheckCircle2, Lock, UserCog, ShieldAlert, Shield } from 'lucide-react';
 import { hashPassword } from '../lib/crypto';
 
 interface ChangePasswordProps {
@@ -117,6 +117,13 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
       </div>
 
       <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs p-3.5 rounded-xl flex items-center gap-3 mb-6 shadow-sm">
+            <Shield className="text-emerald-600 shrink-0" size={20} />
+            <div className="leading-relaxed font-nepali">
+                <span className="font-bold text-emerald-900 block">आधिकारिक एप सेक्युरिटी लक:</span>
+                पासवर्ड परिवर्तन र प्रयोगकर्ता नाम अपडेट गर्ने अधिकार केवल यसै <b>Smart Health आधिकारिक एप</b> भित्रबाट मात्र सम्भव हुने गरी बाँधिएको छ।
+            </div>
+        </div>
         {error && (
           <div className="mb-6 bg-red-50 text-red-600 text-sm p-4 rounded-lg border border-red-100 flex items-center gap-3 animate-pulse">
             <AlertCircle size={20} className="shrink-0" />

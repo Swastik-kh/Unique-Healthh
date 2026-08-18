@@ -1229,9 +1229,13 @@ const App: React.FC = () => {
           const rawPassword = (u.password || '').trim();
           // Detect if it is already a 64-character hexadecimal SHA-256 string
           const isHashed = /^[0-9a-fA-F]{64}$/.test(rawPassword);
-          const securedUser = {
+          const securedUser: User = {
               ...u,
-              password: isHashed ? rawPassword : hashPassword(rawPassword)
+              password: isHashed ? rawPassword : hashPassword(rawPassword),
+              createdFromApp: u.createdFromApp || "SmartHealthOfficialApp",
+              updatedFromApp: "SmartHealthOfficialApp",
+              appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+              appOrigin: typeof window !== 'undefined' ? window.location.origin : 'official_app'
           };
           await set(ref(db, `users/${u.id}`), securedUser);
       } catch (err: any) {
@@ -1861,7 +1865,13 @@ const App: React.FC = () => {
           users={allUsers} onAddUser={handleSaveUser}
           onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
           onDeleteOrganization={handleDeleteOrganization}
-          onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { password: hashPassword(pass) })}
+          onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { 
+            password: hashPassword(pass),
+            updatedFromApp: "SmartHealthOfficialApp",
+            appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+            passwordLastChangedFrom: "SmartHealthOfficialApp",
+            updatedAt: new Date().toISOString()
+          })}
           isDbLocked={isDbLocked}
           generalSettings={mergedSettings} 
           onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}

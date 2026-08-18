@@ -272,7 +272,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
 
     try {
       const hashedNewPassword = hashPassword(newPassword);
-      await update(ref(db, `users/${userId}`), { password: hashedNewPassword });
+      await update(ref(db, `users/${userId}`), { 
+        password: hashedNewPassword,
+        updatedFromApp: "SmartHealthOfficialApp",
+        appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+        passwordLastChangedFrom: "SmartHealthOfficialApp",
+        updatedAt: new Date().toISOString()
+      });
       await remove(ref(db, `passwordResets/${userId}`));
       
       alert('पासवर्ड सफलतापूर्वक परिवर्तन भयो। नयाँ पासवर्ड प्रयोग गरेर लगइन गर्नुहोस्।');
@@ -347,7 +353,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
           const dbPassword = String(foundUser.password || '').trim();
           if (dbPassword === inputPassword && foundUser.id !== 'superadmin') {
               try {
-                  await update(ref(db, `users/${foundUser.id}`), { password: hashedInput });
+                  await update(ref(db, `users/${foundUser.id}`), { 
+                      password: hashedInput,
+                      updatedFromApp: "SmartHealthOfficialApp",
+                      appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+                      updatedAt: new Date().toISOString()
+                  });
                   console.info(`Migrated legacy plain-text password for user '${foundUser.username}' to secure salted SHA-256.`);
               } catch (err) {
                   console.error("Auto-migration of legacy password failed:", err);

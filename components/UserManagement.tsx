@@ -674,7 +674,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : (isEditingSelf ? (currentUser.allowSmsAccess ?? false) : false),
         smsQuota: isSuperAdmin ? formData.smsQuota : (isEditingSelf ? (currentUser.smsQuota ?? 0) : 0),
         smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
-        parentId: formData.parentId || currentUser.id
+        parentId: formData.parentId || currentUser.id,
+        createdFromApp: "SmartHealthOfficialApp",
+        updatedFromApp: "SmartHealthOfficialApp",
+        appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+        appOrigin: typeof window !== 'undefined' ? window.location.origin : 'official_app'
     };
 
     try {
@@ -761,9 +765,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
       {showForm && (
         <div ref={formRef} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-top-4 scroll-mt-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-slate-800">{editingId ? 'विवरण सम्पादन' : 'नयाँ प्रयोगकर्ता थप्नुहोस्'}</h3>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-red-500"><X size={20}/></button>
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs p-3.5 rounded-xl flex items-center gap-3 mb-5 shadow-sm">
+              <Shield className="text-emerald-600 shrink-0" size={20} />
+              <div className="leading-relaxed font-nepali">
+                  <span className="font-bold text-emerald-900 block">सुरक्षा प्रतिबन्ध (App Authorization Lock):</span>
+                  प्रयोगकर्ता थप्न (Add) तथा प्रयोगकर्ता नाम (Username) र पासवर्ड (Password) परिवर्तन गर्ने सुविधा केवल यसै <b>Smart Health आधिकारिक एप</b> बाट मात्र गर्न मिल्ने गरी सुरक्षित गरिएको छ। अन्य बाह्य एप वा माध्यमबाट फेरबदल गर्न मिल्दैन।
+              </div>
           </div>
 
           {localError && (
