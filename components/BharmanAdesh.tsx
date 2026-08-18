@@ -555,28 +555,33 @@ export const BharmanAdesh: React.FC<BharmanAdeshProps> = ({
 
                 <div className="grid grid-cols-3 gap-6 mt-12 items-start">
                   <div className="text-left space-y-1">
-                    <div className="border-b border-dashed border-black mb-2 h-6 flex items-end font-bold text-sm">
-                      {selectedEntry.employeeName}
-                    </div>
+                    <div className="border-b border-dashed border-black mb-2 h-8"></div>
                     <div className="font-bold text-sm">भ्रमण गर्ने कर्मचारी</div>
-                    <div className="text-xs">{selectedEntry.designation || '....................'}</div>
+                    <div className="text-xs font-bold">नाम :- {selectedEntry.employeeName || '....................'}</div>
+                    <div className="text-xs">पद :- {selectedEntry.designation || '....................'}</div>
                     <div className="text-xs">मिति :- {toNepaliDigits(selectedEntry.date)}</div>
                   </div>
 
                   <div className="text-center space-y-1">
-                    <div className="border-b border-dashed border-black mb-2 h-6"></div>
+                    <div className="border-b border-dashed border-black mb-2 h-8"></div>
                     <div className="font-bold text-sm">सिफारिस गर्ने</div>
-                    <div className="text-xs">....................</div>
+                    <div className="text-xs">नाम :- ....................</div>
+                    <div className="text-xs">पद :- ....................</div>
                     <div className="text-xs">मिति :- ....................</div>
                   </div>
 
                   <div className="text-right space-y-1">
-                    <div className="border-b border-dashed border-black mb-2 h-6 flex items-end justify-end font-bold text-sm">
-                      {selectedEntry.status === 'Approved' ? selectedEntry.approvedBy : '....................'}
-                    </div>
+                    <div className="border-b border-dashed border-black mb-2 h-8"></div>
                     <div className="font-bold text-sm">भ्रमण स्वीकृत गर्ने पदाधिकारी</div>
-                    <div className="text-xs">{selectedEntry.status === 'Approved' ? selectedEntry.approverDesignation : '....................'}</div>
-                    <div className="text-xs">मिति :- {selectedEntry.status === 'Approved' ? toNepaliDigits(selectedEntry.approvalDate || '') : '....................'}</div>
+                    <div className="text-xs font-bold">
+                      नाम :- {selectedEntry.status === 'Approved' ? selectedEntry.approvedBy : '....................'}
+                    </div>
+                    <div className="text-xs">
+                      पद :- {selectedEntry.status === 'Approved' ? selectedEntry.approverDesignation : '....................'}
+                    </div>
+                    <div className="text-xs">
+                      मिति :- {selectedEntry.status === 'Approved' ? toNepaliDigits(selectedEntry.approvalDate || '') : '....................'}
+                    </div>
                     {selectedEntry.status === 'Rejected' && (
                       <div className="text-red-600 text-xs mt-1 font-bold">अस्वीकृत (कारण: {selectedEntry.rejectionReason})</div>
                     )}
