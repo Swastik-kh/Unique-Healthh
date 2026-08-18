@@ -391,12 +391,11 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
         <div className="flex gap-2">
           {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
             <button 
-              onClick={pushToDHIS2}
-              disabled={isPushing}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50 print:hidden"
+              disabled={true}
+              title="DHIS2 Push सेवा हाल बन्द गरिएको छ"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-400 text-white rounded-lg font-semibold shadow-sm cursor-not-allowed opacity-50 print:hidden"
             >
-              {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-              {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+              <Plus size={18} /> DHIS2 मा पठाउनुहोस् (निष्क्रिय)
             </button>
           )}
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-bold text-sm transition-colors print:hidden">

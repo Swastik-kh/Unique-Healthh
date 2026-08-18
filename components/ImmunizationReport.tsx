@@ -869,20 +869,11 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
             <button 
-              onClick={pushToDHIS2}
-              disabled={isPushing}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold shadow-sm transition-colors whitespace-nowrap disabled:opacity-50"
+              disabled={true}
+              title="DHIS2 Push सेवा हाल बन्द गरिएको छ"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-400 text-white rounded-lg font-bold shadow-sm whitespace-nowrap opacity-50 cursor-not-allowed"
             >
-              {isPushing ? (
-                <>
-                  <RefreshCw className="animate-spin" size={18} />
-                  पठाउँदै...
-                </>
-              ) : (
-                <>
-                  <Plus size={18} /> DHIS2 मा पठाउनुहोस्
-                </>
-              )}
+              <Plus size={18} /> DHIS2 मा पठाउनुहोस् (निष्क्रिय)
             </button>
           )}
           <button 

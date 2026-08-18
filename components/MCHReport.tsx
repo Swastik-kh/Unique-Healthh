@@ -330,12 +330,11 @@ export const MCHReport: React.FC<MCHReportProps> = ({
         <div className="flex gap-2 ml-auto">
           {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
             <button 
-              onClick={pushToDHIS2}
-              disabled={isPushing}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-semibold shadow-sm hover:bg-teal-700 transition-colors disabled:opacity-50"
+              disabled={true}
+              title="DHIS2 Push सेवा हाल बन्द गरिएको छ"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-400 text-white rounded-lg font-semibold shadow-sm cursor-not-allowed opacity-50"
             >
-              {isPushing ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-              {isPushing ? 'पठाउँदै...' : 'DHIS2 मा पठाउनुहोस्'}
+              <Plus size={18} /> DHIS2 मा पठाउनुहोस् (निष्क्रिय)
             </button>
           )}
           <button onClick={handlePrint} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-all shadow-sm">

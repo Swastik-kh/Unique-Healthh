@@ -347,21 +347,12 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
           <div className="absolute top-0 right-0 print:hidden">
             {(currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') && (
               <button 
-                onClick={pushToDHIS2}
-                disabled={isPushing}
-                className="bg-teal-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                disabled={true}
+                title="DHIS2 Push सेवा हाल बन्द गरिएको छ"
+                className="bg-slate-400 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 cursor-not-allowed opacity-50 shadow-sm"
               >
-                {isPushing ? (
-                  <>
-                    <RefreshCw className="animate-spin" size={14} />
-                    पठाउँदै...
-                  </>
-                ) : (
-                  <>
-                    <Plus size={14} />
-                    DHIS2 मा पठाउनुहोस्
-                  </>
-                )}
+                <Plus size={14} />
+                DHIS2 मा पठाउनुहोस् (निष्क्रिय)
               </button>
             )}
           </div>
