@@ -32,6 +32,26 @@ const nepaliMonthOptions = [
   { id: '12', value: '12', label: 'चैत्र (Caitra)' },
 ];
 
+const getFiscalYearFromBsDate = (dateBs: string): string => {
+  if (!dateBs) return '';
+  const parts = dateBs.split('-');
+  if (parts.length !== 3) return '';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  if (isNaN(year) || isNaN(month)) return '';
+  
+  if (month >= 4) {
+    const nextYearShort = (year + 1) % 100;
+    const nextYearStr = nextYearShort < 10 ? `0${nextYearShort}` : `${nextYearShort}`;
+    return `${year}/0${nextYearStr}`;
+  } else {
+    const prevYear = year - 1;
+    const yearShort = year % 100;
+    const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
+    return `${prevYear}/0${yearStr}`;
+  }
+};
+
 export const MCHReport: React.FC<MCHReportProps> = ({ 
   currentFiscalYear, 
   garbhawotiRecords, 
@@ -46,6 +66,11 @@ export const MCHReport: React.FC<MCHReportProps> = ({
   });
   const [selectedMonth, setSelectedMonth] = useState('01');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
+
+  React.useEffect(() => {
+    setSelectedFiscalYear(currentFiscalYear);
+  }, [currentFiscalYear]);
+
   const [selectedQuarter, setSelectedQuarter] = useState('1');
   const [selectedHalfYear, setSelectedHalfYear] = useState('1');
 
@@ -58,9 +83,9 @@ export const MCHReport: React.FC<MCHReportProps> = ({
         return record.fiscalYear === selectedFiscalYear;
       } else if (reportType === 'Monthly') {
         const recordMonth = date.split('-')[1];
-        const recordYear = date.split('-')[0];
-        const currentYear = selectedDate.split('-')[0];
-        return recordMonth === selectedMonth && recordYear === currentYear;
+        const recordFY = getFiscalYearFromBsDate ? getFiscalYearFromBsDate(date) : record.fiscalYear;
+        const matchesFY = recordFY ? recordFY === selectedFiscalYear : record.fiscalYear === selectedFiscalYear;
+        return recordMonth === selectedMonth && matchesFY;
       } else if (reportType === 'Quarterly') {
         const m = parseInt(date.split('-')[1]);
         const q = m >= 4 && m <= 6 ? '1' : m >= 7 && m <= 9 ? '2' : m >= 10 && m <= 12 ? '3' : '4';
