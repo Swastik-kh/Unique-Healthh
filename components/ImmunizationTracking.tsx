@@ -98,7 +98,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   onUpdateUser
 }) => {
   const [trackingTarget, setTrackingTarget] = useState<'child' | 'maternal'>('child');
-  const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic'>('upcoming');
+  const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic' | 'today_registered'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
@@ -842,6 +842,17 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .sort((a, b) => (b.id || '').localeCompare(a.id || ''));
   }, [filteredBaseRecords, targetYearPrefix, filterVaccine]); 
 
+  // Children registered today list
+  const todayRegisteredList = useMemo(() => {
+    return filteredBaseRecords
+      .filter(child => child.regDateBs && child.regDateBs.trim() === todayBsFormatted.trim())
+      .sort((a, b) => {
+        const regA = a.regNo || '';
+        const regB = b.regNo || '';
+        return regB.localeCompare(regA);
+      });
+  }, [filteredBaseRecords, todayBsFormatted]); 
+
   const getNepaliMonthName = useCallback((monthStr: string): string => {
     const months: Record<string, string> = {
       '01': 'बैशाख', '02': 'जेठ', '03': 'असार', '04': 'साउन',
@@ -908,11 +919,12 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       .sort((a, b) => a.dueYearMonth.localeCompare(b.dueYearMonth));
   }, [garbhawatiPatients, targetYearPrefix, filterCenter, searchTerm, getNepaliMonthName]);
 
-  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'single-card' | 'maternal-td' | 'vaccine-summary' | 'qr-labels') => {
+  const handlePrint = useCallback((listType: 'upcoming' | 'defaulter' | 'fic' | 'today_registered' | 'single-card' | 'maternal-td' | 'vaccine-summary' | 'qr-labels') => {
     const printContentId = 
         listType === 'upcoming' ? 'upcoming-list-print' : 
         listType === 'defaulter' ? 'defaulter-list-print' : 
         listType === 'fic' ? 'fic-list-print' : 
+        listType === 'today_registered' ? 'today-registered-list-print' :
         listType === 'maternal-td' ? 'maternal-td-print' : 
         listType === 'vaccine-summary' ? 'vaccine-summary-print' : 
         listType === 'qr-labels' ? 'qr-labels-print' : 'single-card-print';
@@ -1158,9 +1170,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                       </button>
                       <button 
                           onClick={() => { setActiveView('fic'); setSearchTerm(''); }}
-                          className={`flex-1 md::flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'fic' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
+                          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'fic' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}
                       >
                           <BadgeCheck size={18}/> पूर्ण खोप (FIC)
+                      </button>
+                      <button 
+                          onClick={() => { setActiveView('today_registered'); setSearchTerm(''); }}
+                          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'today_registered' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+                      >
+                          <Baby size={18}/> आज दर्ता भएका ({todayRegisteredList.length})
                       </button>
                   </div>
               ) : (
@@ -1664,6 +1682,115 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                     </div>
                 </div>
             )}
+
+            {activeView === 'today_registered' && (
+                <div className="animate-in fade-in duration-300">
+                    <div className="p-4 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-emerald-800">
+                            <Baby className="text-emerald-600" />
+                            <span className="font-bold font-nepali">
+                                आज दर्ता भएका बालबालिकाहरू (Children Registered Today)
+                                <span className="ml-2 text-sm font-normal bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                                    मिति: {todayBsFormatted}
+                                </span>
+                                {filterCenter && ` - ${filterCenter}`}
+                            </span>
+                        </div>
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full font-nepali">
+                            {todayRegisteredList.length} बालबालिकाहरू
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-bold border-b">
+                                <tr>
+                                    <th className="px-6 py-3">दर्ता नं / बच्चाको नाम</th>
+                                    <th className="px-6 py-3">जन्म मिति / उमेर</th>
+                                    <th className="px-6 py-3">अभिभावकको नाम (Guardian)</th>
+                                    <th className="px-6 py-3">ठेगाना / खोप केन्द्र</th>
+                                    <th className="px-6 py-3 text-center">सम्पर्क / खोप स्थिति</th>
+                                    <th className="px-6 py-3 text-right no-print">कार्य</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {todayRegisteredList.map((child) => (
+                                    <tr 
+                                        key={child.id} 
+                                        className="hover:bg-emerald-50/40 transition-colors border-b border-slate-100"
+                                    >
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-800 flex items-center gap-2">
+                                                <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-100 font-mono">
+                                                    {child.regNo}
+                                                </span>
+                                                {child.childName}
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-1 font-mono">
+                                                दर्ता मिति: {child.regDateBs || todayBsFormatted}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-700">
+                                            <div className={`font-mono font-bold ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>
+                                                {child.dobBs}
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 font-nepali mt-0.5">
+                                                उमेर: {calculateAge(child.dobBs)}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-700 font-medium">
+                                            <div>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</div>
+                                            <div className="text-[10px] text-slate-400">
+                                                लिङ्ग: {child.gender === 'Female' ? 'महिला' : child.gender === 'Male' ? 'पुरुष' : 'अन्य'}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            <div className="font-medium">{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</div>
+                                            <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                                <MapPinned size={10} className="text-blue-500"/> {child.vaccinationCenter}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <div className={`font-mono font-bold text-slate-700 text-xs ${blurPhone ? "blur-sm select-none pointer-events-none" : ""}`}>
+                                                {child.phone}
+                                            </div>
+                                            <div className="text-[10px] text-emerald-700 font-bold font-nepali mt-1">
+                                                लगाएको खोप: {getVaccinesGivenCount(child.vaccines)}/{child.vaccines?.length || 0}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right no-print">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button 
+                                                    onClick={() => setSelectedChildForCard(child)}
+                                                    className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold font-nepali border border-emerald-200 transition-colors flex items-center gap-1"
+                                                    title="कार्ड / विवरण हेर्नुहोस्"
+                                                >
+                                                    <Eye size={14} /> कार्ड हेर्नुहोस्
+                                                </button>
+                                                {isAdmin && (
+                                                    <button 
+                                                        onClick={() => handleDeleteChild(child.id, child.childName)}
+                                                        className="text-red-600 hover:bg-red-50 p-1.5 rounded-full transition-colors"
+                                                        title="हटाउनुहोस् (Delete)"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {todayRegisteredList.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="p-12 text-center text-slate-400 italic font-nepali">
+                                            आज ({todayBsFormatted}) कुनै पनि बालबालिका दर्ता भएका छैनन्।
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
                 </>
             ) : (
                 /* Maternal TD Tracking View */
@@ -2008,6 +2135,50 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <td>{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</td>
                             <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{child.phone}</span></td>
                             <td>{getCompletionDate(child)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="today-registered-list-print" className="hidden print-container">
+            <div className="print-header">
+                <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo" />
+                <div className="print-header-text">
+                    <h1 style={{color: '#059669'}}>{generalSettings.orgNameNepali}</h1>
+                    {generalSettings.subTitleNepali && <h2 style={{color: '#059669'}}>{generalSettings.subTitleNepali}</h2>}
+                    {generalSettings.subTitleNepali2 && <h3 style={{color: '#059669'}}>{generalSettings.subTitleNepali2}</h3>}
+                    {generalSettings.subTitleNepali3 && <h4 style={{color: '#059669'}}>{generalSettings.subTitleNepali3}</h4>}
+                    <h2 className="mt-3 font-bold" style={{color: '#059669', fontSize: '15px', textDecoration: 'underline'}}>आज दर्ता भएका बालबालिकाहरूको सूची</h2>
+                    <p>मिति: {todayBsFormatted} {filterCenter && ` | केन्द्र: ${filterCenter}`} | जम्मा दर्ता संख्या: {todayRegisteredList.length}</p>
+                </div>
+            </div>
+            <table className="print-table">
+                <thead>
+                    <tr>
+                        <th>क्र.सं.</th>
+                        <th>दर्ता नं</th>
+                        <th>बच्चाको नाम</th>
+                        <th>जन्म मिति (DOB)</th>
+                        <th>लिङ्ग</th>
+                        <th>अभिभावकको नाम (Guardian)</th>
+                        <th>ठेगाना</th>
+                        <th>खोप केन्द्र</th>
+                        <th>सम्पर्क (Phone)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {todayRegisteredList.map((child, idx) => (
+                        <tr key={idx}>
+                            <td>{idx + 1}</td>
+                            <td>{child.regNo}</td>
+                            <td>{child.childName}</td>
+                            <td><span className={blurDob ? "blur-sm" : ""}>{child.dobBs}</span></td>
+                            <td>{child.gender === 'Female' ? 'महिला' : child.gender === 'Male' ? 'पुरुष' : 'अन्य'}</td>
+                            <td>{child.motherName} {child.fatherName && `/ ${child.fatherName}`}</td>
+                            <td>{child.address}{child.isOtherAddress ? ' (अन्य)' : ''}</td>
+                            <td>{child.vaccinationCenter}</td>
+                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{child.phone}</span></td>
                         </tr>
                     ))}
                 </tbody>

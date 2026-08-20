@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -245,6 +245,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 }) => {
   const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterTodayOnly, setFilterTodayOnly] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -252,15 +253,6 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
   const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
-
-  const stats = useMemo(() => {
-    const total = records.length;
-    const thisFy = records.filter(r => r.fiscalYear === currentFiscalYear).length;
-    const fullyImmunized = records.filter(r => isChildFullyImmunized(r)).length;
-    const partiallyImmunized = total - fullyImmunized;
-    
-    return { total, thisFy, fullyImmunized, partiallyImmunized };
-  }, [records, currentFiscalYear]);
 
   const getTodayAd = () => toLocalISO(new Date());
   const getTodayBs = () => {
@@ -270,6 +262,35 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       return '';
     }
   };
+
+  const todayBs = getTodayBs();
+
+  const normalizeDate = (d?: string) => {
+    if (!d) return '';
+    const parts = d.trim().split('-');
+    if (parts.length === 3) {
+      const y = parts[0];
+      const m = parts[1].padStart(2, '0');
+      const day = parts[2].padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    return d.trim();
+  };
+
+  const isTodayDate = (dateBs?: string) => {
+    if (!dateBs || !todayBs) return false;
+    return normalizeDate(dateBs) === normalizeDate(todayBs);
+  };
+
+  const stats = useMemo(() => {
+    const total = records.length;
+    const thisFy = records.filter(r => r.fiscalYear === currentFiscalYear).length;
+    const todayCount = records.filter(r => isTodayDate(r.regDateBs)).length;
+    const fullyImmunized = records.filter(r => isChildFullyImmunized(r)).length;
+    const partiallyImmunized = total - fullyImmunized;
+    
+    return { total, thisFy, todayCount, fullyImmunized, partiallyImmunized };
+  }, [records, currentFiscalYear, todayBs]);
 
   useEffect(() => {
     if (selectedVaccineForUpdate) {
@@ -780,6 +801,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     return (records || [])
       .filter(r => {
         if (!r) return false;
+        if (filterTodayOnly) {
+          return isTodayDate(r.regDateBs);
+        }
         // When searching, bypass fiscal year / immunization status check to find any matching child
         if (!query) {
           if (r.fiscalYear === currentFiscalYear) return true;
@@ -816,73 +840,108 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
-  }, [records, currentFiscalYear, searchTerm]);
+  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, todayBs]);
 
   return (
     <div className="space-y-6">
       {/* Attractive Dashboard for Child Immunization */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 no-print">
+        <div 
+          onClick={() => setFilterTodayOnly(false)}
+          className={`bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${!filterTodayOnly ? 'ring-2 ring-blue-300 shadow-md' : 'opacity-95 hover:opacity-100'}`}
+        >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-            <UsersRound size={120} />
+            <UsersRound size={100} />
           </div>
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              <UsersRound size={24} />
+              <UsersRound size={20} />
             </div>
-            <TrendingUp size={20} className="text-white/40" />
+            <TrendingUp size={18} className="text-white/40" />
           </div>
-          <div className="mt-4">
+          <div className="mt-3">
             <p className="text-blue-100 text-xs font-bold font-nepali">कुल दर्ता संख्या</p>
-            <h3 className="text-3xl font-black mt-1 font-mono">{stats.total}</h3>
+            <h3 className="text-2xl font-black mt-0.5 font-mono">{stats.total}</h3>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+        <div 
+          onClick={() => setFilterTodayOnly(false)}
+          className="bg-gradient-to-br from-teal-500 to-teal-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer"
+        >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-            <Baby size={120} />
+            <CalendarDays size={100} />
           </div>
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              <Baby size={24} />
+              <CalendarDays size={20} />
             </div>
-            <Activity size={20} className="text-white/40" />
+            <Activity size={18} className="text-white/40" />
           </div>
-          <div className="mt-4">
-            <p className="text-emerald-100 text-xs font-bold font-nepali">चालु आ.व. ({currentFiscalYear})</p>
-            <h3 className="text-3xl font-black mt-1 font-mono">{stats.thisFy}</h3>
+          <div className="mt-3">
+            <p className="text-teal-100 text-xs font-bold font-nepali">चालु आ.व. ({currentFiscalYear})</p>
+            <h3 className="text-2xl font-black mt-0.5 font-mono">{stats.thisFy}</h3>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+        <div 
+          onClick={() => setFilterTodayOnly(!filterTodayOnly)}
+          className={`bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
+            filterTodayOnly ? 'ring-4 ring-emerald-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+          }`}
+          title="आज दर्ता भएका बालबालिकाहरूको विवरण हेर्न थिच्नुहोस्"
+        >
+          <div className="absolute -right-4 -bottom-4 opacity-15 group-hover:scale-110 transition-transform duration-500">
+            <Baby size={100} />
+          </div>
+          <div className="flex justify-between items-start">
+            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm flex items-center gap-1.5">
+              <Baby size={20} />
+            </div>
+            <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
+              {filterTodayOnly ? '✓ हेरिँदैछ' : 'क्लिक गर्नुहोस्'}
+            </span>
+          </div>
+          <div className="mt-3">
+            <p className="text-emerald-100 text-xs font-bold font-nepali flex items-center gap-1">
+              आज दर्ता भएका <span className="text-[10px] font-mono opacity-80">({todayBs})</span>
+            </p>
+            <h3 className="text-2xl font-black mt-0.5 font-mono flex items-center gap-2">
+              {stats.todayCount}
+              {stats.todayCount > 0 && <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-200 animate-ping" />}
+            </h3>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-            <ShieldCheck size={120} />
+            <ShieldCheck size={100} />
           </div>
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              <ShieldCheck size={24} />
+              <ShieldCheck size={20} />
             </div>
-            <Award size={20} className="text-white/40" />
+            <Award size={18} className="text-white/40" />
           </div>
-          <div className="mt-4">
+          <div className="mt-3">
             <p className="text-indigo-100 text-xs font-bold font-nepali">पूर्ण खोप सुनिश्चित</p>
-            <h3 className="text-3xl font-black mt-1 font-mono">{stats.fullyImmunized}</h3>
+            <h3 className="text-2xl font-black mt-0.5 font-mono">{stats.fullyImmunized}</h3>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-5 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-            <AlertTriangle size={120} />
+            <AlertTriangle size={100} />
           </div>
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-              <AlertTriangle size={24} />
+              <AlertTriangle size={20} />
             </div>
-            <Activity size={20} className="text-white/40" />
+            <Activity size={18} className="text-white/40" />
           </div>
-          <div className="mt-4">
+          <div className="mt-3">
             <p className="text-amber-100 text-xs font-bold font-nepali">आंशिक/बाँकी खोप</p>
-            <h3 className="text-3xl font-black mt-1 font-mono">{stats.partiallyImmunized}</h3>
+            <h3 className="text-2xl font-black mt-0.5 font-mono">{stats.partiallyImmunized}</h3>
           </div>
         </div>
       </div>
@@ -1119,17 +1178,69 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-700 font-nepali">खोप तालिका विवरण</h3>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="font-bold text-slate-700 font-nepali text-base">खोप तालिका विवरण</h3>
+            
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setFilterTodayOnly(false)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all font-nepali ${
+                  !filterTodayOnly
+                    ? 'bg-white text-slate-800 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                सबै सूची ({records.length})
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setFilterTodayOnly(true)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
+                  filterTodayOnly
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <Baby size={14} /> आज दर्ता भएका ({stats.todayCount})
+              </button>
+            </div>
+
             <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full font-nepali">
-              जम्मा: {filteredRecords.length} जना
+              देखाएको: {filteredRecords.length} जना
             </span>
           </div>
+
           <div className="relative w-full sm:w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम, दर्ता नं वा केन्द्र..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-sm" />
+            <input 
+              type="text" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              placeholder="नाम, दर्ता नं, केन्द्र वा फोन..." 
+              className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-sm" 
+            />
           </div>
         </div>
+
+        {filterTodayOnly && (
+          <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-2.5 flex items-center justify-between animate-in fade-in">
+            <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold font-nepali">
+              <Baby size={16} className="text-emerald-600 shrink-0" />
+              <span>
+                आज (मिति: <span className="font-mono text-emerald-950 font-black">{todayBs}</span>) दर्ता भएका बालबालिकाहरूको खोप तालिका विवरण ({filteredRecords.length} जना)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFilterTodayOnly(false)}
+              className="text-xs text-emerald-700 hover:text-emerald-900 font-bold underline font-nepali"
+            >
+              सबै देखाउनुहोस्
+            </button>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -1142,69 +1253,93 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4">
-                    <div className="font-mono font-bold text-green-700">{record.regNo}</div>
-                    <div className="text-[10px] text-slate-500 flex items-center gap-1"><MapPinned size={10}/> {record.vaccinationCenter}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-slate-800">{record.childName}</div>
-                    <div className="text-[11px] text-slate-600 mt-1 space-y-0.5">
-                      <div><span className="font-medium text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{record.dobBs}</span></div>
-                      <div><span className="font-medium text-slate-400">अभिभावक:</span> {record.motherName} (आमा) {record.fatherName && `/ ${record.fatherName} (बुबा)`}</div>
-                      <div><span className="font-medium text-slate-400">ठेगाना:</span> {record.address}{record.isOtherAddress ? ' (अन्य)' : ''} | <span className="font-medium text-slate-400">फोन:</span> <span className="font-mono">{record.phone}</span></div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-3">
-                        {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
-                          const vaccinesInCluster = (record.vaccines || []).filter(v => v.cluster === clusterName);
-                          if (vaccinesInCluster.length === 0) return null;
-                          return (
-                            <div key={clusterName} className="flex flex-col gap-1">
-                              <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-50 w-fit px-1 rounded">{clusterName}</span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {vaccinesInCluster.map((v) => {
-                                    const idx = (record.vaccines || []).findIndex(origV => origV.name === v.name);
-                                    const isGiven = v.status === 'Given';
-                                    return (
-                                      <div 
-                                          key={v.name} 
-                                          onClick={() => {
-                                              if (isGiven) return; 
-                                              setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
-                                          }}
-                                          className={`group relative px-2 py-1 rounded text-[9px] font-bold border flex flex-col items-center min-w-[70px] transition-all
-                                              ${isGiven ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
-                                          title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
-                                      >
-                                          <span className="mb-0.5 text-center leading-tight">{v.name}</span>
-                                          <div className="flex flex-col text-[7px] font-normal leading-tight">
-                                              <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
-                                              {v.givenDateBs && (
-                                                <span className="flex items-center gap-0.5 text-green-700 font-bold">
-                                                  <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
-                                                </span>
-                                              )}
-                                          </div>
-                                      </div>
-                                    );
-                                })}
+              {filteredRecords.map((record) => {
+                const isRegisteredToday = isTodayDate(record.regDateBs);
+                return (
+                  <tr key={record.id} className={`hover:bg-slate-50/50 transition-colors ${isRegisteredToday ? 'bg-emerald-50/30' : ''}`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-green-700">{record.regNo}</span>
+                        {isRegisteredToday && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded border border-emerald-200 font-nepali">
+                            आज दर्ता
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                        <MapPinned size={10}/> {record.vaccinationCenter}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        दर्ता: {record.regDateBs || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-800">{record.childName}</div>
+                      <div className="text-[11px] text-slate-600 mt-1 space-y-0.5">
+                        <div><span className="font-medium text-slate-400">जन्म मिति:</span> <span className="font-mono font-bold text-slate-700">{record.dobBs}</span></div>
+                        <div><span className="font-medium text-slate-400">अभिभावक:</span> {record.motherName} (आमा) {record.fatherName && `/ ${record.fatherName} (बुबा)`}</div>
+                        <div><span className="font-medium text-slate-400">ठेगाना:</span> {record.address}{record.isOtherAddress ? ' (अन्य)' : ''} | <span className="font-medium text-slate-400">फोन:</span> <span className="font-mono">{record.phone}</span></div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-3">
+                          {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
+                            const vaccinesInCluster = (record.vaccines || []).filter(v => v.cluster === clusterName);
+                            if (vaccinesInCluster.length === 0) return null;
+                            return (
+                              <div key={clusterName} className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-50 w-fit px-1 rounded">{clusterName}</span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {vaccinesInCluster.map((v) => {
+                                      const idx = (record.vaccines || []).findIndex(origV => origV.name === v.name);
+                                      const isGiven = v.status === 'Given';
+                                      return (
+                                        <div 
+                                            key={v.name} 
+                                            onClick={() => {
+                                                if (isGiven) return; 
+                                                setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
+                                            }}
+                                            className={`group relative px-2 py-1 rounded text-[9px] font-bold border flex flex-col items-center min-w-[70px] transition-all
+                                                ${isGiven ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
+                                            title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
+                                        >
+                                            <span className="mb-0.5 text-center leading-tight">{v.name}</span>
+                                            <div className="flex flex-col text-[7px] font-normal leading-tight">
+                                                <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
+                                                {v.givenDateBs && (
+                                                  <span className="flex items-center gap-0.5 text-green-700 font-bold">
+                                                    <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                  </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                      );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                        <button onClick={() => handleEditRecord(record)} className="text-primary-600 hover:bg-primary-50 p-2 rounded-full"><Edit size={18} /></button>
-                        <button onClick={() => handleDeleteRecord(record.id, record.childName)} className="text-red-600 hover:bg-red-50 p-2 rounded-full"><Trash2 size={18} /></button>
-                    </div>
+                            );
+                          })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                          <button onClick={() => handleEditRecord(record)} className="text-primary-600 hover:bg-primary-50 p-2 rounded-full" title="सम्पादन"><Edit size={18} /></button>
+                          <button onClick={() => handleDeleteRecord(record.id, record.childName)} className="text-red-600 hover:bg-red-50 p-2 rounded-full" title="हटाउनुहोस्"><Trash2 size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredRecords.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali">
+                    {filterTodayOnly 
+                      ? `आज (मिति: ${todayBs}) कुनै पनि बच्चा दर्ता भएका छैनन्।`
+                      : 'कुनै पनि बच्चाको खोप तालिका विवरण फेला परेन।'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
