@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
-import { ChildImmunizationRecord, GarbhawatiPatient } from '../types/healthTypes';
+import { ChildImmunizationRecord, GarbhawatiPatient, getChildDisplayName } from '../types/healthTypes';
 import { Option, OrganizationSettings } from '../types/coreTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration'; // Import the template
 import { matchRegNo } from './nepaliUtils';
@@ -248,7 +248,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     if (!searchQuery.trim()) return childrenDetailsThisMonth;
     const query = searchQuery.toLowerCase().trim();
     return childrenDetailsThisMonth.filter(c => 
-      c.childName.toLowerCase().includes(query) ||
+      (c.childName && c.childName.toLowerCase().includes(query)) ||
       (c.motherName && c.motherName.toLowerCase().includes(query)) ||
       (c.fatherName && c.fatherName.toLowerCase().includes(query)) ||
       (c.address && c.address.toLowerCase().includes(query)) ||
@@ -1137,7 +1137,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                                   <tr key={child.id} className="hover:bg-slate-50 transition-colors">
                                       <td className="border-r border-slate-200 p-2 text-center font-mono">{idx + 1}</td>
                                       <td className="border-r border-slate-200 p-2 text-center font-mono font-bold text-indigo-700">{child.regNo}</td>
-                                      <td className="border-r border-slate-200 p-2 font-bold text-slate-800">{child.childName}</td>
+                                      <td className="border-r border-slate-200 p-2 font-bold text-slate-800">{getChildDisplayName(child)}</td>
                                       <td className="border-r border-slate-200 p-2 text-center font-nepali">{child.gender === 'Male' ? 'पुरुष' : child.gender === 'Female' ? 'महिला' : 'अन्य'}</td>
                                       <td className="border-r border-slate-200 p-2 text-center font-mono text-xs">{child.dobBs}</td>
                                       <td className="border-r border-slate-200 p-2 text-[11px] leading-relaxed">

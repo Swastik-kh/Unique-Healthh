@@ -150,6 +150,7 @@ export interface ChildImmunizationRecord {
   fiscalYear: string;
   regNo: string;
   childName: string;
+  nameNotAssigned?: boolean;
   gender: 'Male' | 'Female' | 'Other';
   dobBs: string;
   dobAd: string;
@@ -165,6 +166,22 @@ export interface ChildImmunizationRecord {
   vaccines: ChildImmunizationVaccine[];
   remarks?: string;
   vaccinationCenter?: string; // Added for center tracking
+}
+
+export function getChildDisplayName(record?: { nameNotAssigned?: boolean; childName?: string } | null): string {
+  if (!record) return '';
+  if (record.nameNotAssigned && (!record.childName || !record.childName.trim())) {
+    return '(नाम अझै राखिएको छैन)';
+  }
+  return record.childName || (record.nameNotAssigned ? '(नाम अझै राखिएको छैन)' : '');
+}
+
+export function hasAssignedName(record?: { nameNotAssigned?: boolean; childName?: string } | null): boolean {
+  if (!record) return false;
+  if (record.nameNotAssigned && (!record.childName || !record.childName.trim())) {
+    return false;
+  }
+  return Boolean(record.childName && record.childName.trim());
 }
 
 export interface PariwarSewaRecord {

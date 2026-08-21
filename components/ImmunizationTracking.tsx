@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 /* Added RotateCcw to the imports from lucide-react to fix the error on line 272 */
 import { Baby, Printer, AlertOctagon, Calendar, Clock, Info, User, Phone, MapPin, Search, CheckCircle2, ShieldCheck, Award, X, FileBadge, BadgeCheck, CalendarDays, CalendarClock, ListFilter, Users, MapPinned, Hash, RotateCcw, Filter, Syringe, Trash2, MessageSquare, Send, Smartphone, Loader2, Building2, Eye, Coins, ClipboardList, QrCode } from 'lucide-react';
-import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient } from '../types/healthTypes';
+import { ChildImmunizationRecord, ChildImmunizationVaccine, GarbhawatiPatient, getChildDisplayName, hasAssignedName } from '../types/healthTypes';
 import { Option, OrganizationSettings, User as SystemUser } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -207,11 +207,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     const center = child.vaccinationCenter || 'खोप केन्द्र';
     const phone = child.phone || '';
 
+    const childClause = hasAssignedName(child) ? ` बच्चा ${child.childName}` : '';
+
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! हजुरको बच्चा ${child.childName} को खोप (${vaxNames}) लगाउन मिति ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको${childClause} को खोप (${vaxNames}) लगाउन मिति ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
-      template = `नमस्ते! हजुरको बच्चा ${child.childName} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको${childClause} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
 
     setSmsMode('single');
@@ -277,13 +279,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         const cleaned = cleanPhone(rawPhone);
         if (!/^\d{10}$/.test(cleaned)) return; // Exclude invalid / non-10 digit numbers completely!
 
-        const childName = item.child.childName || 'बालक/बालिका';
         const vaxNames = formatVaccinesForSms(item.vaccines);
         const center = item.child.vaccinationCenter || 'खोप केन्द्र';
         const exactDate = item.scheduledDateBs || 'आगामी मिति';
 
-        let personalizedMessage = smsMessageText
-          .replaceAll('{बच्चाको_नाम}', childName)
+        let personalizedMessage = smsMessageText;
+        if (hasAssignedName(item.child)) {
+          personalizedMessage = personalizedMessage.replaceAll('{बच्चाको_नाम}', item.child.childName || '');
+        } else {
+          personalizedMessage = personalizedMessage
+            .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
+            .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
+            .replaceAll('{बच्चाको_नाम}', '');
+        }
+
+        personalizedMessage = personalizedMessage
           .replaceAll('{खोपहरू}', vaxNames)
           .replaceAll('{खोप_केन्द्र}', center)
           .replaceAll('{खोप_मिति}', exactDate)
@@ -1426,7 +1436,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <React.Fragment key={idx}>
                                         <tr className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-slate-800">{item.child.childName}</div>
+                                                <div className="font-bold text-slate-800">{getChildDisplayName(item.child)}</div>
                                                 <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
                                                     <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                     <div className="flex items-center gap-1 mb-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
@@ -1602,7 +1612,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 {defaulterList.map((item, idx) => (
                                     <tr key={idx} className="hover:bg-red-50/30 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-800">{item.child.childName}</div>
+                                            <div className="font-bold text-slate-800">{getChildDisplayName(item.child)}</div>
                                             <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
                                                 <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                 <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
@@ -1689,7 +1699,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         className="hover:bg-teal-50/50 cursor-pointer transition-colors group"
                                     >
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-800">{child.childName}</div>
+                                            <div className="font-bold text-slate-800">{getChildDisplayName(child)}</div>
                                             <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
                                                 <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{child.dobBs}</span></div>
                                                 <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {child.vaccinationCenter}</div>
@@ -1757,7 +1767,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                     <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs border border-emerald-100 font-mono">
                                                         {child.regNo}
                                                     </span>
-                                                    {child.childName}
+                                                    {getChildDisplayName(child)}
                                                 </div>
                                                 <div className="text-[10px] text-slate-400 mt-1 font-mono">
                                                     दर्ता मिति: {child.regDateBs || '-'}
@@ -1949,7 +1959,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2 border-t border-b border-teal-100 py-2 text-[11px]">
                                 <div className="space-y-0.5">
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">दर्ता नम्बर:</span> <span className="font-bold text-teal-800 font-mono">{selectedChildForCard.regNo}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बच्चाको नाम:</span> <span className="font-bold text-sm">{selectedChildForCard.childName}</span></p>
+                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बच्चाको नाम:</span> <span className="font-bold text-sm">{getChildDisplayName(selectedChildForCard)}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">जन्म मिति (BS):</span> <span className={`font-bold ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.dobBs}</span></p>
                                     <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">लिङ्ग:</span> <span className="font-bold">{selectedChildForCard.gender === 'Male' ? 'बालक' : 'बालिका'}</span></p>
                                 </div>
@@ -2410,7 +2420,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between items-center">
                             <span className="text-slate-500 font-medium">बच्चाको नाम:</span>
-                            <span className="font-bold text-slate-800 text-sm">{smsSingleChild.childName}</span>
+                            <span className="font-bold text-slate-800 text-sm">{getChildDisplayName(smsSingleChild)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-slate-500 font-medium">दर्ता नम्बर (Reg No):</span>
@@ -2552,19 +2562,28 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                               पहिलो बच्चाको सन्देशको नमूना (Live Sample Preview):
                             </span>
                             <span className="text-[10px] bg-indigo-200/90 text-indigo-900 px-2 py-0.5 rounded font-bold">
-                              {smsViewType === 'upcoming' ? (upcomingSessionList[0]?.child?.childName || 'बालक/बालिका') : (defaulterList[0]?.child?.childName || 'बालक/बालिका')}
+                              {smsViewType === 'upcoming' ? (getChildDisplayName(upcomingSessionList[0]?.child) || 'बालक/बालिका') : (getChildDisplayName(defaulterList[0]?.child) || 'बालक/बालिका')}
                             </span>
                           </div>
                           <div className="p-2.5 bg-white rounded-lg border border-indigo-100 text-slate-800 leading-relaxed font-nepali font-medium">
                             {(() => {
                               const sampleItem = smsViewType === 'upcoming' ? upcomingSessionList[0] : defaulterList[0];
                               if (!sampleItem) return smsMessageText;
-                              const childName = sampleItem.child.childName || 'राम श्रेष्ठ';
                               const vaxNames = formatVaccinesForSms(sampleItem.vaccines) || 'BCG, DPT-HepB-Hib1, OPV1';
                               const center = sampleItem.child.vaccinationCenter || 'हडिया स्वास्थ्य चौकी';
                               const exactDate = sampleItem.scheduledDateBs || '2083-04-15';
-                              return smsMessageText
-                                .replaceAll('{बच्चाको_नाम}', childName)
+                              
+                              let previewMsg = smsMessageText;
+                              if (hasAssignedName(sampleItem.child)) {
+                                previewMsg = previewMsg.replaceAll('{बच्चाको_नाम}', sampleItem.child.childName || '');
+                              } else {
+                                previewMsg = previewMsg
+                                  .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
+                                  .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
+                                  .replaceAll('{बच्चाको_नाम}', '');
+                              }
+
+                              return previewMsg
                                 .replaceAll('{खोपहरू}', vaxNames)
                                 .replaceAll('{खोप_केन्द्र}', center)
                                 .replaceAll('{खोप_मिति}', exactDate)
@@ -2939,7 +2958,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 {index + 1}
                               </td>
                               <td className="px-3 py-2.5">
-                                <div className="font-bold text-slate-800">{item.child.childName}</div>
+                                <div className="font-bold text-slate-800">{getChildDisplayName(item.child)}</div>
                                 <div className="text-[10px] font-mono font-bold text-blue-600">{item.child.regNo}</div>
                               </td>
                               <td className="px-3 py-2.5 text-slate-700">
