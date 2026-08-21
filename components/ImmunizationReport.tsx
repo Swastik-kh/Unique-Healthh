@@ -46,10 +46,25 @@ const jatLabels: Record<string, string> = {
   '06': 'अन्य (Others)',
 };
 
-const getFiscalYearFromBsDate = (dateBs: string): string => {
-  if (!dateBs) return '';
-  const parts = dateBs.split('-');
-  if (parts.length !== 3) return '';
+const normalizeFiscalYear = (fy?: string | null): string => {
+  if (!fy) return '';
+  const clean = fy.replace(/[^0-9]/g, '');
+  if (clean.length === 7) { // 2081082 -> 2081/082
+    return `${clean.slice(0, 4)}/${clean.slice(4)}`;
+  }
+  if (clean.length === 6) { // 208182 -> 2081/082
+    return `${clean.slice(0, 4)}/0${clean.slice(4)}`;
+  }
+  if (clean.length === 8) { // 20812082 -> 2081/082
+    return `${clean.slice(0, 4)}/0${clean.slice(6, 8)}`;
+  }
+  return fy.trim();
+};
+
+const getFiscalYearFromBsDate = (dateBs?: string | null): string => {
+  if (!dateBs || typeof dateBs !== 'string') return '';
+  const parts = dateBs.replace(/\//g, '-').split('-');
+  if (parts.length < 2) return '';
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10);
   if (isNaN(year) || isNaN(month)) return '';
@@ -64,6 +79,61 @@ const getFiscalYearFromBsDate = (dateBs: string): string => {
     const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
     return `${prevYear}/0${yearStr}`; // e.g. "2080/081"
   }
+};
+
+const getMonthFromBsDate = (dateBs?: string | null): string => {
+  if (!dateBs || typeof dateBs !== 'string') return '';
+  const parts = dateBs.replace(/\//g, '-').split('-');
+  if (parts.length < 2) return '';
+  const month = parseInt(parts[1], 10);
+  if (isNaN(month)) return '';
+  return month < 10 ? `0${month}` : `${month}`;
+};
+
+const matchesFiscalYear = (dateBs?: string | null, targetFy?: string, fallbackFy?: string): boolean => {
+  const normTarget = normalizeFiscalYear(targetFy);
+  if (!normTarget) return true;
+  
+  if (dateBs) {
+    const calculatedFy = normalizeFiscalYear(getFiscalYearFromBsDate(dateBs));
+    if (calculatedFy && calculatedFy === normTarget) return true;
+  }
+  
+  if (fallbackFy) {
+    const normFallback = normalizeFiscalYear(fallbackFy);
+    if (normFallback && normFallback === normTarget) return true;
+  }
+  
+  return false;
+};
+
+const matchesVaccinationCenter = (
+  recordCenter?: string | null,
+  filterCenter?: string,
+  defaultCenter?: string,
+  remarks?: string | null,
+  address?: string | null
+): boolean => {
+  if (!filterCenter || filterCenter === '' || filterCenter === 'all') return true;
+  const fCenter = filterCenter.trim().toLowerCase();
+  
+  if (recordCenter && recordCenter.trim()) {
+    const rCenter = recordCenter.trim().toLowerCase();
+    if (rCenter === fCenter || rCenter.includes(fCenter) || fCenter.includes(rCenter)) {
+      return true;
+    }
+  } else {
+    // If no explicit center is saved on the record, check if filter matches the default/primary center
+    if (defaultCenter && defaultCenter.trim().toLowerCase() === fCenter) {
+      return true;
+    }
+  }
+
+  // Also check if center name is mentioned in remarks or address
+  if (remarks && remarks.toLowerCase().includes(fCenter)) return true;
+  if (address && address.toLowerCase().includes(fCenter)) return true;
+
+  return false;
 };
 
 const isSameVaccine = (actualName: string, targetName: string) => {
@@ -136,18 +206,19 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     return opts;
   }, []);
 
+  const defaultCenter = generalSettings.vaccinationCenters?.[0] || 'मुख्य अस्पताल';
+
   const childrenDetailsThisMonth = useMemo(() => {
     return bachhaRecords
-      .filter(r => filterCenter ? r.vaccinationCenter === filterCenter : true)
+      .filter(r => matchesVaccinationCenter(r.vaccinationCenter, filterCenter, defaultCenter, r.remarks, r.address))
       .map((record) => {
         const vaccinesGiven: string[] = [];
         let hasVaccineThisMonth = false;
 
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
-            const m = v.givenDateBs.split('-')[1];
-            const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
-            const matchesFY = vaxFY ? vaxFY === selectedFiscalYear : record.fiscalYear === selectedFiscalYear;
+            const m = getMonthFromBsDate(v.givenDateBs);
+            const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
             if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
               if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
@@ -286,7 +357,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     };
 
     bachhaRecords
-      .filter(r => filterCenter ? r.vaccinationCenter === filterCenter : true) // Filter by center
+      .filter(r => matchesVaccinationCenter(r.vaccinationCenter, filterCenter, defaultCenter, r.remarks, r.address)) // Filter by center
       .forEach(record => {
         let isFullyImmunized = false;
         let lastVaccineMonth = '';
@@ -381,7 +452,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
               return d1.localeCompare(d2);
             });
             const latestVax = sortedFifteen[sortedFifteen.length - 1];
-            lastVaccineMonth = (latestVax.givenDateBs || '').split('-')[1] || '';
+            lastVaccineMonth = getMonthFromBsDate(latestVax.givenDateBs);
             lastVaccineGivenDateBs = latestVax.givenDateBs || '';
             lastVaccineDateAd = latestVax.givenDateAd || '';
           } else {
@@ -394,7 +465,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                 return d1.localeCompare(d2);
               });
               const latestVax = sortedAll[sortedAll.length - 1];
-              lastVaccineMonth = (latestVax.givenDateBs || '').split('-')[1] || '';
+              lastVaccineMonth = getMonthFromBsDate(latestVax.givenDateBs);
               lastVaccineGivenDateBs = latestVax.givenDateBs || '';
               lastVaccineDateAd = latestVax.givenDateAd || '';
             }
@@ -403,9 +474,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
-            const m = v.givenDateBs.split('-')[1];
-            const vaxFY = getFiscalYearFromBsDate(v.givenDateBs);
-            const matchesFY = vaxFY ? vaxFY === selectedFiscalYear : record.fiscalYear === selectedFiscalYear;
+            const m = getMonthFromBsDate(v.givenDateBs);
+            const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
             if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
               if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
@@ -511,8 +581,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         }
 
         // Check matching for the selected month and fiscal year for FIC tables
-        const lastVaxFY = getFiscalYearFromBsDate(lastVaccineGivenDateBs);
-        const matchesFICFY = lastVaxFY ? lastVaxFY === selectedFiscalYear : record.fiscalYear === selectedFiscalYear;
+        const matchesFICFY = matchesFiscalYear(lastVaccineGivenDateBs, selectedFiscalYear, record.fiscalYear);
         if (isFullyImmunized && (selectedMonth === 'all' || lastVaccineMonth === selectedMonth) && matchesFICFY) {
             const code = record.jatCode || '06'; 
             const gender = record.gender === 'Female' ? 'female' : 'male';
@@ -543,33 +612,30 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       });
 
     maternalRecords
-      .filter(r => filterCenter ? (r.remarks?.includes(filterCenter) || r.address?.includes(filterCenter)) : true) // Basic filter for maternal records
+      .filter(r => matchesVaccinationCenter(r.vaccinationCenter, filterCenter, defaultCenter, r.remarks, r.address))
       .forEach(p => {
-        if (p.td1DateBs) {
-          const m = p.td1DateBs.split('-')[1];
-          const td1FY = getFiscalYearFromBsDate(p.td1DateBs);
-          const matchesFY = td1FY ? td1FY === selectedFiscalYear : p.fiscalYear === selectedFiscalYear;
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY && !p.td1VaccinatedElsewhere) {
+        if (p.td1DateBs && !p.td1VaccinatedElsewhere) {
+          const m = getMonthFromBsDate(p.td1DateBs);
+          const matchesFY = matchesFiscalYear(p.td1DateBs, selectedFiscalYear, p.fiscalYear);
+          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD1') {
               stats.maternal.td1++;
             }
           }
         }
-        if (p.td2DateBs) {
-          const m = p.td2DateBs.split('-')[1];
-          const td2FY = getFiscalYearFromBsDate(p.td2DateBs);
-          const matchesFY = td2FY ? td2FY === selectedFiscalYear : p.fiscalYear === selectedFiscalYear;
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY && !p.td2VaccinatedElsewhere) {
+        if (p.td2DateBs && !p.td2VaccinatedElsewhere) {
+          const m = getMonthFromBsDate(p.td2DateBs);
+          const matchesFY = matchesFiscalYear(p.td2DateBs, selectedFiscalYear, p.fiscalYear);
+          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD2') {
               stats.maternal.td2++;
             }
           }
         }
-        if (p.tdBoosterDateBs) {
-          const m = p.tdBoosterDateBs.split('-')[1];
-          const tdBoosterFY = getFiscalYearFromBsDate(p.tdBoosterDateBs);
-          const matchesFY = tdBoosterFY ? tdBoosterFY === selectedFiscalYear : p.fiscalYear === selectedFiscalYear;
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY && !p.tdBoosterVaccinatedElsewhere) {
+        if (p.tdBoosterDateBs && !p.tdBoosterVaccinatedElsewhere) {
+          const m = getMonthFromBsDate(p.tdBoosterDateBs);
+          const matchesFY = matchesFiscalYear(p.tdBoosterDateBs, selectedFiscalYear, p.fiscalYear);
+          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD Booster') {
               stats.maternal.tdBooster++;
             }
@@ -579,7 +645,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     stats.maternal.total = stats.maternal.td1 + stats.maternal.td2 + stats.maternal.tdBooster;
 
     return stats;
-  }, [bachhaRecords, maternalRecords, selectedFiscalYear, selectedMonth, filterCenter, selectedVaccine]);
+  }, [bachhaRecords, maternalRecords, selectedFiscalYear, selectedMonth, filterCenter, selectedVaccine, defaultCenter]);
 
   const currentMonthLabel = nepaliMonthOptions.find(m => m.value === selectedMonth)?.label || '';
 
