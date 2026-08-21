@@ -862,16 +862,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   const getVaccinesGivenToday = useCallback((child: ChildImmunizationRecord) => {
     return (child.vaccines || []).filter(v => 
       v.status === 'Given' && 
+      !v.vaccinatedElsewhere &&
       v.givenDateBs && 
       isTodayDate(v.givenDateBs)
     );
   }, [isTodayDate]);
 
-  // Children vaccinated today list
+  // Children vaccinated today list (excluding elsewhere)
   const todayVaccinatedList = useMemo(() => {
     return filteredBaseRecords
       .filter(child => (child.vaccines || []).some(v => 
         v.status === 'Given' && 
+        !v.vaccinatedElsewhere &&
         v.givenDateBs && 
         isTodayDate(v.givenDateBs)
       ))
@@ -1770,9 +1772,6 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                         >
                                                             <Syringe size={11} className="text-emerald-700" />
                                                             {v.name}
-                                                            {v.vaccinatedElsewhere && (
-                                                                <span className="text-[8px] bg-amber-100 text-amber-800 px-1 rounded font-nepali">अन्यत्र</span>
-                                                            )}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -2226,7 +2225,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 <td>{child.regNo}</td>
                                 <td><strong>{child.childName}</strong></td>
                                 <td>
-                                    <strong>{todayVaccines.map(v => v.name + (v.vaccinatedElsewhere ? ' (अन्यत्र)' : '')).join(', ')}</strong>
+                                    <strong>{todayVaccines.map(v => v.name).join(', ')}</strong>
                                 </td>
                                 <td><span className={blurDob ? "blur-sm" : ""}>{child.dobBs}</span></td>
                                 <td>{child.gender === 'Female' ? 'महिला' : child.gender === 'Male' ? 'पुरुष' : 'अन्य'}</td>

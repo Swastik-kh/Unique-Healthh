@@ -283,11 +283,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   };
 
   const getVaccinesGivenToday = useCallback((r: ChildImmunizationRecord) => {
-    return (r.vaccines || []).filter(v => v.status === 'Given' && isTodayDate(v.givenDateBs));
+    return (r.vaccines || []).filter(v => v.status === 'Given' && !v.vaccinatedElsewhere && isTodayDate(v.givenDateBs));
   }, [todayBs]);
 
   const hasVaccinatedToday = useCallback((r: ChildImmunizationRecord) => {
-    return (r.vaccines || []).some(v => v.status === 'Given' && isTodayDate(v.givenDateBs));
+    return (r.vaccines || []).some(v => v.status === 'Given' && !v.vaccinatedElsewhere && isTodayDate(v.givenDateBs));
   }, [todayBs]);
 
   const stats = useMemo(() => {
@@ -1302,7 +1302,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                   {vaccinesInCluster.map((v) => {
                                       const idx = (record.vaccines || []).findIndex(origV => origV.name === v.name);
                                       const isGiven = v.status === 'Given';
-                                      const isGivenToday = isGiven && isTodayDate(v.givenDateBs);
+                                      const isGivenToday = isGiven && !v.vaccinatedElsewhere && isTodayDate(v.givenDateBs);
                                       return (
                                         <div 
                                             key={v.name} 
