@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -282,15 +282,23 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     return normalizeDate(dateBs) === normalizeDate(todayBs);
   };
 
+  const getVaccinesGivenToday = useCallback((r: ChildImmunizationRecord) => {
+    return (r.vaccines || []).filter(v => v.status === 'Given' && isTodayDate(v.givenDateBs));
+  }, [todayBs]);
+
+  const hasVaccinatedToday = useCallback((r: ChildImmunizationRecord) => {
+    return (r.vaccines || []).some(v => v.status === 'Given' && isTodayDate(v.givenDateBs));
+  }, [todayBs]);
+
   const stats = useMemo(() => {
     const total = records.length;
     const thisFy = records.filter(r => r.fiscalYear === currentFiscalYear).length;
-    const todayCount = records.filter(r => isTodayDate(r.regDateBs)).length;
+    const todayVaccinatedCount = records.filter(r => hasVaccinatedToday(r)).length;
     const fullyImmunized = records.filter(r => isChildFullyImmunized(r)).length;
     const partiallyImmunized = total - fullyImmunized;
     
-    return { total, thisFy, todayCount, fullyImmunized, partiallyImmunized };
-  }, [records, currentFiscalYear, todayBs]);
+    return { total, thisFy, todayVaccinatedCount, fullyImmunized, partiallyImmunized };
+  }, [records, currentFiscalYear, hasVaccinatedToday]);
 
   useEffect(() => {
     if (selectedVaccineForUpdate) {
@@ -802,7 +810,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       .filter(r => {
         if (!r) return false;
         if (filterTodayOnly) {
-          return isTodayDate(r.regDateBs);
+          return hasVaccinatedToday(r);
         }
         // When searching, bypass fiscal year / immunization status check to find any matching child
         if (!query) {
@@ -840,7 +848,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
-  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, todayBs]);
+  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, hasVaccinatedToday]);
 
   return (
     <div className="space-y-6">
@@ -889,14 +897,14 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           className={`bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
             filterTodayOnly ? 'ring-4 ring-emerald-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
           }`}
-          title="आज दर्ता भएका बालबालिकाहरूको विवरण हेर्न थिच्नुहोस्"
+          title="आज खोप लगाएका बालबालिकाहरूको विवरण हेर्न थिच्नुहोस्"
         >
           <div className="absolute -right-4 -bottom-4 opacity-15 group-hover:scale-110 transition-transform duration-500">
-            <Baby size={100} />
+            <Syringe size={100} />
           </div>
           <div className="flex justify-between items-start">
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm flex items-center gap-1.5">
-              <Baby size={20} />
+              <Syringe size={20} />
             </div>
             <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
               {filterTodayOnly ? '✓ हेरिँदैछ' : 'क्लिक गर्नुहोस्'}
@@ -904,11 +912,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
           <div className="mt-3">
             <p className="text-emerald-100 text-xs font-bold font-nepali flex items-center gap-1">
-              आज दर्ता भएका <span className="text-[10px] font-mono opacity-80">({todayBs})</span>
+              आज खोप लगाएका <span className="text-[10px] font-mono opacity-80">({todayBs})</span>
             </p>
             <h3 className="text-2xl font-black mt-0.5 font-mono flex items-center gap-2">
-              {stats.todayCount}
-              {stats.todayCount > 0 && <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-200 animate-ping" />}
+              {stats.todayVaccinatedCount}
+              {stats.todayVaccinatedCount > 0 && <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-200 animate-ping" />}
             </h3>
           </div>
         </div>
@@ -1203,7 +1211,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     : 'text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
-                <Baby size={14} /> आज दर्ता भएका ({stats.todayCount})
+                <Syringe size={14} /> आज खोप लगाएका ({stats.todayVaccinatedCount})
               </button>
             </div>
 
@@ -1227,9 +1235,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         {filterTodayOnly && (
           <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-2.5 flex items-center justify-between animate-in fade-in">
             <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold font-nepali">
-              <Baby size={16} className="text-emerald-600 shrink-0" />
+              <Syringe size={16} className="text-emerald-600 shrink-0" />
               <span>
-                आज (मिति: <span className="font-mono text-emerald-950 font-black">{todayBs}</span>) दर्ता भएका बालबालिकाहरूको खोप तालिका विवरण ({filteredRecords.length} जना)
+                आज (मिति: <span className="font-mono text-emerald-950 font-black">{todayBs}</span>) खोप लगाएका बालबालिकाहरूको विवरण ({filteredRecords.length} जना)
               </span>
             </div>
             <button
@@ -1254,15 +1262,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredRecords.map((record) => {
-                const isRegisteredToday = isTodayDate(record.regDateBs);
+                const todayVaccines = getVaccinesGivenToday(record);
+                const isVaccinatedToday = todayVaccines.length > 0;
                 return (
-                  <tr key={record.id} className={`hover:bg-slate-50/50 transition-colors ${isRegisteredToday ? 'bg-emerald-50/30' : ''}`}>
+                  <tr key={record.id} className={`hover:bg-slate-50/50 transition-colors ${isVaccinatedToday ? 'bg-emerald-50/30' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-mono font-bold text-green-700">{record.regNo}</span>
-                        {isRegisteredToday && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded border border-emerald-200 font-nepali">
-                            आज दर्ता
+                        {isVaccinatedToday && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300 font-nepali flex items-center gap-1">
+                            <Syringe size={10} /> आज खोप: {todayVaccines.map(v => v.name).join(', ')}
                           </span>
                         )}
                       </div>
@@ -1293,6 +1302,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                   {vaccinesInCluster.map((v) => {
                                       const idx = (record.vaccines || []).findIndex(origV => origV.name === v.name);
                                       const isGiven = v.status === 'Given';
+                                      const isGivenToday = isGiven && isTodayDate(v.givenDateBs);
                                       return (
                                         <div 
                                             key={v.name} 
@@ -1301,14 +1311,21 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                                 setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
                                             }}
                                             className={`group relative px-2 py-1 rounded text-[9px] font-bold border flex flex-col items-center min-w-[70px] transition-all
-                                                ${isGiven ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
-                                            title={isGiven ? "यो खोप लगाईसकेको हुनाले यसको मिति संशोधन गर्न मिल्दैन" : "खोपको विवरण अपडेट गर्नुहोस्"}
+                                                ${isGivenToday 
+                                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400 ring-2 ring-emerald-300 ring-offset-1 cursor-not-allowed' 
+                                                  : isGiven 
+                                                  ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' 
+                                                  : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
+                                            title={isGiven ? `लगाईसकेको मिति: ${v.givenDateBs || ''}` : "खोपको विवरण अपडेट गर्नुहोस्"}
                                         >
-                                            <span className="mb-0.5 text-center leading-tight">{v.name}</span>
+                                            <span className="mb-0.5 text-center leading-tight flex items-center gap-1">
+                                              {isGivenToday && <Syringe size={8} className="text-emerald-700" />}
+                                              {v.name}
+                                            </span>
                                             <div className="flex flex-col text-[7px] font-normal leading-tight">
                                                 <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
                                                 {v.givenDateBs && (
-                                                  <span className="flex items-center gap-0.5 text-green-700 font-bold">
+                                                  <span className={`flex items-center gap-0.5 font-bold ${isGivenToday ? 'text-emerald-900' : 'text-green-700'}`}>
                                                     <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
                                                   </span>
                                                 )}
@@ -1335,7 +1352,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 <tr>
                   <td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali">
                     {filterTodayOnly 
-                      ? `आज (मिति: ${todayBs}) कुनै पनि बच्चा दर्ता भएका छैनन्।`
+                      ? `आज (मिति: ${todayBs}) कुनै पनि बच्चालाई खोप लगाइएको छैन।`
                       : 'कुनै पनि बच्चाको खोप तालिका विवरण फेला परेन।'}
                   </td>
                 </tr>
