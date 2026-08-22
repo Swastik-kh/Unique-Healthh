@@ -248,8 +248,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTodayOnly, setFilterTodayOnly] = useState(false);
-  const [showAllFiscalYears, setShowAllFiscalYears] = useState(false);
+  const [filterMode, setFilterMode] = useState<'default' | 'today' | 'all_fy' | 'fully_immunized' | 'partially_immunized'>('default');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -315,10 +314,14 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     const province = generalSettings?.provinceNepali || generalSettings?.province || '';
     const logoUrl = generalSettings?.logoUrl || '';
 
-    const listTitle = filterTodayOnly
+    const listTitle = filterMode === 'today'
       ? `आज (मिति: ${todayBs}) खोप लगाएका बालबालिकाहरूको सूची`
-      : showAllFiscalYears
+      : filterMode === 'all_fy'
       ? 'सबै आर्थिक वर्षका बालबालिका खोप दर्ता विवरण सूची'
+      : filterMode === 'fully_immunized'
+      ? 'पूर्ण खोप सुनिश्चित भएका बालबालिकाहरूको सूची'
+      : filterMode === 'partially_immunized'
+      ? 'आंशिक / बाँकी खोप रहेका बालबालिकाहरूको सूची'
       : 'बालबालिका खोप तालिका दर्ता विवरण सूची';
 
     const rowsHtml = filteredRecords.map((rec, idx) => {
@@ -995,11 +998,17 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     return (records || [])
       .filter(r => {
         if (!r) return false;
-        if (filterTodayOnly) {
+        if (filterMode === 'today') {
           return hasVaccinatedToday(r);
         }
-        if (showAllFiscalYears) {
+        if (filterMode === 'all_fy') {
           return true;
+        }
+        if (filterMode === 'fully_immunized') {
+          return isChildFullyImmunized(r);
+        }
+        if (filterMode === 'partially_immunized') {
+          return !isChildFullyImmunized(r);
         }
         // Default view ("हालको खोप सूची"):
         // 1. Children registered in current logged-in fiscal year (r.fiscalYear === currentFiscalYear or missing fiscalYear)
@@ -1038,15 +1047,18 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
-  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, showAllFiscalYears, hasVaccinatedToday]);
+  }, [records, currentFiscalYear, searchTerm, filterMode, hasVaccinatedToday]);
 
   return (
     <div className="space-y-6">
       {/* Attractive Dashboard for Child Immunization */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 no-print">
         <div 
-          onClick={() => { setShowAllFiscalYears(true); setFilterTodayOnly(false); }}
-          className={`bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${showAllFiscalYears ? 'ring-2 ring-blue-300 shadow-md' : 'opacity-95 hover:opacity-100'}`}
+          onClick={() => setFilterMode(filterMode === 'all_fy' ? 'default' : 'all_fy')}
+          className={`bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
+            filterMode === 'all_fy' ? 'ring-4 ring-blue-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+          }`}
+          title="सबै आर्थिक वर्षका सबै बालबालिकाको सूची हेर्न थिच्नुहोस्"
         >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <UsersRound size={100} />
@@ -1055,7 +1067,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
               <UsersRound size={20} />
             </div>
-            <TrendingUp size={18} className="text-white/40" />
+            <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
+              {filterMode === 'all_fy' ? '✓ देखाउँदै' : 'क्लिक गर्नुहोस्'}
+            </span>
           </div>
           <div className="mt-3">
             <p className="text-blue-100 text-xs font-bold font-nepali">कुल दर्ता संख्या</p>
@@ -1064,8 +1078,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         </div>
 
         <div 
-          onClick={() => setFilterTodayOnly(false)}
-          className="bg-gradient-to-br from-teal-500 to-teal-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer"
+          onClick={() => setFilterMode('default')}
+          className={`bg-gradient-to-br from-teal-500 to-teal-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
+            filterMode === 'default' ? 'ring-4 ring-teal-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+          }`}
+          title="चालु आ.व. तथा अघिल्ला आ.व. का बाँकी खोप रहेका बालबालिकाको सूची"
         >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <CalendarDays size={100} />
@@ -1074,7 +1091,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
               <CalendarDays size={20} />
             </div>
-            <Activity size={18} className="text-white/40" />
+            <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
+              {filterMode === 'default' ? '✓ देखाउँदै' : 'क्लिक गर्नुहोस्'}
+            </span>
           </div>
           <div className="mt-3">
             <p className="text-teal-100 text-xs font-bold font-nepali">चालु आ.व. ({currentFiscalYear})</p>
@@ -1083,9 +1102,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         </div>
 
         <div 
-          onClick={() => setFilterTodayOnly(!filterTodayOnly)}
+          onClick={() => setFilterMode(filterMode === 'today' ? 'default' : 'today')}
           className={`bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
-            filterTodayOnly ? 'ring-4 ring-emerald-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+            filterMode === 'today' ? 'ring-4 ring-emerald-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
           }`}
           title="आज खोप लगाएका बालबालिकाहरूको विवरण हेर्न थिच्नुहोस्"
         >
@@ -1097,7 +1116,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
               <Syringe size={20} />
             </div>
             <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
-              {filterTodayOnly ? '✓ हेरिँदैछ' : 'क्लिक गर्नुहोस्'}
+              {filterMode === 'today' ? '✓ देखाउँदै' : 'क्लिक गर्नुहोस्'}
             </span>
           </div>
           <div className="mt-3">
@@ -1111,7 +1130,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+        <div 
+          onClick={() => setFilterMode(filterMode === 'fully_immunized' ? 'default' : 'fully_immunized')}
+          className={`bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
+            filterMode === 'fully_immunized' ? 'ring-4 ring-indigo-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+          }`}
+          title="पूर्ण खोप पाएका बालबालिकाहरूको सूची हेर्न थिच्नुहोस्"
+        >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <ShieldCheck size={100} />
           </div>
@@ -1119,7 +1144,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
               <ShieldCheck size={20} />
             </div>
-            <Award size={18} className="text-white/40" />
+            <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
+              {filterMode === 'fully_immunized' ? '✓ देखाउँदै' : 'क्लिक गर्नुहोस्'}
+            </span>
           </div>
           <div className="mt-3">
             <p className="text-indigo-100 text-xs font-bold font-nepali">पूर्ण खोप सुनिश्चित</p>
@@ -1127,7 +1154,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group">
+        <div 
+          onClick={() => setFilterMode(filterMode === 'partially_immunized' ? 'default' : 'partially_immunized')}
+          className={`bg-gradient-to-br from-amber-500 to-amber-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${
+            filterMode === 'partially_immunized' ? 'ring-4 ring-amber-300 scale-102 shadow-lg' : 'hover:scale-102 hover:shadow-md'
+          }`}
+          title="आंशिक / खोप बाँकी रहेका बालबालिकाहरूको सूची हेर्न थिच्नुहोस्"
+        >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <AlertTriangle size={100} />
           </div>
@@ -1135,7 +1168,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
               <AlertTriangle size={20} />
             </div>
-            <Activity size={18} className="text-white/40" />
+            <span className="text-[10px] bg-white/30 text-white font-bold px-2 py-0.5 rounded-full font-nepali">
+              {filterMode === 'partially_immunized' ? '✓ देखाउँदै' : 'क्लिक गर्नुहोस्'}
+            </span>
           </div>
           <div className="mt-3">
             <p className="text-amber-100 text-xs font-bold font-nepali">आंशिक/बाँकी खोप</p>
@@ -1415,13 +1450,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           <div className="flex flex-wrap items-center gap-2.5">
             <h3 className="font-bold text-slate-700 font-nepali text-base">खोप तालिका विवरण</h3>
             
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 flex-wrap">
               <button
                 type="button"
-                onClick={() => { setFilterTodayOnly(false); setShowAllFiscalYears(false); }}
+                onClick={() => setFilterMode('default')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all font-nepali ${
-                  !filterTodayOnly && !showAllFiscalYears
-                    ? 'bg-white text-slate-800 shadow-xs'
+                  filterMode === 'default'
+                    ? 'bg-white text-slate-800 shadow-xs ring-1 ring-slate-200'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -1430,9 +1465,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
               
               <button
                 type="button"
-                onClick={() => { setFilterTodayOnly(true); setShowAllFiscalYears(false); }}
+                onClick={() => setFilterMode('today')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
-                  filterTodayOnly
+                  filterMode === 'today'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-emerald-700 hover:bg-emerald-50'
                 }`}
@@ -1442,11 +1477,35 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
               <button
                 type="button"
-                onClick={() => { setShowAllFiscalYears(true); setFilterTodayOnly(false); }}
+                onClick={() => setFilterMode('fully_immunized')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
-                  showAllFiscalYears
+                  filterMode === 'fully_immunized'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-indigo-700 hover:bg-indigo-50'
+                }`}
+              >
+                <ShieldCheck size={14} /> पूर्ण खोप ({stats.fullyImmunized})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterMode('partially_immunized')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
+                  filterMode === 'partially_immunized'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                <AlertTriangle size={14} /> आंशिक/बाँकी खोप ({stats.partiallyImmunized})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterMode('all_fy')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
+                  filterMode === 'all_fy'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-blue-700 hover:bg-blue-50'
                 }`}
                 title="सबै आर्थिक वर्षका सबै बालबालिका रेकर्डहरू सूचीमा देखाउनुहोस्"
               >
@@ -1491,20 +1550,31 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
         </div>
 
-        {filterTodayOnly && (
-          <div className="sticky top-[41px] md:top-[25px] z-20 bg-emerald-50/95 backdrop-blur-md border-b border-emerald-100 px-6 py-2.5 flex items-center justify-between animate-in fade-in shadow-xs">
-            <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold font-nepali">
-              <Syringe size={16} className="text-emerald-600 shrink-0" />
+        {filterMode !== 'default' && (
+          <div className={`sticky top-[41px] md:top-[25px] z-20 backdrop-blur-md border-b px-6 py-2.5 flex items-center justify-between animate-in fade-in shadow-xs ${
+            filterMode === 'today' ? 'bg-emerald-50/95 border-emerald-100 text-emerald-800' :
+            filterMode === 'fully_immunized' ? 'bg-indigo-50/95 border-indigo-100 text-indigo-800' :
+            filterMode === 'partially_immunized' ? 'bg-amber-50/95 border-amber-100 text-amber-800' :
+            'bg-blue-50/95 border-blue-100 text-blue-800'
+          }`}>
+            <div className="flex items-center gap-2 text-xs font-bold font-nepali">
+              {filterMode === 'today' && <Syringe size={16} className="text-emerald-600 shrink-0" />}
+              {filterMode === 'fully_immunized' && <ShieldCheck size={16} className="text-indigo-600 shrink-0" />}
+              {filterMode === 'partially_immunized' && <AlertTriangle size={16} className="text-amber-600 shrink-0" />}
+              {filterMode === 'all_fy' && <UsersRound size={16} className="text-blue-600 shrink-0" />}
               <span>
-                आज (मिति: <span className="font-mono text-emerald-950 font-black">{todayBs}</span>) खोप लगाएका बालबालिकाहरूको विवरण ({filteredRecords.length} जना)
+                {filterMode === 'today' && `आज (मिति: ${todayBs}) खोप लगाएका बालबालिकाहरूको विवरण (${filteredRecords.length} जना)`}
+                {filterMode === 'fully_immunized' && `पूर्ण खोप सुनिश्चित भएका बालबालिकाहरूको विवरण (${filteredRecords.length} जना)`}
+                {filterMode === 'partially_immunized' && `आंशिक / खोप बाँकी रहेका बालबालिकाहरूको विवरण (${filteredRecords.length} जना)`}
+                {filterMode === 'all_fy' && `सबै आर्थिक वर्षका सम्पूर्ण बालबालिकाहरूको विवरण (${filteredRecords.length} जना)`}
               </span>
             </div>
             <button
               type="button"
-              onClick={() => setFilterTodayOnly(false)}
-              className="text-xs text-emerald-700 hover:text-emerald-900 font-bold underline font-nepali"
+              onClick={() => setFilterMode('default')}
+              className="text-xs font-bold underline hover:opacity-80 transition-opacity font-nepali"
             >
-              सबै देखाउनुहोस्
+              फिल्टर हटाउनुहोस् (हालको सूची)
             </button>
           </div>
         )}
@@ -1619,8 +1689,12 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
               {filteredRecords.length === 0 && (
                 <tr>
                   <td colSpan={4} className="p-12 text-center text-slate-400 italic font-nepali">
-                    {filterTodayOnly 
+                    {filterMode === 'today' 
                       ? `आज (मिति: ${todayBs}) कुनै पनि बच्चालाई खोप लगाइएको छैन।`
+                      : filterMode === 'fully_immunized'
+                      ? 'पूर्ण खोप सुनिश्चित भएका कुनै पनि बच्चा भेटिएनन्।'
+                      : filterMode === 'partially_immunized'
+                      ? 'आंशिक / खोप बाँकी रहेका कुनै पनि बच्चा भेटिएनन्।'
                       : 'कुनै पनि बच्चाको खोप तालिका विवरण फेला परेन।'}
                   </td>
                 </tr>
