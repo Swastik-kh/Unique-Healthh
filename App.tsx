@@ -488,8 +488,12 @@ const App: React.FC = () => {
     return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
   };
 
-  const getOrgRef = (subPath: string) => {
-      const safeOrgName = sanitizeOrgName(activeOrgName);
+  const getOrgRef = (subPath: string, targetOrgName?: string) => {
+      let org = targetOrgName || activeOrgName;
+      if (!org || org === 'All') {
+        org = currentUser?.organizationName || 'default';
+      }
+      const safeOrgName = sanitizeOrgName(org);
       return ref(db, `orgData/${safeOrgName}/${subPath}`);
   };
 
@@ -722,13 +726,16 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
+      const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      sanitized._orgName = targetOrg;
+
       // Check for duplicates by regNo OR (childName + motherName + dobBs)
       const isDuplicate = bachhaImmunizationRecords.some(r => 
         (r.regNo === record.regNo || (
           r.childName?.trim().toLowerCase() === record.childName?.trim().toLowerCase() && 
           r.motherName?.trim().toLowerCase() === record.motherName?.trim().toLowerCase() &&
           r.dobBs === record.dobBs
-        )) && r.id !== record.id && r._orgName === activeOrgName
+        )) && r.id !== record.id && (r._orgName === targetOrg || activeOrgName === 'All')
       );
       
       if (isDuplicate) {
@@ -737,13 +744,13 @@ const App: React.FC = () => {
             r.childName?.trim().toLowerCase() === record.childName?.trim().toLowerCase() && 
             r.motherName?.trim().toLowerCase() === record.motherName?.trim().toLowerCase() &&
             r.dobBs === record.dobBs
-          )) && r.id !== record.id && r._orgName === activeOrgName
+          )) && r.id !== record.id && (r._orgName === targetOrg || activeOrgName === 'All')
         );
         alert(`बच्चा पहिले नै दर्ता भइसकेको छ (दर्ता नम्बर: ${existing?.regNo || record.regNo})। कृपया विवरण जाँच गर्नुहोस्।`);
         return;
       }
 
-      await set(getOrgRef(`bachhaImmunizationRecords/${record.id}`), sanitized);
+      await set(getOrgRef(`bachhaImmunizationRecords/${record.id}`, targetOrg), sanitized);
     } catch (error) {
       alert("खोप रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -752,7 +759,9 @@ const App: React.FC = () => {
   const handleDeleteBachhaImmunizationRecord = async (id: string) => {
     if (!currentUser) return;
     try {
-      await remove(getOrgRef(`bachhaImmunizationRecords/${id}`));
+      const record = bachhaImmunizationRecords.find(r => r.id === id);
+      const targetOrg = (record as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await remove(getOrgRef(`bachhaImmunizationRecords/${id}`, targetOrg));
     } catch (error) {
       alert("खोप रेकर्ड हटाउन सकिएन।");
     }
@@ -1927,7 +1936,20 @@ const App: React.FC = () => {
               alert("बिरामीको विवरण हटाउन सकिएन।");
             }
           }}
-          garbhawatiPatients={garbhawatiPatients} onAddGarbhawatiPatient={(p) => set(getOrgRef(`garbhawatiPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onUpdateGarbhawatiPatient={(p) => set(getOrgRef(`garbhawatiPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} onDeleteGarbhawatiPatient={(id) => remove(getOrgRef(`garbhawatiPatients/${id}`))}
+          garbhawatiPatients={garbhawatiPatients} 
+          onAddGarbhawatiPatient={(p) => {
+            const targetOrg = (p as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser?.organizationName || 'default');
+            set(getOrgRef(`garbhawatiPatients/${p.id}`, targetOrg), JSON.parse(JSON.stringify({ ...p, _orgName: targetOrg })));
+          }} 
+          onUpdateGarbhawatiPatient={(p) => {
+            const targetOrg = (p as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser?.organizationName || 'default');
+            set(getOrgRef(`garbhawatiPatients/${p.id}`, targetOrg), JSON.parse(JSON.stringify({ ...p, _orgName: targetOrg })));
+          }} 
+          onDeleteGarbhawatiPatient={(id) => {
+            const p = garbhawatiPatients.find(item => item.id === id);
+            const targetOrg = (p as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser?.organizationName || 'default');
+            remove(getOrgRef(`garbhawatiPatients/${id}`, targetOrg));
+          }}
           bachhaImmunizationRecords={bachhaImmunizationRecords} 
           onAddBachhaImmunizationRecord={handleSaveBachhaImmunizationRecord} 
           onUpdateBachhaImmunizationRecord={handleSaveBachhaImmunizationRecord} 
