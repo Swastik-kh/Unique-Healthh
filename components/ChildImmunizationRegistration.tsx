@@ -1001,12 +1001,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         if (showAllFiscalYears) {
           return true;
         }
-        // When searching, bypass fiscal year / immunization status check to find any matching child
-        if (!query) {
-          if (r.fiscalYear === currentFiscalYear) return true;
-          return !isChildFullyImmunized(r);
-        }
-        return true;
+        // Default view ("हालको खोप सूची"):
+        // 1. Children registered in current logged-in fiscal year (r.fiscalYear === currentFiscalYear or missing fiscalYear)
+        // 2. Children registered in previous fiscal years who have NOT completed all vaccinations (!isChildFullyImmunized(r))
+        const isCurrentFy = !r.fiscalYear || r.fiscalYear === currentFiscalYear;
+        const isPendingFromPrevFy = !isCurrentFy && !isChildFullyImmunized(r);
+
+        return isCurrentFy || isPendingFromPrevFy;
       })
       .filter(r => {
         if (!query) return true;
