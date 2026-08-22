@@ -125,6 +125,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   
   // Filters
   const [filterCenter, setFilterCenter] = useState('');
+  const [hideOtherAddress, setHideOtherAddress] = useState(false);
 
   const [filterFiscalYear, setFilterFiscalYear] = useState(currentFiscalYear);
   const [filterMonth, setFilterMonth] = useState(() => {
@@ -581,10 +582,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
       scheduledDateBs: string; // Will store the earliest date if multiple
   }
 
-  // Filter records based on Center and Search
+  // Filter records based on Center, Search, and Address Type
   const filteredBaseRecords = useMemo(() => {
     return records
       .filter(r => {
+        if (!r) return false;
+        if (hideOtherAddress && r.isOtherAddress) {
+          return false;
+        }
         const query = searchTerm.toLowerCase();
         const matchesSearch = !searchTerm || 
                              r.childName.toLowerCase().includes(query) || 
@@ -596,7 +601,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         const matchesCenter = filterCenter ? r.vaccinationCenter === filterCenter : true;
         return matchesSearch && matchesCenter;
       });
-  }, [records, searchTerm, filterCenter]);
+  }, [records, searchTerm, filterCenter, hideOtherAddress]);
 
   // Logic to determine target year from FY and Month
   const targetYearPrefix = useMemo(() => {
@@ -1338,12 +1343,31 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                   </div>
               )}
               <button 
-                  onClick={() => { setFilterCenter(''); setFilterVaccine(''); setSearchTerm(''); setFilterFiscalYear(currentFiscalYear); }} 
+                  onClick={() => { setFilterCenter(''); setFilterVaccine(''); setSearchTerm(''); setFilterFiscalYear(currentFiscalYear); setHideOtherAddress(false); }} 
                   className="flex items-center gap-2 px-4 py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs"
               >
                   <RotateCcw size={14}/> रिसेट
               </button>
               
+              {trackingTarget === 'child' && (
+                  <div className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-all ${
+                      hideOtherAddress 
+                          ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold shadow-xs' 
+                          : 'bg-slate-50/50 border-slate-200 text-slate-700'
+                  }`}>
+                      <input 
+                          type="checkbox" 
+                          id="hide-other-address-checkbox"
+                          checked={hideOtherAddress}
+                          onChange={(e) => setHideOtherAddress(e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <label htmlFor="hide-other-address-checkbox" className="text-xs font-bold select-none cursor-pointer font-nepali">
+                          अन्यत्र ठेगाना नदेखाउने
+                      </label>
+                  </div>
+              )}
+
               <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg bg-slate-50/50">
                   <input 
                       type="checkbox" 
