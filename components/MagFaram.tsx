@@ -255,13 +255,19 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
   };
 
   const printOfficialForm = () => {
+      // Check if user is on a mobile device or narrow screen
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '0';
+      // Set explicit layout dimensions so mobile browsers calculate full A4 layout resolution instead of 0px
+      iframe.style.width = '1024px';
+      iframe.style.height = '1448px';
       iframe.style.border = '0';
+      iframe.style.opacity = '0';
+      iframe.style.pointerEvents = 'none';
       document.body.appendChild(iframe);
 
       const doc = iframe.contentWindow?.document;
@@ -289,63 +295,68 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
         <html>
         <head>
           <title>Mag Faram Print</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 portrait; margin: 10mm; }
-            body { font-family: 'Mukta', sans-serif; padding: 0; margin: 0; background: white; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: A4 portrait; margin: 8mm; }
+            * { box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            html, body { width: 100% !important; margin: 0 !important; padding: 0 !important; background: white !important; color: #000 !important; font-family: 'Mukta', sans-serif; font-size: 13px; line-height: 1.3; }
+            .print-wrapper { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; padding: 0 !important; box-sizing: border-box !important; }
             .header-red { color: #dc2626 !important; }
             
-            table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1.5px solid black; }
-            th, td { border: 1px solid black; padding: 6px 8px; font-size: 14px; vertical-align: middle; }
-            th { background-color: #f3f4f6; font-weight: 800; font-size: 15px; }
+            table { width: 100% !important; border-collapse: collapse !important; margin-top: 14px !important; border: 1.5px solid black !important; table-layout: auto !important; }
+            th, td { border: 1px solid black !important; padding: 5px 6px !important; font-size: 13px !important; vertical-align: middle !important; word-break: break-word; }
+            th { background-color: #f3f4f6 !important; font-weight: 800 !important; font-size: 13px !important; }
             
-            .dotted-line { border-bottom: 1px dotted black; display: inline-block; min-width: 120px; text-align: center; font-weight: bold; }
-            .checkbox-box { display: inline-block; width: 16px; height: 16px; border: 1px solid black; margin-right: 6px; vertical-align: middle; position: relative; }
-            .checkbox-box.checked::after { content: '✓'; position: absolute; top: -6px; left: 2px; font-size: 20px; font-weight: bold; }
+            .dotted-line { border-bottom: 1px dotted black; display: inline-block; min-width: 100px; text-align: center; font-weight: bold; }
+            .checkbox-box { display: inline-block; width: 14px; height: 14px; border: 1px solid black; margin-right: 5px; vertical-align: middle; position: relative; }
+            .checkbox-box.checked::after { content: '✓'; position: absolute; top: -7px; left: 1px; font-size: 16px; font-weight: bold; }
             
             /* Header Specifics */
-            .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; position: relative; }
+            .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; width: 100%; }
             .logo-container { width: 15%; text-align: left; }
             .center-text { text-align: center; width: 70%; }
             .form-no-container { width: 15%; text-align: right; }
             
-            .form-no-box { border: 1px solid black; padding: 4px 10px; font-size: 12px; font-weight: bold; display: inline-block; }
+            .form-no-box { border: 1px solid black; padding: 3px 8px; font-size: 11px; font-weight: bold; display: inline-block; white-space: nowrap; }
             
-            .org-name { font-size: 28px; font-weight: 900; line-height: 1.2; margin: 0; margin-bottom: 5px; }
-            .office-name { font-size: 18px; font-weight: 700; margin: 2px 0; }
-            .sub-title { font-size: 16px; font-weight: 600; margin: 2px 0; }
-            .sub-title-3 { font-size: 14px; font-weight: 600; margin: 2px 0; }
-            .address-text { font-size: 14px; margin-top: 4px; font-weight: 500; }
+            .org-name { font-size: 24px; font-weight: 900; line-height: 1.2; margin: 0; margin-bottom: 4px; }
+            .office-name { font-size: 15px; font-weight: 700; margin: 2px 0; }
+            .sub-title { font-size: 14px; font-weight: 600; margin: 2px 0; }
+            .sub-title-3 { font-size: 13px; font-weight: 600; margin: 2px 0; }
+            .address-text { font-size: 12px; margin-top: 3px; font-weight: 500; }
             
-            .form-title { margin-top: 20px; font-size: 24px; font-weight: 900; text-decoration: underline; text-underline-offset: 6px; }
+            .form-title { margin-top: 14px; font-size: 22px; font-weight: 900; text-decoration: underline; text-underline-offset: 5px; }
             
-            /* Updated Meta Info for Print */
-            .meta-info-container { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+            /* Meta Info for Print */
+            .meta-info-container { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; margin-bottom: 5px; font-weight: bold; font-size: 13px; width: 100%; }
             
-            .signatures-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 40px; font-size: 14px; }
-            .sig-block { margin-bottom: 30px; }
-            .sig-title { font-weight: 800; border-bottom: 1px solid black; display: inline-block; margin-bottom: 12px; font-size: 15px; }
-            .sig-line { margin-bottom: 8px; display: flex; align-items: center; }
-            .w-label { width: 60px; display: inline-block; font-weight: 600; }
+            .signatures-grid { display: flex; justify-content: space-between; gap: 30px; margin-top: 30px; font-size: 12px; width: 100%; }
+            .signatures-grid > div { width: 48%; }
+            .sig-block { margin-bottom: 24px; }
+            .sig-title { font-weight: 800; border-bottom: 1px solid black; display: inline-block; margin-bottom: 8px; font-size: 13px; }
+            .sig-line { margin-bottom: 6px; display: flex; align-items: center; }
+            .w-label { width: 55px; display: inline-block; font-weight: 600; flex-shrink: 0; }
           </style>
         </head>
         <body>
-          <div style="width: 100%; max-width: 210mm; margin: 0 auto;">
+          <div class="print-wrapper">
             
             <!-- Header Section -->
             <div class="header-container">
                <!-- Logo -->
                <div class="logo-container">
-                  <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 90px; height: auto;" />
+                  <img src="${generalSettings.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" style="width: 80px; height: auto;" />
                </div>
 
                <!-- Center Text -->
                <div class="center-text">
                   <h1 class="header-red org-name">${generalSettings.orgNameNepali}</h1>
                   ${generalSettings.subTitleNepali ? `<p class="office-name" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali}</p>` : ''}
-                  ${generalSettings.subTitleNepali2 ? `<p class="sub-title" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali2}</p>` : ''}
-                  ${generalSettings.subTitleNepali3 ? `<p class="sub-title-3" style="font-size: 14px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali3}</p>` : ''}
-                  ${generalSettings.subTitleNepali4 ? `<p class="sub-title-4" style="font-size: 12px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali4}</p>` : ''}
+                  ${generalSettings.subTitleNepali2 ? `<p class="sub-title" style="font-size: 13px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali2}</p>` : ''}
+                  ${generalSettings.subTitleNepali3 ? `<p class="sub-title-3" style="font-size: 12px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali3}</p>` : ''}
+                  ${generalSettings.subTitleNepali4 ? `<p class="sub-title-4" style="font-size: 11px; font-weight: bold; margin: 2px 0;">${generalSettings.subTitleNepali4}</p>` : ''}
                   <div class="address-text">${[generalSettings.address, generalSettings.phone ? `फोन: ${generalSettings.phone}` : '', generalSettings.email ? `ईमेल: ${generalSettings.email}` : ''].filter(Boolean).join(' | ')}</div>
                   <div class="form-title">माग फारम</div>
                </div>
@@ -364,7 +375,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   आर्थिक वर्ष: <span class="dotted-line">${toNepaliNumber(formDetails.fiscalYear)}</span>
                </div>
                <div style="text-align: right;">
-                  <div style="margin-bottom: 6px;">माग नं: <span class="header-red dotted-line">#${toNepaliNumber(formDetails.formNo)}</span></div>
+                  <div style="margin-bottom: 4px;">माग नं: <span class="header-red dotted-line">#${toNepaliNumber(formDetails.formNo)}</span></div>
                   <div>मिति: <span class="dotted-line">${toNepaliNumber(formDetails.date)}</span></div>
                </div>
             </div>
@@ -373,10 +384,10 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
             <table>
               <thead>
                 <tr>
-                  <th rowspan="2" style="width: 50px;">क्र.सं.</th>
+                  <th rowspan="2" style="width: 45px;">क्र.सं.</th>
                   <th colspan="2">जिन्सी मालसामानको विवरण</th>
-                  <th rowspan="2" style="width: 70px;">एकाई</th>
-                  <th rowspan="2" style="width: 100px;">माग गरिएको<br/>परिमाण</th>
+                  <th rowspan="2" style="width: 65px;">एकाई</th>
+                  <th rowspan="2" style="width: 90px;">माग गरिएको<br/>परिमाण</th>
                   <th rowspan="2">कैफियत</th>
                 </tr>
                 <tr>
@@ -398,10 +409,10 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   <div class="sig-line"><span class="w-label">नाम:</span> <span style="font-weight: bold;">${formDetails.demandBy?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span>${formDetails.demandBy?.designation || ''}</span></div>
                   <div class="sig-line"><span class="w-label">मिति:</span> <span>${toNepaliNumber(formDetails.demandBy?.date || '')}</span></div>
-                  <div class="sig-line"><span class="w-label">प्रयोजन:</span> <span class="dotted-line" style="text-align: left; padding-left: 5px; min-width: 150px;">${formDetails.demandBy?.purpose || ''}</span></div>
+                  <div class="sig-line"><span class="w-label">प्रयोजन:</span> <span class="dotted-line" style="text-align: left; padding-left: 5px; min-width: 140px;">${formDetails.demandBy?.purpose || ''}</span></div>
                 </div>
 
-                <div class="sig-block" style="margin-top: 40px;">
+                <div class="sig-block" style="margin-top: 30px;">
                   <div class="sig-title">मालसामान बुझिलिनेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span class="dotted-line">${formDetails.receiver?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span class="dotted-line">${formDetails.receiver?.designation || ''}</span></div>
@@ -412,8 +423,8 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
               <!-- Right Column -->
               <div>
                 <div class="sig-block">
-                  <div style="margin-bottom: 15px; font-size: 14px;">
-                     <div style="margin-bottom: 6px;"><span class="checkbox-box ${marketChecked}"></span> बजारबाट खरिद गर्नु पर्ने</div>
+                  <div style="margin-bottom: 12px; font-size: 13px;">
+                     <div style="margin-bottom: 4px;"><span class="checkbox-box ${marketChecked}"></span> बजारबाट खरिद गर्नु पर्ने</div>
                      <div><span class="checkbox-box ${stockChecked}"></span> मौज्दातमा रहेको</div>
                   </div>
                   <div class="sig-title">सिफारिस गर्नेको दस्तखत</div>
@@ -422,7 +433,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
                   <div class="sig-line"><span class="w-label">मिति:</span> <span class="dotted-line">${toNepaliNumber(formDetails.recommendedBy?.date || '')}</span></div>
                 </div>
 
-                <div class="sig-block" style="margin-top: 40px;">
+                <div class="sig-block" style="margin-top: 30px;">
                   <div class="sig-title">स्वीकृत गर्नेको दस्तखत</div>
                   <div class="sig-line"><span class="w-label">नाम:</span> <span class="dotted-line">${formDetails.approvedBy?.name || ''}</span></div>
                   <div class="sig-line"><span class="w-label">पद:</span> <span class="dotted-line">${formDetails.approvedBy?.designation || ''}</span></div>
@@ -433,13 +444,23 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
 
           </div>
           <script>
-             window.onload = function() { setTimeout(function() { window.print(); }, 800); };
+             function triggerPrint() {
+                setTimeout(function() {
+                   window.focus();
+                   window.print();
+                }, ${isMobile ? 1000 : 600});
+             }
+             if (document.readyState === 'complete') {
+                triggerPrint();
+             } else {
+                window.addEventListener('load', triggerPrint);
+             }
           </script>
         </body>
         </html>
       `);
       doc.close();
-      setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 5000);
+      setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 6000);
   };
 
   const handleSnMouseEnter = (e: React.MouseEvent, itemName: string) => {
@@ -552,7 +573,7 @@ export const MagFaram: React.FC<MagFaramProps> = ({ currentFiscalYear, currentUs
        {validationError && <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl shadow-sm flex items-center gap-3 animate-in slide-in-from-top-2 no-print"><AlertCircle size={24} className="text-red-500" /><div className="flex-1 font-bold text-red-800">{validationError}</div><button onClick={() => setValidationError(null)}><X size={20}/></button></div>}
 
        <div className="overflow-x-auto pb-8">
-         <div className="bg-white p-10 md:p-14 w-[210mm] min-w-[210mm] mx-auto min-h-[297mm] font-nepali text-slate-900 shadow-2xl rounded-xl relative">
+         <div className="bg-white p-4 sm:p-8 md:p-14 w-full max-w-[210mm] mx-auto min-h-[297mm] font-nepali text-slate-900 shadow-2xl rounded-xl relative">
             {hoveredStock && (
               <div 
                   className="fixed z-[9999] bg-slate-800 text-white p-2.5 rounded-lg shadow-xl pointer-events-none animate-in fade-in zoom-in-95 duration-150 no-print border border-slate-700/50 backdrop-blur-sm"
