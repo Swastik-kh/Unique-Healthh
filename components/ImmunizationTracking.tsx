@@ -207,13 +207,13 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     const center = child.vaccinationCenter || 'खोप केन्द्र';
     const phone = child.phone || '';
 
-    const childClause = hasAssignedName(child) ? ` बच्चा ${child.childName}` : '';
+    const childClause = hasAssignedName(child) ? ` बच्चा ${child.childName} को` : ' बच्चाको';
 
     let template = '';
     if (view === 'upcoming') {
-      template = `नमस्ते! हजुरको${childClause} को खोप (${vaxNames}) लगाउन मिति ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको${childClause} खोप (${vaxNames}) लगाउन मिति ${scheduledDateBs} मा खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     } else {
-      template = `नमस्ते! हजुरको${childClause} को खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
+      template = `नमस्ते! हजुरको${childClause} खोप (${vaxNames}) छुटेकाले खोप कार्ड लिई ${center} मा उपस्थित हुनुहोला। - ${userOrg}`;
     }
 
     setSmsMode('single');
@@ -289,6 +289,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         } else {
           personalizedMessage = personalizedMessage
             .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
+            .replaceAll('{बच्चाको_नाम} को', 'बच्चाको')
             .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
             .replaceAll('{बच्चाको_नाम}', '');
         }
@@ -2579,6 +2580,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                               } else {
                                 previewMsg = previewMsg
                                   .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
+                                  .replaceAll('{बच्चाको_नाम} को', 'बच्चाको')
                                   .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
                                   .replaceAll('{बच्चाको_नाम}', '');
                               }
