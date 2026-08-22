@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -1233,7 +1233,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         )}
 
         {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 print:hidden">
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
@@ -1279,6 +1279,26 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             </div>
             <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
               <Receipt size={18} />
+            </div>
+          </div>
+
+          <div className={`p-4 rounded-2xl border shadow-sm flex items-center justify-between ${
+            (currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)) >= 0
+              ? 'bg-gradient-to-br from-teal-50 to-teal-100/50 border-teal-200/60 text-teal-900'
+              : 'bg-gradient-to-br from-rose-50 to-red-100/50 border-red-200/60 text-red-900'
+          }`}>
+            <div>
+              <p className="text-xs font-bold font-nepali">बचत (Net Savings)</p>
+              <p className="text-lg font-extrabold mt-1 font-mono">
+                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)).toLocaleString()}
+              </p>
+            </div>
+            <div className={`p-2.5 bg-white rounded-xl shadow-sm ${
+              (currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)) >= 0
+                ? 'text-teal-600'
+                : 'text-red-600'
+            }`}>
+              <Wallet size={18} />
             </div>
           </div>
         </div>

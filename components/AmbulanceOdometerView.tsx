@@ -3,7 +3,8 @@ import { AmbulanceOdometerRecord, AmbulanceRecord, AmbulanceExpenseRecord, User,
 import { 
   Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Truck, 
   AlertCircle, FileText, Gauge, Printer, Download, Sparkles, TrendingUp, 
-  CheckCircle2, Fuel, RefreshCw, Compass, ArrowRight, ShieldAlert, X
+  CheckCircle2, Fuel, RefreshCw, Compass, ArrowRight, ShieldAlert, X,
+  Wallet
 } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -272,7 +273,8 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
         ? (matchingOdo.totalDistanceKm !== undefined ? matchingOdo.totalDistanceKm : (matchingOdo.endOdometer - matchingOdo.startOdometer))
         : 0;
 
-      const mileage = totalFuelLiters > 0 && odoDistance > 0 ? (odoDistance / totalFuelLiters) : 0;
+      const effectiveDistance = tripsDistance > 0 ? tripsDistance : odoDistance;
+      const mileage = totalFuelLiters > 0 && effectiveDistance > 0 ? (effectiveDistance / totalFuelLiters) : 0;
       const variance = matchingOdo ? (odoDistance - tripsDistance) : 0;
 
       return {
@@ -296,11 +298,10 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
   // Overall Annual Stats
   const annualSummary = useMemo(() => {
     const recordedMonths = monthlyOdometerReport.filter(m => m.isRecorded);
-    const totalDistance = recordedMonths.reduce((sum, m) => sum + m.distanceKm, 0);
+    const totalDistance = monthlyOdometerReport.reduce((sum, m) => sum + m.distanceKm, 0);
     const totalTripsDistance = monthlyOdometerReport.reduce((sum, m) => sum + m.tripsDistance, 0);
-    const totalFuel = recordedMonths.reduce((sum, m) => sum + m.fuelLiters, 0);
+    const totalFuel = monthlyOdometerReport.reduce((sum, m) => sum + m.fuelLiters, 0);
     const totalTripsCount = monthlyOdometerReport.reduce((sum, m) => sum + m.tripsCount, 0);
-    const totalIncome = monthlyOdometerReport.reduce((sum, m) => sum + m.tripsIncome, 0);
     const totalFuelCost = monthlyOdometerReport.reduce((sum, m) => sum + m.fuelCost, 0);
 
     const startOdos = recordedMonths.map(m => m.startOdometer).filter(v => v !== undefined) as number[];
@@ -309,7 +310,37 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
     const openingOdometer = startOdos.length > 0 ? startOdos[0] : undefined;
     const latestClosingOdometer = endOdos.length > 0 ? endOdos[endOdos.length - 1] : undefined;
 
-    const avgMileage = totalFuel > 0 && totalDistance > 0 ? (totalDistance / totalFuel) : 0;
+    const mileageDistance = totalTripsDistance > 0 ? totalTripsDistance : totalDistance;
+    const avgMileage = totalFuel > 0 && mileageDistance > 0 ? (mileageDistance / totalFuel) : 0;
+
+    // Total Received Income from tripRecords in selected Fiscal Year
+    const filteredTripRecords = tripRecords.filter(t => {
+      if (t.fiscalYear && t.fiscalYear !== selectedFiscalYear) return false;
+      if (selectedVehicle && t.ambulanceNo && t.ambulanceNo.trim().toLowerCase() !== selectedVehicle.trim().toLowerCase()) return false;
+      if (selectedDriver && t.driverName && t.driverName.trim().toLowerCase() !== selectedDriver.trim().toLowerCase()) return false;
+      return true;
+    });
+
+    const totalReceived = filteredTripRecords.reduce((sum, t) => {
+      const rec = Number(t.receivedAmount);
+      const chg = Number(t.amountCharged);
+      if (!isNaN(rec) && rec > 0) return sum + rec;
+      if (!isNaN(chg) && chg > 0) return sum + chg;
+      return sum;
+    }, 0);
+
+    // Total Expenses from expenseRecords in selected Fiscal Year
+    const filteredExpenseRecords = expenseRecords.filter(e => {
+      if (e.fiscalYear && e.fiscalYear !== selectedFiscalYear) return false;
+      if (selectedVehicle && e.ambulanceNo && e.ambulanceNo.trim().toLowerCase() !== selectedVehicle.trim().toLowerCase()) return false;
+      if (selectedDriver && e.driverName && e.driverName.trim().toLowerCase() !== selectedDriver.trim().toLowerCase()) return false;
+      return true;
+    });
+
+    const totalExpense = filteredExpenseRecords.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    // Bachat (Savings)
+    const bachat = totalReceived - totalExpense;
 
     return {
       recordedCount: recordedMonths.length,
@@ -317,13 +348,15 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
       totalTripsDistance,
       totalFuel,
       totalTripsCount,
-      totalIncome,
+      totalReceived,
+      totalExpense,
+      bachat,
       totalFuelCost,
       openingOdometer,
       latestClosingOdometer,
       avgMileage
     };
-  }, [monthlyOdometerReport]);
+  }, [monthlyOdometerReport, tripRecords, expenseRecords, selectedFiscalYear, selectedVehicle, selectedDriver]);
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -511,7 +544,7 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
       </div>
 
       {/* Annual Summary KPI Cards (Screen View) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 print:hidden">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 print:hidden">
         {/* Card 1: Annual Distance */}
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-sm space-y-1">
           <div className="flex items-center justify-between text-indigo-100 text-xs font-nepali font-semibold">
@@ -542,7 +575,7 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
           </p>
         </div>
 
-        {/* Card 3: Total Fuel Consumed */}
+        {/* Card 3: Total Fuel Consumed (All Months of Fiscal Year) */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-nepali font-semibold">
             <span>कुल इन्धन खपत</span>
@@ -551,7 +584,7 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
           <p className="text-2xl font-black font-nepali text-amber-600">
             {toNepaliDigits(annualSummary.totalFuel.toFixed(1))} <span className="text-xs font-normal">लिटर</span>
           </p>
-          <p className="text-[10px] text-slate-400 font-nepali">
+          <p className="text-[10px] text-slate-400 font-nepali truncate">
             इन्धन खर्च: रु. {toNepaliDigits(annualSummary.totalFuelCost.toFixed(2))}
           </p>
         </div>
@@ -566,12 +599,30 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
             {annualSummary.avgMileage > 0 ? toNepaliDigits(annualSummary.avgMileage.toFixed(2)) : '-'} <span className="text-xs font-normal">KM/L</span>
           </p>
           <p className="text-[10px] text-slate-400 font-nepali">
-            प्रति लिटर तय हुने दूरी
+            लगबुक दूरी र इन्धनका आधारमा
           </p>
         </div>
 
-        {/* Card 5: Trip Logs Comparison */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1 col-span-2 lg:col-span-1">
+        {/* Card 5: Savings (बचत = कुल प्राप्त - कुल खर्च) */}
+        <div className={`p-4 rounded-2xl border shadow-sm space-y-1 ${
+          annualSummary.bachat >= 0 
+            ? 'bg-emerald-50/70 border-emerald-200' 
+            : 'bg-rose-50/70 border-rose-200'
+        }`}>
+          <div className="flex items-center justify-between text-slate-700 text-xs font-nepali font-bold">
+            <span>बचत (आय - खर्च)</span>
+            <Wallet size={16} className={annualSummary.bachat >= 0 ? 'text-emerald-600' : 'text-rose-600'} />
+          </div>
+          <p className={`text-xl font-black font-nepali tracking-tight ${annualSummary.bachat >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+            रु. {toNepaliDigits(annualSummary.bachat.toFixed(2))}
+          </p>
+          <p className="text-[9px] text-slate-500 font-nepali truncate">
+            प्राप्त: रु. {toNepaliDigits(annualSummary.totalReceived.toFixed(0))} | खर्च: रु. {toNepaliDigits(annualSummary.totalExpense.toFixed(0))}
+          </p>
+        </div>
+
+        {/* Card 6: Trip Logs Comparison */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-slate-500 text-xs font-nepali font-semibold">
             <span>लगबुक यात्रा दूरी</span>
             <FileText size={16} className="text-rose-500" />

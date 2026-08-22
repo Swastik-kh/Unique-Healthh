@@ -1078,7 +1078,8 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
-      await set(getOrgRef(`ambulanceExpenseRecords/${record.id}`), sanitized);
+      const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await set(getOrgRef(`ambulanceExpenseRecords/${record.id}`, targetOrg), sanitized);
     } catch (error) {
       alert("एम्बुलेन्स खर्च रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -1087,7 +1088,9 @@ const App: React.FC = () => {
   const handleDeleteAmbulanceExpense = async (id: string) => {
     if (!currentUser) return;
     try {
-      await remove(getOrgRef(`ambulanceExpenseRecords/${id}`));
+      const rec = ambulanceExpenseRecords.find(r => r.id === id);
+      const targetOrg = (rec as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await remove(getOrgRef(`ambulanceExpenseRecords/${id}`, targetOrg));
     } catch (error) {
       alert("एम्बुलेन्स खर्च रेकर्ड हटाउन सकिएन।");
     }
@@ -1097,7 +1100,8 @@ const App: React.FC = () => {
     if (!currentUser) return;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
-      await set(getOrgRef(`ambulanceOdometerRecords/${record.id}`), sanitized);
+      const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await set(getOrgRef(`ambulanceOdometerRecords/${record.id}`, targetOrg), sanitized);
     } catch (error) {
       alert("ओडोमिटर रेकर्ड सुरक्षित गर्न सकिएन।");
     }
@@ -1106,11 +1110,65 @@ const App: React.FC = () => {
   const handleDeleteAmbulanceOdometerRecord = async (id: string) => {
     if (!currentUser) return;
     try {
-      await remove(getOrgRef(`ambulanceOdometerRecords/${id}`));
+      const rec = ambulanceOdometerRecords.find(r => r.id === id);
+      const targetOrg = (rec as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await remove(getOrgRef(`ambulanceOdometerRecords/${id}`, targetOrg));
     } catch (error) {
       alert("ओडोमिटर रेकर्ड हटाउन सकिएन।");
     }
   };
+
+  // Auto-purge Ambulance Odometer and Fuel Expense Records strictly for Shrawan (Month 04) of Fiscal Year 2083/084
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const isFy2083_084 = (fy?: string) => {
+      if (!fy) return false;
+      const clean = fy.replace(/[^0-9]/g, '');
+      return clean === '2083084' || clean === '208384' || fy.includes('2083/084') || fy.includes('२०८३/०८४');
+    };
+
+    const isShrawan = (month?: string, dateBs?: string) => {
+      if (month) {
+        const m = month.trim();
+        if (m === '04' || m === '4' || m.toLowerCase().includes('shrawan') || m.includes('साउन') || m.includes('श्रावण')) {
+          return true;
+        }
+      }
+      if (dateBs) {
+        const parts = dateBs.split(/[-/]/);
+        if (parts.length >= 2) {
+          const year = parts[0].replace(/[^0-9]/g, '');
+          const m = parts[1].padStart(2, '0');
+          if (m === '04' && (year === '2083' || year === '२०८३')) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    // 1. Delete matching ambulanceOdometerRecords for Shrawan 2083/084
+    ambulanceOdometerRecords.forEach((rec) => {
+      if (isFy2083_084(rec.fiscalYear) && isShrawan(rec.month)) {
+        const targetOrg = (rec as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+        remove(getOrgRef(`ambulanceOdometerRecords/${rec.id}`, targetOrg)).catch(() => {});
+      }
+    });
+
+    // 2. Delete matching fuel ambulanceExpenseRecords for Shrawan 2083/084
+    ambulanceExpenseRecords.forEach((rec) => {
+      const isFuel = rec.expenseCategory === 'fuel' || !!rec.fuelLiters;
+      if (
+        isFuel &&
+        (isFy2083_084(rec.fiscalYear) || isShrawan(undefined, rec.dateBs)) &&
+        isShrawan(rec.month, rec.dateBs)
+      ) {
+        const targetOrg = (rec as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+        remove(getOrgRef(`ambulanceExpenseRecords/${rec.id}`, targetOrg)).catch(() => {});
+      }
+    });
+  }, [ambulanceOdometerRecords, ambulanceExpenseRecords, currentUser, activeOrgName]);
 
   const handleSaveIPDRecord = async (record: IPDRecord) => {
     if (!currentUser) return;
