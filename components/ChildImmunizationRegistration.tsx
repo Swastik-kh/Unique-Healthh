@@ -249,6 +249,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTodayOnly, setFilterTodayOnly] = useState(false);
+  const [showAllFiscalYears, setShowAllFiscalYears] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -316,6 +317,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
     const listTitle = filterTodayOnly
       ? `आज (मिति: ${todayBs}) खोप लगाएका बालबालिकाहरूको सूची`
+      : showAllFiscalYears
+      ? 'सबै आर्थिक वर्षका बालबालिका खोप दर्ता विवरण सूची'
       : 'बालबालिका खोप तालिका दर्ता विवरण सूची';
 
     const rowsHtml = filteredRecords.map((rec, idx) => {
@@ -995,6 +998,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         if (filterTodayOnly) {
           return hasVaccinatedToday(r);
         }
+        if (showAllFiscalYears) {
+          return true;
+        }
         // When searching, bypass fiscal year / immunization status check to find any matching child
         if (!query) {
           if (r.fiscalYear === currentFiscalYear) return true;
@@ -1031,15 +1037,15 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         // Final fallback to ID descending
         return (b.id || '').localeCompare(a.id || '');
       });
-  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, hasVaccinatedToday]);
+  }, [records, currentFiscalYear, searchTerm, filterTodayOnly, showAllFiscalYears, hasVaccinatedToday]);
 
   return (
     <div className="space-y-6">
       {/* Attractive Dashboard for Child Immunization */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 no-print">
         <div 
-          onClick={() => setFilterTodayOnly(false)}
-          className={`bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${!filterTodayOnly ? 'ring-2 ring-blue-300 shadow-md' : 'opacity-95 hover:opacity-100'}`}
+          onClick={() => { setShowAllFiscalYears(true); setFilterTodayOnly(false); }}
+          className={`bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-between overflow-hidden relative group cursor-pointer transition-all ${showAllFiscalYears ? 'ring-2 ring-blue-300 shadow-md' : 'opacity-95 hover:opacity-100'}`}
         >
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
             <UsersRound size={100} />
@@ -1411,19 +1417,19 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
               <button
                 type="button"
-                onClick={() => setFilterTodayOnly(false)}
+                onClick={() => { setFilterTodayOnly(false); setShowAllFiscalYears(false); }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all font-nepali ${
-                  !filterTodayOnly
+                  !filterTodayOnly && !showAllFiscalYears
                     ? 'bg-white text-slate-800 shadow-xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                सबै सूची ({records.length})
+                हालको खोप सूची
               </button>
               
               <button
                 type="button"
-                onClick={() => setFilterTodayOnly(true)}
+                onClick={() => { setFilterTodayOnly(true); setShowAllFiscalYears(false); }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
                   filterTodayOnly
                     ? 'bg-emerald-600 text-white shadow-xs'
@@ -1431,6 +1437,19 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 }`}
               >
                 <Syringe size={14} /> आज खोप लगाएका ({stats.todayVaccinatedCount})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setShowAllFiscalYears(true); setFilterTodayOnly(false); }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-nepali ${
+                  showAllFiscalYears
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-indigo-700 hover:bg-indigo-50'
+                }`}
+                title="सबै आर्थिक वर्षका सबै बालबालिका रेकर्डहरू सूचीमा देखाउनुहोस्"
+              >
+                <UsersRound size={14} /> सबै आ.व. का रेकर्ड ({records.length})
               </button>
             </div>
 
