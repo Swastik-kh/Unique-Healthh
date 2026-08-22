@@ -7,6 +7,7 @@ import { Input } from './Input';
 import { Select } from './Select';
 import { SearchableSelect } from './SearchableSelect';
 import { NepaliDatePicker } from './NepaliDatePicker';
+import { toNepaliNumber } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -246,10 +247,16 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
         return;
     }
 
-    // Force values into input attributes for printing
+    // Force values into input attributes for printing, converting digits to Nepali digits
     const inputs = printContent.querySelectorAll('input');
     inputs.forEach((input: any) => {
-        input.setAttribute('value', input.value);
+        if (input.type === 'checkbox') {
+            if (input.checked) {
+                input.setAttribute('checked', 'checked');
+            }
+        } else {
+            input.setAttribute('value', toNepaliNumber(input.value));
+        }
     });
 
     const iframe = document.createElement('iframe');
@@ -470,7 +477,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           
                           <div className="text-sm mt-1 font-medium">
                               {generalSettings.address && <span>{generalSettings.address}</span>}
-                              {generalSettings.phone && <span> | फोन: {generalSettings.phone}</span>}
+                              {generalSettings.phone && <span> | फोन: {toNepaliNumber(generalSettings.phone)}</span>}
                               {generalSettings.email && <span> | ईमेल: {generalSettings.email}</span>}
                           </div>
                       </div>
@@ -510,11 +517,11 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           </div>
                           <div className="flex gap-2">
                               <span className="w-40">स्थायी लेखा (PAN/VAT) नम्बर:</span>
-                              <span className="font-bold border-b border-dotted border-slate-800 flex-1">{formData.vendorDetails?.pan}</span>
+                              <span className="font-bold border-b border-dotted border-slate-800 flex-1">{toNepaliNumber(formData.vendorDetails?.pan)}</span>
                           </div>
                           <div className="flex gap-2">
                               <span className="w-16">फोन नं.</span>
-                              <span className="font-bold border-b border-dotted border-slate-800 flex-1">{formData.vendorDetails?.phone}</span>
+                              <span className="font-bold border-b border-dotted border-slate-800 flex-1">{toNepaliNumber(formData.vendorDetails?.phone)}</span>
                           </div>
                       </div>
 
@@ -522,12 +529,12 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                       <div className="w-1/3 space-y-2 text-right">
                           <div className="flex justify-end gap-2">
                               <span>आर्थिक वर्ष :</span>
-                              <span className="font-bold w-24 text-center">{formData.fiscalYear}</span>
+                              <span className="font-bold w-24 text-center">{toNepaliNumber(formData.fiscalYear)}</span>
                           </div>
                           <div className="flex justify-end gap-2 items-center">
                               <span>खरिद आदेश नं :</span>
                               <input 
-                                  value={formData.orderNo || ''} 
+                                  value={toNepaliNumber(formData.orderNo || '')} 
                                   readOnly 
                                   className="w-24 text-right border-b border-dotted border-slate-800 bg-transparent outline-none font-bold text-red-600" 
                                   placeholder="Auto"
@@ -546,7 +553,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           <div className="flex justify-end gap-2 items-center">
                               <span>खरिद सम्बन्धी निर्णय नं :</span>
                               <input 
-                                  value={formData.decisionNo || ''} 
+                                  value={canEdit ? (formData.decisionNo || '') : toNepaliNumber(formData.decisionNo || '')} 
                                   onChange={(e) => setFormData({...formData, decisionNo: e.target.value})}
                                   disabled={!canEdit}
                                   className="w-24 text-right border-b border-dotted border-slate-800 bg-transparent outline-none" 
@@ -589,10 +596,10 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                       <tbody>
                           {formData.items.map((item, index) => (
                               <tr key={index}>
-                                  <td className="border border-slate-900 p-1">{index + 1}</td>
+                                  <td className="border border-slate-900 p-1">{toNepaliNumber(index + 1)}</td>
                                   <td className="border border-slate-900 p-1">
-                                      <div className="hidden print-only font-bold text-black">{item.codeNo}</div>
-                                      <input value={item.codeNo || ''} onChange={e => handleItemChange(index, 'codeNo', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none no-print-view" />
+                                      <div className="hidden print-only font-bold text-black">{toNepaliNumber(item.codeNo)}</div>
+                                      <input value={canEdit ? (item.codeNo || '') : toNepaliNumber(item.codeNo || '')} onChange={e => handleItemChange(index, 'codeNo', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none no-print-view" />
                                   </td>
                                   <td className="border border-slate-900 p-1 text-left px-2 font-black text-black" title={getLowestQuoteTooltip(item.name) || ''}>
                                       <div className="hidden print-only font-black text-black">{item.name}</div>
@@ -614,22 +621,25 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                       </div>
                                   </td>
                                   <td className="border border-slate-900 p-1">
-                                      <input value={item.specification} onChange={e => handleItemChange(index, 'specification', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none" />
+                                      <div className="hidden print-only font-bold text-black">{toNepaliNumber(item.specification)}</div>
+                                      <input value={item.specification || ''} onChange={e => handleItemChange(index, 'specification', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none no-print-view" />
                                   </td>
                                   <td className="border border-slate-900 p-1">
-                                      <input value={item.model || ''} onChange={e => handleItemChange(index, 'model', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none" />
+                                      <div className="hidden print-only font-bold text-black">{toNepaliNumber(item.model)}</div>
+                                      <input value={item.model || ''} onChange={e => handleItemChange(index, 'model', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none no-print-view" />
                                   </td>
                                   <td className="border border-slate-900 p-1">
-                                      <input value={item.unit} onChange={e => handleItemChange(index, 'unit', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none" />
+                                      <input value={item.unit || ''} onChange={e => handleItemChange(index, 'unit', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-center outline-none" />
                                   </td>
                                   <td className="border border-slate-900 p-1 font-bold">
-                                      {item.quantity}
+                                      {toNepaliNumber(item.quantity)}
                                   </td>
                                   <td className="border border-slate-900 p-1">
-                                      <input type="number" value={item.rate || ''} onChange={e => handleItemChange(index, 'rate', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-right outline-none" placeholder="" />
+                                      <div className="hidden print-only font-bold text-black text-right">{toNepaliNumber(item.rate ? Number(item.rate).toFixed(2) : '')}</div>
+                                      <input type={canEdit ? "number" : "text"} value={canEdit ? (item.rate || '') : toNepaliNumber(item.rate ? Number(item.rate).toFixed(2) : '')} onChange={e => handleItemChange(index, 'rate', e.target.value)} disabled={!canEdit} className="w-full bg-transparent text-right outline-none no-print-view" placeholder="" />
                                   </td>
                                   <td className="border border-slate-900 p-1 text-right px-2 font-bold">
-                                      {(item.totalAmount || 0).toFixed(2)}
+                                      {toNepaliNumber((item.totalAmount || 0).toFixed(2))}
                                   </td>
                                   <td className="border border-slate-900 p-1 print:hidden">
                                       <div className="flex justify-center items-center gap-1">
@@ -681,7 +691,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                       <tfoot>
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">जम्मा रकम</td>
-                              <td className="border border-slate-900 p-2 text-right font-bold">{subTotal.toFixed(2)}</td>
+                              <td className="border border-slate-900 p-2 text-right font-bold">{toNepaliNumber(subTotal.toFixed(2))}</td>
                               <td className="border border-slate-900 p-2 print:hidden"></td>
                               <td className="border border-slate-900 p-2"></td>
                           </tr>
@@ -708,30 +718,35 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                 भ्याट लाग्ने जम्मा रकम (VAT Taxable Amount) <span className="text-[10px] text-slate-500 font-normal no-print">(टिक गरिएका सामानहरूको योगफल लिन क्लिक गर्नुहोस्)</span>
                               </td>
                               <td className="border border-slate-900 p-2 text-right font-bold relative group bg-emerald-50/30">
-                                  <input 
-                                      type="number" 
-                                      value={formData.vatTaxableAmount !== undefined ? formData.vatTaxableAmount : ''} 
-                                      onChange={(e) => {
-                                          const taxableVal = parseFloat(e.target.value) || 0;
-                                          setFormData({
-                                              ...formData, 
-                                              vatTaxableAmount: taxableVal,
-                                              vatAmount: parseFloat((taxableVal * 0.13).toFixed(2))
-                                          });
-                                      }}
-                                      disabled={!canEdit}
-                                      className="w-full bg-transparent text-right outline-none font-bold pr-5 text-emerald-700"
-                                      placeholder="0.00"
-                                  />
-                                  {formData.vatTaxableAmount !== undefined && formData.vatTaxableAmount > 0 && canEdit && (
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); setFormData({...formData, vatTaxableAmount: 0, vatAmount: 0}); }}
-                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 no-print"
-                                        title="Clear"
-                                      >
-                                          <X size={14} />
-                                      </button>
-                                  )}
+                                  <div className="hidden print-only font-bold text-black text-right">
+                                      {toNepaliNumber((formData.vatTaxableAmount || 0).toFixed(2))}
+                                  </div>
+                                  <div className="no-print-view">
+                                      <input 
+                                          type="number" 
+                                          value={formData.vatTaxableAmount !== undefined ? formData.vatTaxableAmount : ''} 
+                                          onChange={(e) => {
+                                              const taxableVal = parseFloat(e.target.value) || 0;
+                                              setFormData({
+                                                  ...formData, 
+                                                  vatTaxableAmount: taxableVal,
+                                                  vatAmount: parseFloat((taxableVal * 0.13).toFixed(2))
+                                              });
+                                          }}
+                                          disabled={!canEdit}
+                                          className="w-full bg-transparent text-right outline-none font-bold pr-5 text-emerald-700"
+                                          placeholder="0.00"
+                                      />
+                                      {formData.vatTaxableAmount !== undefined && formData.vatTaxableAmount > 0 && canEdit && (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); setFormData({...formData, vatTaxableAmount: 0, vatAmount: 0}); }}
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 no-print"
+                                            title="Clear"
+                                          >
+                                              <X size={14} />
+                                          </button>
+                                      )}
+                                  </div>
                               </td>
                               <td className="border border-slate-900 p-2 print:hidden"></td>
                               <td className="border border-slate-900 p-2"></td>
@@ -750,30 +765,35 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                                 भ्याट/कर (VAT/Tax) <span className="text-[10px] text-slate-500 font-normal no-print">(भ्याट लाग्ने रकमको १३% को लागि क्लिक गर्नुहोस्)</span>
                               </td>
                               <td className="border border-slate-900 p-2 text-right font-bold relative group">
-                                  <input 
-                                      type="number" 
-                                      value={formData.vatAmount || ''} 
-                                      onChange={(e) => setFormData({...formData, vatAmount: parseFloat(e.target.value) || 0})}
-                                      disabled={!canEdit}
-                                      className="w-full bg-transparent text-right outline-none font-bold pr-5"
-                                      placeholder="0.00"
-                                  />
-                                  {formData.vatAmount > 0 && canEdit && (
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); setFormData({...formData, vatAmount: 0}); }}
-                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 no-print"
-                                        title="Clear"
-                                      >
-                                          <X size={14} />
-                                      </button>
-                                  )}
+                                  <div className="hidden print-only font-bold text-black text-right">
+                                      {toNepaliNumber((formData.vatAmount || 0).toFixed(2))}
+                                  </div>
+                                  <div className="no-print-view">
+                                      <input 
+                                          type="number" 
+                                          value={formData.vatAmount || ''} 
+                                          onChange={(e) => setFormData({...formData, vatAmount: parseFloat(e.target.value) || 0})}
+                                          disabled={!canEdit}
+                                          className="w-full bg-transparent text-right outline-none font-bold pr-5"
+                                          placeholder="0.00"
+                                      />
+                                      {formData.vatAmount > 0 && canEdit && (
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); setFormData({...formData, vatAmount: 0}); }}
+                                            className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 no-print"
+                                            title="Clear"
+                                          >
+                                              <X size={14} />
+                                          </button>
+                                      )}
+                                  </div>
                               </td>
                               <td className="border border-slate-900 p-2 print:hidden"></td>
                               <td className="border border-slate-900 p-2"></td>
                           </tr>
                           <tr>
                               <td colSpan={8} className="border border-slate-900 p-2 text-right font-bold">कुल जम्मा रकम</td>
-                              <td className="border border-slate-900 p-2 text-right font-bold">{grandTotal.toFixed(2)}</td>
+                              <td className="border border-slate-900 p-2 text-right font-bold">{toNepaliNumber(grandTotal.toFixed(2))}</td>
                               <td className="border border-slate-900 p-2 print:hidden"></td>
                               <td className="border border-slate-900 p-2"></td>
                           </tr>
@@ -786,19 +806,19 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           <p className="font-bold mb-4">तयार गर्ने : ......</p>
                           <div className="flex gap-2"><span>नाम:</span> <span>{formData.preparedBy?.name}</span></div>
                           <div className="flex gap-2"><span>पद:</span> <span>{formData.preparedBy?.designation}</span></div>
-                          <div className="flex gap-2"><span>मिति:</span> <span>{formData.preparedBy?.date}</span></div>
+                          <div className="flex gap-2"><span>मिति:</span> <span>{toNepaliNumber(formData.preparedBy?.date)}</span></div>
                       </div>
                       <div className="space-y-1 text-right">
                           <p className="font-bold mb-4 text-left pl-20">सिफारिस गर्ने : ........</p>
                           <div className="flex gap-2 justify-start pl-20"><span>नाम:</span> <span>{formData.recommendedBy?.name}</span></div>
                           <div className="flex gap-2 justify-start pl-20"><span>पद:</span> <span>{formData.recommendedBy?.designation}</span></div>
-                          <div className="flex gap-2 justify-start pl-20"><span>मिति:</span> <span>{formData.recommendedBy?.date}</span></div>
+                          <div className="flex gap-2 justify-start pl-20"><span>मिति:</span> <span>{toNepaliNumber(formData.recommendedBy?.date)}</span></div>
                       </div>
                   </div>
 
                   {/* Budget Text */}
                   <div className="border-t border-b border-slate-900 py-2 my-4 text-xs font-medium">
-                      उल्लेखित सामानहरु बजेट उपशीर्षक नं.<input value={formData.budgetDetails?.budgetSubHeadNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, budgetSubHeadNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent"/> को खर्च शीर्षक न <input value={formData.budgetDetails?.expHeadNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, expHeadNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent"/> को क्रियाकलाप नं.<input value={formData.budgetDetails?.activityNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, activityNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent"/> बाट भुक्तानी दिन बजेट बाँकी रहेको देखिन्छ ।
+                      उल्लेखित सामानहरु बजेट उपशीर्षक नं.<span className="hidden print-only font-bold px-1">{toNepaliNumber(formData.budgetDetails?.budgetSubHeadNo)}</span><input value={formData.budgetDetails?.budgetSubHeadNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, budgetSubHeadNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent no-print-view"/> को खर्च शीर्षक नं <span className="hidden print-only font-bold px-1">{toNepaliNumber(formData.budgetDetails?.expHeadNo)}</span><input value={formData.budgetDetails?.expHeadNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, expHeadNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent no-print-view"/> को क्रियाकलाप नं.<span className="hidden print-only font-bold px-1">{toNepaliNumber(formData.budgetDetails?.activityNo)}</span><input value={formData.budgetDetails?.activityNo || ''} onChange={e => setFormData({...formData, budgetDetails: {...formData.budgetDetails, activityNo: e.target.value}})} className="border-b border-dotted border-slate-800 w-16 text-center outline-none bg-transparent no-print-view"/> बाट भुक्तानी दिन बजेट बाँकी रहेको देखिन्छ ।
                   </div>
 
                   {/* Signatures Section 2 (Finance & Approved) */}
@@ -809,7 +829,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                               <>
                                   <div className="flex gap-2"><span>नाम:</span> <span>{formData.financeBy?.name}</span></div>
                                   <div className="flex gap-2"><span>पद:</span> <span>{formData.financeBy?.designation}</span></div>
-                                  <div className="flex gap-2"><span>मिति:</span> <span>{formData.financeBy?.date}</span></div>
+                                  <div className="flex gap-2"><span>मिति:</span> <span>{toNepaliNumber(formData.financeBy?.date)}</span></div>
                               </>
                           )}
                       </div>
@@ -817,7 +837,7 @@ export const KharidAdesh: React.FC<KharidAdeshProps> = ({
                           <p className="font-bold mb-4 text-left pl-20">स्वीकृत गर्ने :</p>
                           <div className="flex gap-2 justify-start pl-20"><span>नाम:</span> <span>{formData.approvedBy?.name}</span></div>
                           <div className="flex gap-2 justify-start pl-20"><span>पद:</span> <span>{formData.approvedBy?.designation}</span></div>
-                          <div className="flex gap-2 justify-start pl-20"><span>मिति:</span> <span>{formData.approvedBy?.date}</span></div>
+                          <div className="flex gap-2 justify-start pl-20"><span>मिति:</span> <span>{toNepaliNumber(formData.approvedBy?.date)}</span></div>
                       </div>
                   </div>
 
