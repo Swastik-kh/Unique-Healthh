@@ -24,6 +24,9 @@ interface ImmunizationTrackingProps {
   currentUser?: SystemUser | null;
   onDeleteRecord?: (id: string) => void;
   onUpdateUser?: (user: SystemUser) => void;
+  allUsers?: SystemUser[];
+  activeOrgName?: string;
+  onSetActiveOrgName?: (orgName: string) => void;
 }
 
 const nepaliMonthOptions = [
@@ -95,12 +98,30 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   generalSettings,
   currentUser,
   onDeleteRecord,
-  onUpdateUser
+  onUpdateUser,
+  allUsers,
+  activeOrgName,
+  onSetActiveOrgName,
 }) => {
   const [trackingTarget, setTrackingTarget] = useState<'child' | 'maternal'>('child');
   const [activeView, setActiveView] = useState<'upcoming' | 'defaulter' | 'fic' | 'today_vaccinated'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const availableOrgs = useMemo(() => {
+    if (!isSuperAdmin) {
+      return [currentUser?.organizationName || activeOrgName].filter(Boolean) as string[];
+    }
+    if (allUsers && allUsers.length > 0) {
+      const orgs = allUsers.map(u => u.organizationName).filter(Boolean);
+      const combined = currentUser?.organizationName ? [currentUser.organizationName, ...orgs] : orgs;
+      return Array.from(new Set(combined));
+    }
+    if (activeOrgName) return [activeOrgName];
+    return [];
+  }, [allUsers, currentUser, activeOrgName, isSuperAdmin]);
   
   // Filters
   const [filterCenter, setFilterCenter] = useState('');
@@ -288,10 +309,19 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           personalizedMessage = personalizedMessage.replaceAll('{बच्चाको_नाम}', item.child.childName || '');
         } else {
           personalizedMessage = personalizedMessage
+            .replaceAll('नमस्ते! हजुरको बच्चा {बच्चाको_नाम} को खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+            .replaceAll('नमस्ते! हजुरको {बच्चाको_नाम} को खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+            .replaceAll('नमस्ते! हजुरको खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+            .replaceAll('हजुरको बच्चा {बच्चाको_नाम} को खोप', 'हजुरको बच्चाको खोप')
+            .replaceAll('हजुरको {बच्चाको_नाम} को खोप', 'हजुरको बच्चाको खोप')
             .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
             .replaceAll('{बच्चाको_नाम} को', 'बच्चाको')
             .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
             .replaceAll('{बच्चाको_नाम}', '');
+          // If message starts with "नमस्ते! हजुरको खोप", ensure "बच्चाको" is present
+          if (personalizedMessage.includes('हजुरको खोप') && !personalizedMessage.includes('हजुरको बच्चाको खोप')) {
+            personalizedMessage = personalizedMessage.replaceAll('हजुरको खोप', 'हजुरको बच्चाको खोप');
+          }
         }
 
         personalizedMessage = personalizedMessage
@@ -1244,6 +1274,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
           {/* Filter Bar */}
           <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-slate-100">
+              {isSuperAdmin && availableOrgs.length > 1 && (
+                  <div className="w-full md:w-56">
+                      <Select 
+                          label="संस्था छनोट (Institution)" 
+                          options={[
+                            { id: 'all_orgs', value: 'All', label: '-- सबै संस्था (All) --' },
+                            ...availableOrgs.map(org => ({ id: org, value: org, label: org }))
+                          ]} 
+                          value={activeOrgName || ''}
+                          onChange={e => onSetActiveOrgName && onSetActiveOrgName(e.target.value)}
+                          icon={<Building2 size={16} />}
+                      />
+                  </div>
+              )}
               <div className="w-full md:w-40">
                   <Select 
                       label="आर्थिक वर्ष" 
@@ -2579,10 +2623,18 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 previewMsg = previewMsg.replaceAll('{बच्चाको_नाम}', sampleItem.child.childName || '');
                               } else {
                                 previewMsg = previewMsg
+                                  .replaceAll('नमस्ते! हजुरको बच्चा {बच्चाको_नाम} को खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+                                  .replaceAll('नमस्ते! हजुरको {बच्चाको_नाम} को खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+                                  .replaceAll('नमस्ते! हजुरको खोप', 'नमस्ते! हजुरको बच्चाको खोप')
+                                  .replaceAll('हजुरको बच्चा {बच्चाको_नाम} को खोप', 'हजुरको बच्चाको खोप')
+                                  .replaceAll('हजुरको {बच्चाको_नाम} को खोप', 'हजुरको बच्चाको खोप')
                                   .replaceAll('बच्चा {बच्चाको_नाम} को', 'बच्चाको')
                                   .replaceAll('{बच्चाको_नाम} को', 'बच्चाको')
                                   .replaceAll('बच्चा {बच्चाको_नाम}', 'बच्चा')
                                   .replaceAll('{बच्चाको_नाम}', '');
+                                if (previewMsg.includes('हजुरको खोप') && !previewMsg.includes('हजुरको बच्चाको खोप')) {
+                                  previewMsg = previewMsg.replaceAll('हजुरको खोप', 'हजुरको बच्चाको खोप');
+                                }
                               }
 
                               return previewMsg

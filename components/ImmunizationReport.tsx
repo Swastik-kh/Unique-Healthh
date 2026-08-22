@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
-import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus } from 'lucide-react';
+import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus, Building2 } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient, getChildDisplayName } from '../types/healthTypes';
-import { Option, OrganizationSettings } from '../types/coreTypes';
+import { Option, OrganizationSettings, User } from '../types/coreTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration'; // Import the template
 import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
@@ -19,6 +19,9 @@ interface ImmunizationReportProps {
   maternalRecords: GarbhawatiPatient[];
   generalSettings: OrganizationSettings;
   currentUser: any;
+  allUsers?: User[];
+  activeOrgName?: string;
+  onSetActiveOrgName?: (orgName: string) => void;
 }
 
 const nepaliMonthOptions = [
@@ -172,11 +175,29 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   bachhaRecords, 
   maternalRecords, 
   generalSettings,
-  currentUser
+  currentUser,
+  allUsers,
+  activeOrgName,
+  onSetActiveOrgName
 }) => {
   const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail'>('summary');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
+
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const availableOrgs = useMemo(() => {
+    if (!isSuperAdmin) {
+      return [currentUser?.organizationName || activeOrgName].filter(Boolean) as string[];
+    }
+    if (allUsers && allUsers.length > 0) {
+      const orgs = allUsers.map(u => u.organizationName).filter(Boolean);
+      const combined = currentUser?.organizationName ? [currentUser.organizationName, ...orgs] : orgs;
+      return Array.from(new Set(combined));
+    }
+    if (activeOrgName) return [activeOrgName];
+    return [];
+  }, [allUsers, currentUser, activeOrgName, isSuperAdmin]);
 
   React.useEffect(() => {
     setSelectedFiscalYear(currentFiscalYear);
@@ -909,6 +930,20 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
         <div className="flex flex-wrap gap-4 items-end w-full md:w-auto">
+          {isSuperAdmin && availableOrgs.length > 1 && (
+            <div className="w-56">
+              <Select 
+                label="संस्था छनोट (Institution)" 
+                options={[
+                  { id: 'all_orgs', value: 'All', label: '-- सबै संस्था (All) --' },
+                  ...availableOrgs.map(org => ({ id: org, value: org, label: org }))
+                ]} 
+                value={activeOrgName || ''} 
+                onChange={(e) => onSetActiveOrgName && onSetActiveOrgName(e.target.value)} 
+                icon={<Building2 size={18} />} 
+              />
+            </div>
+          )}
           <div className="w-40"><Select label="आर्थिक वर्ष" options={FISCAL_YEARS} value={selectedFiscalYear} onChange={(e) => setSelectedFiscalYear(e.target.value)} icon={<Calendar size={18} />} /></div>
           <div className="w-48"><Select label="महिना" options={nepaliMonthOptions} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} icon={<Filter size={18} />} /></div>
           <div className="w-48">

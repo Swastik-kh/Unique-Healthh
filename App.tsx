@@ -207,12 +207,20 @@ const App: React.FC = () => {
   };
 
   const managedOrgs = useMemo(() => {
-      if (currentUser?.role !== 'HEALTH_SECTION') return [];
-      const orgs = allUsers
-        .filter(u => u.parentId === currentUser.id && u.role === 'ADMIN')
-        .map(u => u.organizationName);
-      return Array.from(new Set([currentUser.organizationName, ...orgs]));
+      if (currentUser?.role === 'SUPER_ADMIN') {
+        const orgs = allUsers.map(u => u.organizationName).filter(Boolean);
+        return Array.from(new Set([currentUser.organizationName, ...orgs]));
+      }
+      return [currentUser?.organizationName || ''];
   }, [allUsers, currentUser]);
+
+  const handleSetActiveOrgName = (orgName: string) => {
+    if (currentUser?.role !== 'SUPER_ADMIN') {
+      setActiveOrgName(currentUser?.organizationName || '');
+      return;
+    }
+    setActiveOrgName(orgName);
+  };
 
   useEffect(() => {
     const connectedRef = ref(db, ".info/connected");
@@ -255,16 +263,24 @@ const App: React.FC = () => {
       return;
     }
 
+    const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+
+    // If not super admin, activeOrgName must always be currentUser.organizationName
+    if (!isSuperAdmin && activeOrgName !== currentUser.organizationName) {
+      setActiveOrgName(currentUser.organizationName);
+      return;
+    }
+
     if (!activeOrgName) {
       setActiveOrgName(currentUser.organizationName);
       return;
     }
 
-    const safeOrgName = sanitizeOrgName(activeOrgName);
-    
     const allUniqueOrgs = Array.from(new Set(allUsers.map(u => u.organizationName).filter(Boolean)));
-    const isAllOrgs = activeOrgName === 'All';
-    const targetOrgs = (currentUser.role === 'HEALTH_SECTION') ? allUniqueOrgs : (isAllOrgs ? managedOrgs : [activeOrgName]);
+    const isAllOrgs = isSuperAdmin && activeOrgName === 'All';
+    const targetOrgs = isSuperAdmin 
+      ? (isAllOrgs ? allUniqueOrgs : [activeOrgName]) 
+      : [currentUser.organizationName];
 
     const unsubscribes: Unsubscribe[] = [];
 
@@ -2017,7 +2033,7 @@ const App: React.FC = () => {
     onDeleteGaunGharClinicRecord={handleDeleteGaunGharClinicRecord}
     onUpdateReadNotifications={handleUpdateReadNotifications}
     activeOrgName={activeOrgName}
-    onSetActiveOrgName={setActiveOrgName}
+    onSetActiveOrgName={handleSetActiveOrgName}
     allUsers={allUsers}
     // Financial Props
     financialPrograms={financialPrograms}

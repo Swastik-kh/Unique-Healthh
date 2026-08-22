@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
-import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2, Layers, MessageSquare } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Baby, Droplets, Stethoscope, Settings, X, Plus, Trash2, MapPin, CalendarDays, Info, CheckCircle2, Layers, MessageSquare, Building2 } from 'lucide-react';
 import { GarbhawatiPatient, ChildImmunizationRecord } from '../types/healthTypes';
-import { OrganizationSettings } from '../types/coreTypes';
+import { OrganizationSettings, User } from '../types/coreTypes';
 import { GarbhawatiTDRegistration } from './GarbhawatiTDRegistration';
 import { ChildImmunizationRegistration } from './ChildImmunizationRegistration';
 import { VaccineInventoryMonthly } from './VaccineInventoryMonthly';
@@ -21,6 +21,9 @@ interface VaccinationServiceTabsProps {
   onUpdateBachhaImmunizationRecord: (record: ChildImmunizationRecord) => void;
   onDeleteBachhaImmunizationRecord: (recordId: string) => void;
   activeOrgName?: string;
+  currentUser?: User | null;
+  allUsers?: User[];
+  onSetActiveOrgName?: (orgName: string) => void;
 }
 
 export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
@@ -36,10 +39,28 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
   onUpdateBachhaImmunizationRecord,
   onDeleteBachhaImmunizationRecord,
   activeOrgName,
+  currentUser,
+  allUsers,
+  onSetActiveOrgName,
 }) => {
   const [activeTab, setActiveTab] = useState<'child' | 'maternal' | 'inventory'>('child');
   const [showSettings, setShowSettings] = useState(false);
   const [newCenter, setNewCenter] = useState('');
+
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const availableOrgs = useMemo(() => {
+    if (!isSuperAdmin) {
+      return [currentUser?.organizationName || activeOrgName].filter(Boolean) as string[];
+    }
+    if (allUsers && allUsers.length > 0) {
+      const orgs = allUsers.map(u => u.organizationName).filter(Boolean);
+      const combined = currentUser?.organizationName ? [currentUser.organizationName, ...orgs] : orgs;
+      return Array.from(new Set(combined));
+    }
+    if (activeOrgName) return [activeOrgName];
+    return [];
+  }, [allUsers, currentUser, activeOrgName, isSuperAdmin]);
 
   const centers = generalSettings.vaccinationCenters || ['मुख्य अस्पताल'];
   const sessionDays = generalSettings.vaccinationSessions || [6, 20];
@@ -124,6 +145,52 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Super Admin Institution Selector */}
+      {isSuperAdmin && availableOrgs.length > 1 && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-indigo-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Building2 className="text-indigo-400" size={20} />
+              <span className="font-bold text-sm tracking-wide text-indigo-100 font-nepali">
+                संस्था छनोट (Health Facility / Institution Data View)
+              </span>
+              <span className="bg-amber-400/90 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                SUPER ADMIN
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 font-nepali">
+              सुपर एड्मिन मोड: तलको सूचीबाट संस्था छनोट गरी सम्बन्धित संस्थाको बच्चा खोप, गर्भवती TD र खोप मौज्दातको विवरण हेर्नुहोस् वा व्यवस्थापन गर्नुहोस्।
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-white/10 hover:bg-white/15 transition-colors px-3.5 py-2 rounded-xl border border-white/20">
+              <span className="text-xs font-semibold text-indigo-200 font-nepali whitespace-nowrap">
+                संस्था:
+              </span>
+              <select
+                value={activeOrgName || ''}
+                onChange={(e) => onSetActiveOrgName && onSetActiveOrgName(e.target.value)}
+                className="bg-transparent text-white font-bold text-sm focus:outline-none cursor-pointer font-nepali [&>option]:text-slate-900 [&>option]:bg-white"
+              >
+                <option value="All">-- सबै संस्था (All Organizations) --</option>
+                {availableOrgs.map((org) => (
+                  <option key={org} value={org}>
+                    {org}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-indigo-200 bg-black/30 px-3.5 py-2 rounded-xl border border-white/10">
+              <span>बालबालिका: <strong className="text-white font-mono">{bachhaImmunizationRecords.length}</strong></span>
+              <span className="opacity-40">|</span>
+              <span>गर्भवती TD: <strong className="text-white font-mono">{garbhawatiPatients.length}</strong></span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSettings && (
         <div 
@@ -310,6 +377,7 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
             onUpdateRecord={onUpdateBachhaImmunizationRecord}
             onDeleteRecord={onDeleteBachhaImmunizationRecord}
             onUpdateGeneralSettings={onUpdateGeneralSettings}
+            currentUser={currentUser}
           />
         ) : activeTab === 'maternal' ? (
           <GarbhawatiTDRegistration
@@ -319,6 +387,7 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
             onAddPatient={onAddGarbhawatiPatient}
             onUpdatePatient={onUpdateGarbhawatiPatient}
             onDeletePatient={onDeleteGarbhawatiPatient}
+            currentUser={currentUser}
           />
         ) : (
           <VaccineInventoryMonthly

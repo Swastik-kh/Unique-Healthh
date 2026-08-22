@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe, Printer } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
-import { Option, OrganizationSettings } from '../types/coreTypes';
+import { Option, OrganizationSettings, User } from '../types/coreTypes';
 import { ChildImmunizationRecord, ChildImmunizationVaccine, getChildDisplayName, hasAssignedName } from '../types/healthTypes';
 import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
@@ -18,6 +18,7 @@ interface ChildImmunizationRegistrationProps {
   onUpdateRecord: (record: ChildImmunizationRecord) => void;
   onDeleteRecord: (recordId: string) => void;
   onUpdateGeneralSettings?: (settings: OrganizationSettings) => void;
+  currentUser?: User | null;
 }
 
 const genderOptions: Option[] = [
@@ -241,8 +242,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   onAddRecord,
   onUpdateRecord,
   onDeleteRecord,
-  onUpdateGeneralSettings
+  onUpdateGeneralSettings,
+  currentUser
 }) => {
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const childNameRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTodayOnly, setFilterTodayOnly] = useState(false);
@@ -291,6 +294,131 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const hasVaccinatedToday = useCallback((r: ChildImmunizationRecord) => {
     return (r.vaccines || []).some(v => v.status === 'Given' && !v.vaccinatedElsewhere && isTodayDate(v.givenDateBs));
   }, [todayBs]);
+
+  const handlePrintAllChildren = () => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const orgName = generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
+    const subTitle = generalSettings?.subTitleNepali || 'स्वास्थ्य तथा जनसंख्या मन्त्रालय';
+    const district = generalSettings?.districtNepali || generalSettings?.district || '';
+    const province = generalSettings?.provinceNepali || generalSettings?.province || '';
+    const logoUrl = generalSettings?.logoUrl || '';
+
+    const listTitle = filterTodayOnly
+      ? `आज (मिति: ${todayBs}) खोप लगाएका बालबालिकाहरूको सूची`
+      : 'बालबालिका खोप तालिका दर्ता विवरण सूची';
+
+    const rowsHtml = filteredRecords.map((rec, idx) => {
+      const givenVaccines = (rec.vaccines || [])
+        .filter(v => v.status === 'Given')
+        .map(v => `${v.name}${v.givenDateBs ? ` (${v.givenDateBs})` : ''}`)
+        .join(', ');
+
+      const pendingVaccines = (rec.vaccines || [])
+        .filter(v => v.status !== 'Given')
+        .map(v => `${v.name}`)
+        .join(', ');
+
+      const parents = [rec.motherName ? `${rec.motherName} (आमा)` : '', rec.fatherName ? `${rec.fatherName} (बुबा)` : ''].filter(Boolean).join(' / ');
+
+      return `
+        <tr>
+          <td style="text-align: center;">${idx + 1}</td>
+          <td style="font-weight: bold; text-align: center; font-family: monospace;">${rec.regNo || '-'}</td>
+          <td>${rec.vaccinationCenter || '-'}</td>
+          <td style="font-weight: bold;">${getChildDisplayName(rec)} (${rec.gender === 'Female' ? 'महिला' : rec.gender === 'Male' ? 'पुरुष' : 'अन्य'})</td>
+          <td style="text-align: center; font-family: monospace;">${rec.dobBs || '-'}</td>
+          <td>${parents}<br/><span style="font-size: 10px; color: #555;">फोन: ${rec.phone || '-'}</span></td>
+          <td>${rec.address || '-'}${rec.isOtherAddress ? ' (अन्य)' : ''}</td>
+          <td style="font-size: 10px; color: #047857; font-weight: 600;">${givenVaccines || '-'}</td>
+          <td style="font-size: 10px; color: #1d4ed8;">${pendingVaccines || '-'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${listTitle}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: 'Mukta', sans-serif; margin: 0; padding: 15px; color: #1e293b; font-size: 12px; }
+          .header { text-align: center; margin-bottom: 12px; border-bottom: 2px solid #0284c7; padding-bottom: 8px; position: relative; }
+          .logo { position: absolute; left: 10px; top: 0; width: 60px; height: 60px; object-fit: contain; }
+          .header h1 { margin: 0; font-size: 18px; color: #0f172a; font-weight: 700; }
+          .header h2 { margin: 2px 0; font-size: 13px; color: #334155; font-weight: 600; }
+          .header h3 { margin: 2px 0; font-size: 11px; color: #64748b; font-weight: 400; }
+          .title-box { background: #f0f9ff; border: 1px solid #bae6fd; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+          .title-box h4 { margin: 0; font-size: 14px; color: #0369a1; font-weight: 700; }
+          .meta-info { font-size: 11px; color: #475569; font-weight: 600; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }
+          th, td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: left; vertical-align: top; }
+          th { background-color: #f1f5f9; color: #334155; font-weight: 700; text-align: center; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .footer { margin-top: 25px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          ${logoUrl ? `<img src="${logoUrl}" class="logo" />` : ''}
+          <h2>${subTitle}</h2>
+          <h1>${orgName}</h1>
+          ${district || province ? `<h3>${district}${district && province ? ', ' : ''}${province}</h3>` : ''}
+        </div>
+        <div class="title-box">
+          <h4>${listTitle}</h4>
+          <div class="meta-info">
+            जम्मा बालबालिका संख्या: ${filteredRecords.length} जना | मुद्रण मिति: ${todayBs}
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 4%;">क्र.सं.</th>
+              <th style="width: 8%;">दर्ता नं</th>
+              <th style="width: 12%;">खोप केन्द्र</th>
+              <th style="width: 15%;">बच्चाको नाम (लिङ्ग)</th>
+              <th style="width: 9%;">जन्म मिति</th>
+              <th style="width: 16%;">अभिभावक / सम्पर्क</th>
+              <th style="width: 10%;">ठेगाना</th>
+              <th style="width: 14%;">लगाइसकेका खोपहरू (मिति)</th>
+              <th style="width: 12%;">बाँकी खोपहरू</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="9" style="text-align: center; padding: 20px; color: #94a3b8;">कुनै विवरण फेला परेन।</td></tr>`}
+          </tbody>
+        </table>
+        <div class="footer">
+          <div>तैयार गर्ने: ..........................</div>
+          <div>प्रमाणित गर्ने: ..........................</div>
+          <div>कार्यालय छाप</div>
+        </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 400);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    doc.close();
+  };
 
   const stats = useMemo(() => {
     const total = records.length;
@@ -822,6 +950,43 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     setSelectedVaccineForUpdate(null);
   };
 
+  const handleResetDoseToPending = () => {
+    if (!selectedVaccineForUpdate) return;
+    const { record: staleRecord, vaccineIndex } = selectedVaccineForUpdate;
+    
+    const latestRecord = (records || []).find(r => r.id === staleRecord.id) || staleRecord;
+    const currentVaccine = (latestRecord.vaccines || [])[vaccineIndex];
+    if (!currentVaccine) return;
+
+    if (window.confirm(`के तपाईं निश्चित हुनुहुन्छ कि '${currentVaccine.name}' खोपलाई 'नलागेको (Pending)' बनाउन चाहनुहुन्छ?`)) {
+      const preMappedVaccines = (latestRecord.vaccines || []).map((v, idx) => {
+        if (idx === vaccineIndex) {
+          return {
+            ...v,
+            status: 'Pending' as const,
+            givenDateAd: undefined,
+            givenDateBs: undefined,
+            vaccinatedElsewhere: undefined
+          };
+        }
+        return v;
+      });
+
+      const finalVaccines = recalculateFutureDoses(preMappedVaccines, "", "", "", latestRecord.dobAd, latestRecord.gender);
+      onUpdateRecord({ ...latestRecord, vaccines: finalVaccines });
+      
+      if (editingRecordId === latestRecord.id) {
+        setFormData(prev => ({
+          ...prev,
+          vaccines: finalVaccines
+        }));
+      }
+
+      setSuccessMessage(`${getChildDisplayName(latestRecord)} को खोप '${currentVaccine.name}' स्थिति 'नलागेको (Pending)' बनाइयो।`);
+      setSelectedVaccineForUpdate(null);
+    }
+  };
+
   const filteredRecords = useMemo(() => {
     const query = (searchTerm || '').trim().toLowerCase();
     return (records || [])
@@ -1038,7 +1203,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
               onChange={e => setFormData({...formData, childName: e.target.value})} 
               required={!formData.nameNotAssigned} 
               disabled={!!formData.nameNotAssigned}
-              icon={<User size={16} />} 
+              icon={<UserIcon size={16} />} 
               className={formData.nameNotAssigned ? "bg-slate-100 text-slate-400 cursor-not-allowed italic" : ""}
               placeholder={formData.nameNotAssigned ? "(नाम अझै राखिएको छैन)" : "बच्चाको नाम प्रविष्ट गर्नुहोस्"}
             />
@@ -1067,8 +1232,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           <Select label="लिङ्ग *" options={genderOptions} value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value as any})} />
           <Select label="जातीय कोड *" options={jatCodeOptions} value={formData.jatCode || ''} onChange={e => setFormData({...formData, jatCode: e.target.value})} placeholder="-- छान्नुहोस् --" icon={<Code size={16} />} />
           
-          <Input label="आमाको नाम *" value={formData.motherName} onChange={e => setFormData({...formData, motherName: e.target.value})} required icon={<User size={16} />} />
-          <Input label="बुबाको नाम *" value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} required icon={<User size={16} />} />
+          <Input label="आमाको नाम *" value={formData.motherName} onChange={e => setFormData({...formData, motherName: e.target.value})} required icon={<UserIcon size={16} />} />
+          <Input label="बुबाको नाम *" value={formData.fatherName} onChange={e => setFormData({...formData, fatherName: e.target.value})} required icon={<UserIcon size={16} />} />
           <Input label="ठेगाना *" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={16} />} />
           <div className="flex items-center gap-2 bg-white/50 border border-slate-200 p-2.5 rounded-lg">
             <input
@@ -1110,7 +1275,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                           const idx = (formData.vaccines || []).findIndex(origV => origV.name === v.name);
                           const isGiven = v.status === 'Given';
                           const originalRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
-                          const isAlreadySavedAsGiven = !!(originalRecord && (originalRecord.vaccines || []).some(origV => origV.name === v.name && origV.status === 'Given'));
+                          const wasSavedAsGiven = !!(originalRecord && (originalRecord.vaccines || []).some(origV => origV.name === v.name && origV.status === 'Given'));
+                          const isAlreadySavedAsGiven = isSuperAdmin ? false : wasSavedAsGiven;
                           return (
                             <div 
                               key={v.name} 
@@ -1162,7 +1328,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                 <div className="mt-3.5 pt-3 border-t border-dashed border-green-200 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                                   <label className="text-[10px] font-bold text-slate-500 font-nepali flex items-center justify-between">
                                     <span>लगाएको वास्तविक मिति:</span>
-                                    {isAlreadySavedAsGiven && <span className="text-red-500 font-bold text-[8px] bg-red-50 border border-red-100 px-1 py-0.5 rounded">परिमार्जन गर्न नमिल्ने</span>}
+                                    {isAlreadySavedAsGiven ? (
+                                      <span className="text-red-500 font-bold text-[8px] bg-red-50 border border-red-100 px-1 py-0.5 rounded">परिमार्जन गर्न नमिल्ने</span>
+                                    ) : wasSavedAsGiven && isSuperAdmin ? (
+                                      <span className="text-amber-700 font-bold text-[8px] bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">सुपर एड्मिन सम्पादन सक्षम</span>
+                                    ) : null}
                                   </label>
                                   <div className="flex gap-1.5 items-center">
                                     <div className="flex-1">
@@ -1233,8 +1403,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       </div>
     )}
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="sticky -top-4 md:-top-8 z-30 px-6 py-3.5 border-b border-slate-200 bg-white/95 backdrop-blur-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 rounded-t-xl shadow-sm">
           <div className="flex flex-wrap items-center gap-2.5">
             <h3 className="font-bold text-slate-700 font-nepali text-base">खोप तालिका विवरण</h3>
             
@@ -1267,22 +1437,42 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full font-nepali">
               देखाएको: {filteredRecords.length} जना
             </span>
+
+            <button
+              type="button"
+              onClick={handlePrintAllChildren}
+              className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all font-nepali active:scale-95 hover:shadow cursor-pointer"
+              title="सबै बालबालिका खोप सूची प्रिन्ट गर्नुहोस्"
+            >
+              <Printer size={14} />
+              <span>सूची प्रिन्ट (Print List)</span>
+            </button>
           </div>
 
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              placeholder="नाम, दर्ता नं, केन्द्र वा फोन..." 
-              className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-sm" 
+              placeholder="नाम, दर्ता नं, केन्द्र वा फोन खोज्नुहोस्..." 
+              className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all" 
             />
+            {searchTerm && (
+              <button 
+                type="button" 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition-colors"
+                title="खोज हटाउनुहोस्"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
         {filterTodayOnly && (
-          <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-2.5 flex items-center justify-between animate-in fade-in">
+          <div className="sticky top-[41px] md:top-[25px] z-20 bg-emerald-50/95 backdrop-blur-md border-b border-emerald-100 px-6 py-2.5 flex items-center justify-between animate-in fade-in shadow-xs">
             <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold font-nepali">
               <Syringe size={16} className="text-emerald-600 shrink-0" />
               <span>
@@ -1363,7 +1553,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                         <div 
                                             key={v.name} 
                                             onClick={() => {
-                                                if (isGiven) return; 
+                                                if (isGiven && !isSuperAdmin) return; 
                                                 setSelectedVaccineForUpdate({ record, vaccineIndex: idx });
                                             }}
                                             className={`group relative px-2 py-1 rounded text-[9px] font-bold border flex flex-col items-center min-w-[70px] transition-all
@@ -1372,7 +1562,9 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                                   : isGiven 
                                                   ? 'bg-green-100 text-green-800 border-green-200 cursor-not-allowed opacity-80' 
                                                   : 'bg-blue-50 text-blue-700 border-blue-200 hover:border-blue-400 cursor-pointer'}`}
-                                            title={isGiven ? `लगाईसकेको मिति: ${v.givenDateBs || ''}` : "खोपको विवरण अपडेट गर्नुहोस्"}
+                                            title={isSuperAdmin 
+                                              ? (isGiven ? `लगाईसकेको मिति: ${v.givenDateBs || ''} (सुपर एड्मिन: क्लिक गरी मिति सम्पादन/नलागेको/अन्यत्र बनाउनुहोस्)` : "खोपको विवरण अपडेट गर्नुहोस्")
+                                              : (isGiven ? `लगाईसकेको मिति: ${v.givenDateBs || ''}` : "खोपको विवरण अपडेट गर्नुहोस्")}
                                         >
                                             <span className="mb-0.5 text-center leading-tight flex items-center gap-1">
                                               {isGivenToday && <Syringe size={8} className="text-emerald-700" />}
@@ -1423,7 +1615,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedVaccineForUpdate(null)}></div>
             <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="px-6 py-4 border-b bg-blue-50 text-blue-800 flex justify-between items-center shrink-0">
-                    <h3 className="font-bold font-nepali">खोप स्थिति अपडेट</h3>
+                    <h3 className="font-bold font-nepali">
+                      {selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex]?.status === 'Given'
+                        ? 'खोप विवरण सम्पादन (Edit Dose Details)'
+                        : 'खोप स्थिति अपडेट'}
+                    </h3>
                     <button onClick={() => setSelectedVaccineForUpdate(null)}><X size={20}/></button>
                 </div>
                 <div className="p-6 space-y-4 overflow-y-auto flex-1">
@@ -1469,10 +1665,26 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                             </label>
                         </div>
                     </div>
+
+                    {/* Option to Reset to Unvaccinated / Pending if already Given */}
+                    {selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex]?.status === 'Given' && (
+                      <div className="pt-3 border-t border-slate-100 space-y-2">
+                        <button
+                          type="button"
+                          onClick={handleResetDoseToPending}
+                          className="w-full py-2 px-3 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 rounded-lg font-bold font-nepali transition-all text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                        >
+                          <RotateCcw size={14} /> खोप नलागेको (Pending) बनाउनुहोस्
+                        </button>
+                        <p className="text-[10px] text-slate-500 text-center font-nepali">
+                          (मिति वा अन्यत्र लगाएको परिवर्तन गर्न माथि सम्पादन गरी 'सुरक्षित गर्नुहोस्' थिच्नुहोस्)
+                        </p>
+                      </div>
+                    )}
                 </div>
                 <div className="p-4 bg-slate-50 border-t flex gap-3 shrink-0">
                     <button onClick={() => setSelectedVaccineForUpdate(null)} className="flex-1 py-2 text-slate-600 font-bold border rounded-lg">रद्द</button>
-                    <button onClick={handleUpdateDoseStatus} className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg shadow-sm">सुरक्षित गर्नुहोस्</button>
+                    <button onClick={handleUpdateDoseStatus} className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg shadow-sm hover:bg-green-700 transition-colors">सुरक्षित गर्नुहोस्</button>
                 </div>
             </div>
         </div>

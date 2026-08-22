@@ -12,6 +12,8 @@ interface MicroplanningProps {
   generalSettings?: any;
   allUsers?: any[];
   currentUser?: any;
+  activeOrgName?: string;
+  onSetActiveOrgName?: (orgName: string) => void;
 }
 
 const TARGET_ITEMS = [
@@ -92,7 +94,9 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
   maternalRecords = [], 
   generalSettings,
   allUsers = [],
-  currentUser
+  currentUser,
+  activeOrgName,
+  onSetActiveOrgName
 }) => {
   const [activeTab, setActiveTab] = useState<'targets' | 'report' | 'annual' | 'report3' | 'report4' | 'report5' | 'report6'>('report');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
@@ -114,8 +118,14 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
   // Compile list of available organizations (sansthas)
   const sansthaList = useMemo(() => {
+    if (!isSuperAdmin) {
+      const own = currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
+      return [own];
+    }
     const list = (allUsers || [])
       .map(u => u.organizationName)
       .filter(Boolean);
@@ -124,14 +134,25 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     if (generalSettings?.orgNameEnglish) list.push(generalSettings.orgNameEnglish);
     const unique = Array.from(new Set(list)).sort();
     if (unique.length === 0) {
-      unique.push('स्वास्थ्य चौकी हडिया');
+      unique.push('स्वास्थ्य संस्था');
     }
     return unique;
-  }, [allUsers, currentUser, generalSettings]);
+  }, [allUsers, currentUser, generalSettings, isSuperAdmin]);
 
   const [selectedSanstha, setSelectedSanstha] = useState<string>(() => {
-    return currentUser?.organizationName || generalSettings?.orgNameNepali || sansthaList[0] || 'स्वास्थ्य चौकी हडिया';
+    if (!isSuperAdmin) {
+      return currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था';
+    }
+    return activeOrgName || currentUser?.organizationName || generalSettings?.orgNameNepali || sansthaList[0] || 'स्वास्थ्य संस्था';
   });
+
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setSelectedSanstha(currentUser?.organizationName || generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था');
+    } else if (activeOrgName && activeOrgName !== 'All') {
+      setSelectedSanstha(activeOrgName);
+    }
+  }, [activeOrgName, isSuperAdmin, currentUser, generalSettings]);
 
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [localBachhaRecords, setLocalBachhaRecords] = useState<any[]>([]);

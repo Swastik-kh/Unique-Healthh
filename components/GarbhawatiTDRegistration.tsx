@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Save, RotateCcw, Droplets, Calendar, FileDigit, User, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Baby, CheckCircle2, AlertTriangle, Info, Clock, Check, X, MapPinned } from 'lucide-react';
+import { Save, RotateCcw, Droplets, Calendar, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Baby, CheckCircle2, AlertTriangle, Info, Clock, Check, X, MapPinned } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { EnglishDatePicker } from './EnglishDatePicker';
-import { Option, OrganizationSettings } from '../types/coreTypes'; // Corrected import path
+import { Option, OrganizationSettings, User } from '../types/coreTypes'; // Corrected import path
 import { GarbhawatiPatient } from '../types/healthTypes'; // Corrected import path
 import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
@@ -18,6 +18,7 @@ interface GarbhawatiTDRegistrationProps {
   onAddPatient: (patient: GarbhawatiPatient) => void;
   onUpdatePatient: (patient: GarbhawatiPatient) => void;
   onDeletePatient: (patientId: string) => void;
+  currentUser?: User | null;
 }
 
 const gravidaOptions: Option[] = [
@@ -40,8 +41,10 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
   generalSettings,
   onAddPatient,
   onUpdatePatient,
-  onDeletePatient
+  onDeletePatient,
+  currentUser
 }) => {
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCenter, setFilterCenter] = useState('');
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
@@ -268,7 +271,12 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
     return (patients || [])
       .filter(p => {
         if (!p) return false;
-        if (!query) return p.fiscalYear === currentFiscalYear;
+        if (!query) {
+          if (!p.fiscalYear || p.fiscalYear === currentFiscalYear) return true;
+          const hasTd1 = Boolean(p.td1DateBs || p.td1VaccinatedElsewhere);
+          const hasTd2OrBooster = Boolean(p.td2DateBs || p.td2VaccinatedElsewhere || p.tdBoosterDateBs || p.tdBoosterVaccinatedElsewhere);
+          return !(hasTd1 && hasTd2OrBooster);
+        }
         return true;
       })
       .filter(p => {
@@ -338,7 +346,7 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
             <Input label="दर्ता नम्बर (Reg No)" value={formData.regNo} readOnly className="font-mono font-bold text-purple-600" icon={<FileDigit size={16} />} />
           </div>
 
-          <Input label="बिरामीको नाम (Patient Name) *" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required icon={<User size={16} />} />
+          <Input label="बिरामीको नाम (Patient Name) *" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required icon={<UserIcon size={16} />} />
           <Input label="उमेर (Age) *" value={formData.age} onChange={e => setFormData({...formData, age: e.target.value})} required type="number" icon={<Clock size={16} />} />
           
           <Select label="Gravida (गर्भावस्था संख्या)" options={gravidaOptions} value={formData.gravida.toString()} onChange={e => setFormData({...formData, gravida: parseInt(e.target.value)})} />
@@ -364,8 +372,8 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
       </div>
 
       {/* Patient List & TD Schedule */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="sticky -top-4 md:-top-8 z-30 px-6 py-3.5 border-b border-slate-200 bg-white/95 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-t-xl shadow-sm">
           <div className="flex items-center gap-3">
             <h3 className="font-semibold text-slate-700 font-nepali">गर्भवती महिलाहरूको सूची ({filteredPatients.length})</h3>
           </div>
@@ -373,16 +381,32 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
             <select
               value={filterCenter}
               onChange={(e) => setFilterCenter(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all bg-white font-nepali text-slate-700"
+              className="px-3 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all bg-white font-nepali text-slate-700"
             >
               <option value="">सबै खोप केन्द्र (All Centers)</option>
               {centerOptions.map(c => (
                 <option key={c.id} value={c.value}>{c.label}</option>
               ))}
             </select>
-            <div className="relative w-full sm:w-64">
+            <div className="relative w-full sm:w-72">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="नाम वा दर्ता नं खोज्नुहोस्..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all" />
+              <input 
+                type="text" 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                placeholder="नाम वा दर्ता नं खोज्नुहोस्..." 
+                className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none text-sm transition-all font-nepali" 
+              />
+              {searchTerm && (
+                <button 
+                  type="button" 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-100 transition-colors"
+                  title="खोज हटाउनुहोस्"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -426,10 +450,11 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'td1' })}
-                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
-                                    ${patient.td1DateBs ? 'bg-green-100 text-green-700 border-green-200' :
-                                    'bg-purple-50 text-purple-700 border-purple-200'
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center cursor-pointer transition-all hover:scale-105
+                                    ${patient.td1DateBs ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' :
+                                    'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
                                     }`}
+                                title={patient.td1DateBs ? (isSuperAdmin ? `TD1 मिति: ${patient.td1DateBs} (सुपर एड्मिन: क्लिक गरी सम्पादन/नलागेको/अन्यत्र बनाउनुहोस्)` : `TD1 मिति: ${patient.td1DateBs}`) : 'TD1 खोप लगाउनुहोस्'}
                             >
                                 <span>TD1 ({patient.td1DateBs ? patient.td1DateBs.slice(5) : 'Pending'})</span>
                                 {patient.td1VaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
@@ -438,12 +463,13 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'td2' })}
-                                disabled={!patient.td1DateBs} // Disable TD2 if TD1 not given
-                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
-                                    ${patient.td2DateBs ? 'bg-green-100 text-green-700 border-green-200' :
-                                    !patient.td1DateBs ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
-                                    'bg-purple-50 text-purple-700 border-purple-200'
+                                disabled={!isSuperAdmin && !patient.td1DateBs} // Allow super admin to edit
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center transition-all
+                                    ${patient.td2DateBs ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200 cursor-pointer hover:scale-105' :
+                                    !patient.td1DateBs && !isSuperAdmin ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
+                                    'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 cursor-pointer hover:scale-105'
                                     }`}
+                                title={patient.td2DateBs ? (isSuperAdmin ? `TD2 मिति: ${patient.td2DateBs} (सुपर एड्मिन: क्लिक गरी सम्पादन/नलागेको/अन्यत्र बनाउनुहोस्)` : `TD2 मिति: ${patient.td2DateBs}`) : 'TD2 खोप लगाउनुहोस्'}
                             >
                                 <span>TD2 ({patient.td2DateBs ? patient.td2DateBs.slice(5) : 'Pending'})</span>
                                 {patient.td2VaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
@@ -452,12 +478,13 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                             <button 
                                 type="button" 
                                 onClick={() => setSelectedDoseForUpdate({ patient, doseType: 'tdBooster' })}
-                                disabled={!patient.td2DateBs} // Disable Booster if TD2 not given
-                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center 
-                                    ${patient.tdBoosterDateBs ? 'bg-green-100 text-green-700 border-green-200' :
-                                    !patient.td2DateBs ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
-                                    'bg-purple-50 text-purple-700 border-purple-200'
+                                disabled={!isSuperAdmin && !patient.td2DateBs} // Allow super admin to edit
+                                className={`px-2 py-1 rounded text-[10px] font-bold border flex flex-col items-center transition-all
+                                    ${patient.tdBoosterDateBs ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200 cursor-pointer hover:scale-105' :
+                                    !patient.td2DateBs && !isSuperAdmin ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' :
+                                    'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 cursor-pointer hover:scale-105'
                                     }`}
+                                title={patient.tdBoosterDateBs ? (isSuperAdmin ? `TD Booster मिति: ${patient.tdBoosterDateBs} (सुपर एड्मिन: क्लिक गरी सम्पादन/नलागेको/अन्यत्र बनाउनुहोस्)` : `TD Booster मिति: ${patient.tdBoosterDateBs}`) : 'TD Booster खोप लगाउनुहोस्'}
                             >
                                 <span>TD Booster ({patient.tdBoosterDateBs ? patient.tdBoosterDateBs.slice(5) : 'Pending'})</span>
                                 {patient.tdBoosterVaccinatedElsewhere && <span className="text-[8px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
@@ -486,7 +513,11 @@ export const GarbhawatiTDRegistration: React.FC<GarbhawatiTDRegistrationProps> =
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-purple-50/50 shrink-0">
                     <div className="flex items-center gap-2">
                         <Droplets size={20} className="text-purple-600"/>
-                        <h3 className="font-bold text-slate-800 font-nepali text-sm">खोप स्थिति अपडेट (Update Dose Status)</h3>
+                        <h3 className="font-bold text-slate-800 font-nepali text-sm">
+                          {!!selectedDoseForUpdate.patient[`${selectedDoseForUpdate.doseType}DateBs`]
+                            ? 'खोप विवरण सम्पादन (Edit TD Dose Details)'
+                            : 'खोप स्थिति अपडेट (Update Dose Status)'}
+                        </h3>
                     </div>
                     {/* Added X icon for closing vaccine update modal */}
                     <button type="button" onClick={() => setSelectedDoseForUpdate(null)} className="p-2 hover:bg-white/50 rounded-full transition-colors"><X size={20} className="text-slate-400"/></button>

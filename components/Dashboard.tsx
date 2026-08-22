@@ -625,11 +625,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   };
 
   const managedOrgs = useMemo(() => {
-    if (currentUser?.role !== 'HEALTH_SECTION') return [];
-    const orgs = allUsers
-      .filter(u => u.parentId === currentUser.id && u.role === 'ADMIN')
-      .map(u => u.organizationName);
-    return Array.from(new Set([currentUser.organizationName, ...orgs]));
+    if (currentUser?.role === 'SUPER_ADMIN') {
+      const orgs = allUsers.map(u => u.organizationName).filter(Boolean);
+      return Array.from(new Set([currentUser.organizationName, ...orgs]));
+    }
+    return [];
   }, [allUsers, currentUser]);
 
   const handleOpenFullDakhila = () => {
@@ -1024,10 +1024,55 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
           </div>
         </div>
       );
-      case 'khop_sewa': return <VaccinationServiceTabs currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} onUpdateGeneralSettings={onUpdateGeneralSettings} garbhawatiPatients={garbhawatiPatients} onAddGarbhawatiPatient={onAddGarbhawatiPatient} onUpdateGarbhawatiPatient={onUpdateGarbhawatiPatient} onDeleteGarbhawatiPatient={onDeleteGarbhawatiPatient} bachhaImmunizationRecords={bachhaImmunizationRecords} onAddBachhaImmunizationRecord={onAddBachhaImmunizationRecord} onUpdateBachhaImmunizationRecord={onUpdateBachhaImmunizationRecord} onDeleteBachhaImmunizationRecord={onDeleteBachhaImmunizationRecord} activeOrgName={activeOrgName} />;
-      case 'immunization_tracking': return <ImmunizationTracking currentFiscalYear={currentFiscalYear} records={bachhaImmunizationRecords} garbhawatiPatients={garbhawatiPatients} generalSettings={generalSettings} currentUser={currentUser} onDeleteRecord={onDeleteBachhaImmunizationRecord} onUpdateUser={onUpdateUser} />;
-      case 'report_khop': return <ImmunizationReport currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} maternalRecords={garbhawatiPatients} generalSettings={generalSettings} currentUser={currentUser} />;
-      case 'report_microplanning': return <Microplanning currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} maternalRecords={garbhawatiPatients} generalSettings={generalSettings} />;
+      case 'khop_sewa': return <VaccinationServiceTabs 
+        currentFiscalYear={currentFiscalYear} 
+        generalSettings={generalSettings} 
+        onUpdateGeneralSettings={onUpdateGeneralSettings} 
+        garbhawatiPatients={garbhawatiPatients} 
+        onAddGarbhawatiPatient={onAddGarbhawatiPatient} 
+        onUpdateGarbhawatiPatient={onUpdateGarbhawatiPatient} 
+        onDeleteGarbhawatiPatient={onDeleteGarbhawatiPatient} 
+        bachhaImmunizationRecords={bachhaImmunizationRecords} 
+        onAddBachhaImmunizationRecord={onAddBachhaImmunizationRecord} 
+        onUpdateBachhaImmunizationRecord={onUpdateBachhaImmunizationRecord} 
+        onDeleteBachhaImmunizationRecord={onDeleteBachhaImmunizationRecord} 
+        activeOrgName={activeOrgName}
+        currentUser={currentUser}
+        allUsers={allUsers}
+        onSetActiveOrgName={onSetActiveOrgName}
+      />;
+      case 'immunization_tracking': return <ImmunizationTracking 
+        currentFiscalYear={currentFiscalYear} 
+        records={bachhaImmunizationRecords} 
+        garbhawatiPatients={garbhawatiPatients} 
+        generalSettings={generalSettings} 
+        currentUser={currentUser} 
+        onDeleteRecord={onDeleteBachhaImmunizationRecord} 
+        onUpdateUser={onUpdateUser}
+        allUsers={allUsers}
+        activeOrgName={activeOrgName}
+        onSetActiveOrgName={onSetActiveOrgName}
+      />;
+      case 'report_khop': return <ImmunizationReport 
+        currentFiscalYear={currentFiscalYear} 
+        bachhaRecords={bachhaImmunizationRecords} 
+        maternalRecords={garbhawatiPatients} 
+        generalSettings={generalSettings} 
+        currentUser={currentUser}
+        allUsers={allUsers}
+        activeOrgName={activeOrgName}
+        onSetActiveOrgName={onSetActiveOrgName}
+      />;
+      case 'report_microplanning': return <Microplanning 
+        currentFiscalYear={currentFiscalYear} 
+        bachhaRecords={bachhaImmunizationRecords} 
+        maternalRecords={garbhawatiPatients} 
+        generalSettings={generalSettings}
+        currentUser={currentUser}
+        allUsers={allUsers}
+        activeOrgName={activeOrgName}
+        onSetActiveOrgName={onSetActiveOrgName}
+      />;
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
       case 'organization_management': return <OrganizationManagement currentUser={currentUser} users={users} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} onDeleteOrganization={onDeleteOrganization} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
@@ -2523,16 +2568,17 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
               <span className="text-[11px] font-bold text-slate-600 font-nepali">आ.व. {toNepaliDigits(currentFiscalYear)}</span>
             </div>
 
-            {currentUser?.role === 'HEALTH_SECTION' && managedOrgs.length > 1 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full border border-indigo-200">
-                <Building2 size={14} className="text-indigo-400" />
+            {currentUser?.role === 'SUPER_ADMIN' && managedOrgs.length > 1 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-full border border-indigo-200 shadow-xs">
+                <Building2 size={14} className="text-indigo-500" />
                 <select 
                   value={activeOrgName}
                   onChange={(e) => onSetActiveOrgName(e.target.value)}
-                  className="bg-transparent text-[11px] font-bold text-indigo-700 focus:outline-none cursor-pointer font-nepali"
+                  className="bg-transparent text-[11px] font-bold text-indigo-800 focus:outline-none cursor-pointer font-nepali pr-1"
+                  title="संस्था परिवर्तन गर्नुहोस् (Switch Organization)"
                 >
                   {['All', ...managedOrgs].map(org => (
-                    <option key={org} value={org}>{org === 'All' ? 'सबै (All)' : org}</option>
+                    <option key={org} value={org}>{org === 'All' ? 'सबै संस्था (All Organizations)' : org}</option>
                   ))}
                 </select>
               </div>
