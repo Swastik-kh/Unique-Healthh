@@ -5,7 +5,7 @@ import {
   Calculator, Calendar, Syringe, HeartHandshake, CheckCircle2, Package, Warehouse, 
   ClipboardCheck, FilePlus, ShoppingCart, FileOutput, Archive, Book, BookOpen, RotateCcw, 
   Wrench, Trash2, Scroll, FileSpreadsheet, BarChart3, MessageSquare, Settings, Sliders, 
-  ShieldCheck, Store, KeyRound, Database, Globe
+  ShieldCheck, ShieldAlert, Store, KeyRound, Database, Globe, Thermometer
 } from 'lucide-react';
 
 export interface MenuItem {
@@ -72,6 +72,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         ]
       },
       { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
+      { id: 'cold_chain_log', label: 'कोल्ड चेन लग', icon: <Thermometer size={16} /> },
       { 
         id: 'karyakram', 
         label: 'कार्यक्रम (Programs)', 
@@ -154,6 +155,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
       { id: 'service_settings', label: 'सेवा सेटिङ (Service Settings)', icon: <Activity size={16} /> },
       { id: 'store_setup', label: 'स्टोर सेटअप', icon: <Store size={16} /> },
       { id: 'user_management', label: 'प्रयोगकर्ता व्यवस्थापन', icon: <Users size={16} /> },
+      { id: 'audit_log', label: 'अडिट लग (Audit Log)', icon: <ShieldAlert size={16} /> },
       { id: 'user_history', label: 'इतिहास', icon: <Activity size={16} /> },
       { id: 'change_password', label: 'पासवर्ड परिवर्तन', icon: <KeyRound size={16} /> },
       { id: 'database_management', label: 'डाटाबेस व्यवस्थापन', icon: <Database size={16} /> },

@@ -8,7 +8,7 @@ import {
   BookOpen, Book, Archive, RotateCcw, Wrench, Scroll, BarChart3,
   Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
   Eye, ShieldAlert, ChevronLeft, Send, MapPin, Search, HeartHandshake,
-  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical
+  UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical, Thermometer
 } from 'lucide-react';
 import { APP_NAME, FISCAL_YEARS } from '../constants';
 import { db } from '../firebase';
@@ -91,6 +91,9 @@ import { FCHVCompilationReport } from './FCHVCompilationReport';
 import { KhopAbhiyan } from './KhopAbhiyan';
 import { AmbulanceSewa } from './AmbulanceSewa';
 import { OnlineReport } from './OnlineReport';
+import { AuditLogViewer } from './AuditLogViewer';
+import { ColdChainLog } from './ColdChainLog';
+import { ColdChainEquipmentManager } from './ColdChainEquipment';
 import { ALL_MENU_ITEMS, MenuItem } from '../src/constants/menuItems';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -554,11 +557,45 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   // For the badge, we count ALL unread dakhilas in current fiscal year
   const unreadCount = useMemo(() => allDakhilaNotifs.filter(n => n.isNew).length, [allDakhilaNotifs]);
 
+  // Cold Chain Daily Alerts Calculation
+  const coldChainAlerts = useMemo(() => {
+    const activeFridges = (props.coldChainEquipment || []).filter(e => e.isActive !== false);
+    if (activeFridges.length === 0) return null;
+
+    let todayBs = '';
+    try {
+      todayBs = new NepaliDate().format('YYYY-MM-DD');
+    } catch {
+      todayBs = '2081-01-01';
+    }
+
+    const currentHour = new Date().getHours();
+    const logsToday = (props.coldChainLogs || []).filter(l => l.dateBs === todayBs);
+
+    const missingMorning = activeFridges.filter(f => !logsToday.some(l => l.equipmentId === f.id && l.session === 'Morning'));
+    const missingEvening = currentHour >= 16 ? activeFridges.filter(f => !logsToday.some(l => l.equipmentId === f.id && l.session === 'Evening')) : [];
+    const outOfRangeToday = logsToday.filter(l => l.isOutOfRange);
+
+    return {
+      totalFridges: activeFridges.length,
+      missingMorning,
+      missingEvening,
+      outOfRangeToday,
+      todayBs,
+      hasAlert: missingMorning.length > 0 || missingEvening.length > 0 || outOfRangeToday.length > 0
+    };
+  }, [props.coldChainEquipment, props.coldChainLogs]);
+
   // --- BADGE CALCULATIONS ---
   const counts = useMemo(() => {
     if (!currentUser) return {};
 
     const res: Record<string, number> = {};
+
+    // Cold Chain badge: missing morning/evening logs or out of range
+    if (coldChainAlerts && coldChainAlerts.hasAlert) {
+      res.cold_chain_log = coldChainAlerts.missingMorning.length + coldChainAlerts.missingEvening.length + coldChainAlerts.outOfRangeToday.length;
+    }
 
     // 1. Mag Faram Pending
     if (currentUser.role === 'STOREKEEPER') {
@@ -700,6 +737,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
+    if (menuId === 'audit_log' && currentUser.role !== 'SUPER_ADMIN') return false;
     if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN', 'HEALTH_SECTION'].includes(currentUser.role)) return false;
     if (menuId === 'general_setting' && currentUser.canManageMenu) return true;
     if (currentUser.role === 'SUPER_ADMIN') return true;
@@ -932,6 +970,49 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
               <h2 className="text-lg font-bold underline mt-2">प्रणाली ड्यासबोर्ड सारांश</h2>
               <p className="text-sm">मिति: {new NepaliDate().format('YYYY-MM-DD')}</p>
             </div>
+
+            {/* Cold Chain Missed Readings & Temperature Alert Banner */}
+            {coldChainAlerts && coldChainAlerts.hasAlert && (
+              <div 
+                onClick={() => setActiveItem('cold_chain_log')}
+                className="bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-blue-500/10 border border-amber-200 hover:border-cyan-400 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 cursor-pointer transition-all shadow-xs group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-100 text-amber-800 rounded-xl group-hover:scale-105 transition-transform">
+                    <Thermometer size={22} className="text-amber-700" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-800">
+                        कोल्ड चेन दैनिक तापक्रम अलर्ट (Cold Chain Alert)
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        आज {coldChainAlerts.todayBs}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {coldChainAlerts.outOfRangeToday.length > 0 ? (
+                        <span className="text-rose-700 font-bold">
+                          ⚠️ आज {coldChainAlerts.outOfRangeToday.length} वटा उपकरणमा तापक्रम सुरक्षित दायरा भन्दा बाहिर रेकर्ड भएको छ!{' '}
+                        </span>
+                      ) : null}
+                      {coldChainAlerts.missingMorning.length > 0 ? (
+                        <span>बिहानको तापक्रम बाँकी: <b>{coldChainAlerts.missingMorning.map(f => f.name).join(', ')}</b>. </span>
+                      ) : null}
+                      {coldChainAlerts.missingEvening.length > 0 ? (
+                        <span>बेलुकीको तापक्रम बाँकी: <b>{coldChainAlerts.missingEvening.map(f => f.name).join(', ')}</b>. </span>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors">
+                    तापक्रम दर्ता गर्नुहोस् →
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6 print:grid-cols-2 print:gap-4 print:mb-6">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
@@ -1053,6 +1134,26 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         activeOrgName={activeOrgName}
         onSetActiveOrgName={onSetActiveOrgName}
       />;
+      case 'cold_chain_log': return <ColdChainLog
+        coldChainLogs={props.coldChainLogs || []}
+        coldChainEquipment={props.coldChainEquipment || []}
+        onSaveLog={props.onSaveColdChainLog!}
+        onDeleteLog={props.onDeleteColdChainLog!}
+        onSaveEquipment={props.onSaveColdChainEquipment!}
+        onDeleteEquipment={props.onDeleteColdChainEquipment!}
+        currentUser={currentUser}
+        generalSettings={generalSettings}
+        activeOrgName={activeOrgName}
+        onUpdateGeneralSettings={onUpdateGeneralSettings}
+      />;
+      case 'cold_chain_equipment': return <ColdChainEquipmentManager
+        equipmentList={props.coldChainEquipment || []}
+        onSaveEquipment={props.onSaveColdChainEquipment!}
+        onDeleteEquipment={props.onDeleteColdChainEquipment!}
+        currentUser={currentUser}
+        generalSettings={generalSettings}
+        onBackToLogs={() => setActiveItem('cold_chain_log')}
+      />;
       case 'report_khop': return <ImmunizationReport 
         currentFiscalYear={currentFiscalYear} 
         bachhaRecords={bachhaImmunizationRecords} 
@@ -1076,6 +1177,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
       case 'organization_management': return <OrganizationManagement currentUser={currentUser} users={users} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} onDeleteOrganization={onDeleteOrganization} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
+      case 'audit_log': return currentUser?.role === 'SUPER_ADMIN' ? <AuditLogViewer auditLogs={props.auditLogs || []} users={users} activeOrgName={activeOrgName} /> : null;
       case 'user_history': return <UserHistory users={users} />;
       case 'change_password': return <ChangePassword currentUser={currentUser} users={users} onChangePassword={onChangePassword} onUpdateUser={onUpdateUser} />;
       case 'store_setup': return <StoreSetup currentUser={currentUser} currentFiscalYear={currentFiscalYear} stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} inventoryItems={inventoryItems} onUpdateInventoryItem={onUpdateInventoryItem} />;

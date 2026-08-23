@@ -185,6 +185,9 @@ export interface OrganizationSettings {
   dhis2DataSetId?: string;
   dhis2OrgUnitId?: string;
   dhis2OrgUnitName?: string;
+  coldChainMinTempC?: number; // default 2
+  coldChainMaxTempC?: number; // default 8
+  coldChainAlertPhone?: string; // in-charge's phone number to notify on breach
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
   menuConfig?: MenuConfigItem[];

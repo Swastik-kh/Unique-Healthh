@@ -5,7 +5,7 @@ import {
   InventoryItem, Store, StockEntryRequest, DakhilaPratibedanEntry, ReturnEntry, 
   MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry
 } from './inventoryTypes';
-import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from './healthTypes';
+import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, AuditLogEntry, ColdChainEquipment, ColdChainLogEntry } from './healthTypes';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from './financeTypes';
 
 export interface LoginFormProps {
@@ -87,9 +87,17 @@ export interface DashboardProps {
   onDeleteGarbhawatiPatient: (patientId: string) => void;
 
   bachhaImmunizationRecords: ChildImmunizationRecord[];
+  auditLogs?: AuditLogEntry[];
   onAddBachhaImmunizationRecord: (record: ChildImmunizationRecord) => void;
   onUpdateBachhaImmunizationRecord: (record: ChildImmunizationRecord) => void;
   onDeleteBachhaImmunizationRecord: (recordId: string) => void;
+
+  coldChainEquipment?: ColdChainEquipment[];
+  coldChainLogs?: ColdChainLogEntry[];
+  onSaveColdChainEquipment?: (equipment: ColdChainEquipment) => void;
+  onDeleteColdChainEquipment?: (equipmentId: string) => void;
+  onSaveColdChainLog?: (log: ColdChainLogEntry) => void;
+  onDeleteColdChainLog?: (logId: string) => void;
 
   firms: FirmEntry[];
   onAddFirm: (firm: FirmEntry) => void;

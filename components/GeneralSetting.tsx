@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
@@ -592,6 +592,47 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     <button type="button" onClick={() => {
                         handleChange('vaccinationCenters', [...(localSettings.vaccinationCenters || []), '|']);
                     }} className="flex items-center gap-2 text-primary-600 text-sm font-bold"><Plus size={16}/> थप्नुहोस्</button>
+                </div>
+            </div>
+
+            {/* कोल्ड चेन (खोप फ्रिज) तापक्रम सेटिङ */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Thermometer size={18} className="text-cyan-600"/> कोल्ड चेन (खोप फ्रिज) सेटिङ (Cold Chain EPI Settings)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali">
+                    नेपाल सरकार (EPI) मापदण्ड अनुसार खोप भण्डारणको सामान्य सुरक्षित दायरा २°C देखि ८°C हो। तापक्रम यो सीमा भन्दा बाहिर गएमा प्रणालीले तत्काल चेतावनी दिनेछ।
+                </p>
+                <div className="grid md:grid-cols-3 gap-4">
+                    <Input 
+                        label="न्यूनतम तापक्रम (°C Min Temp)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.coldChainMinTempC !== undefined ? localSettings.coldChainMinTempC : 2} 
+                        onChange={(e) => handleChange('coldChainMinTempC', parseFloat(e.target.value) || 0)} 
+                        placeholder="2"
+                    />
+                    <Input 
+                        label="अधिकतम तापक्रम (°C Max Temp)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.coldChainMaxTempC !== undefined ? localSettings.coldChainMaxTempC : 8} 
+                        onChange={(e) => handleChange('coldChainMaxTempC', parseFloat(e.target.value) || 0)} 
+                        placeholder="8"
+                    />
+                    <Input 
+                        label="आपतकालीन अलर्ट मोबाइल (Alert Mobile No.)" 
+                        type="tel"
+                        value={localSettings.coldChainAlertPhone || ''} 
+                        onChange={(e) => handleChange('coldChainAlertPhone', e.target.value)} 
+                        placeholder="९८XXXXXXXX (Incharge Mobile)"
+                    />
+                </div>
+                <div className="flex items-start gap-2.5 p-3 bg-cyan-50/70 border border-cyan-100 rounded-xl text-xs text-cyan-900 font-nepali">
+                    <ShieldAlert size={16} className="text-cyan-600 shrink-0 mt-0.5" />
+                    <span>
+                        तापक्रम रेकर्ड गर्दा सीमा नाघेमा यो फोन नम्बरमा तुरुन्त SMS अलर्ट पठाउने सुविधा उपलब्ध हुनेछ।
+                    </span>
                 </div>
             </div>
 

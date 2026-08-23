@@ -352,4 +352,53 @@ export interface GaunGharClinicRecord {
   _orgName?: string;
 }
 
+export interface AuditLogChange {
+  field: string;
+  oldValue: any;
+  newValue: any;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestampMs: number;
+  actorUid: string;
+  actorName: string;
+  actorRole: string;
+  orgName: string;
+  module: string;
+  action: 'VACCINE_DOSE_UPDATED' | 'VACCINE_DOSE_RESET_TO_PENDING' | 'RECORD_CREATED' | 'RECORD_UPDATED' | 'RECORD_DELETED' | string;
+  recordId: string;
+  recordLabel: string;
+  changes: AuditLogChange[];
+}
+
+export interface ColdChainEquipment {
+  id: string;
+  name: string; // e.g. "ILR Fridge 1", "Deep Freezer 2"
+  type: 'ILR' | 'Deep Freezer' | 'Cold Box' | 'Other';
+  serialNumber?: string;
+  model?: string;
+  location?: string;
+  isActive: boolean;
+  remarks?: string;
+  _orgName?: string;
+}
+
+export interface ColdChainLogEntry {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  dateBs: string;
+  dateAd: string;
+  session: 'Morning' | 'Evening';
+  tempCelsius: number;
+  recordedBy: string;
+  recordedByUid: string;
+  isOutOfRange: boolean;
+  remarks?: string;
+  correctiveAction?: string;
+  _orgName?: string;
+}
+
+
 

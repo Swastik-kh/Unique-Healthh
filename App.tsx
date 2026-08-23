@@ -11,8 +11,9 @@ import {
   DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, 
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
-  GaunGharClinicRecord,
-  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser
+  GaunGharClinicRecord, AuditLogEntry,
+  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser,
+  ColdChainEquipment, ColdChainLogEntry
 } from './types';
 import { db } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -121,6 +122,9 @@ const App: React.FC = () => {
   const [interFacilityRequests, setInterFacilityRequests] = useState<InterFacilityRequest[]>([]);
   const [itemList, setItemList] = useState<ItemEntry[]>([]);
   const [gaunGharClinicRecords, setGaunGharClinicRecords] = useState<GaunGharClinicRecord[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [coldChainEquipment, setColdChainEquipment] = useState<ColdChainEquipment[]>([]);
+  const [coldChainLogs, setColdChainLogs] = useState<ColdChainLogEntry[]>([]);
   
   // Financial State
   const [financialPrograms, setFinancialPrograms] = useState<any[]>([]);
@@ -380,6 +384,9 @@ const App: React.FC = () => {
     setupOrgListener('karmachariTalimRecords', setKarmachariTalimRecords);
     setupOrgListener('gaunGharClinicRecords', setGaunGharClinicRecords);
     setupOrgListener('itemList', setItemList);
+    setupOrgListener('auditLogs', setAuditLogs);
+    setupOrgListener('coldChainEquipment', setColdChainEquipment);
+    setupOrgListener('coldChainLogs', setColdChainLogs);
 
     // Financial Listeners
     setupOrgListener('financialPrograms', setFinancialPrograms);
@@ -495,6 +502,101 @@ const App: React.FC = () => {
       }
       const safeOrgName = sanitizeOrgName(org);
       return ref(db, `orgData/${safeOrgName}/${subPath}`);
+  };
+
+  const logAuditEvent = async (params: {
+    orgName: string;
+    module: string;
+    action: string;
+    recordId: string;
+    recordLabel: string;
+    changes: { field: string; oldValue: any; newValue: any }[];
+  }) => {
+    if (!currentUser) return;
+    try {
+      const safeOrg = sanitizeOrgName(params.orgName);
+      const logRef = push(ref(db, `orgData/${safeOrg}/auditLogs`));
+      await set(logRef, {
+        id: logRef.key,
+        timestampMs: Date.now(),
+        actorUid: (currentUser as any).uid || currentUser.id || currentUser.username || 'unknown',
+        actorName: currentUser.fullName || currentUser.username || 'Unknown User',
+        actorRole: currentUser.role,
+        orgName: params.orgName,
+        module: params.module,
+        action: params.action,
+        recordId: params.recordId,
+        recordLabel: params.recordLabel,
+        changes: params.changes || [],
+      });
+    } catch (e) {
+      console.error('Audit log write failed:', e);
+      // Do not block the main save on audit-log failure — log the error and continue.
+    }
+  };
+
+  const cleanForFirebase = (data: any): any => {
+    if (data === undefined || data === null) return null;
+    if (typeof data !== 'object') return data;
+    if (Array.isArray(data)) return data.map(item => cleanForFirebase(item));
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(data)) {
+      const val = data[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanForFirebase(val);
+      }
+    }
+    return cleaned;
+  };
+
+  const handleSaveColdChainEquipment = async (eq: ColdChainEquipment) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const equipRef = getOrgRef(`coldChainEquipment/${eq.id}`, org);
+      const safeData = cleanForFirebase({ ...eq, _orgName: org });
+      await set(equipRef, safeData);
+    } catch (e) {
+      console.error("Error saving cold chain equipment", e);
+      alert("उपकरण विवरण सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteColdChainEquipment = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const equipRef = getOrgRef(`coldChainEquipment/${id}`, org);
+      await remove(equipRef);
+    } catch (e) {
+      console.error("Error deleting cold chain equipment", e);
+      alert("उपकरण हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveColdChainLog = async (entry: ColdChainLogEntry) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const logRef = getOrgRef(`coldChainLogs/${entry.id}`, org);
+      const safeData = cleanForFirebase({ ...entry, _orgName: org });
+      await set(logRef, safeData);
+    } catch (e) {
+      console.error("Error saving cold chain log", e);
+      alert("तापक्रम रेकर्ड सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteColdChainLog = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const logRef = getOrgRef(`coldChainLogs/${id}`, org);
+      await remove(logRef);
+    } catch (e) {
+      console.error("Error deleting cold chain log", e);
+      alert("तापक्रम रेकर्ड हटाउन सकिएन।");
+    }
   };
 
   const handleAddLeaveApplication = async (app: LeaveApplication) => {
@@ -750,6 +852,46 @@ const App: React.FC = () => {
         return;
       }
 
+      const existingRecord = bachhaImmunizationRecords.find(r => r.id === record.id);
+      if (existingRecord) {
+        // UPDATE — diff vaccines array specifically, since that's the sensitive part
+        const changes: { field: string; oldValue: any; newValue: any }[] = [];
+        (record.vaccines || []).forEach((newV, idx) => {
+          const oldV = (existingRecord.vaccines || [])[idx];
+          if (!oldV) return;
+          if (oldV.status !== newV.status) {
+            changes.push({ field: `${newV.name} - status`, oldValue: oldV.status, newValue: newV.status });
+          }
+          if (oldV.givenDateBs !== newV.givenDateBs) {
+            changes.push({ field: `${newV.name} - givenDateBs`, oldValue: oldV.givenDateBs || null, newValue: newV.givenDateBs || null });
+          }
+          if (!!oldV.vaccinatedElsewhere !== !!newV.vaccinatedElsewhere) {
+            changes.push({ field: `${newV.name} - vaccinatedElsewhere`, oldValue: !!oldV.vaccinatedElsewhere, newValue: !!newV.vaccinatedElsewhere });
+          }
+        });
+        if (changes.length > 0) {
+          const action = changes.some(c => c.newValue === 'Pending') ? 'VACCINE_DOSE_RESET_TO_PENDING' : 'VACCINE_DOSE_UPDATED';
+          await logAuditEvent({
+            orgName: targetOrg,
+            module: 'bachhaImmunizationRecords',
+            action,
+            recordId: record.id,
+            recordLabel: `${record.childName || '(नाम अझै राखिएको छैन)'} (${record.regNo})`,
+            changes,
+          });
+        }
+      } else {
+        // NEW REGISTRATION
+        await logAuditEvent({
+          orgName: targetOrg,
+          module: 'bachhaImmunizationRecords',
+          action: 'RECORD_CREATED',
+          recordId: record.id,
+          recordLabel: `${record.childName || '(नाम अझै राखिएको छैन)'} (${record.regNo})`,
+          changes: [],
+        });
+      }
+
       await set(getOrgRef(`bachhaImmunizationRecords/${record.id}`, targetOrg), sanitized);
     } catch (error) {
       alert("खोप रेकर्ड सुरक्षित गर्न सकिएन।");
@@ -761,6 +903,18 @@ const App: React.FC = () => {
     try {
       const record = bachhaImmunizationRecords.find(r => r.id === id);
       const targetOrg = (record as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      
+      if (record) {
+        await logAuditEvent({
+          orgName: targetOrg,
+          module: 'bachhaImmunizationRecords',
+          action: 'RECORD_DELETED',
+          recordId: record.id,
+          recordLabel: `${record.childName || '(नाम अझै राखिएको छैन)'} (${record.regNo})`,
+          changes: [],
+        });
+      }
+
       await remove(getOrgRef(`bachhaImmunizationRecords/${id}`, targetOrg));
     } catch (error) {
       alert("खोप रेकर्ड हटाउन सकिएन।");
@@ -2114,6 +2268,13 @@ const App: React.FC = () => {
     onUpdateInterFacilityRequest={(req) => handleUpdateGlobal('interFacilityRequests', req)}
     itemList={itemList}
     gaunGharClinicRecords={gaunGharClinicRecords}
+    auditLogs={auditLogs}
+    coldChainEquipment={coldChainEquipment}
+    coldChainLogs={coldChainLogs}
+    onSaveColdChainEquipment={handleSaveColdChainEquipment}
+    onDeleteColdChainEquipment={handleDeleteColdChainEquipment}
+    onSaveColdChainLog={handleSaveColdChainLog}
+    onDeleteColdChainLog={handleDeleteColdChainLog}
     onSaveGaunGharClinicRecord={handleSaveGaunGharClinicRecord}
     onDeleteGaunGharClinicRecord={handleDeleteGaunGharClinicRecord}
     onUpdateReadNotifications={handleUpdateReadNotifications}
