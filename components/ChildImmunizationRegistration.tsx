@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe, Printer } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe, Printer, Clock, FileText } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -235,6 +235,30 @@ const getInitialVaccineSchedule = (dobAd: string, gender: string): ChildImmuniza
   }
 };
 
+const calculateAge = (dobBs: string) => {
+    if (!dobBs) return "N/A";
+    try {
+      const today = new NepaliDate();
+      const birth = new NepaliDate(dobBs);
+      
+      let years = today.getYear() - birth.getYear();
+      let months = today.getMonth() - birth.getMonth();
+      let days = today.getDate() - birth.getDate();
+
+      if (days < 0) {
+        months -= 1;
+        days += 30; 
+      }
+      if (months < 0) {
+        years -= 1;
+        months += 12;
+      }
+      return `${years} व, ${months} म, ${days} दि`;
+    } catch (e) { 
+        return "Invalid"; 
+    } 
+};
+
 export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrationProps> = ({
   currentFiscalYear,
   records,
@@ -255,6 +279,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [pendingDuplicates, setPendingDuplicates] = useState<ChildImmunizationRecord[] | null>(null);
   const [pendingSaveData, setPendingSaveData] = useState<ChildImmunizationRecord | null>(null);
   const [selectedVaccineForUpdate, setSelectedVaccineForUpdate] = useState<{ record: ChildImmunizationRecord; vaccineIndex: number; } | null>(null);
+  const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
   const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -269,6 +294,163 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   };
 
   const todayBs = getTodayBs();
+
+  // Helper to find effective scheduled date dynamically based on preceding vaccine given dates (6-week -> 10-week -> 14-week)
+  const getEffectiveVaccineScheduledBs = useCallback((child: ChildImmunizationRecord, vaccine: ChildImmunizationVaccine) => {
+    const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === vaccine.name);
+    if (templateItem && child.dobAd) {
+      const { bs } = calculateImmunizationDate(child.dobAd, templateItem.relativeDays, templateItem.base, child.vaccines || []);
+      if (bs && bs !== 'N/A' && bs !== 'Error') return bs;
+      if (templateItem.base !== 'dob') {
+        return 'N/A';
+      }
+    }
+    return vaccine.scheduledDateBs || '-';
+  }, []);
+
+  const getVaccinesGivenCount = (vaccines: ChildImmunizationVaccine[] = []) => {
+    return vaccines.filter(v => v.status === 'Given').length;
+  };
+
+  const getVaccinesStatusPercent = (vaccines: ChildImmunizationVaccine[] = []) => {
+    const total = vaccines.length;
+    if (total === 0) return 0;
+    return Math.round((vaccines.filter(v => v.status === 'Given').length / total) * 100);
+  };
+
+  const getCompletionDate = (child: ChildImmunizationRecord) => {
+    const relevantVaccines = (child.vaccines || []).filter(v => 
+        (v.name.includes('MR-2') || v.name.includes('Typhoid')) && 
+        v.status === 'Given'
+    );
+    if (relevantVaccines.length === 0) return '-';
+    
+    const dates = relevantVaccines
+        .map(v => v.givenDateBs || '')
+        .filter(d => d !== '')
+        .sort();
+        
+    return dates[dates.length - 1] || '-';
+  };
+
+  const handlePrintCard = (child: ChildImmunizationRecord) => {
+    const printContent = document.getElementById('single-card-print-registration');
+    if (!printContent) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>खोप विवरण कार्ड - ${child.childName || child.regNo}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700;800&family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+          @page { 
+            size: A4 portrait; 
+            margin: 0 !important; 
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
+            height: 100% !important;
+            width: 100% !important;
+            font-family: 'Mukta', sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #single-card-print-registration { 
+            border: 3px double #115e59 !important; 
+            padding: 5mm 6mm !important; 
+            margin: 4mm auto !important;
+            text-align: left !important; 
+            width: calc(100% - 8mm) !important;
+            max-height: 285mm !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            box-shadow: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          #single-card-print-registration * {
+            box-sizing: border-box !important;
+          }
+          #single-card-print-registration .print-card-header {
+            position: relative !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-height: 48px !important;
+            padding-bottom: 2px !important;
+            margin-bottom: 2px !important;
+          }
+          #single-card-print-registration .print-card-logo-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+          #single-card-print-registration .print-card-logo {
+            height: 46px !important;
+            width: 46px !important;
+            object-fit: contain !important;
+          }
+          #single-card-print-registration table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin: 0 !important;
+          }
+          #single-card-print-registration th, #single-card-print-registration td {
+            padding: 1px 3px !important;
+            font-size: 7.5pt !important;
+            line-height: 1.1 !important;
+            border: 1px solid #cbd5e1 !important;
+          }
+          #single-card-print-registration th {
+            background-color: #f1f5f9 !important;
+            font-weight: bold !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${printContent.outerHTML}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              setTimeout(function() {
+                if (window.frameElement && window.frameElement.parentNode) {
+                  window.frameElement.parentNode.removeChild(window.frameElement);
+                }
+              }, 1000);
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    doc.close();
+  };
 
   const normalizeDate = (d?: string) => {
     if (!d) return '';
@@ -1612,7 +1794,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-slate-800 flex items-center gap-2">
+                      <div 
+                        className="font-bold text-slate-800 flex items-center gap-2 cursor-pointer hover:text-primary-600 transition-colors w-fit"
+                        onClick={() => setSelectedChildForCard(record)}
+                        title="खोप कार्ड हेर्नुहोस् तथा प्रिन्ट गर्नुहोस्"
+                      >
                         {getChildDisplayName(record)}
                         {record.nameNotAssigned && (
                           <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-nepali">
@@ -1678,7 +1864,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 items-center">
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedChildForCard(record)} 
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all font-nepali cursor-pointer"
+                            title="खोप कार्ड तथा प्रमाणपत्र हेर्नुहोस् / प्रिन्ट गर्नुहोस्"
+                          >
+                            <Printer size={14} />
+                            <span>कार्ड</span>
+                          </button>
                           <button onClick={() => handleEditRecord(record)} className="text-primary-600 hover:bg-primary-50 p-2 rounded-full" title="सम्पादन"><Edit size={18} /></button>
                           <button onClick={() => handleDeleteRecord(record.id, getChildDisplayName(record))} className="text-red-600 hover:bg-red-50 p-2 rounded-full" title="हटाउनुहोस्"><Trash2 size={18} /></button>
                       </div>
@@ -1861,6 +2056,275 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           </div>
         </div>
       )}
+
+      {/* Child Full Vaccination Status & Card Modal */}
+      {selectedChildForCard && (() => {
+            const vaccines = selectedChildForCard.vaccines || [];
+            const totalCount = vaccines.length;
+            const givenCount = getVaccinesGivenCount(vaccines);
+            const pendingCount = totalCount - givenCount;
+            const percent = getVaccinesStatusPercent(vaccines);
+            const isFullFIC = totalCount > 0 && givenCount === totalCount;
+            const completionDate = getCompletionDate(selectedChildForCard);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 no-print animate-in fade-in duration-200">
+                    <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setSelectedChildForCard(null)}></div>
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100">
+                        {/* Modal Header */}
+                        <div className={`p-4 sm:p-5 border-b flex justify-between items-center text-white shrink-0 ${isFullFIC ? 'bg-gradient-to-r from-teal-700 via-emerald-700 to-teal-800' : 'bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-800'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner">
+                                    {isFullFIC ? <ShieldCheck size={26} className="text-white" /> : <Syringe size={26} className="text-white" />}
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-base sm:text-lg font-nepali leading-tight">
+                                        {isFullFIC ? 'पूर्ण खोप सुनिश्चितता कार्ड (FIC Certificate)' : 'बालबालिकाको शुरु देखिको खोप स्थिति तथा कार्ड (Immunization History)'}
+                                    </h3>
+                                    <p className="text-xs text-white/80 font-nepali mt-0.5">
+                                        {getChildDisplayName(selectedChildForCard)} ({selectedChildForCard.regNo}) • खोप प्रगति: {givenCount}/{totalCount} ({percent}%)
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => handlePrintCard(selectedChildForCard)} 
+                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-slate-800 hover:bg-slate-100 rounded-xl text-xs font-bold shadow-xs transition-all font-nepali cursor-pointer"
+                                >
+                                    <Printer size={15} /> प्रिन्ट गर्नुहोस्
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedChildForCard(null)} 
+                                    className="p-1.5 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
+                                    title="बन्द गर्नुहोस्"
+                                >
+                                    <X size={20}/>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+                            {/* Certificate / Full History Card Content (Printable) */}
+                            <div id="single-card-print-registration" className={`bg-white border-[3px] border-double ${isFullFIC ? 'border-teal-700' : 'border-indigo-700'} p-3.5 sm:p-4 rounded-xl shadow-sm text-slate-900 font-nepali overflow-hidden flex flex-col space-y-1.5`}>
+                                {/* Header */}
+                                <div className="print-card-header relative flex items-center justify-center pb-1 border-b border-slate-200 min-h-[48px]">
+                                    {/* Top-Left Logo */}
+                                    <div className="print-card-logo-container absolute left-0 top-0 flex items-center h-full">
+                                        <img 
+                                            src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                            alt="Nepal Emblem" 
+                                            className="print-card-logo h-10 w-10 sm:h-12 sm:w-12 object-contain" 
+                                        />
+                                    </div>
+                                    {/* Header Titles 1, 2, 3, 4 from General Settings */}
+                                    <div className="text-center w-full px-12 sm:px-14">
+                                        <h1 className="text-sm sm:text-base font-black text-slate-900 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
+                                        {generalSettings.subTitleNepali && (
+                                            <h2 className="text-[11px] sm:text-xs font-bold text-slate-700 mt-0.5 leading-tight">{generalSettings.subTitleNepali}</h2>
+                                        )}
+                                        {generalSettings.subTitleNepali2 && (
+                                            <h3 className="text-[10px] sm:text-[11px] font-semibold text-slate-600 leading-tight">{generalSettings.subTitleNepali2}</h3>
+                                        )}
+                                        {generalSettings.subTitleNepali3 && (
+                                            <h4 className="text-[9.5px] sm:text-[10px] font-medium text-slate-600 leading-tight">{generalSettings.subTitleNepali3}</h4>
+                                        )}
+                                        {generalSettings.subTitleNepali4 && (
+                                            <h5 className="text-[9px] sm:text-[9.5px] font-normal text-slate-500 leading-tight">{generalSettings.subTitleNepali4}</h5>
+                                        )}
+                                        <div className={`h-0.5 w-16 mx-auto my-0.5 rounded-full ${isFullFIC ? 'bg-teal-600' : 'bg-indigo-600'}`}></div>
+                                        <h4 className={`text-[11px] sm:text-xs font-black ${isFullFIC ? 'text-teal-800' : 'text-indigo-800'}`}>
+                                            {isFullFIC ? 'पूर्ण खोप सुनिश्चितता प्रमाणपत्र (FIC Certificate)' : 'बालबालिकाको सम्पूर्ण खोप विवरण तथा स्थिति कार्ड'}
+                                        </h4>
+                                    </div>
+                                </div>
+
+                                {/* Status Progress Overview */}
+                                <div className={`py-1 px-2.5 rounded-lg border ${isFullFIC ? 'bg-teal-50/80 border-teal-200' : 'bg-indigo-50/70 border-indigo-100'}`}>
+                                    {isFullFIC ? (
+                                        <div className="flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                                            <div className="flex items-center gap-1">
+                                                <CheckCircle2 size={14} className="text-teal-700 shrink-0" />
+                                                <span className="font-bold text-teal-950">स्थिति: पूर्ण खोप प्राप्त बालबालिका (Fully Immunized Child)</span>
+                                            </div>
+                                            <div className="font-bold text-teal-900">
+                                                <span>पूर्ण खोप सम्पन्न मिति: </span>
+                                                <span className="font-mono font-black text-[11px] bg-teal-200/70 px-1.5 py-0.2 rounded border border-teal-300">{completionDate}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-0.5">
+                                            <div className="flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                                                <span className="font-bold text-indigo-950">खोप प्रगति स्थिति (Immunization Progress):</span>
+                                                <div className="flex items-center gap-1.5 font-bold font-nepali text-[9.5px]">
+                                                    <span className="text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">लगाएको: {givenCount}</span>
+                                                    <span className="text-rose-700 bg-rose-100/70 px-1.5 py-0.2 rounded">बाँकी/छुटेको: {pendingCount}</span>
+                                                    <span className="text-indigo-800 bg-indigo-100/70 px-1.5 py-0.2 rounded font-mono">जम्मा: {totalCount} ({percent}%)</span>
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="bg-indigo-600 h-1 rounded-full transition-all duration-300"
+                                                    style={{ width: `${percent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Child & Guardian Info Grid */}
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 py-1 px-2.5 text-[10px] border border-slate-200 bg-slate-50/40 rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">दर्ता नम्बर (Reg No):</span> 
+                                            <span className="font-bold text-indigo-800 font-mono text-[10.5px]">{selectedChildForCard.regNo}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">बच्चाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{getChildDisplayName(selectedChildForCard)}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">जन्म मिति (DOB):</span> 
+                                            <span className="font-bold text-slate-800">
+                                                {selectedChildForCard.dobBs} <span className="text-[9px] text-slate-500 font-normal">({calculateAge(selectedChildForCard.dobBs)})</span>
+                                            </span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">लिङ्ग (Gender):</span> 
+                                            <span className="font-bold">{selectedChildForCard.gender === 'Male' ? 'बालक (Male)' : selectedChildForCard.gender === 'Female' ? 'बालिका (Female)' : 'अन्य (Other)'}</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span className="text-slate-500">दर्ता मिति:</span> 
+                                            <span className="font-mono">{selectedChildForCard.regDateBs || '-'}</span>
+                                        </p>
+                                    </div>
+                                    <div className="space-y-0.5">
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">आमाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{selectedChildForCard.motherName || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">बुबाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{selectedChildForCard.fatherName || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">ठेगाना:</span> 
+                                            <span className="font-bold text-slate-800 text-right truncate max-w-[180px]">{selectedChildForCard.address}{selectedChildForCard.isOtherAddress ? ' (अन्य ठेगाना)' : ''}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-0.5">
+                                            <span className="text-slate-500">सम्पर्क फोन:</span> 
+                                            <span className="font-bold font-mono text-slate-800">{selectedChildForCard.phone || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span className="text-slate-500">खोप केन्द्र:</span> 
+                                            <span className="font-bold text-blue-700 truncate max-w-[180px]">{selectedChildForCard.vaccinationCenter || '-'}</span>
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Full Vaccine Schedule & History Table */}
+                                <div className="space-y-0.5">
+                                    <h4 className="text-center font-extrabold text-slate-800 text-[10px] uppercase tracking-wide my-0.2">
+                                        शुरु देखिको सम्पूर्ण खोप विवरण तथा तालिका (Complete Immunization Schedule & Status)
+                                    </h4>
+                                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                                        <table className="w-full text-[10px] text-left border-collapse">
+                                            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-2 py-0.5 text-center w-7">क्र.सं.</th>
+                                                    <th className="px-2 py-0.5">उमेर / समूह (Cluster)</th>
+                                                    <th className="px-2 py-0.5">खोपको नाम (Vaccine)</th>
+                                                    <th className="px-2 py-0.5 text-center">तालिका मिति (BS)</th>
+                                                    <th className="px-2 py-0.5 text-center">लगाएको मिति (BS)</th>
+                                                    <th className="px-2 py-0.5 text-center">स्थान / कैफियत</th>
+                                                    <th className="px-2 py-0.5 text-center">स्थिति (Status)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {vaccines.map((v, i) => {
+                                                    const effSchedBs = getEffectiveVaccineScheduledBs(selectedChildForCard, v);
+                                                    const isGiven = v.status === 'Given';
+                                                    const isOverdue = !isGiven && effSchedBs && effSchedBs < todayBs;
+
+                                                    return (
+                                                        <tr key={i} className={`hover:bg-slate-50/80 transition-colors ${isGiven ? 'bg-emerald-50/20' : isOverdue ? 'bg-rose-50/30' : ''}`}>
+                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-400 text-[9.5px]">{i + 1}</td>
+                                                            <td className="px-2 py-0.5 font-medium text-slate-600 text-[9.5px]">{v.cluster || '-'}</td>
+                                                            <td className="px-2 py-0.5 font-bold text-slate-900 text-[10px] flex items-center gap-1">
+                                                                <Syringe size={10} className={isGiven ? 'text-emerald-600' : isOverdue ? 'text-rose-500' : 'text-blue-500'} />
+                                                                <span>{v.name}</span>
+                                                            </td>
+                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-600 text-[10px]">{effSchedBs || '-'}</td>
+                                                            <td className="px-2 py-0.5 text-center font-mono font-bold text-[10px]">
+                                                                {v.givenDateBs ? (
+                                                                    <span className="text-emerald-800">{v.givenDateBs}</span>
+                                                                ) : (
+                                                                    <span className="text-slate-300 font-normal">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-2 py-0.5 text-center text-[9px]">
+                                                                {v.vaccinatedElsewhere ? (
+                                                                    <span className="bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded-full font-semibold border border-amber-200">
+                                                                        अन्यत्र लगाएको
+                                                                    </span>
+                                                                ) : isGiven ? (
+                                                                    <span className="text-slate-600 font-medium">यस संस्थामा</span>
+                                                                ) : (
+                                                                    <span className="text-slate-400">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-2 py-0.5 text-center">
+                                                                {isGiven ? (
+                                                                    <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-emerald-200">
+                                                                        <CheckCircle2 size={9} className="text-emerald-600" /> लगाएको (Given)
+                                                                    </span>
+                                                                ) : isOverdue ? (
+                                                                    <span className="inline-flex items-center gap-1 text-rose-800 bg-rose-100/80 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-rose-200">
+                                                                        <Clock size={9} className="text-rose-600" /> छुटेको (Overdue)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 text-blue-800 bg-blue-100/70 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-blue-200">
+                                                                        <CalendarClock size={9} className="text-blue-600" /> बाँकी (Pending)
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                {/* Bottom Certification Text */}
+                                <div className="text-center pt-0.5">
+                                    <p className="text-[9.5px] font-semibold text-slate-700 leading-tight italic px-2">
+                                        {isFullFIC
+                                            ? '"प्रमाणित गरिन्छ कि माथि उल्लेखित बच्चाले १५ महिना भित्र पाउनुपर्ने सबै खोपहरू पूर्ण रूपमा प्राप्त गरिसकेको छ।"'
+                                            : '"माथि उल्लेखित बच्चाको खोप तालिका तथा स्थिति यस स्वास्थ्य संस्थाको अभिलेख अनुसार अद्यावधिक गरिएको छ।"'}
+                                    </p>
+                                </div>
+
+                                {/* Official Signatures */}
+                                <div className="mt-1 grid grid-cols-2 gap-x-12 text-[10px] font-bold px-6 pt-0.5">
+                                    <div className="text-center">
+                                        <div className="h-5 flex items-end justify-center mb-0.5">
+                                            <div className="w-36 border-b border-slate-800"></div>
+                                        </div>
+                                        <p className="text-slate-800">स्वास्थ्यकर्मीको हस्ताक्षर / नाम</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="h-5 flex items-end justify-center mb-0.5">
+                                            <div className="w-36 border-b border-slate-800"></div>
+                                        </div>
+                                        <p className="text-slate-800">संस्था प्रमुखको हस्ताक्षर / छाप</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        })()}
     </div>
   );
 };
