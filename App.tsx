@@ -12,7 +12,7 @@ import {
   DakhilaItem, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, LeaveApplication, LeaveStatus, LeaveBalance, Darta, Chalani, BharmanAdeshEntry, SentLetter, ReceivedLetter,
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
   GaunGharClinicRecord,
-  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry
+  PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser
 } from './types';
 import { db } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -1328,6 +1328,11 @@ const App: React.FC = () => {
   };
 
   const handleDeleteUser = async (id: string) => {
+      const userToDelete = allUsers.find(u => u.id === id);
+      if (isSystemManagerUser(userToDelete)) {
+          alert("सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता खाता कुनै पनि हालतमा हटाउन मिल्दैन।");
+          return;
+      }
       try {
           await remove(ref(db, `users/${id}`));
       } catch (err: any) {
@@ -1347,10 +1352,10 @@ const App: React.FC = () => {
           // Find all users of this organization
           const orgUsers = allUsers.filter(u => u.organizationName === orgName);
           
-          // Check if any of these users is indeed a SUPER_ADMIN or username is admin
-          const hasSuperAdmin = orgUsers.some(u => u.role === 'SUPER_ADMIN' || u.username === 'admin');
-          if (hasSuperAdmin) {
-              alert("यो संस्था भित्र सुपर एड्मिन (Super Admin) प्रयोगकर्ता रहेकोले यो संस्था हटाउन मिल्दैन। पहिले सुपर एड्मिनको विवरण परिवर्तन गर्नुहोस् वा अर्कै संस्थामा सार्नुहोस्।");
+          // Check if any of these users is a system manager user
+          const hasSystemManager = orgUsers.some(u => isSystemManagerUser(u));
+          if (hasSystemManager) {
+              alert("यो संस्था भित्र सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता रहेकोले यो संस्था हटाउन मिल्दैन।");
               return;
           }
 

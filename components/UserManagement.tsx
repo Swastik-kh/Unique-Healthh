@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react'; 
-import { User, UserRole, Option } from '../types/coreTypes'; 
+import { User, UserRole, Option, isSystemManagerUser } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
 import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail } from 'lucide-react';
 import { Input } from './Input';
@@ -683,6 +683,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
     try {
         if (editingId && editingId !== newId) {
+            const origUser = users.find(u => u.id === editingId);
+            if (isSystemManagerUser(origUser)) {
+                alert("सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) को ID परिवर्तन गर्न वा पुरानo खाता मेटाउन मिल्दैन।");
+                setIsSaving(false);
+                return;
+            }
             // ID changed: Create new user with new ID, then delete old user
             if (window.confirm("तपाईंले कर्मचारी संकेत नं. (ID) परिवर्तन गर्दै हुनुहुन्छ। यसले पुरानो ID को रेकर्ड हटाएर नयाँ ID मा सार्नेछ। के तपाईं निश्चित हुनुहुन्छ?")) {
                 await onAddUser(userToSave); // Create new
@@ -1173,7 +1179,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                 </button>
                             )}
                             <button onClick={() => handleEditClick(user)} className="text-primary-400 hover:text-primary-600 p-1.5 hover:bg-primary-50 rounded-full transition-colors"><Pencil size={18}/></button>
-                            <button onClick={() => { if(window.confirm('के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?')) onDeleteUser(user.id); }} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={18}/></button>
+                            {(() => {
+                                const isSysManager = isSystemManagerUser(user);
+                                return (
+                                    <button 
+                                        onClick={() => { 
+                                            if (isSysManager) {
+                                                alert('सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता खाता कुनै पनि हालतमा हटाउन मिल्दैन।');
+                                                return;
+                                            }
+                                            if(window.confirm('के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?')) onDeleteUser(user.id); 
+                                        }} 
+                                        disabled={isSysManager}
+                                        className={`${isSysManager ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-red-400 hover:text-red-600 hover:bg-red-50'} p-1.5 rounded-full transition-colors`}
+                                        title={isSysManager ? 'सुरक्षा कारणले सिस्टम म्यानेजर खाता हटाउन मिल्दैन' : 'प्रयोगकर्ता हटाउनुहोस्'}
+                                    >
+                                        <Trash2 size={18}/>
+                                    </button>
+                                );
+                            })()}
                         </div>
                         </td>
                     </tr>

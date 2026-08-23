@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { User, UserRole } from '../types/coreTypes';
+import { User, UserRole, isSystemManagerUser } from '../types/coreTypes';
 import { 
   Building2, Users, Pencil, Trash2, X, Plus, Shield, 
   Phone, Briefcase, KeyRound, Save, Loader2, AlertTriangle, ShieldCheck 
@@ -109,6 +109,11 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
 
     try {
       if (editingUser.id !== userToSave.id) {
+        if (isSystemManagerUser(editingUser)) {
+          setUserError('सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ताको ID परिवर्तन वा पुरानो खाता हटाउन मिल्दैन।');
+          setIsSavingUser(false);
+          return;
+        }
         // If ID has changed, add the new user and delete the old one
         await onUpdateUser(userToSave);
         await onDeleteUser(editingUser.id);
@@ -132,8 +137,8 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
       alert('तपाईंले अहिले लगइन गरिरहनुभएको प्रयोगकर्ता आफैलाई हटाउन सक्नुहुन्न।');
       return;
     }
-    if (userToDelete.role === 'SUPER_ADMIN' || userToDelete.username === 'admin') {
-      alert('सुरक्षा कारणले अर्को Super Admin वा मूल admin प्रयोगकर्ता हटाउन अनुमति छैन।');
+    if (isSystemManagerUser(userToDelete)) {
+      alert('सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता खाता कुनै पनि हालतमा हटाउन मिल्दैन।');
       return;
     }
 
@@ -330,38 +335,46 @@ export const OrganizationManagement: React.FC<OrganizationManagementProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 font-nepali text-slate-700">
-                      {currentOrgUsers.map(u => (
-                        <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-3 font-semibold text-slate-900">{u.id}</td>
-                          <td className="py-3 font-bold text-slate-800">{u.fullName}</td>
-                          <td className="py-3 font-mono text-xs">{u.username}</td>
-                          <td className="py-3">
-                            <span className="inline-block px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">
-                              {getNepaliRoleLabel(u.role)}
-                            </span>
-                          </td>
-                          <td className="py-3 text-xs text-slate-500">
-                            <div>{u.designation || '-'}</div>
-                            <div className="font-mono text-[10px] text-slate-400 mt-0.5">{u.phoneNumber || '-'}</div>
-                          </td>
-                          <td className="py-3 text-right space-x-1">
-                            <button
-                              onClick={() => handleStartEditUser(u)}
-                              className="p-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/80 rounded-lg transition-colors"
-                              title="विवरण सम्पादन गर्नुहोस्"
-                            >
-                              <Pencil size={15} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUserClick(u)}
-                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                              title="प्रयोगकर्ता हटाउनुहोस्"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {currentOrgUsers.map(u => {
+                        const isSysManager = isSystemManagerUser(u);
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3 font-semibold text-slate-900">{u.id}</td>
+                            <td className="py-3 font-bold text-slate-800">{u.fullName}</td>
+                            <td className="py-3 font-mono text-xs">{u.username}</td>
+                            <td className="py-3">
+                              <span className="inline-block px-2.5 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">
+                                {getNepaliRoleLabel(u.role)}
+                              </span>
+                            </td>
+                            <td className="py-3 text-xs text-slate-500">
+                              <div>{u.designation || '-'}</div>
+                              <div className="font-mono text-[10px] text-slate-400 mt-0.5">{u.phoneNumber || '-'}</div>
+                            </td>
+                            <td className="py-3 text-right space-x-1">
+                              <button
+                                onClick={() => handleStartEditUser(u)}
+                                className="p-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/80 rounded-lg transition-colors"
+                                title="विवरण सम्पादन गर्नुहोस्"
+                              >
+                                <Pencil size={15} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUserClick(u)}
+                                disabled={isSysManager}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  isSysManager
+                                    ? 'text-slate-300 cursor-not-allowed opacity-50'
+                                    : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                }`}
+                                title={isSysManager ? 'सुरक्षा कारणले सिस्टम म्यानेजर खाता हटाउन मिल्दैन' : 'प्रयोगकर्ता हटाउनुहोस्'}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

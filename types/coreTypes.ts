@@ -66,6 +66,38 @@ export interface User {
   passwordLastChangedFrom?: string;
 }
 
+export const isSystemManagerUser = (user: {
+  id?: string;
+  username?: string;
+  role?: string;
+  designation?: string;
+  fullName?: string;
+} | null | undefined): boolean => {
+  if (!user) return false;
+  const id = (user.id || '').toLowerCase().trim();
+  const username = (user.username || '').toLowerCase().trim();
+  const designation = (user.designation || '').toLowerCase().trim();
+  const fullName = (user.fullName || '').toLowerCase().trim();
+  const role = (user.role || '').toUpperCase().trim();
+
+  return (
+    id === 'superadmin' ||
+    id === 'system' ||
+    id === 'system_manager' ||
+    id === 'systemmanager' ||
+    username === 'admin' ||
+    username === 'system_manager' ||
+    username === 'systemmanager' ||
+    username === 'system' ||
+    role === 'SUPER_ADMIN' ||
+    designation.includes('system manager') ||
+    designation.includes('सिस्टम म्यानेजर') ||
+    designation.includes('system_manager') ||
+    fullName.includes('system manager') ||
+    fullName.includes('सिस्टम म्यानेजर')
+  );
+};
+
 export interface WardConfig {
   id: string;
   name: string;
