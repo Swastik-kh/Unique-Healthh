@@ -4,6 +4,7 @@ import { Plus, Search, Edit2, Trash2, Activity, AlertCircle, FileText, Calendar,
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { callPatientSpeech } from './nepaliUtils';
+import { ECGWave } from './ECGWave';
 
 interface ECGSewaProps {
   records: ECGRecord[];
@@ -412,86 +413,100 @@ export const ECGSewa: React.FC<ECGSewaProps> = ({
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="नाम, ID वा फोन नम्बर खोज्नुहोस्..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
+      <div className="relative bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Background ECG Graph Grid & Animated ECG Wave */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <div 
+            className="absolute inset-0 opacity-[0.08]" 
+            style={{
+              backgroundImage: 'linear-gradient(to right, rgba(239, 68, 68, 0.25) 1px, transparent 1px), linear-gradient(to bottom, rgba(239, 68, 68, 0.25) 1px, transparent 1px)',
+              backgroundSize: '24px 24px'
+            }}
+          />
+          <ECGWave stroke="#ef4444" opacity="opacity-25" strokeWidth={2.5} />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-600 text-sm border-b border-gray-200">
-                <th className="p-4 font-medium">मिति</th>
-                <th className="p-4 font-medium">सेवाग्राही</th>
-                <th className="p-4 font-medium">उमेर/ठेगाना</th>
-                <th className="p-4 font-medium">ई.सी.जी. प्रकार</th>
-                <th className="p-4 font-medium">सिफारिस</th>
-                <th className="p-4 font-medium text-right">कार्य</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 text-sm text-gray-800">{record.dateBs}</td>
-                  <td className="p-4">
-                    <div className="font-medium text-gray-800">{record.patientName}</div>
-                    <div className="text-xs text-gray-500">
-                      {record.patientId && <span className="font-bold text-primary-600 mr-1">ID: {record.patientId}</span>}
-                      {record.phone}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm text-gray-800">{record.age}</div>
-                    <div className="text-xs text-gray-500">{record.address}</div>
-                  </td>
-                  <td className="p-4 text-sm text-gray-800 font-medium">{record.ecgType}</td>
-                  <td className="p-4 text-sm text-gray-600">
-                    {record.referredBy ? (
-                      <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold uppercase">
-                        {record.referredBy}
-                      </span>
-                    ) : '-'}
-                  </td>
-                  <td className="p-4 text-right space-x-2">
-                    <button
-                      onClick={() => handleEdit(record)}
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="सम्पादन"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.confirm('के तपाईं यो रेकर्ड हटाउन निश्चित हुनुहुन्छ?')) {
-                          onDelete(record.id);
-                        }
-                      }}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="हटाउनुहोस्"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+        <div className="relative z-10">
+          <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-[2px]">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="नाम, ID वा फोन नम्बर खोज्नुहोस्..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/90 text-gray-600 text-sm border-b border-gray-200 backdrop-blur-[2px]">
+                  <th className="p-4 font-medium">मिति</th>
+                  <th className="p-4 font-medium">सेवाग्राही</th>
+                  <th className="p-4 font-medium">उमेर/ठेगाना</th>
+                  <th className="p-4 font-medium">ई.सी.जी. प्रकार</th>
+                  <th className="p-4 font-medium">सिफारिस</th>
+                  <th className="p-4 font-medium text-right">कार्य</th>
                 </tr>
-              ))}
-              {filteredRecords.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-gray-500">
-                    कुनै रेकर्ड भेटिएन
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100/80">
+                {filteredRecords.map((record) => (
+                  <tr key={record.id} className="hover:bg-red-50/20 transition-colors">
+                    <td className="p-4 text-sm text-gray-800">{record.dateBs}</td>
+                    <td className="p-4">
+                      <div className="font-medium text-gray-800">{record.patientName}</div>
+                      <div className="text-xs text-gray-500">
+                        {record.patientId && <span className="font-bold text-primary-600 mr-1">ID: {record.patientId}</span>}
+                        {record.phone}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="text-sm text-gray-800">{record.age}</div>
+                      <div className="text-xs text-gray-500">{record.address}</div>
+                    </td>
+                    <td className="p-4 text-sm text-gray-800 font-medium">{record.ecgType}</td>
+                    <td className="p-4 text-sm text-gray-600">
+                      {record.referredBy ? (
+                        <span className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold uppercase border border-emerald-200">
+                          {record.referredBy}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => handleEdit(record)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="सम्पादन"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('के तपाईं यो रेकर्ड हटाउन निश्चित हुनुहुन्छ?')) {
+                            onDelete(record.id);
+                          }
+                        }}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="हटाउनुहोस्"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filteredRecords.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      कुनै रेकर्ड भेटिएन
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
