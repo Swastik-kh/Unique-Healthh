@@ -1123,32 +1123,47 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         }
 
         ${listType === 'single-card' ? `
-        body {
+        @page { 
+          size: A4 portrait; 
+          margin: 0 !important; 
+        }
+        html, body {
           margin: 0 !important;
           padding: 0 !important;
           background: white !important;
           color: black !important;
+          height: 100% !important;
+          width: 100% !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
         #single-card-print { 
-          border: 3.5px double #115e59 !important; 
-          padding: 4mm 5mm 3mm 5mm !important; 
+          border: 3px double #115e59 !important; 
+          padding: 5mm 6mm !important; 
+          margin: 4mm auto !important;
           text-align: left !important; 
-          width: 100% !important;
+          width: calc(100% - 8mm) !important;
+          max-height: 285mm !important;
           box-sizing: border-box !important;
           background: white !important;
           box-shadow: none !important;
           display: flex !important;
           flex-direction: column !important;
+          justify-content: space-between !important;
           page-break-inside: avoid !important;
           break-inside: avoid !important;
-          margin: 0 !important;
+          page-break-after: avoid !important;
+          break-after: avoid !important;
+        }
+        #single-card-print * {
+          box-sizing: border-box !important;
         }
         #single-card-print .print-card-header {
           position: relative !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          min-height: 52px !important;
+          min-height: 48px !important;
           padding-bottom: 2px !important;
           margin-bottom: 2px !important;
         }
@@ -1161,8 +1176,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           align-items: center !important;
         }
         #single-card-print .print-card-logo {
-          height: 50px !important;
-          width: 50px !important;
+          height: 46px !important;
+          width: 46px !important;
           object-fit: contain !important;
         }
         #single-card-print table {
@@ -1171,16 +1186,15 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           margin: 0 !important;
         }
         #single-card-print th, #single-card-print td {
-          padding: 1.5px 3.5px !important;
-          font-size: 8pt !important;
-          line-height: 1.15 !important;
+          padding: 1px 3px !important;
+          font-size: 7.5pt !important;
+          line-height: 1.1 !important;
           border: 1px solid #cbd5e1 !important;
         }
         #single-card-print th {
           background-color: #f1f5f9 !important;
           font-weight: bold !important;
         }
-        @page { size: A4 portrait; margin: 4mm 5mm 4mm 5mm; }
         ` : `
         #single-card-print { 
           border: 5px double #115e59 !important; 
@@ -2219,65 +2233,65 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
                             {/* Certificate / Full History Card Content (Printable) */}
-                            <div id="single-card-print" className={`bg-white border-[3.5px] border-double ${isFullFIC ? 'border-teal-700' : 'border-indigo-700'} p-4 sm:p-5 rounded-2xl shadow-sm text-slate-900 font-nepali overflow-hidden flex flex-col space-y-2.5`}>
+                            <div id="single-card-print" className={`bg-white border-[3px] border-double ${isFullFIC ? 'border-teal-700' : 'border-indigo-700'} p-3.5 sm:p-4 rounded-xl shadow-sm text-slate-900 font-nepali overflow-hidden flex flex-col space-y-1.5`}>
                                 {/* Header */}
-                                <div className="print-card-header relative flex items-center justify-center pb-2 border-b border-slate-200 min-h-[58px]">
+                                <div className="print-card-header relative flex items-center justify-center pb-1 border-b border-slate-200 min-h-[48px]">
                                     {/* Top-Left Logo */}
                                     <div className="print-card-logo-container absolute left-0 top-0 flex items-center h-full">
                                         <img 
                                             src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
                                             alt="Nepal Emblem" 
-                                            className="print-card-logo h-12 w-12 sm:h-14 sm:w-14 object-contain" 
+                                            className="print-card-logo h-10 w-10 sm:h-12 sm:w-12 object-contain" 
                                         />
                                     </div>
                                     {/* Header Titles 1, 2, 3, 4 from General Settings */}
-                                    <div className="text-center w-full px-14 sm:px-18">
-                                        <h1 className="text-base sm:text-lg font-black text-slate-900 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
+                                    <div className="text-center w-full px-12 sm:px-14">
+                                        <h1 className="text-sm sm:text-base font-black text-slate-900 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
                                         {generalSettings.subTitleNepali && (
-                                            <h2 className="text-xs sm:text-sm font-bold text-slate-700 mt-0.5 leading-tight">{generalSettings.subTitleNepali}</h2>
+                                            <h2 className="text-[11px] sm:text-xs font-bold text-slate-700 mt-0.5 leading-tight">{generalSettings.subTitleNepali}</h2>
                                         )}
                                         {generalSettings.subTitleNepali2 && (
-                                            <h3 className="text-[11px] sm:text-xs font-semibold text-slate-600 leading-tight">{generalSettings.subTitleNepali2}</h3>
+                                            <h3 className="text-[10px] sm:text-[11px] font-semibold text-slate-600 leading-tight">{generalSettings.subTitleNepali2}</h3>
                                         )}
                                         {generalSettings.subTitleNepali3 && (
-                                            <h4 className="text-[10px] sm:text-[11px] font-medium text-slate-600 leading-tight">{generalSettings.subTitleNepali3}</h4>
+                                            <h4 className="text-[9.5px] sm:text-[10px] font-medium text-slate-600 leading-tight">{generalSettings.subTitleNepali3}</h4>
                                         )}
                                         {generalSettings.subTitleNepali4 && (
-                                            <h5 className="text-[9.5px] sm:text-[10px] font-normal text-slate-500 leading-tight">{generalSettings.subTitleNepali4}</h5>
+                                            <h5 className="text-[9px] sm:text-[9.5px] font-normal text-slate-500 leading-tight">{generalSettings.subTitleNepali4}</h5>
                                         )}
-                                        <div className={`h-0.5 w-20 mx-auto my-1 rounded-full ${isFullFIC ? 'bg-teal-600' : 'bg-indigo-600'}`}></div>
-                                        <h4 className={`text-xs sm:text-sm font-black ${isFullFIC ? 'text-teal-800' : 'text-indigo-800'}`}>
+                                        <div className={`h-0.5 w-16 mx-auto my-0.5 rounded-full ${isFullFIC ? 'bg-teal-600' : 'bg-indigo-600'}`}></div>
+                                        <h4 className={`text-[11px] sm:text-xs font-black ${isFullFIC ? 'text-teal-800' : 'text-indigo-800'}`}>
                                             {isFullFIC ? 'पूर्ण खोप सुनिश्चितता प्रमाणपत्र (FIC Certificate)' : 'बालबालिकाको सम्पूर्ण खोप विवरण तथा स्थिति कार्ड'}
                                         </h4>
                                     </div>
                                 </div>
 
                                 {/* Status Progress Overview */}
-                                <div className={`py-1.5 px-3 rounded-xl border ${isFullFIC ? 'bg-teal-50/80 border-teal-200' : 'bg-indigo-50/70 border-indigo-100'}`}>
+                                <div className={`py-1 px-2.5 rounded-lg border ${isFullFIC ? 'bg-teal-50/80 border-teal-200' : 'bg-indigo-50/70 border-indigo-100'}`}>
                                     {isFullFIC ? (
-                                        <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
-                                            <div className="flex items-center gap-1.5">
-                                                <CheckCircle2 size={16} className="text-teal-700 shrink-0" />
-                                                <span className="font-bold text-teal-950 text-[11px] sm:text-xs">स्थिति: पूर्ण खोप प्राप्त बालबालिका (Fully Immunized Child)</span>
+                                        <div className="flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                                            <div className="flex items-center gap-1">
+                                                <CheckCircle2 size={14} className="text-teal-700 shrink-0" />
+                                                <span className="font-bold text-teal-950">स्थिति: पूर्ण खोप प्राप्त बालबालिका (Fully Immunized Child)</span>
                                             </div>
-                                            <div className="font-bold text-teal-900 text-[11px] sm:text-xs">
+                                            <div className="font-bold text-teal-900">
                                                 <span>पूर्ण खोप सम्पन्न मिति: </span>
-                                                <span className="font-mono font-black text-xs bg-teal-200/70 px-2 py-0.5 rounded border border-teal-300">{completionDate}</span>
+                                                <span className="font-mono font-black text-[11px] bg-teal-200/70 px-1.5 py-0.2 rounded border border-teal-300">{completionDate}</span>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-1">
-                                            <div className="flex flex-wrap items-center justify-between gap-1 text-xs">
-                                                <span className="font-bold text-indigo-950 text-[11px] sm:text-xs">खोप प्रगति स्थिति (Immunization Progress):</span>
-                                                <div className="flex items-center gap-1.5 font-bold font-nepali text-[10px] sm:text-[11px]">
-                                                    <span className="text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded">लगाएको: {givenCount}</span>
-                                                    <span className="text-rose-700 bg-rose-100/70 px-1.5 py-0.5 rounded">बाँकी/छुटेको: {pendingCount}</span>
-                                                    <span className="text-indigo-800 bg-indigo-100/70 px-1.5 py-0.5 rounded font-mono">जम्मा: {totalCount} ({percent}%)</span>
+                                        <div className="space-y-0.5">
+                                            <div className="flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                                                <span className="font-bold text-indigo-950">खोप प्रगति स्थिति (Immunization Progress):</span>
+                                                <div className="flex items-center gap-1.5 font-bold font-nepali text-[9.5px]">
+                                                    <span className="text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded">लगाएको: {givenCount}</span>
+                                                    <span className="text-rose-700 bg-rose-100/70 px-1.5 py-0.2 rounded">बाँकी/छुटेको: {pendingCount}</span>
+                                                    <span className="text-indigo-800 bg-indigo-100/70 px-1.5 py-0.2 rounded font-mono">जम्मा: {totalCount} ({percent}%)</span>
                                                 </div>
                                             </div>
-                                            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                            <div className="w-full bg-slate-200 h-1 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                                                    className="bg-indigo-600 h-1 rounded-full transition-all duration-300"
                                                     style={{ width: `${percent}%` }}
                                                 />
                                             </div>
@@ -2286,11 +2300,11 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 </div>
 
                                 {/* Child & Guardian Info Grid */}
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 py-1 px-2.5 text-[10.5px] border border-slate-200 bg-slate-50/40 rounded-xl">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 py-1 px-2.5 text-[10px] border border-slate-200 bg-slate-50/40 rounded-lg">
                                     <div className="space-y-0.5">
                                         <p className="flex justify-between border-b border-slate-100 pb-0.5">
                                             <span className="text-slate-500">दर्ता नम्बर (Reg No):</span> 
-                                            <span className="font-bold text-indigo-800 font-mono text-[11px]">{selectedChildForCard.regNo}</span>
+                                            <span className="font-bold text-indigo-800 font-mono text-[10.5px]">{selectedChildForCard.regNo}</span>
                                         </p>
                                         <p className="flex justify-between border-b border-slate-100 pb-0.5">
                                             <span className="text-slate-500">बच्चाको नाम:</span> 
@@ -2299,7 +2313,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         <p className="flex justify-between border-b border-slate-100 pb-0.5">
                                             <span className="text-slate-500">जन्म मिति (DOB):</span> 
                                             <span className={`font-bold text-slate-800 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>
-                                                {selectedChildForCard.dobBs} <span className="text-[9.5px] text-slate-500 font-normal">({calculateAge(selectedChildForCard.dobBs)})</span>
+                                                {selectedChildForCard.dobBs} <span className="text-[9px] text-slate-500 font-normal">({calculateAge(selectedChildForCard.dobBs)})</span>
                                             </span>
                                         </p>
                                         <p className="flex justify-between border-b border-slate-100 pb-0.5">
@@ -2336,21 +2350,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 </div>
 
                                 {/* Full Vaccine Schedule & History Table */}
-                                <div className="space-y-1">
-                                    <h4 className="text-center font-extrabold text-slate-800 text-[10.5px] uppercase tracking-wide my-0.5">
+                                <div className="space-y-0.5">
+                                    <h4 className="text-center font-extrabold text-slate-800 text-[10px] uppercase tracking-wide my-0.2">
                                         शुरु देखिको सम्पूर्ण खोप विवरण तथा तालिका (Complete Immunization Schedule & Status)
                                     </h4>
                                     <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
-                                        <table className="w-full text-[10.5px] text-left border-collapse">
+                                        <table className="w-full text-[10px] text-left border-collapse">
                                             <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                                                 <tr>
-                                                    <th className="px-2 py-1 text-center w-8">क्र.सं.</th>
-                                                    <th className="px-2 py-1">उमेर / समूह (Cluster)</th>
-                                                    <th className="px-2 py-1">खोपको नाम (Vaccine)</th>
-                                                    <th className="px-2 py-1 text-center">तालिका मिति (BS)</th>
-                                                    <th className="px-2 py-1 text-center">लगाएको मिति (BS)</th>
-                                                    <th className="px-2 py-1 text-center">स्थान / कैफियत</th>
-                                                    <th className="px-2 py-1 text-center">स्थिति (Status)</th>
+                                                    <th className="px-2 py-0.5 text-center w-7">क्र.सं.</th>
+                                                    <th className="px-2 py-0.5">उमेर / समूह (Cluster)</th>
+                                                    <th className="px-2 py-0.5">खोपको नाम (Vaccine)</th>
+                                                    <th className="px-2 py-0.5 text-center">तालिका मिति (BS)</th>
+                                                    <th className="px-2 py-0.5 text-center">लगाएको मिति (BS)</th>
+                                                    <th className="px-2 py-0.5 text-center">स्थान / कैफियत</th>
+                                                    <th className="px-2 py-0.5 text-center">स्थिति (Status)</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
@@ -2361,21 +2375,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
 
                                                     return (
                                                         <tr key={i} className={`hover:bg-slate-50/80 transition-colors ${isGiven ? 'bg-emerald-50/20' : isOverdue ? 'bg-rose-50/30' : ''}`}>
-                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-400 text-[10px]">{i + 1}</td>
-                                                            <td className="px-2 py-0.5 font-medium text-slate-600 text-[10px]">{v.cluster || '-'}</td>
-                                                            <td className="px-2 py-0.5 font-bold text-slate-900 text-[10.5px] flex items-center gap-1">
-                                                                <Syringe size={11} className={isGiven ? 'text-emerald-600' : isOverdue ? 'text-rose-500' : 'text-blue-500'} />
+                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-400 text-[9.5px]">{i + 1}</td>
+                                                            <td className="px-2 py-0.5 font-medium text-slate-600 text-[9.5px]">{v.cluster || '-'}</td>
+                                                            <td className="px-2 py-0.5 font-bold text-slate-900 text-[10px] flex items-center gap-1">
+                                                                <Syringe size={10} className={isGiven ? 'text-emerald-600' : isOverdue ? 'text-rose-500' : 'text-blue-500'} />
                                                                 <span>{v.name}</span>
                                                             </td>
-                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-600 text-[10.5px]">{effSchedBs || '-'}</td>
-                                                            <td className="px-2 py-0.5 text-center font-mono font-bold text-[10.5px]">
+                                                            <td className="px-2 py-0.5 text-center font-mono text-slate-600 text-[10px]">{effSchedBs || '-'}</td>
+                                                            <td className="px-2 py-0.5 text-center font-mono font-bold text-[10px]">
                                                                 {v.givenDateBs ? (
                                                                     <span className="text-emerald-800">{v.givenDateBs}</span>
                                                                 ) : (
                                                                     <span className="text-slate-300 font-normal">-</span>
                                                                 )}
                                                             </td>
-                                                            <td className="px-2 py-0.5 text-center text-[9.5px]">
+                                                            <td className="px-2 py-0.5 text-center text-[9px]">
                                                                 {v.vaccinatedElsewhere ? (
                                                                     <span className="bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded-full font-semibold border border-amber-200">
                                                                         अन्यत्र लगाएको
@@ -2388,16 +2402,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                             </td>
                                                             <td className="px-2 py-0.5 text-center">
                                                                 {isGiven ? (
-                                                                    <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold border border-emerald-200">
-                                                                        <CheckCircle2 size={10} className="text-emerald-600" /> लगाएको (Given)
+                                                                    <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100/80 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-emerald-200">
+                                                                        <CheckCircle2 size={9} className="text-emerald-600" /> लगाएको (Given)
                                                                     </span>
                                                                 ) : isOverdue ? (
-                                                                    <span className="inline-flex items-center gap-1 text-rose-800 bg-rose-100/80 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold border border-rose-200">
-                                                                        <Clock size={10} className="text-rose-600" /> छुटेको (Overdue)
+                                                                    <span className="inline-flex items-center gap-1 text-rose-800 bg-rose-100/80 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-rose-200">
+                                                                        <Clock size={9} className="text-rose-600" /> छुटेको (Overdue)
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="inline-flex items-center gap-1 text-blue-800 bg-blue-100/70 px-1.5 py-0.2 rounded-full text-[9.5px] font-bold border border-blue-200">
-                                                                        <CalendarClock size={10} className="text-blue-600" /> बाँकी (Pending)
+                                                                    <span className="inline-flex items-center gap-1 text-blue-800 bg-blue-100/70 px-1.5 py-0.2 rounded-full text-[9px] font-bold border border-blue-200">
+                                                                        <CalendarClock size={9} className="text-blue-600" /> बाँकी (Pending)
                                                                     </span>
                                                                 )}
                                                             </td>
@@ -2410,8 +2424,8 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 </div>
 
                                 {/* Bottom Certification Text */}
-                                <div className="text-center pt-1">
-                                    <p className="text-[10px] font-semibold text-slate-700 leading-tight italic px-2">
+                                <div className="text-center pt-0.5">
+                                    <p className="text-[9.5px] font-semibold text-slate-700 leading-tight italic px-2">
                                         {isFullFIC
                                             ? '"प्रमाणित गरिन्छ कि माथि उल्लेखित बच्चाले १५ महिना भित्र पाउनुपर्ने सबै खोपहरू पूर्ण रूपमा प्राप्त गरिसकेको छ।"'
                                             : '"माथि उल्लेखित बच्चाको खोप तालिका तथा स्थिति यस स्वास्थ्य संस्थाको अभिलेख अनुसार अद्यावधिक गरिएको छ।"'}
@@ -2419,16 +2433,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                 </div>
 
                                 {/* Official Signatures */}
-                                <div className="mt-2 grid grid-cols-2 gap-x-12 text-[10.5px] font-bold px-6 pt-1">
+                                <div className="mt-1 grid grid-cols-2 gap-x-12 text-[10px] font-bold px-6 pt-0.5">
                                     <div className="text-center">
-                                        <div className="h-6 flex items-end justify-center mb-1">
-                                            <div className="w-40 border-b border-slate-800"></div>
+                                        <div className="h-5 flex items-end justify-center mb-0.5">
+                                            <div className="w-36 border-b border-slate-800"></div>
                                         </div>
                                         <p className="text-slate-800">स्वास्थ्यकर्मीको हस्ताक्षर / नाम</p>
                                     </div>
                                     <div className="text-center">
-                                        <div className="h-6 flex items-end justify-center mb-1">
-                                            <div className="w-40 border-b border-slate-800"></div>
+                                        <div className="h-5 flex items-end justify-center mb-0.5">
+                                            <div className="w-36 border-b border-slate-800"></div>
                                         </div>
                                         <p className="text-slate-800">संस्था प्रमुखको हस्ताक्षर / छाप</p>
                                     </div>
