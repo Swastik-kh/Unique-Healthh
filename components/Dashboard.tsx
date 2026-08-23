@@ -739,6 +739,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     return NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(v => v.name.includes('DPT-HepB-Hib-1'))?.name || 'DPT-HepB-Hib-1 (६ हप्ता)';
   }, []);
 
+  const MR1_VACCINE_NAME = useMemo(() => {
+    return NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(v => v.name.includes('MR-1'))?.name || 'MR-1 (९ महिना)';
+  }, []);
+
   const MR2_VACCINE_NAME = useMemo(() => {
     return NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(v => v.name.includes('MR-2'))?.name || 'MR-2 (१५ महिना)';
   }, []);
@@ -800,6 +804,19 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
              nameLower.includes('pentavalent 1');
     };
 
+    const isMr1 = (v: any) => {
+      if (v.status !== 'Given') return false;
+      if (v.vaccinatedElsewhere) return false;
+      const name = v.name || '';
+      const nameLower = name.toLowerCase();
+      return name === MR1_VACCINE_NAME || 
+             nameLower.includes('mr-1') || 
+             nameLower.includes('mr 1') || 
+             nameLower.includes('measles 1') ||
+             nameLower.includes('mr-१') ||
+             nameLower.includes('mr १');
+    };
+
     const isMr2 = (v: any) => {
       if (v.status !== 'Given') return false;
       if (v.vaccinatedElsewhere) return false;
@@ -817,6 +834,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       (r.vaccines || []).some(v => isDpt1(v) && matchesDoseFy(v, r.fiscalYear))
     ).length;
 
+    const mr1Given = (bachhaImmunizationRecords || []).filter(r =>
+      (r.vaccines || []).some(v => isMr1(v) && matchesDoseFy(v, r.fiscalYear))
+    ).length;
+
     const mr2Given = (bachhaImmunizationRecords || []).filter(r =>
       (r.vaccines || []).some(v => isMr2(v) && matchesDoseFy(v, r.fiscalYear))
     ).length;
@@ -824,8 +845,19 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     const dropoutCount = Math.max(dpt1Given - mr2Given, 0);
     const dropoutRate = dpt1Given > 0 ? (dropoutCount / dpt1Given) * 100 : 0;
 
-    return { dpt1Given, mr2Given, dropoutCount, dropoutRate };
-  }, [bachhaImmunizationRecords, currentFiscalYear, DPT1_VACCINE_NAME, MR2_VACCINE_NAME, normalizeFy, getFyFromDateBs]);
+    const mrDropoutCount = Math.max(mr1Given - mr2Given, 0);
+    const mrDropoutRate = mr1Given > 0 ? (mrDropoutCount / mr1Given) * 100 : 0;
+
+    return { 
+      dpt1Given, 
+      mr1Given, 
+      mr2Given, 
+      dropoutCount, 
+      dropoutRate,
+      mrDropoutCount,
+      mrDropoutRate
+    };
+  }, [bachhaImmunizationRecords, currentFiscalYear, DPT1_VACCINE_NAME, MR1_VACCINE_NAME, MR2_VACCINE_NAME, normalizeFy, getFyFromDateBs]);
 
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
@@ -1209,6 +1241,73 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
 
                 <p className="text-[11px] font-bold text-slate-500 font-nepali truncate">
                   DPT1: {dropoutStats.dpt1Given} → MR2: {dropoutStats.mr2Given} <span className="text-slate-400 font-normal">(छाडेको: {dropoutStats.dropoutCount})</span>
+                </p>
+              </div>
+
+              {/* MR1 vs MR2 Dropout Rate Card */}
+              <div 
+                className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group transition-all cursor-pointer relative ${
+                  dropoutStats.mrDropoutRate > 10 
+                    ? 'hover:border-rose-300' 
+                    : dropoutStats.mrDropoutRate > 5 
+                    ? 'hover:border-amber-300' 
+                    : 'hover:border-emerald-300'
+                }`}
+                onClick={() => setActiveItem('report_khop')}
+                title="खोप प्रतिवेदन (EPI Report) हेर्न क्लिक गर्नुहोस्"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">MR Dropout (आ.व. {toNepaliDigits(currentFiscalYear)})</p>
+                      <div className="group/tip relative inline-block">
+                        <Info size={13} className="text-slate-400 hover:text-slate-600 cursor-help shrink-0" />
+                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover/tip:block z-30 w-64 p-3 bg-slate-800 text-white text-[11px] rounded-xl shadow-xl leading-relaxed">
+                          यस संस्थामा MR1 (९ महिना) पाएका तर MR2 (१५ महिना) नपाएका बालबालिकाको प्रतिशत (अन्यत्र लगाएको समावेश हुँदैन)।
+                          <div className="mt-1.5 pt-1.5 border-t border-slate-700 text-slate-300 text-[10px] font-mono">
+                            सूत्र: ((MR1 - MR2) / MR1) × 100
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-700 font-nepali truncate" title="MR1 vs MR2 ड्रपआउट दर">
+                      MR1 vs MR2 ड्रपआउट दर
+                    </h3>
+                  </div>
+                  <div className={`p-2.5 rounded-xl shrink-0 ${
+                    dropoutStats.mrDropoutRate > 10 
+                      ? 'bg-rose-100 text-rose-600' 
+                      : dropoutStats.mrDropoutRate > 5 
+                      ? 'bg-amber-100 text-amber-600' 
+                      : 'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    <TrendingDown size={20} />
+                  </div>
+                </div>
+
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl sm:text-5xl font-black ${
+                    dropoutStats.mrDropoutRate > 10 
+                      ? 'text-rose-600' 
+                      : dropoutStats.mrDropoutRate > 5 
+                      ? 'text-amber-600' 
+                      : 'text-emerald-600'
+                  }`}>
+                    {dropoutStats.mrDropoutRate.toFixed(1)}%
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                    dropoutStats.mrDropoutRate > 10 
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200' 
+                      : dropoutStats.mrDropoutRate > 5 
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {dropoutStats.mrDropoutRate > 10 ? '>10% उच्च' : dropoutStats.mrDropoutRate > 5 ? '५-१०% मध्यम' : '≤५% सामान्य'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] font-bold text-slate-500 font-nepali truncate">
+                  MR1: {dropoutStats.mr1Given} → MR2: {dropoutStats.mr2Given} <span className="text-slate-400 font-normal">(छाडेको: {dropoutStats.mrDropoutCount})</span>
                 </p>
               </div>
 
