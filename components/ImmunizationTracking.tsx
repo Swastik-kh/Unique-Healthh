@@ -1505,7 +1505,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <React.Fragment key={idx}>
                                         <tr className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-slate-800">{getChildDisplayName(item.child)}</div>
+                                                <div 
+                                                    onClick={() => setSelectedChildForCard(item.child)}
+                                                    className="font-bold text-slate-800 hover:text-blue-600 cursor-pointer inline-flex items-center gap-1.5 group/name transition-colors"
+                                                    title="खोपको शुरु देखिको पूर्ण स्थिति / कार्ड हेर्न क्लिक गर्नुहोस्"
+                                                >
+                                                    <span>{getChildDisplayName(item.child)}</span>
+                                                    <Eye size={13} className="text-slate-400 group-hover/name:text-blue-600 transition-colors" />
+                                                </div>
                                                 <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
                                                     <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
                                                     <div className="flex items-center gap-1 mb-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
@@ -1566,34 +1573,39 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                             <td className="px-6 py-4 text-right font-mono font-bold text-slate-600">
                                                 <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
                                             </td>
-                                            {(isAdmin || isSmsAllowed) && (
-                                                <td className="px-6 py-4 text-right no-print">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        {isSmsAllowed && (
-                                                            <button 
-                                                                onClick={() => handleOpenSingleSms(item.child, item.vaccines, item.scheduledDateBs, 'upcoming')}
-                                                                className="text-blue-600 hover:bg-blue-100 p-2 rounded-full transition-colors flex items-center justify-center"
-                                                                title={`${item.child.childName} को अभिभावकलाई SMS पठाउनुहोस्`}
-                                                            >
-                                                                <MessageSquare size={16} />
-                                                            </button>
-                                                        )}
-                                                        {isAdmin && (
-                                                            <button 
-                                                                onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
-                                                                className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
-                                                                title="हटाउनुहोस् (Delete)"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            )}
+                                            <td className="px-6 py-4 text-right no-print">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button 
+                                                        onClick={() => setSelectedChildForCard(item.child)}
+                                                        className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                                                        title={`${item.child.childName} को शुरु देखिको पूर्ण खोप स्थिति / कार्ड हेर्नुहोस्`}
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                    {isSmsAllowed && (
+                                                        <button 
+                                                            onClick={() => handleOpenSingleSms(item.child, item.vaccines, item.scheduledDateBs, 'upcoming')}
+                                                            className="text-blue-600 hover:bg-blue-100 p-2 rounded-full transition-colors flex items-center justify-center"
+                                                            title={`${item.child.childName} को अभिभावकलाई SMS पठाउनुहोस्`}
+                                                        >
+                                                            <MessageSquare size={16} />
+                                                        </button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <button 
+                                                            onClick={() => handleDeleteChild(item.child.id, item.child.childName)}
+                                                            className="text-red-600 hover:bg-red-50 p-2 rounded-full transition-colors"
+                                                            title="हटाउनुहोस् (Delete)"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                         {expandedRows[item.child.id] && (
                                             <tr className="bg-slate-50/70">
-                                                <td colSpan={(isAdmin || isSmsAllowed) ? 5 : 4} className="px-6 py-3">
+                                                <td colSpan={5} className="px-6 py-3">
                                                     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs animate-in slide-in-from-top-1 duration-200 text-left">
                                                         <div className="flex items-center justify-between border-b pb-2 mb-3">
                                                             <div className="flex items-center gap-1.5">
@@ -1604,6 +1616,14 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                                 <span className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">लगाएको: {getVaccinesGivenCount(item.child.vaccines)}</span>
                                                                 <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">बाँकी: {(item.child.vaccines || []).length - getVaccinesGivenCount(item.child.vaccines)}</span>
                                                                 <span className="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">जम्मा: {(item.child.vaccines || []).length}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedChildForCard(item.child)}
+                                                                    className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1 cursor-pointer transition-colors"
+                                                                    title="शुरु देखिको पूर्ण खोप स्थिति कार्ड खोल्नुहोस्"
+                                                                >
+                                                                    <Eye size={11} /> खोप कार्ड खोल्नुहोस्
+                                                                </button>
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
@@ -1648,7 +1668,7 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                         )}
                                     </React.Fragment>
                                 ))}
-                                {upcomingSessionList.length === 0 && <tr><td colSpan={isAdmin ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
+                                {upcomingSessionList.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic font-nepali text-lg">छानिएको मितिमा कुनै खोप तालिका छैन।</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -1674,44 +1694,76 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                     <th className="px-6 py-3">छुटेको खोप विवरण</th>
                                     <th className="px-6 py-3 text-center">सम्पर्क</th>
                                     <th className="px-6 py-3 text-right">स्थिति</th>
-                                    {(isAdmin || isSmsAllowed) && <th className="px-6 py-3 text-right no-print">कार्य</th>}
+                                    <th className="px-6 py-3 text-right no-print">कार्य</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {defaulterList.map((item, idx) => (
-                                    <tr key={idx} className="hover:bg-red-50/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-800">{getChildDisplayName(item.child)}</div>
-                                            <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                                <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
-                                                <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
-                                                <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</div>
-                                                <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-1 mb-1">
-                                                {item.vaccines.map((vax, vIdx) => {
-                                                    const color = getDateColor(vax.scheduledDateBs, true);
-                                                    return (
-                                                        <span key={vIdx} className={`flex items-center gap-1 font-black ${color.text} text-xs ${color.bg} px-1.5 py-0.5 rounded border ${color.border}`} title={`Date: ${vax.scheduledDateBs}`}>
-                                                            <Syringe size={10} className={color.icon} /> {vax.name} <span className="text-[9px] text-slate-400">({vax.scheduledDateBs})</span>
+                                    <React.Fragment key={idx}>
+                                        <tr className="hover:bg-red-50/30 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div 
+                                                    onClick={() => setSelectedChildForCard(item.child)}
+                                                    className="font-bold text-slate-800 hover:text-red-600 cursor-pointer inline-flex items-center gap-1.5 group/name transition-colors"
+                                                    title="खोपको शुरु देखिको पूर्ण स्थिति / कार्ड हेर्न क्लिक गर्नुहोस्"
+                                                >
+                                                    <span>{getChildDisplayName(item.child)}</span>
+                                                    <Eye size={13} className="text-slate-400 group-hover/name:text-red-600 transition-colors" />
+                                                </div>
+                                                <div className="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                                    <div><span className="font-semibold text-slate-400">जन्म मिति:</span> <span className={`font-mono font-bold text-slate-700 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{item.child.dobBs}</span></div>
+                                                    <div><span className="font-semibold text-slate-400">अभिभावक:</span> {item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</div>
+                                                    <div><span className="font-semibold text-slate-400">ठेगाना:</span> {item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</div>
+                                                    <div className="flex items-center gap-1"><MapPinned size={10} className="text-blue-500"/> {item.child.vaccinationCenter}</div>
+                                                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                                        <div className="w-16 bg-slate-100 h-1.5 rounded-full overflow-hidden shrink-0">
+                                                            <div 
+                                                                className="bg-red-500 h-1.5 rounded-full" 
+                                                                style={{ width: `${getVaccinesStatusPercent(item.child.vaccines)}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[9px] font-bold text-slate-600 font-nepali">
+                                                            खोप स्थिति: {getVaccinesGivenCount(item.child.vaccines)}/{item.child.vaccines?.length || 0} ({getVaccinesStatusPercent(item.child.vaccines)}% पुरा)
                                                         </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">
-                                            <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-100 animate-pulse">
-                                                <Clock size={10}/> Overdue
-                                            </span>
-                                        </td>
-                                        {(isAdmin || isSmsAllowed) && (
+                                                        <button 
+                                                            onClick={() => toggleRowExpanded(item.child.id)}
+                                                            className="text-[9px] text-red-600 hover:text-red-800 font-bold font-nepali flex items-center gap-0.5 hover:underline cursor-pointer"
+                                                            type="button"
+                                                        >
+                                                            {expandedRows[item.child.id] ? 'स्थिति लुकाउनुहोस् ▲' : 'पूर्ण विवरण हेर्नुहोस् ▼'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1 mb-1">
+                                                    {item.vaccines.map((vax, vIdx) => {
+                                                        const color = getDateColor(vax.scheduledDateBs, true);
+                                                        return (
+                                                            <span key={vIdx} className={`flex items-center gap-1 font-black ${color.text} text-xs ${color.bg} px-1.5 py-0.5 rounded border ${color.border}`} title={`Date: ${vax.scheduledDateBs}`}>
+                                                                <Syringe size={10} className={color.icon} /> {vax.name} <span className="text-[9px] text-slate-400">({vax.scheduledDateBs})</span>
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-mono font-bold text-slate-600">
+                                                <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-100 animate-pulse">
+                                                    <Clock size={10}/> Overdue
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 text-right no-print">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <button 
+                                                        onClick={() => setSelectedChildForCard(item.child)}
+                                                        className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                                                        title={`${item.child.childName} को शुरु देखिको पूर्ण खोप स्थिति / कार्ड हेर्नुहोस्`}
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
                                                     {isSmsAllowed && (
                                                         <button 
                                                             onClick={() => handleOpenSingleSms(item.child, item.vaccines, item.scheduledDateBs, 'defaulter')}
@@ -1732,10 +1784,73 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                     )}
                                                 </div>
                                             </td>
+                                        </tr>
+                                        {expandedRows[item.child.id] && (
+                                            <tr className="bg-red-50/20">
+                                                <td colSpan={5} className="px-6 py-3">
+                                                    <div className="bg-white border border-red-100 rounded-xl p-4 shadow-xs animate-in slide-in-from-top-1 duration-200 text-left">
+                                                        <div className="flex items-center justify-between border-b pb-2 mb-3">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <AlertOctagon size={15} className="text-red-600" />
+                                                                <h4 className="text-xs font-bold text-slate-700 font-nepali">खोपको पूर्ण स्थिति विवरण (Full Vaccination Status)</h4>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-[9px] font-bold text-slate-600 font-nepali">
+                                                                <span className="text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">लगाएको: {getVaccinesGivenCount(item.child.vaccines)}</span>
+                                                                <span className="text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">बाँकी/छुटेको: {(item.child.vaccines || []).length - getVaccinesGivenCount(item.child.vaccines)}</span>
+                                                                <span className="text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">जम्मा: {(item.child.vaccines || []).length}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedChildForCard(item.child)}
+                                                                    className="text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1 cursor-pointer transition-colors"
+                                                                    title="शुरु देखिको पूर्ण खोप स्थिति कार्ड खोल्नुहोस्"
+                                                                >
+                                                                    <Eye size={11} /> खोप कार्ड खोल्नुहोस्
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+                                                            {['जन्ममा', '६ हप्ता', '१० हप्ता', '१४ हप्ता', '९ महिना', '१२ महिना', '१५ महिना', '१४ वर्ष'].map((clusterName) => {
+                                                                const vaccinesInCluster = (item.child.vaccines || []).map(v => ({
+                                                                    ...v,
+                                                                    scheduledDateBs: getEffectiveVaccineScheduledBs(item.child, v)
+                                                                })).filter(v => v.cluster === clusterName);
+                                                                if (vaccinesInCluster.length === 0) return null;
+                                                                return (
+                                                                    <div key={clusterName} className="flex flex-col gap-1 p-1.5 bg-slate-50/50 rounded-lg border border-slate-100">
+                                                                        <span className="text-[8px] font-black uppercase text-slate-500 border-b border-slate-200/60 pb-0.5 mb-1">{clusterName}</span>
+                                                                        <div className="flex flex-col gap-1">
+                                                                            {vaccinesInCluster.map((v) => {
+                                                                                const isGiven = v.status === 'Given';
+                                                                                return (
+                                                                                    <div 
+                                                                                        key={v.name} 
+                                                                                        className={`px-1 py-0.5 rounded text-[8px] font-bold border flex flex-col min-w-0
+                                                                                            ${isGiven ? 'bg-green-50 text-green-800 border-green-100' : 'bg-red-50/80 text-red-700 border-red-200'}`}
+                                                                                    >
+                                                                                        <span className="mb-0.5 font-bold truncate text-left" title={v.name}>{v.name}</span>
+                                                                                        <div className="flex flex-col text-[7px] font-normal leading-tight opacity-85 text-left">
+                                                                                            <span className="flex items-center gap-0.5 truncate"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
+                                                                                            {v.givenDateBs && (
+                                                                                                <span className="flex items-center gap-0.5 text-green-700 font-bold truncate">
+                                                                                                    <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[5px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         )}
-                                    </tr>
+                                    </React.Fragment>
                                 ))}
-                                {defaulterList.length === 0 && <tr><td colSpan={(isAdmin || isSmsAllowed) ? 5 : 4} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
+                                {defaulterList.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic font-nepali">यो महिनामा खोप छुटेका कोही छैनन्।</td></tr>}
                             </tbody>
                         </table>
                     </div>
@@ -1994,114 +2109,259 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
             )}
         </div>
 
-        {/* FIC Card Modal and Hidden Print Containers remain the same but will respect filters */}
-        {selectedChildForCard && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print">
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedChildForCard(null)}></div>
-                <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-                    <div className="p-4 border-b flex justify-between items-center bg-teal-600 text-white">
-                        <div className="flex items-center gap-2">
-                            <ShieldCheck size={24}/>
-                            <h3 className="font-bold font-nepali">पूर्ण खोप सुनिश्चितता कार्ड</h3>
+        {/* Child Full Vaccination Status & Card Modal */}
+        {selectedChildForCard && (() => {
+            const vaccines = selectedChildForCard.vaccines || [];
+            const totalCount = vaccines.length;
+            const givenCount = getVaccinesGivenCount(vaccines);
+            const pendingCount = totalCount - givenCount;
+            const percent = getVaccinesStatusPercent(vaccines);
+            const isFullFIC = totalCount > 0 && givenCount === totalCount;
+            const completionDate = getCompletionDate(selectedChildForCard);
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 no-print animate-in fade-in duration-200">
+                    <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setSelectedChildForCard(null)}></div>
+                    <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100">
+                        {/* Modal Header */}
+                        <div className={`p-4 sm:p-5 border-b flex justify-between items-center text-white shrink-0 ${isFullFIC ? 'bg-gradient-to-r from-teal-700 via-emerald-700 to-teal-800' : 'bg-gradient-to-r from-indigo-700 via-blue-700 to-slate-800'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner">
+                                    {isFullFIC ? <ShieldCheck size={26} className="text-white" /> : <Syringe size={26} className="text-white" />}
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-base sm:text-lg font-nepali leading-tight">
+                                        {isFullFIC ? 'पूर्ण खोप सुनिश्चितता कार्ड (FIC Certificate)' : 'बालबालिकाको शुरु देखिको खोप स्थिति तथा कार्ड (Immunization History)'}
+                                    </h3>
+                                    <p className="text-xs text-white/80 font-nepali mt-0.5">
+                                        {selectedChildForCard.childName} ({selectedChildForCard.regNo}) • खोप प्रगति: {givenCount}/{totalCount} ({percent}%)
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => handlePrint('single-card')} 
+                                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-slate-800 hover:bg-slate-100 rounded-xl text-xs font-bold shadow-xs transition-all font-nepali cursor-pointer"
+                                >
+                                    <Printer size={15} /> प्रिन्ट गर्नुहोस्
+                                </button>
+                                <button 
+                                    onClick={() => setSelectedChildForCard(null)} 
+                                    className="p-1.5 hover:bg-white/20 rounded-xl text-white transition-colors cursor-pointer"
+                                    title="बन्द गर्नुहोस्"
+                                >
+                                    <X size={20}/>
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => handlePrint('single-card')} className="flex items-center gap-2 px-4 py-1.5 bg-white text-teal-700 rounded-full text-xs font-bold hover:bg-teal-50 shadow-sm transition-all">
-                                <Printer size={16}/> प्रिन्ट कार्ड
-                            </button>
-                            <button onClick={() => setSelectedChildForCard(null)} className="p-2 hover:bg-teal-700 rounded-full"><X size={20}/></button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto p-4 bg-teal-50/30">
-                        {/* Certificate Card Content */}
-                        <div id="single-card-print" className="bg-white border-[6px] border-double border-teal-800 p-4 rounded-lg shadow-inner text-slate-900 font-nepali overflow-hidden flex flex-col">
-                            <div className="text-center mb-2">
-                                <div className="flex justify-start mb-1">
-                                    <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="h-10 w-10 object-contain" />
+                        
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+                            {/* Certificate / Full History Card Content (Printable) */}
+                            <div id="single-card-print" className={`bg-white border-[4px] border-double ${isFullFIC ? 'border-teal-700' : 'border-indigo-700'} p-5 sm:p-7 rounded-2xl shadow-sm text-slate-900 font-nepali overflow-hidden flex flex-col space-y-4`}>
+                                {/* Header */}
+                                <div className="text-center pb-2 border-b border-slate-200">
+                                    <div className="flex justify-center mb-2">
+                                        <img 
+                                            src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                            alt="Nepal Emblem" 
+                                            className="h-14 w-14 object-contain" 
+                                        />
+                                    </div>
+                                    <h1 className="text-lg sm:text-xl font-black text-slate-900 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
+                                    <h2 className="text-xs sm:text-sm font-bold text-slate-700 mt-0.5">{generalSettings.subTitleNepali}</h2>
+                                    <div className={`h-1 w-24 mx-auto my-2 rounded-full ${isFullFIC ? 'bg-teal-600' : 'bg-indigo-600'}`}></div>
+                                    <h4 className={`text-base sm:text-lg font-black ${isFullFIC ? 'text-teal-800' : 'text-indigo-800'}`}>
+                                        {isFullFIC ? 'पूर्ण खोप सुनिश्चितता प्रमाणपत्र (FIC Certificate)' : 'बालबालिकाको सम्पूर्ण खोप विवरण तथा स्थिति कार्ड'}
+                                    </h4>
                                 </div>
-                                <h1 className="text-lg font-black text-slate-800 uppercase leading-tight">{generalSettings.orgNameNepali}</h1>
-                                <h2 className="text-xs font-bold text-slate-700">{generalSettings.subTitleNepali}</h2>
-                                <div className="h-0.5 bg-slate-300 w-1/4 mx-auto my-1"></div>
-                                <h4 className="text-lg font-black text-teal-700">पूर्ण खोप सुनिश्चितता कार्ड</h4>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-2 border-t border-b border-teal-100 py-2 text-[11px]">
-                                <div className="space-y-0.5">
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">दर्ता नम्बर:</span> <span className="font-bold text-teal-800 font-mono">{selectedChildForCard.regNo}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बच्चाको नाम:</span> <span className="font-bold text-sm">{getChildDisplayName(selectedChildForCard)}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">जन्म मिति (BS):</span> <span className={`font-bold ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.dobBs}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">लिङ्ग:</span> <span className="font-bold">{selectedChildForCard.gender === 'Male' ? 'बालक' : 'बालिका'}</span></p>
+                                {/* Status Progress Overview */}
+                                <div className={`p-3 rounded-xl border ${isFullFIC ? 'bg-teal-50/80 border-teal-200' : 'bg-indigo-50/70 border-indigo-100'}`}>
+                                    {isFullFIC ? (
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle2 size={18} className="text-teal-700 shrink-0" />
+                                                <span className="font-bold text-teal-950">स्थिति: पूर्ण खोप प्राप्त बालबालिका (Fully Immunized Child)</span>
+                                            </div>
+                                            <div className="font-bold text-teal-900">
+                                                <span>पूर्ण खोप सम्पन्न मिति: </span>
+                                                <span className="font-mono font-black text-sm bg-teal-200/70 px-2.5 py-0.5 rounded-lg border border-teal-300">{completionDate}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                                <span className="font-bold text-indigo-950">खोप प्रगति स्थिति (Immunization Progress):</span>
+                                                <div className="flex items-center gap-2 font-bold font-nepali">
+                                                    <span className="text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">लगाएको: {givenCount}</span>
+                                                    <span className="text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded-md">बाँकी/छुटेको: {pendingCount}</span>
+                                                    <span className="text-indigo-800 bg-indigo-100/70 px-2 py-0.5 rounded-md font-mono">जम्मा: {totalCount} ({percent}%)</span>
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
+                                                    style={{ width: `${percent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="space-y-0.5">
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">आमाको नाम:</span> <span className="font-bold">{selectedChildForCard.motherName}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">बुबाको नाम:</span> <span className="font-bold">{selectedChildForCard.fatherName}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">ठेगाना:</span> <span className="font-bold truncate max-w-[150px] text-right">{selectedChildForCard.address}{selectedChildForCard.isOtherAddress ? ' (अन्य)' : ''}</span></p>
-                                    <p className="flex justify-between border-b border-slate-50 pb-0.5"><span className="text-slate-500">फोन:</span> <span className={`font-bold font-mono ${blurPhone ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.phone}</span></p>
+
+                                {/* Child & Guardian Info Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 py-2 px-1 text-xs border-b border-slate-200 bg-slate-50/40 rounded-xl p-3">
+                                    <div className="space-y-1">
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">दर्ता नम्बर (Reg No):</span> 
+                                            <span className="font-bold text-indigo-800 font-mono text-xs">{selectedChildForCard.regNo}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">बच्चाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{getChildDisplayName(selectedChildForCard)}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">जन्म मिति (DOB):</span> 
+                                            <span className={`font-bold text-slate-800 ${blurDob ? "blur-sm select-none pointer-events-none" : ""}`}>
+                                                {selectedChildForCard.dobBs} <span className="text-[10px] text-slate-500 font-normal">({calculateAge(selectedChildForCard.dobBs)})</span>
+                                            </span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">लिङ्ग (Gender):</span> 
+                                            <span className="font-bold">{selectedChildForCard.gender === 'Male' ? 'बालक (Male)' : selectedChildForCard.gender === 'Female' ? 'बालिका (Female)' : 'अन्य (Other)'}</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span className="text-slate-500 font-medium">दर्ता मिति:</span> 
+                                            <span className="font-mono font-medium">{selectedChildForCard.regDateBs || '-'}</span>
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">आमाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{selectedChildForCard.motherName || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">बुबाको नाम:</span> 
+                                            <span className="font-bold text-slate-900">{selectedChildForCard.fatherName || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">ठेगाना:</span> 
+                                            <span className="font-bold text-slate-800 text-right">{selectedChildForCard.address}{selectedChildForCard.isOtherAddress ? ' (अन्य ठेगाना)' : ''}</span>
+                                        </p>
+                                        <p className="flex justify-between border-b border-slate-100 pb-1">
+                                            <span className="text-slate-500 font-medium">सम्पर्क फोन:</span> 
+                                            <span className={`font-bold font-mono text-slate-800 ${blurPhone ? "blur-sm select-none pointer-events-none" : ""}`}>{selectedChildForCard.phone || '-'}</span>
+                                        </p>
+                                        <p className="flex justify-between">
+                                            <span className="text-slate-500 font-medium">खोप केन्द्र:</span> 
+                                            <span className="font-bold text-blue-700">{selectedChildForCard.vaccinationCenter || '-'}</span>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="mb-2 p-1.5 bg-teal-50 rounded-lg border border-teal-100 flex items-center justify-center gap-6">
-                                <span className="font-bold text-teal-900 text-xs">पूर्ण खोप प्राप्त गरेको मिति:</span>
-                                <span className="text-lg font-black text-teal-800 border-b border-teal-800 px-4">{getCompletionDate(selectedChildForCard)}</span>
-                            </div>
-
-                            <h4 className="text-center font-black text-slate-800 mb-1 text-xs underline decoration-teal-500 underline-offset-2">लगाइएका खोपहरूको विवरण (Vaccine History)</h4>
-                            <div className="border border-teal-50 rounded-lg overflow-hidden bg-slate-50/20 flex-1">
-                                <table className="w-full text-[10px] text-left border-collapse">
-                                    <thead className="bg-teal-50 text-teal-800 font-bold">
-                                        <tr>
-                                            <th className="px-2 py-1 border-b border-teal-100">खोपको नाम</th>
-                                            <th className="px-2 py-1 border-b border-teal-100">निर्धारित (BS)</th>
-                                            <th className="px-2 py-1 border-b border-teal-100">लगाएको (BS)</th>
-                                            <th className="px-2 py-1 border-b border-teal-100">स्थिति</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-teal-50">
-                                        {selectedChildForCard.vaccines.map((v, i) => {
-                                            const effSchedBs = getEffectiveVaccineScheduledBs(selectedChildForCard, v);
-                                            const color = getDateColor(effSchedBs);
-                                            return (
-                                                <tr key={i} className={`${color.bg} border-b ${color.border}`}>
-                                                    <td className={`px-2 py-0.5 font-bold ${color.text}`}>{v.name}</td>
-                                                    <td className="px-2 py-0.5 font-mono text-slate-500">{effSchedBs}</td>
-                                                    <td className="px-2 py-0.5 font-mono font-black text-teal-700">{v.givenDateBs || '-'}</td>
-                                                    <td className="px-2 py-0.5">
-                                                        <span className={`font-bold text-[8px] ${v.status === 'Given' ? 'text-green-700' : 'text-red-500'}`}>
-                                                            {v.status === 'Given' ? 'लगाएको' : 'बाँकी'}
-                                                        </span>
-                                                    </td>
+                                {/* Full Vaccine Schedule & History Table */}
+                                <div className="space-y-1.5">
+                                    <h4 className="text-center font-extrabold text-slate-800 text-xs uppercase tracking-wide">
+                                        शुरु देखिको सम्पूर्ण खोप विवरण तथा तालिका (Complete Immunization Schedule & Status)
+                                    </h4>
+                                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                                        <table className="w-full text-xs text-left border-collapse">
+                                            <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-center w-10">क्र.सं.</th>
+                                                    <th className="px-3 py-2">उमेर / समूह (Cluster)</th>
+                                                    <th className="px-3 py-2">खोपको नाम (Vaccine)</th>
+                                                    <th className="px-3 py-2 text-center">तालिका मिति (BS)</th>
+                                                    <th className="px-3 py-2 text-center">लगाएको मिति (BS)</th>
+                                                    <th className="px-3 py-2 text-center">स्थान / कैफियत</th>
+                                                    <th className="px-3 py-2 text-center">स्थिति (Status)</th>
                                                 </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {vaccines.map((v, i) => {
+                                                    const effSchedBs = getEffectiveVaccineScheduledBs(selectedChildForCard, v);
+                                                    const isGiven = v.status === 'Given';
+                                                    const isOverdue = !isGiven && effSchedBs && effSchedBs < todayBsFormatted;
 
-                            <div className="mt-2 text-center">
-                                <p className="text-[11px] font-bold text-teal-900 leading-tight italic px-1">
-                                    "प्रमाणित गरिन्छ कि माथि उल्लेखित बच्चाले १५ महिना भित्र पाउनुपर्ने सबै खोपहरू पूर्ण रूपमा प्राप्त गरिसकेको छ।"
-                                </p>
-                            </div>
-
-                            <div className="mt-auto grid grid-cols-2 gap-x-12 text-[11px] font-bold px-4 py-4">
-                                <div className="text-center">
-                                    <div className="h-8 flex items-end justify-center mb-1">
-                                        <div className="w-full border-b border-slate-800"></div>
+                                                    return (
+                                                        <tr key={i} className={`hover:bg-slate-50/80 transition-colors ${isGiven ? 'bg-emerald-50/20' : isOverdue ? 'bg-rose-50/30' : ''}`}>
+                                                            <td className="px-3 py-2 text-center font-mono text-slate-400 text-[11px]">{i + 1}</td>
+                                                            <td className="px-3 py-2 font-medium text-slate-600 text-[11px]">{v.cluster || '-'}</td>
+                                                            <td className="px-3 py-2 font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                                                                <Syringe size={12} className={isGiven ? 'text-emerald-600' : isOverdue ? 'text-rose-500' : 'text-blue-500'} />
+                                                                <span>{v.name}</span>
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center font-mono text-slate-600 text-xs">{effSchedBs || '-'}</td>
+                                                            <td className="px-3 py-2 text-center font-mono font-bold text-xs">
+                                                                {v.givenDateBs ? (
+                                                                    <span className="text-emerald-800">{v.givenDateBs}</span>
+                                                                ) : (
+                                                                    <span className="text-slate-300 font-normal">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center text-[10px]">
+                                                                {v.vaccinatedElsewhere ? (
+                                                                    <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-semibold border border-amber-200">
+                                                                        अन्यत्र लगाएको
+                                                                    </span>
+                                                                ) : isGiven ? (
+                                                                    <span className="text-slate-600 font-medium">यस संस्थामा</span>
+                                                                ) : (
+                                                                    <span className="text-slate-400">-</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center">
+                                                                {isGiven ? (
+                                                                    <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">
+                                                                        <CheckCircle2 size={11} className="text-emerald-600" /> लगाएको (Given)
+                                                                    </span>
+                                                                ) : isOverdue ? (
+                                                                    <span className="inline-flex items-center gap-1 text-rose-800 bg-rose-100/80 px-2 py-0.5 rounded-full text-[10px] font-bold border border-rose-200">
+                                                                        <Clock size={11} className="text-rose-600" /> छुटेको (Overdue)
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1 text-blue-800 bg-blue-100/70 px-2 py-0.5 rounded-full text-[10px] font-bold border border-blue-200">
+                                                                        <CalendarClock size={11} className="text-blue-600" /> बाँकी (Pending)
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <p>स्वास्थ्यकर्मी</p>
                                 </div>
-                                <div className="text-center">
-                                    <div className="h-8 flex items-end justify-center mb-1">
-                                        <div className="w-full border-b border-slate-800"></div>
+
+                                {/* Bottom Certification Text */}
+                                <div className="text-center pt-2">
+                                    <p className="text-xs font-semibold text-slate-700 leading-relaxed italic px-2">
+                                        {isFullFIC
+                                            ? '"प्रमाणित गरिन्छ कि माथि उल्लेखित बच्चाले १५ महिना भित्र पाउनुपर्ने सबै खोपहरू पूर्ण रूपमा प्राप्त गरिसकेको छ।"'
+                                            : '"माथि उल्लेखित बच्चाको खोप तालिका तथा स्थिति यस स्वास्थ्य संस्थाको अभिलेख अनुसार अद्यावधिक गरिएको छ।"'}
+                                    </p>
+                                </div>
+
+                                {/* Official Signatures */}
+                                <div className="mt-4 grid grid-cols-2 gap-x-12 text-xs font-bold px-6 pt-4">
+                                    <div className="text-center">
+                                        <div className="h-10 flex items-end justify-center mb-1">
+                                            <div className="w-44 border-b border-slate-800"></div>
+                                        </div>
+                                        <p className="text-slate-800">स्वास्थ्यकर्मीको हस्ताक्षर / नाम</p>
                                     </div>
-                                    <p>संस्था प्रमुख</p>
+                                    <div className="text-center">
+                                        <div className="h-10 flex items-end justify-center mb-1">
+                                            <div className="w-44 border-b border-slate-800"></div>
+                                        </div>
+                                        <p className="text-slate-800">संस्था प्रमुखको हस्ताक्षर / छाप</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        )}
+            );
+        })()}
 
         {/* PRINT SECTIONS */}
         <div id="qr-labels-print" className="hidden print-container">
