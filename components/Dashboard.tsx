@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Syringe, Activity, Info, Building2,
   ClipboardList, FileSpreadsheet, FilePlus, ShoppingCart, FileOutput, 
   BookOpen, Book, Archive, RotateCcw, Wrench, Scroll, BarChart3,
-  Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
+  Sliders, Store, ShieldCheck, Users, Database, KeyRound, UserCog, Lock, Warehouse, ClipboardCheck, Bell, X, CheckCircle2, AlertTriangle, Calculator, Trash2, TrendingUp, TrendingDown, AlertOctagon, Timer, Printer, Baby, Flame, CalendarClock, List,
   Eye, ShieldAlert, ChevronLeft, Send, MapPin, Search, HeartHandshake,
   UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical, Thermometer
 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { DashboardProps } from '../types/dashboardTypes';
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
 import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
+import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 import { TalimByabasthapan } from './TalimByabasthapan';
 import { LekhaPrashasan } from './LekhaPrashasan';
 import { SujhabPetika } from './SujhabPetika';
@@ -734,6 +735,98 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const inventoryTotalCount = useMemo(() => inventoryItems.filter(i => i.currentQuantity > 0).length, [inventoryItems]);
   const magFormsPendingCount = useMemo(() => magForms.filter(f => f.status === 'Pending').length, [magForms]);
 
+  const DPT1_VACCINE_NAME = useMemo(() => {
+    return NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(v => v.name.includes('DPT-HepB-Hib-1'))?.name || 'DPT-HepB-Hib-1 (६ हप्ता)';
+  }, []);
+
+  const MR2_VACCINE_NAME = useMemo(() => {
+    return NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(v => v.name.includes('MR-2'))?.name || 'MR-2 (१५ महिना)';
+  }, []);
+
+  // Normalize fiscal year format (e.g. "2081/082", "2081/82", "2081082" -> "2081/082")
+  const normalizeFy = useCallback((fy?: string | null): string => {
+    if (!fy) return '';
+    const clean = fy.replace(/[^0-9]/g, '');
+    if (clean.length === 7) return `${clean.slice(0, 4)}/${clean.slice(4)}`;
+    if (clean.length === 6) return `${clean.slice(0, 4)}/0${clean.slice(4)}`;
+    if (clean.length === 8) return `${clean.slice(0, 4)}/0${clean.slice(6, 8)}`;
+    return fy.trim();
+  }, []);
+
+  // Compute fiscal year from Nepali date (Shrawan month 04 starts the new fiscal year)
+  const getFyFromDateBs = useCallback((dateBs?: string | null): string => {
+    if (!dateBs || typeof dateBs !== 'string') return '';
+    const parts = dateBs.replace(/\//g, '-').split('-');
+    if (parts.length < 2) return '';
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    if (isNaN(year) || isNaN(month)) return '';
+    if (month >= 4) {
+      const nextYearShort = (year + 1) % 100;
+      const nextYearStr = nextYearShort < 10 ? `0${nextYearShort}` : `${nextYearShort}`;
+      return `${year}/0${nextYearStr}`;
+    } else {
+      const prevYear = year - 1;
+      const yearShort = year % 100;
+      const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
+      return `${prevYear}/0${yearStr}`;
+    }
+  }, []);
+
+  const dropoutStats = useMemo(() => {
+    const targetFyNorm = normalizeFy(currentFiscalYear);
+
+    // Checks if a vaccine dose matches the active logged-in fiscal year based on givenDateBs (or record fallback)
+    const matchesDoseFy = (vaccine: any, recordFy?: string) => {
+      if (vaccine.givenDateBs) {
+        const doseFy = normalizeFy(getFyFromDateBs(vaccine.givenDateBs));
+        if (doseFy) return doseFy === targetFyNorm;
+      }
+      return normalizeFy(recordFy) === targetFyNorm;
+    };
+
+    const isDpt1 = (v: any) => {
+      if (v.status !== 'Given') return false;
+      if (v.vaccinatedElsewhere) return false;
+      const name = v.name || '';
+      const nameLower = name.toLowerCase();
+      return name === DPT1_VACCINE_NAME || 
+             nameLower.includes('dpt-hepb-hib-1') || 
+             nameLower.includes('dpt-hepb-hib 1') || 
+             nameLower.includes('dpt 1') || 
+             nameLower.includes('penta-1') || 
+             nameLower.includes('penta 1') ||
+             nameLower.includes('pentavalent-1') ||
+             nameLower.includes('pentavalent 1');
+    };
+
+    const isMr2 = (v: any) => {
+      if (v.status !== 'Given') return false;
+      if (v.vaccinatedElsewhere) return false;
+      const name = v.name || '';
+      const nameLower = name.toLowerCase();
+      return name === MR2_VACCINE_NAME || 
+             nameLower.includes('mr-2') || 
+             nameLower.includes('mr 2') || 
+             nameLower.includes('measles 2') ||
+             nameLower.includes('mr-२') ||
+             nameLower.includes('mr २');
+    };
+
+    const dpt1Given = (bachhaImmunizationRecords || []).filter(r =>
+      (r.vaccines || []).some(v => isDpt1(v) && matchesDoseFy(v, r.fiscalYear))
+    ).length;
+
+    const mr2Given = (bachhaImmunizationRecords || []).filter(r =>
+      (r.vaccines || []).some(v => isMr2(v) && matchesDoseFy(v, r.fiscalYear))
+    ).length;
+
+    const dropoutCount = Math.max(dpt1Given - mr2Given, 0);
+    const dropoutRate = dpt1Given > 0 ? (dropoutCount / dpt1Given) * 100 : 0;
+
+    return { dpt1Given, mr2Given, dropoutCount, dropoutRate };
+  }, [bachhaImmunizationRecords, currentFiscalYear, DPT1_VACCINE_NAME, MR2_VACCINE_NAME, normalizeFy, getFyFromDateBs]);
+
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
@@ -1013,7 +1106,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6 print:grid-cols-2 print:gap-4 print:mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 md:gap-6 print:grid-cols-2 print:gap-4 print:mb-6">
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
                     <div className="flex items-center justify-between mb-4">
@@ -1051,6 +1144,74 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
                     </div>
                 </div>
               </div>
+
+              {/* DPT1 vs MR2 Dropout Rate Card */}
+              <div 
+                className={`bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group transition-all cursor-pointer relative ${
+                  dropoutStats.dropoutRate > 10 
+                    ? 'hover:border-rose-300' 
+                    : dropoutStats.dropoutRate > 5 
+                    ? 'hover:border-amber-300' 
+                    : 'hover:border-emerald-300'
+                }`}
+                onClick={() => setActiveItem('report_khop')}
+                title="खोप प्रतिवेदन (EPI Report) हेर्न क्लिक गर्नुहोस्"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">EPI Dropout (आ.व. {toNepaliDigits(currentFiscalYear)})</p>
+                      <div className="group/tip relative inline-block">
+                        <Info size={13} className="text-slate-400 hover:text-slate-600 cursor-help shrink-0" />
+                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover/tip:block z-30 w-64 p-3 bg-slate-800 text-white text-[11px] rounded-xl shadow-xl leading-relaxed">
+                          यस संस्थामा DPT1 पाएका तर MR2 नपाएका बालबालिकाको प्रतिशत (अन्यत्र लगाएको समावेश हुँदैन)।
+                          <div className="mt-1.5 pt-1.5 border-t border-slate-700 text-slate-300 text-[10px] font-mono">
+                            सूत्र: ((DPT1 - MR2) / DPT1) × 100
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-700 font-nepali truncate" title="DPT1 vs MR2 ड्रपआउट दर">
+                      DPT1 vs MR2 ड्रपआउट दर
+                    </h3>
+                  </div>
+                  <div className={`p-2.5 rounded-xl shrink-0 ${
+                    dropoutStats.dropoutRate > 10 
+                      ? 'bg-rose-100 text-rose-600' 
+                      : dropoutStats.dropoutRate > 5 
+                      ? 'bg-amber-100 text-amber-600' 
+                      : 'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    <TrendingDown size={20} />
+                  </div>
+                </div>
+
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className={`text-4xl sm:text-5xl font-black ${
+                    dropoutStats.dropoutRate > 10 
+                      ? 'text-rose-600' 
+                      : dropoutStats.dropoutRate > 5 
+                      ? 'text-amber-600' 
+                      : 'text-emerald-600'
+                  }`}>
+                    {dropoutStats.dropoutRate.toFixed(1)}%
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                    dropoutStats.dropoutRate > 10 
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200' 
+                      : dropoutStats.dropoutRate > 5 
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {dropoutStats.dropoutRate > 10 ? '>10% उच्च' : dropoutStats.dropoutRate > 5 ? '५-१०% मध्यम' : '≤५% सामान्य'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] font-bold text-slate-500 font-nepali truncate">
+                  DPT1: {dropoutStats.dpt1Given} → MR2: {dropoutStats.mr2Given} <span className="text-slate-400 font-normal">(छाडेको: {dropoutStats.dropoutCount})</span>
+                </p>
+              </div>
+
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm group hover:border-blue-300 transition-all cursor-pointer" onClick={() => setActiveItem('jinshi_maujdat')}><div className="flex items-center justify-between mb-6"><div><p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Inventory</p><h3 className="text-sm font-bold text-slate-700 font-nepali">जिन्सी मौज्दात</h3></div><div className="bg-blue-100 p-2.5 rounded-xl text-blue-600"><Warehouse size={20} /></div></div><div className="flex items-baseline gap-2"><span className="text-5xl font-black text-blue-600">{inventoryTotalCount}</span><span className="text-[10px] text-slate-400 font-bold uppercase">Items</span></div></div>
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><div className="flex items-center justify-between mb-4"><div><p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Forecast (Month)</p><h3 className="text-sm font-bold text-slate-700 font-nepali">खोप पूर्वानुमान</h3></div><div className="bg-cyan-100 p-2.5 rounded-xl text-cyan-600"><Calculator size={20} /></div></div><div className="space-y-3"><div className="flex justify-between items-center"><span className="text-[11px] font-bold text-slate-500">कुल मात्रा:</span><span className="text-xs font-black text-indigo-600">{vaccineForecast.totalMl} ml</span></div><div className="grid grid-cols-2 gap-2"><div className="bg-slate-50 p-1.5 rounded-lg border text-center"><p className="text-[8px] font-bold text-slate-400">1.0 ml Vials</p><p className="text-sm font-black text-indigo-700">{vaccineForecast.vials10}</p></div><div className="bg-slate-50 p-1.5 rounded-lg border text-center"><p className="text-[8px] font-bold text-slate-400">0.5 ml Vials</p><p className="text-sm font-black text-indigo-700">{vaccineForecast.vials05}</p></div></div></div></div>
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm cursor-pointer" onClick={() => setActiveItem('mag_faram')}><div className="flex items-center justify-between mb-6"><div><p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Pending</p><h3 className="text-sm font-bold text-slate-700 font-nepali">बाँकी माग</h3></div><div className="bg-orange-100 p-2.5 rounded-xl text-orange-600"><FilePlus size={20} /></div></div><div className="flex items-baseline gap-2"><span className="text-5xl font-black text-orange-600">{magFormsPendingCount}</span><span className="text-[10px] text-slate-400 font-bold uppercase">Forms</span></div></div>
