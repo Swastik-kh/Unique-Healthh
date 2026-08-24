@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
 import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet } from 'lucide-react';
 // @ts-ignore
@@ -119,6 +119,15 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [patientSearchInput, setPatientSearchInput] = useState('');
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const patientSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isFormOpen) {
+      setTimeout(() => {
+        patientSearchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isFormOpen]);
   
   // Log book specific filters setup
   const [logBookMonthFilter, setLogBookMonthFilter] = useState('');
@@ -727,6 +736,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
+                      ref={patientSearchInputRef}
                       type="text"
                       placeholder="सेवाग्राहीको नाम लेख्नुहोस् वा खोज्नुहोस्..."
                       value={patientSearchInput}
