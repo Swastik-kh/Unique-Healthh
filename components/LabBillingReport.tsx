@@ -120,6 +120,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
+  const getRecordAgeGender = (record: BillingRecord) => {
+    let age = record.age;
+    let gender = record.gender;
+    if (!age || !gender) {
+      const seeker = serviceSeekerRecords.find(s => s.id === record.serviceSeekerId || s.uniquePatientId === record.serviceSeekerId);
+      if (seeker) {
+        if (!age) age = seeker.age;
+        if (!gender) gender = seeker.gender;
+      }
+    }
+    const ageStr = age || '';
+    const genderStr = gender || '';
+    if (ageStr && genderStr) return `${ageStr} / ${genderStr}`;
+    return ageStr || genderStr || '-';
+  };
+
   // Protsahan settings
   interface ProtsahanRecipient {
     id: string;
@@ -1019,11 +1035,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         return;
       }
 
-      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "सिफारिस गर्ने (Referred By)", "रकम (Amount)", "कैफियत (Remarks)"];
+      const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "उमेर/लिङ्ग (Age/Gender)", "विल नं. (Bill No.)", "मिति (Date)", "सेवाहरूको विवरण (Services)", "सिफारिस गर्ने (Referred By)", "रकम (Amount)", "कैफियत (Remarks)"];
       
       const rows = filteredRecords.map((r, idx) => {
         const serial = (idx + 1).toString();
         const patient = r.patientName || '-';
+        const ageGender = getRecordAgeGender(r);
         const billNo = r.invoiceNumber || '-';
         const date = r.billDate || '-';
         const filteredItemsForExportList = selectedCategory === 'All'
@@ -1048,7 +1065,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const dNote = dVal > 0 ? `रु. ${dVal.toFixed(2)} छुट` : '';
         const remarks = [baseR, dNote].filter(Boolean).join(', ') || '-';
         
-        return [serial, patient, billNo, date, services, referrerName, amt, remarks];
+        return [serial, patient, ageGender, billNo, date, services, referrerName, amt, remarks];
       });
 
       const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -1121,10 +1138,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
           const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
           
-          const dueAmt = (r.amountCharged || 0) - (r.receivedAmount || 0);
-          const dueText = dueAmt > 0 ? `बाँकी: रु. ${dueAmt.toFixed(2)}` : '';
           const baseRemarks = r.remarks || '';
-          const remarksCombined = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
+          const remarksCombined = baseRemarks.trim() ? baseRemarks : '-';
           
           return [serial, patient, billNo, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
         });
@@ -1978,13 +1993,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : reportSource === 'Sewa' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
-                {renderPrintPageHeaderRow(8)}
+                {renderPrintPageHeaderRow(9)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
                     सेवाग्राहीको नामथर
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    उमेर/लिङ्ग
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-24">
                     विल नं.
@@ -2011,6 +2029,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   filteredRecords.map((record, index) => {
                     const sNoStr = formatNumberValue(index + 1);
                     const clientName = record.patientName || '-';
+                    const ageGenderStr = getRecordAgeGender(record);
                     const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
                     const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
                     const displayDate = formatRawDateToNepaliUi(record.billDate);
@@ -2048,6 +2067,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         </td>
                         <td className="border border-slate-950 p-2 font-medium">
                           {clientName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {ageGenderStr}
                         </td>
                         <td className="border border-slate-950 p-2 text-center font-mono font-medium">
                           {displayBillNo}
@@ -2235,12 +2257,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)${odoText}`;
                     const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
                     const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
-                    const dueAmt = (record.amountCharged || 0) - (record.receivedAmount || 0);
-                    const dueText = dueAmt > 0 
-                      ? `बाँकी: रु. ${useNepaliNumerals ? toNepaliDigits(dueAmt.toFixed(2)) : dueAmt.toFixed(2)}` 
-                      : '';
                     const baseRemarks = record.remarks || '';
-                    const clientRemarks = [baseRemarks, dueText].filter(Boolean).join(', ') || '-';
+                    const clientRemarks = baseRemarks.trim() ? baseRemarks : '-';
 
                     return (
                       <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">

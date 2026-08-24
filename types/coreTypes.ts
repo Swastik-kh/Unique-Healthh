@@ -587,6 +587,8 @@ export interface BillingRecord {
   claimStatus?: 'Draft' | 'Submitted' | 'Verified' | 'Error'; // Claim adjudication state
   isDirectBilling?: boolean; // Flag to identify direct billing records
   referredBy?: string; // Recommended/referred by user (ID or name)
+  age?: string;
+  gender?: string;
   refundedAmount?: number;
   refundStatus?: 'Refunded' | 'Partially_Refunded';
   refundRemarks?: string;
