@@ -440,19 +440,25 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
       <html>
         <head>
           <title>कोल्ड चेन दैनिक तापक्रम लग रजिस्टर - ${monthMeta.label} ${selectedYear}</title>
+          <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700;800&family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
           <style>
-            @page { size: A4 portrait; margin: 12mm 10mm; }
-            body { font-family: 'Mukta', 'Kantipur', sans-serif; font-size: 11px; color: #1e293b; margin: 0; padding: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #64748b; padding: 4px 6px; text-align: center; font-size: 10px; }
+            @page { size: A4 portrait; margin: 10mm; }
+            body { font-family: 'Mukta', sans-serif; font-size: 11px; color: #1e293b; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header { position: relative; display: flex; align-items: center; justify-content: center; min-height: 55px; padding-bottom: 4px; margin-bottom: 10px; border-bottom: 2px solid #0f172a; text-align: center; }
+            .header-logo-container { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center; }
+            .header-logo { height: 50px; width: 50px; object-fit: contain; }
+            .header-content { width: 100%; padding: 0 50px; }
+            .header-content h1 { margin: 1px 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; }
+            .header-content h2 { margin: 1px 0; font-size: 12px; font-weight: 700; color: #334155; }
+            .header-content h3 { margin: 1px 0; font-size: 11px; font-weight: 600; color: #475569; }
+            .header-content h4 { margin: 1px 0; font-size: 10px; font-weight: 500; color: #64748b; }
+            .header-title { margin-top: 8px; font-size: 13px; font-weight: 800; color: #0f172a; text-decoration: underline; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th, td { border: 1px solid #475569; padding: 4px 6px; text-align: center; font-size: 10px; font-family: 'Mukta', sans-serif; }
             th { background-color: #f1f5f9; font-weight: bold; }
-            .header { text-align: center; margin-bottom: 12px; }
-            .header h2 { margin: 2px 0; font-size: 16px; color: #0f172a; }
-            .header h3 { margin: 2px 0; font-size: 13px; color: #334155; }
-            .header p { margin: 2px 0; font-size: 11px; color: #475569; }
-            .meta-grid { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 4px; }
+            .meta-grid { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 4px; background: #f8fafc; }
             .out-of-range { background-color: #fee2e2 !important; color: #b91c1c; font-weight: bold; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 40px; padding: 0 20px; font-size: 11px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 35px; padding: 0 10px; font-size: 11px; page-break-inside: avoid; break-inside: avoid; }
             .sig-block { text-align: center; width: 180px; border-top: 1px dashed #475569; padding-top: 6px; }
           </style>
         </head>
@@ -1115,12 +1121,23 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
       {/* Hidden Printable EPI Register Format */}
       <div id="cold-chain-register-print" className="hidden">
         <div className="header">
-          <h2>{generalSettings.orgNameNepali}</h2>
-          <h3>{generalSettings.subTitleNepali || 'स्वास्थ्य शाखा / खोप ईकाई'}</h3>
-          <p>{generalSettings.address || ''}</p>
-          <h3 style={{ marginTop: '10px', textDecoration: 'underline' }}>
-            कोल्ड चेन (खोप फ्रिज) तापक्रम रेकर्ड रजिस्टर (EPI Cold Chain Daily Temperature Register)
-          </h3>
+          <div className="header-logo-container">
+            <img 
+              src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+              alt="Nepal Emblem" 
+              className="header-logo" 
+            />
+          </div>
+          <div className="header-content">
+            <h1>{generalSettings.orgNameNepali}</h1>
+            {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
+            {generalSettings.subTitleNepali2 && <h3>{generalSettings.subTitleNepali2}</h3>}
+            {generalSettings.subTitleNepali3 && <h4>{generalSettings.subTitleNepali3}</h4>}
+            {generalSettings.subTitleNepali4 && <p style={{ margin: '1px 0', fontSize: '9.5px', color: '#64748b' }}>{generalSettings.subTitleNepali4}</p>}
+            <div className="header-title">
+              कोल्ड चेन (खोप फ्रिज) तापक्रम रेकर्ड रजिस्टर (EPI Cold Chain Daily Temperature Register)
+            </div>
+          </div>
         </div>
 
         <div className="meta-grid">
