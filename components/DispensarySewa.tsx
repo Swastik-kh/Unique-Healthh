@@ -75,11 +75,13 @@ export const DispensarySewa: React.FC<DispensarySewaProps> = ({
     const query = searchId.trim().toLowerCase();
     if (query.length < 1) return []; // Adjust query length as needed
     return serviceSeekerRecords
-      .filter(p => 
-        p.name.toLowerCase().includes(query) || 
-        p.uniquePatientId.toLowerCase().includes(query)
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter(p => {
+        const name = (p.name || '').toLowerCase();
+        const patientId = (p.uniquePatientId || '').toLowerCase();
+        const phone = (p.phone || '').toLowerCase();
+        return name.includes(query) || patientId.includes(query) || phone.includes(query);
+      })
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [searchId, serviceSeekerRecords]);
 
   const handleToggleDailyDose = (date: string) => {
@@ -467,11 +469,16 @@ export const DispensarySewa: React.FC<DispensarySewaProps> = ({
     if (!query) return;
 
     const results = serviceSeekerRecords.filter(r => {
-      const idMatch = r.uniquePatientId.toLowerCase().includes(query) || 
-                      r.uniquePatientId.replace(/[^0-9]/g, '').includes(query);
-      const nameMatch = r.name.toLowerCase().includes(query);
-      const regMatch = r.registrationNumber.includes(query);
-      return idMatch || nameMatch || regMatch;
+      const uniqueId = r.uniquePatientId || '';
+      const name = r.name || '';
+      const regNo = r.registrationNumber || '';
+      const phone = r.phone || '';
+      const idMatch = uniqueId.toLowerCase().includes(query) || 
+                      uniqueId.replace(/[^0-9]/g, '').includes(query);
+      const nameMatch = name.toLowerCase().includes(query);
+      const regMatch = regNo.toLowerCase().includes(query);
+      const phoneMatch = phone.toLowerCase().includes(query);
+      return idMatch || nameMatch || regMatch || phoneMatch;
     });
 
     if (results.length === 1) {
