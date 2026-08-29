@@ -130,6 +130,22 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
       const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
       const orgSettings = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
 
+      // Check monthly reset limit (max 2 times per month)
+      const userSnap = await get(ref(db, `users/${foundUser.id}`));
+      const userData = userSnap.exists() ? userSnap.val() : foundUser;
+      const timestamps: number[] = userData.resetTimestamps || [];
+      const now = new Date();
+      const currentMonthResets = timestamps.filter(ts => {
+        const d = new Date(ts);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      });
+
+      if (currentMonthResets.length >= 2) {
+        setErrors({ form: 'तपाईंले यो महिनामा २ पटकभन्दा बढी पासवर्ड रिसेट गरिसक्नुभएको छ। कृपया एडमिनलाई सम्पर्क गर्नुहोस्।' });
+        setIsLoading(false);
+        return;
+      }
+
       // Rate limit check
       const resetRef = ref(db, `passwordResets/${foundUser.id}`);
       const snapshot = await get(resetRef);
@@ -271,9 +287,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
     }
 
     try {
+      const userSnap = await get(ref(db, `users/${userId}`));
+      const userData = userSnap.exists() ? userSnap.val() : {};
+      const timestamps: number[] = userData.resetTimestamps || [];
+      const updatedTimestamps = [...timestamps, Date.now()];
+
       const hashedNewPassword = hashPassword(newPassword);
       await update(ref(db, `users/${userId}`), { 
         password: hashedNewPassword,
+        resetTimestamps: updatedTimestamps,
         updatedFromApp: "SmartHealthOfficialApp",
         appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
         passwordLastChangedFrom: "SmartHealthOfficialApp",
