@@ -170,6 +170,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
     id: string;
     timestamp: string;
     mode: 'single' | 'bulk';
+    childId?: string;
+    fiscalYear?: string;
+    month?: string;
     childName?: string;
     phone: string;
     message: string;
@@ -292,6 +295,20 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         return;
       }
       recipientsList = [cleaned];
+
+      if (smsSingleChild) {
+        const alreadySent = smsLogs.some(log => 
+          log.status === 'delivered' &&
+          log.childId === smsSingleChild.id &&
+          log.fiscalYear === filterFiscalYear &&
+          log.month === filterMonth
+        );
+        if (alreadySent) {
+          if (!window.confirm(`⚠️ चेतावनी (Already Sent): यो बच्चा (${smsSingleChild.childName || 'बालक/बालिका'}) लाई यस आर्थिक वर्ष (${filterFiscalYear}) र महिनामा यसअघि नै SMS पठाइसकिएको छ। के तपाईं फेरि पठाउन चाहनुहुन्छ?`)) {
+            return;
+          }
+        }
+      }
     } else {
       const targetList = smsViewType === 'upcoming' ? upcomingSessionList : defaulterList;
       
@@ -342,6 +359,27 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
         alert("छानिएको सूचीमा १० अंकको सही मोबाइल नम्बर भएको कुनै पनि अभिभावक भेटिएन।");
         return;
       }
+
+      const alreadySentNames: string[] = [];
+      itemsList.forEach(item => {
+        const targetChild = bulkTargetList.find(b => cleanPhone(b.child.phone) === item.recipient)?.child;
+        if (targetChild && targetChild.id) {
+          const alreadySent = smsLogs.some(log => 
+            log.status === 'delivered' &&
+            log.childId === targetChild.id &&
+            log.fiscalYear === filterFiscalYear &&
+            log.month === filterMonth
+          );
+          if (alreadySent) {
+            alreadySentNames.push(targetChild.childName || 'बालक/बालिका');
+          }
+        }
+      });
+
+      if (alreadySentNames.length > 0) {
+        alert(`⚠️ सतर्कता (Already Sent): यो आर्थिक वर्ष (${filterFiscalYear}) र महिनामा निम्न बालबालिकालाई यसअघि नै SMS पठाइसकिएको छ:\n\n- ${alreadySentNames.join('\n- ')}\n\nकृपया यस आर्थिक वर्षको यसै महिनाको लागि फेरि SMS पठाउनु अघि विचार गर्नुहोस्।`);
+        return;
+      }
     }
 
     const neededSmsCount = smsMode === 'single' ? 1 : itemsList.length;
@@ -387,6 +425,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
           id: 'log-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
           timestamp: timestampIso,
           mode: 'single',
+          childId: smsSingleChild.id,
+          fiscalYear: filterFiscalYear,
+          month: filterMonth,
           childName: smsSingleChild.childName || 'बालक/बालिका',
           phone: smsRecipientPhone,
           message: smsMessageText.trim(),
@@ -400,6 +441,9 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
             id: 'log-' + Date.now() + '-' + idx,
             timestamp: timestampIso,
             mode: 'bulk',
+            childId: targetChild?.id,
+            fiscalYear: filterFiscalYear,
+            month: filterMonth,
             childName: targetChild?.childName || `बालक/बालिका #${idx + 1}`,
             phone: item.recipient,
             message: item.message,
