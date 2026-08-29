@@ -2730,7 +2730,56 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         dispensaryRecords={dispensaryRecords}
         labReports={labReports}
       />;
-      case 'database_management': return <DatabaseManagement currentUser={currentUser!} users={users} inventoryItems={inventoryItems} magForms={magForms} purchaseOrders={purchaseOrders} issueReports={issueReports} rabiesPatients={rabiesPatients} tbPatients={tbPatients} billingRecords={billingRecords} firms={firms} stores={stores} dakhilaReports={dakhilaReports} returnEntries={returnEntries} marmatEntries={marmatEntries} dhuliyaunaEntries={dhuliyaunaEntries} logBookEntries={logBookEntries} itemList={itemList} onClearData={onClearData} onUploadData={onUploadData} />;
+      case 'database_management': return <DatabaseManagement 
+        currentUser={currentUser!} 
+        users={users} 
+        inventoryItems={inventoryItems} 
+        magForms={magForms} 
+        purchaseOrders={purchaseOrders} 
+        issueReports={issueReports} 
+        rabiesPatients={rabiesPatients} 
+        tbPatients={tbPatients} 
+        garbhawatiPatients={garbhawatiPatients}
+        bachhaImmunizationRecords={bachhaImmunizationRecords}
+        garbhawotiRecords={garbhawotiRecords}
+        prasutiRecords={prasutiRecords}
+        uttarPrasutiRecords={uttarPrasutiRecords}
+        opdRecords={opdRecords}
+        emergencyRecords={emergencyRecords}
+        cbimnciRecords={cbimnciRecords}
+        dispensaryRecords={dispensaryRecords}
+        labReports={labReports}
+        pariwarSewaRecords={serviceSeekerRecords}
+        xrayRecords={xrayRecords}
+        ecgRecords={ecgRecords}
+        usgRecords={usgRecords}
+        physiotherapyRecords={physiotherapyRecords}
+        ambulanceRecords={ambulanceRecords}
+        ambulanceExpenseRecords={ambulanceExpenseRecords}
+        ambulanceOdometerRecords={ambulanceOdometerRecords}
+        ipdRecords={ipdRecords}
+        billingRecords={billingRecords} 
+        firms={firms} 
+        stores={stores} 
+        dakhilaReports={dakhilaReports} 
+        returnEntries={returnEntries} 
+        marmatEntries={marmatEntries} 
+        dhuliyaunaEntries={dhuliyaunaEntries} 
+        logBookEntries={logBookEntries} 
+        itemList={itemList}
+        dartaEntries={dartaEntries}
+        chalaniEntries={chalaniEntries}
+        leaveApplications={leaveApplications}
+        financialPrograms={financialPrograms}
+        listedParties={listedParties}
+        financialTransactions={financialTransactions}
+        partyPayments={partyPayments}
+        goswaraVouchers={goswaraVouchers}
+        paymentRequests={paymentRequests}
+        allowances={allowances}
+        onClearData={onClearData} 
+        onUploadData={onUploadData} 
+      />;
       case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} onUpdateGlobalDhis2Mappings={props.onUpdateGlobalDhis2Mappings} users={allUsers} activeOrgName={activeOrgName} />;
       case 'hib_settings': return <HIBSettings currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
       case 'service_settings': return <ServiceSettings 

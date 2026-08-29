@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, Download, Upload, HardDrive, FileText, ShoppingCart, Archive, FileUp, CheckCircle2, Info, Trash2, Lock, FileOutput, RotateCcw, Wrench, Scroll, ClipboardList, Send, Warehouse, Layers, ShieldCheck, Table as TableIcon, AlertTriangle, Loader2, X, Banknote } from 'lucide-react';
+import { Database, Download, Upload, HardDrive, FileText, ShoppingCart, Archive, FileUp, CheckCircle2, Info, Trash2, Lock, FileOutput, RotateCcw, Wrench, Scroll, ClipboardList, Send, Warehouse, Layers, ShieldCheck, Table as TableIcon, AlertTriangle, Loader2, X, Banknote, UsersRound } from 'lucide-react';
 import { User, BillingRecord } from '../types/coreTypes'; // Changed import
 import { InventoryItem, MagFormEntry, PurchaseOrderEntry, IssueReportEntry, FirmEntry, Store, DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry } from '../types/inventoryTypes'; // Changed import
 import { RabiesPatient, TBPatient } from '../types/healthTypes'; // Changed import
@@ -13,7 +13,26 @@ interface DatabaseManagementProps {
   purchaseOrders: PurchaseOrderEntry[];
   issueReports: IssueReportEntry[];
   rabiesPatients: RabiesPatient[];
-  tbPatients: TBPatient[]; // Added TB Patients prop
+  tbPatients: TBPatient[];
+  garbhawatiPatients?: any[];
+  bachhaImmunizationRecords?: any[];
+  garbhawotiRecords?: any[];
+  prasutiRecords?: any[];
+  uttarPrasutiRecords?: any[];
+  opdRecords?: any[];
+  emergencyRecords?: any[];
+  cbimnciRecords?: any[];
+  dispensaryRecords?: any[];
+  labReports?: any[];
+  pariwarSewaRecords?: any[];
+  xrayRecords?: any[];
+  ecgRecords?: any[];
+  usgRecords?: any[];
+  physiotherapyRecords?: any[];
+  ambulanceRecords?: any[];
+  ambulanceExpenseRecords?: any[];
+  ambulanceOdometerRecords?: any[];
+  ipdRecords?: any[];
   billingRecords: BillingRecord[];
   firms: FirmEntry[];
   stores: Store[];
@@ -23,6 +42,16 @@ interface DatabaseManagementProps {
   dhuliyaunaEntries: DhuliyaunaEntry[];
   logBookEntries: LogBookEntry[];
   itemList: ItemEntry[];
+  dartaEntries?: any[];
+  chalaniEntries?: any[];
+  leaveApplications?: any[];
+  financialPrograms?: any[];
+  listedParties?: any[];
+  financialTransactions?: any[];
+  partyPayments?: any[];
+  goswaraVouchers?: any[];
+  paymentRequests?: any[];
+  allowances?: any[];
   onClearData?: (sectionId: string) => void;
   onUploadData: (sectionId: string, data: any[], extraMeta?: any) => Promise<void>;
 }
@@ -68,12 +97,32 @@ const UPLOAD_FORMATS: Record<string, { headers: string[], example: string[] }> =
 
 export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
   currentUser,
+  users,
   inventoryItems,
   magForms,
   purchaseOrders,
   issueReports,
   rabiesPatients,
-  tbPatients, // Destructure TB Patients
+  tbPatients,
+  garbhawatiPatients = [],
+  bachhaImmunizationRecords = [],
+  garbhawotiRecords = [],
+  prasutiRecords = [],
+  uttarPrasutiRecords = [],
+  opdRecords = [],
+  emergencyRecords = [],
+  cbimnciRecords = [],
+  dispensaryRecords = [],
+  labReports = [],
+  pariwarSewaRecords = [],
+  xrayRecords = [],
+  ecgRecords = [],
+  usgRecords = [],
+  physiotherapyRecords = [],
+  ambulanceRecords = [],
+  ambulanceExpenseRecords = [],
+  ambulanceOdometerRecords = [],
+  ipdRecords = [],
   billingRecords,
   firms,
   stores,
@@ -83,6 +132,16 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
   dhuliyaunaEntries,
   logBookEntries,
   itemList,
+  dartaEntries = [],
+  chalaniEntries = [],
+  leaveApplications = [],
+  financialPrograms = [],
+  listedParties = [],
+  financialTransactions = [],
+  partyPayments = [],
+  goswaraVouchers = [],
+  paymentRequests = [],
+  allowances = [],
   onClearData,
   onUploadData
 }) => {
@@ -263,9 +322,37 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
     { id: 'logBookEntries', title: 'लग बुक', data: logBookEntries, icon: <Scroll size={24} className="text-blue-600" />, desc: 'सवारी साधन र मेसिनरीको लग बुक', color: 'bg-blue-50 border-blue-200' },
     { id: 'firms', title: 'फर्महरू', data: firms, icon: <ClipboardList size={24} className="text-green-600" />, desc: 'सूचीकृत फर्महरूको विवरण', color: 'bg-green-50 border-green-200' },
     { id: 'stores', title: 'स्टोरहरू', data: stores, icon: <HardDrive size={24} className="text-indigo-600" />, desc: 'विभिन्न स्टोरहरूको विवरण', color: 'bg-indigo-50 border-indigo-200' },
+    { id: 'garbhawatiPatients', title: 'गर्भवती TD खोप दर्ता', data: garbhawatiPatients, icon: <UsersRound size={24} className="text-pink-600" />, desc: 'गर्भवती महिला TD खोप रेकर्डहरू', color: 'bg-pink-50 border-pink-200' },
+    { id: 'bachhaImmunizationRecords', title: 'बालबालिका खोप दर्ता', data: bachhaImmunizationRecords, icon: <UsersRound size={24} className="text-emerald-600" />, desc: 'बालबालिका खोप कार्ड तथा विवरणहरू', color: 'bg-emerald-50 border-emerald-200' },
     { id: 'rabiesPatients', title: 'रेबिज बिरामीहरू', data: rabiesPatients, icon: <ClipboardList size={24} className="text-purple-600" />, desc: 'रेबिज खोप बिरामीहरूको विवरण', color: 'bg-purple-50 border-purple-200' },
     { id: 'tbPatients', title: 'क्षयरोग बिरामीहरू', data: tbPatients, icon: <ClipboardList size={24} className="text-teal-600" />, desc: 'क्षयरोग / कुष्ठरोग बिरामीहरूको विवरण', color: 'bg-teal-50 border-teal-200' },
-    { id: 'billingRecords', title: 'बिलिङ रेकर्डहरू', data: billingRecords, icon: <Banknote size={24} className="text-emerald-600" />, desc: 'प्रत्यक्ष र नियमित बिलिङ रेकर्डहरू', color: 'bg-emerald-50 border-emerald-200' }
+    { id: 'garbhawotiRecords', title: 'गर्भवती सेवा (ANC)', data: garbhawotiRecords, icon: <ClipboardList size={24} className="text-rose-600" />, desc: 'गर्भवती जाँच सेवा रेकर्डहरू', color: 'bg-rose-50 border-rose-200' },
+    { id: 'prasutiRecords', title: 'प्रसूति सेवा (Delivery)', data: prasutiRecords, icon: <ClipboardList size={24} className="text-pink-600" />, desc: 'प्रसूति तथा सुत्केरी सेवा रेकर्डहरू', color: 'bg-pink-50 border-pink-200' },
+    { id: 'uttarPrasutiRecords', title: 'उत्तर प्रसूति सेवा', data: uttarPrasutiRecords, icon: <ClipboardList size={24} className="text-purple-600" />, desc: 'सुत्केरी पश्चात् जाँच सेवा रेकर्डहरू', color: 'bg-purple-50 border-purple-200' },
+    { id: 'opdRecords', title: 'ओपिडी सेवा (OPD)', data: opdRecords, icon: <ClipboardList size={24} className="text-blue-600" />, desc: 'बहिरंग (OPD) बिरामी रेकर्डहरू', color: 'bg-blue-50 border-blue-200' },
+    { id: 'emergencyRecords', title: 'इमर्जेन्सी सेवा', data: emergencyRecords, icon: <ClipboardList size={24} className="text-red-600" />, desc: 'आकस्मिक (Emergency) सेवा रेकर्डहरू', color: 'bg-red-50 border-red-200' },
+    { id: 'cbimnciRecords', title: 'सीबीआइएमएनसीआइ (CBIMNCI)', data: cbimnciRecords, icon: <ClipboardList size={24} className="text-teal-600" />, desc: 'बाल स्वास्थ्य सेवा रेकर्डहरू', color: 'bg-teal-50 border-teal-200' },
+    { id: 'dispensaryRecords', title: 'डिस्पेन्सरी (औषधि वितरण)', data: dispensaryRecords, icon: <ClipboardList size={24} className="text-green-600" />, desc: 'बिरामीलाई औषधि वितरण रेकर्डहरू', color: 'bg-green-50 border-green-200' },
+    { id: 'labReports', title: 'प्रयोगशाला सेवा (Lab)', data: labReports, icon: <ClipboardList size={24} className="text-cyan-600" />, desc: 'ल्याब परीक्षण रिपोर्टहरू', color: 'bg-cyan-50 border-cyan-200' },
+    { id: 'pariwarSewaRecords', title: 'परिवार नियोजन सेवा', data: pariwarSewaRecords, icon: <ClipboardList size={24} className="text-indigo-600" />, desc: 'परिवार कल्याण सेवा रेकर्डहरू', color: 'bg-indigo-50 border-indigo-200' },
+    { id: 'xrayRecords', title: 'एक्स-रे सेवा (X-Ray)', data: xrayRecords, icon: <ClipboardList size={24} className="text-slate-600" />, desc: 'एक्स-रे सेवा रेकर्डहरू', color: 'bg-slate-50 border-slate-200' },
+    { id: 'ecgRecords', title: 'इसीजी सेवा (ECG)', data: ecgRecords, icon: <ClipboardList size={24} className="text-sky-600" />, desc: 'इसीजी सेवा रेकर्डहरू', color: 'bg-sky-50 border-sky-200' },
+    { id: 'usgRecords', title: 'यु.एस.जी. सेवा (USG)', data: usgRecords, icon: <ClipboardList size={24} className="text-amber-600" />, desc: 'भिडियो एक्सरे (USG) रेकर्डहरू', color: 'bg-amber-50 border-amber-200' },
+    { id: 'physiotherapyRecords', title: 'फिजियोथेरापी सेवा', data: physiotherapyRecords, icon: <ClipboardList size={24} className="text-emerald-600" />, desc: 'फिजियोथेरापी उपचार रेकर्डहरू', color: 'bg-emerald-50 border-emerald-200' },
+    { id: 'ambulanceRecords', title: 'एम्बुलेन्स सेवा', data: ambulanceRecords, icon: <ClipboardList size={24} className="text-red-600" />, desc: 'एम्बुलेन्स ट्रिप तथा बुकिङ रेकर्डहरू', color: 'bg-red-50 border-red-200' },
+    { id: 'ipdRecords', title: 'आइपिडी भर्ना (IPD)', data: ipdRecords, icon: <ClipboardList size={24} className="text-violet-600" />, desc: 'अस्पताल भर्ना भएका बिरामीहरूको रेकर्ड', color: 'bg-violet-50 border-violet-200' },
+    { id: 'billingRecords', title: 'बिलिङ रेकर्डहरू', data: billingRecords, icon: <Banknote size={24} className="text-emerald-600" />, desc: 'प्रत्यक्ष र नियमित बिलिङ रेकर्डहरू', color: 'bg-emerald-50 border-emerald-200' },
+    { id: 'dartaEntries', title: 'दर्ता किताब (Darta)', data: dartaEntries, icon: <Scroll size={24} className="text-blue-600" />, desc: 'पत्र दर्ता रेकर्डहरू', color: 'bg-blue-50 border-blue-200' },
+    { id: 'chalaniEntries', title: 'चलानी किताब (Chalani)', data: chalaniEntries, icon: <Send size={24} className="text-indigo-600" />, desc: 'पत्र चलानी रेकर्डहरू', color: 'bg-indigo-50 border-indigo-200' },
+    { id: 'leaveApplications', title: 'कर्मचारी बिदा', data: leaveApplications, icon: <ClipboardList size={24} className="text-orange-600" />, desc: 'कर्मचारी बिदा आवेदन रेकर्डहरू', color: 'bg-orange-50 border-orange-200' },
+    { id: 'financialPrograms', title: 'आर्थिक कार्यक्रमहरू', data: financialPrograms, icon: <ClipboardList size={24} className="text-green-600" />, desc: 'बजेट तथा कार्यक्रम विवरण', color: 'bg-green-50 border-green-200' },
+    { id: 'listedParties', title: 'सूचीकृत पार्टीहरू (Parties)', data: listedParties, icon: <UsersRound size={24} className="text-cyan-600" />, desc: 'फर्म तथा आपूर्तिकर्ता विवरण', color: 'bg-cyan-50 border-cyan-200' },
+    { id: 'financialTransactions', title: 'आर्थिक कारोबार', data: financialTransactions, icon: <Banknote size={24} className="text-emerald-600" />, desc: 'खर्च तथा भुक्तानी कारोबार', color: 'bg-emerald-50 border-emerald-200' },
+    { id: 'partyPayments', title: 'पार्टी भुक्तानी रेकर्ड', data: partyPayments, icon: <Banknote size={24} className="text-teal-600" />, desc: 'आपूर्तिकर्ता भुक्तानी विवरण', color: 'bg-teal-50 border-teal-200' },
+    { id: 'goswaraVouchers', title: 'गोश्वारा भौचरहरू', data: goswaraVouchers, icon: <FileText size={24} className="text-purple-600" />, desc: 'गोश्वारा भौचर रेकर्डहरू', color: 'bg-purple-50 border-purple-200' },
+    { id: 'paymentRequests', title: 'भुक्तानी अनुरोधहरू', data: paymentRequests, icon: <ClipboardList size={24} className="text-blue-600" />, desc: 'भुक्तानी सिफारिस तथा अनुरोध', color: 'bg-blue-50 border-blue-200' },
+    { id: 'allowances', title: 'भत्ता तथा पारिश्रमिक', data: allowances, icon: <Banknote size={24} className="text-indigo-600" />, desc: 'कर्मचारी भत्ता रेकर्डहरू', color: 'bg-indigo-50 border-indigo-200' },
+    { id: 'users', title: 'प्रयोगकर्ताहरू (Users)', data: users, icon: <UsersRound size={24} className="text-slate-700" />, desc: 'सिस्टम प्रयोगकर्ताहरूको सूची', color: 'bg-slate-100 border-slate-200' }
   ];
 
   const storeOptions = stores.map(s => ({ id: s.id, value: s.id, label: s.name }));
