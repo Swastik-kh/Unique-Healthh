@@ -201,8 +201,9 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
       const idMatch = r.uniquePatientId.toLowerCase().includes(query) || 
                       r.uniquePatientId.replace(/[^0-9]/g, '').includes(query);
       const nameMatch = r.name.toLowerCase().includes(query);
-      const regMatch = r.registrationNumber.includes(query);
-      return idMatch || nameMatch || regMatch;
+      const regMatch = r.registrationNumber.toLowerCase().includes(query);
+      const mulDartaMatch = r.mulDartaNo && r.mulDartaNo.toLowerCase().includes(query);
+      return idMatch || nameMatch || regMatch || mulDartaMatch;
     });
 
     if (results.length === 1) {
@@ -380,7 +381,7 @@ export const EmergencySewa: React.FC<EmergencySewaProps> = ({
               type="text"
               value={searchId}
               onChange={(e) => setSearchId(e.target.value)}
-              placeholder="बिरामी ID, नाम वा दर्ता नं. राख्नुहोस्"
+              placeholder="मूल दर्ता नं., ID, नाम वा दर्ता नं."
               className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               autoFocus
             />
