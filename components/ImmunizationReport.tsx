@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Printer, Calendar, Filter, BarChart, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus, Building2 } from 'lucide-react';
+import { Printer, Calendar, Filter, BarChart, BarChart3, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus, Building2 } from 'lucide-react';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient, getChildDisplayName } from '../types/healthTypes';
@@ -12,6 +12,7 @@ import NepaliDate from 'nepali-date-converter';
 import axios from 'axios';
 import { getDhis2CellMapping } from '../lib/dhis2Utils';
 import { DHIS2_DATASETS } from '../constants/dhis2Metadata';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart, LabelList } from 'recharts';
 
 interface ImmunizationReportProps {
   currentFiscalYear: string;
@@ -180,9 +181,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   activeOrgName,
   onSetActiveOrgName
 }) => {
-  const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail'>('summary');
+  const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail' | 'graph'>('summary');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
+  const [selectedVaccineFilter, setSelectedVaccineFilter] = useState('all');
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
@@ -348,6 +350,90 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       matchRegNo(c.regNo, query)
     );
   }, [childrenDetailsThisMonth, searchQuery]);
+
+  const availableVaccinesList = useMemo(() => {
+    const set = new Set<string>();
+    NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.forEach(v => set.add(v.name));
+    set.add('गर्भवती TD');
+    return Array.from(set);
+  }, []);
+
+  const monthWiseGraphData = useMemo(() => {
+    const months = [
+      { id: '01', name: 'बैशाख' },
+      { id: '02', name: 'जेठ' },
+      { id: '03', name: 'असार' },
+      { id: '04', name: 'साउन' },
+      { id: '05', name: 'भदौ' },
+      { id: '06', name: 'असोज' },
+      { id: '07', name: 'कार्तिक' },
+      { id: '08', name: 'मंसिर' },
+      { id: '09', name: 'पुष' },
+      { id: '10', name: 'माघ' },
+      { id: '11', name: 'फागुन' },
+      { id: '12', name: 'चैत्र' },
+    ];
+
+    return months.map(m => {
+      let childCount = 0;
+      let maternalCount = 0;
+      const vaxCounts: Record<string, number> = {};
+
+      bachhaRecords.forEach(record => {
+        if (!matchesVaccinationCenter(record.vaccinationCenter, filterCenter, defaultCenter, record.remarks, record.address)) return;
+        
+        record.vaccines.forEach(v => {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            const vm = getMonthFromBsDate(v.givenDateBs);
+            const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
+            if (vm === m.id && matchesFY) {
+              childCount++;
+              const vName = v.name || 'Other';
+              vaxCounts[vName] = (vaxCounts[vName] || 0) + 1;
+            }
+          }
+        });
+      });
+
+      let tdTotalMonth = 0;
+      maternalRecords.forEach(mat => {
+        if (!matchesVaccinationCenter(mat.vaccinationCenter, filterCenter, defaultCenter, mat.remarks, mat.address)) return;
+        
+        const checkTd = (dateBs?: string | null) => {
+          if (!dateBs) return false;
+          const vm = getMonthFromBsDate(dateBs);
+          const matchesFY = matchesFiscalYear(dateBs, selectedFiscalYear, mat.fiscalYear);
+          return vm === m.id && matchesFY;
+        };
+
+        if (mat.td1DateBs && checkTd(mat.td1DateBs)) tdTotalMonth++;
+        if (mat.td2DateBs && checkTd(mat.td2DateBs)) tdTotalMonth++;
+        if (mat.tdBoosterDateBs && checkTd(mat.tdBoosterDateBs)) tdTotalMonth++;
+      });
+      vaxCounts['गर्भवती TD'] = tdTotalMonth;
+      maternalCount = tdTotalMonth;
+
+      // Calculate filtered count if a specific vaccine is selected
+      let filteredVaxCount = 0;
+      if (selectedVaccineFilter === 'all') {
+        filteredVaxCount = childCount + maternalCount;
+      } else if (selectedVaccineFilter === 'गर्भवती TD') {
+        filteredVaxCount = maternalCount;
+      } else {
+        filteredVaxCount = vaxCounts[selectedVaccineFilter] || 0;
+      }
+
+      return {
+        month: m.name,
+        monthId: m.id,
+        बालबालिका_खोप: childCount,
+        गर्भवती_TD: maternalCount,
+        जम्मा_खोप: childCount + maternalCount,
+        filtered_count: filteredVaxCount,
+        ...vaxCounts
+      };
+    });
+  }, [bachhaRecords, maternalRecords, selectedFiscalYear, filterCenter, defaultCenter, selectedVaccineFilter]);
 
   const reportStats = useMemo(() => {
     // Initialize child vaccine counts dynamically for all vaccines in the template
@@ -926,6 +1012,17 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           <Users size={16} />
           बालबालिका विस्तृत विवरण (Detailed Children Log)
         </button>
+        <button
+          onClick={() => setActiveReportTab('graph')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+            activeReportTab === 'graph'
+              ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <BarChart3 size={16} />
+          महिनागत ग्राफ प्रतिवेदन (Graph Report)
+        </button>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
@@ -991,10 +1088,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             </button>
           )}
           <button 
-            onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : 'print-detailed-content')} 
+            onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : activeReportTab === 'detail' ? 'print-detailed-content' : 'print-graph-content')} 
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap"
           >
-            <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : 'प्रिन्ट (विस्तृत विवरण)'}
+            <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : activeReportTab === 'detail' ? 'प्रिन्ट (विस्तृत विवरण)' : 'प्रिन्ट (ग्राफ प्रतिवेदन)'}
           </button>
         </div>
       </div>
@@ -1185,7 +1282,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
               <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
           </div>
         </div>
-      ) : (
+      ) : activeReportTab === 'detail' ? (
         /* ======================== DETAILED LOG VIEW ======================== */
         <div id="print-detailed-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[297mm] mx-auto print-full">
           {/* Header */}
@@ -1274,6 +1371,142 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                       </tbody>
                   </table>
               </div>
+          </div>
+
+          {/* Footer */}
+          <div className="grid grid-cols-2 gap-10 mt-12 text-center text-xs font-bold font-nepali">
+              <div className="border-t border-slate-900 pt-2">तयार गर्ने</div>
+              <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
+          </div>
+        </div>
+      ) : (
+        /* ======================== GRAPH REPORT VIEW ======================== */
+        <div id="print-graph-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full space-y-8">
+          <div className="print-header mb-6 pb-4 flex items-center justify-center relative border-b-2 border-slate-900">
+              <img src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} alt="Logo" className="print-logo hidden" />
+              <div className="print-header-text text-center">
+                  <h1>{generalSettings.orgNameNepali}</h1>
+                  {generalSettings.subTitleNepali && <h2>{generalSettings.subTitleNepali}</h2>}
+                  <h2 className="mt-3 font-bold text-lg font-black underline font-nepali">महिनागत खोप कार्यक्रम ग्राफ प्रतिवेदन (Month-wise Vaccination Graph Report)</h2>
+                  <div className="flex justify-between mt-4 text-xs font-bold text-slate-600 font-nepali">
+                      <span>आ.व.: {selectedFiscalYear}</span>
+                      <span>खोप: {selectedVaccineFilter === 'all' ? 'सबै खोप' : selectedVaccineFilter}</span>
+                      <span>केन्द्र: {filterCenter || 'सबै'}</span>
+                  </div>
+              </div>
+          </div>
+
+          {/* Vaccine Filter Controls (No Print) */}
+          <div className="no-print bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-bold text-slate-700 font-nepali">खोपअनुसार छान्नुहोस् (Filter by Vaccine):</label>
+              <select
+                value={selectedVaccineFilter}
+                onChange={(e) => setSelectedVaccineFilter(e.target.value)}
+                className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-nepali focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="all">सबै खोप (All Vaccines & Maternal TD)</option>
+                {availableVaccinesList.map((vName) => (
+                  <option key={vName} value={vName}>{vName}</option>
+                ))}
+              </select>
+            </div>
+            <div className="text-xs font-medium text-slate-500 font-nepali">
+              {selectedVaccineFilter === 'all' ? 'समग्र सबै खोपको महिनागत विवरण' : `खोप: ${selectedVaccineFilter}`}
+            </div>
+          </div>
+
+          {/* Chart: Monthly Vaccinations */}
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <h3 className="text-base font-bold text-indigo-900 mb-4 font-nepali flex items-center gap-2">
+              <BarChart3 size={20} className="text-indigo-600" />
+              {selectedVaccineFilter === 'all' 
+                ? `आर्थिक वर्ष ${selectedFiscalYear} को महिनागत कुल खोप सेवा वितरण` 
+                : `आर्थिक वर्ष ${selectedFiscalYear} को महिनागत (${selectedVaccineFilter}) खोप वितरण`}
+            </h3>
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthWiseGraphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="month" tick={{ fill: '#475569', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#475569', fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                    formatter={(value: any, name: any) => [
+                      value, 
+                      name === 'बालबालिका_खोप' ? 'बालबालिका खोप' : 
+                      name === 'गर्भवती_TD' ? 'गर्भवती TD' : 
+                      name === 'जम्मा_खोप' ? 'जम्मा' : 
+                      name === 'filtered_count' ? selectedVaccineFilter : name
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
+                  {selectedVaccineFilter === 'all' ? (
+                    <>
+                      <Bar dataKey="बालबालिका_खोप" name="बालबालिका खोप" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20}>
+                        <LabelList dataKey="बालबालिका_खोप" position="top" fill="#4f46e5" fontSize={10} />
+                      </Bar>
+                      <Bar dataKey="गर्भवती_TD" name="गर्भवती TD" fill="#9333ea" radius={[4, 4, 0, 0]} barSize={20}>
+                        <LabelList dataKey="गर्भवती_TD" position="top" fill="#9333ea" fontSize={10} />
+                      </Bar>
+                      <Line type="monotone" dataKey="जम्मा_खोप" name="जम्मा खोप" stroke="#059669" strokeWidth={3} dot={{ r: 4 }} />
+                    </>
+                  ) : (
+                    <Bar dataKey="filtered_count" name={selectedVaccineFilter} fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={35}>
+                      <LabelList dataKey="filtered_count" position="top" fill="#4f46e5" fontSize={11} />
+                    </Bar>
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Monthly Data Table */}
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead className="bg-slate-50 text-slate-700 font-bold">
+                <tr>
+                  <th className="border-b border-r border-slate-200 p-2.5 text-center">महिना (Month)</th>
+                  {selectedVaccineFilter === 'all' ? (
+                    <>
+                      <th className="border-b border-r border-slate-200 p-2.5 text-center">बालबालिका खोप (Child Vax)</th>
+                      <th className="border-b border-r border-slate-200 p-2.5 text-center">गर्भवती TD (Maternal TD)</th>
+                      <th className="border-b border-slate-200 p-2.5 text-center">जम्मा खोप (Total)</th>
+                    </>
+                  ) : (
+                    <th className="border-b border-slate-200 p-2.5 text-center">खोप संख्या ({selectedVaccineFilter})</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {monthWiseGraphData.map((row) => (
+                  <tr key={row.monthId} className="hover:bg-slate-50">
+                    <td className="border-r border-slate-200 p-2.5 font-bold text-slate-800 text-center">{row.month}</td>
+                    {selectedVaccineFilter === 'all' ? (
+                      <>
+                        <td className="border-r border-slate-200 p-2.5 text-center font-mono font-medium text-indigo-700">{row.बालबालिका_खोप}</td>
+                        <td className="border-r border-slate-200 p-2.5 text-center font-mono font-medium text-purple-700">{row.गर्भवती_TD}</td>
+                        <td className="p-2.5 text-center font-mono font-bold text-emerald-700">{row.जम्मा_खोप}</td>
+                      </>
+                    ) : (
+                      <td className="p-2.5 text-center font-mono font-bold text-indigo-700">{row.filtered_count}</td>
+                    )}
+                  </tr>
+                ))}
+                <tr className="bg-indigo-50 font-bold text-indigo-900">
+                  <td className="border-r border-indigo-200 p-2.5 text-right">जम्मा (Total):</td>
+                  {selectedVaccineFilter === 'all' ? (
+                    <>
+                      <td className="border-r border-indigo-200 p-2.5 text-center font-mono">{monthWiseGraphData.reduce((acc, r) => acc + r.बालबालिका_खोप, 0)}</td>
+                      <td className="border-r border-indigo-200 p-2.5 text-center font-mono">{monthWiseGraphData.reduce((acc, r) => acc + r.गर्भवती_TD, 0)}</td>
+                      <td className="p-2.5 text-center font-mono text-emerald-800">{monthWiseGraphData.reduce((acc, r) => acc + r.जम्मा_खोप, 0)}</td>
+                    </>
+                  ) : (
+                    <td className="p-2.5 text-center font-mono text-indigo-800">{monthWiseGraphData.reduce((acc, r) => acc + r.filtered_count, 0)}</td>
+                  )}
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {/* Footer */}
