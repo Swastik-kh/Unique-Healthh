@@ -327,30 +327,51 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
     const query = searchId.trim().toLowerCase();
     if (!query) return;
 
-    const results = serviceSeekerRecords.filter(r => {
-      const idMatch = r.uniquePatientId.toLowerCase().includes(query) || 
-                      r.uniquePatientId.replace(/[^0-9]/g, '').includes(query);
-      const nameMatch = r.name.toLowerCase().includes(query);
-      const regMatch = r.registrationNumber.includes(query);
-      
-      // Filter by age: 5 years or less
-      const ageInMonths = (r.ageYears || 0) * 12 + (r.ageMonths || 0);
-      const isAgeValid = ageInMonths <= 60; // 5 years = 60 months
-      
-      return (idMatch || nameMatch || regMatch) && isAgeValid;
+    const matchingPatients = serviceSeekerRecords.filter(r => {
+      const idMatch = (r.uniquePatientId || '').toLowerCase().includes(query) || 
+                      (r.uniquePatientId || '').replace(/[^0-9]/g, '').includes(query);
+      const nameMatch = (r.name || '').toLowerCase().includes(query);
+      const regMatch = (r.registrationNumber || '').toLowerCase().includes(query) ||
+                       (r.registrationNumber || '').replace(/[^0-9]/g, '').includes(query);
+      const dartaMatch = (r.mulDartaNo || '').toLowerCase().includes(query) ||
+                         (r.mulDartaNo || '').replace(/[^0-9]/g, '').includes(query);
+      return idMatch || nameMatch || regMatch || dartaMatch;
     });
 
-    if (results.length === 1) {
-      selectPatient(results[0]);
+    if (matchingPatients.length === 0) {
+      alert('बिरामी भेटिएन (Patient not found)');
+      setCurrentPatient(null);
+      return;
+    }
+
+    const validPatients = matchingPatients.filter(r => {
+      const ageInMonths = (r.ageYears || 0) * 12 + (r.ageMonths || 0);
+      let isUnder5 = ageInMonths <= 60 || (r.ageYears !== undefined && r.ageYears <= 5);
+      if (r.ageYears === undefined && r.ageMonths === undefined && r.age) {
+        if (r.age.includes('Y') || r.age.includes('वर्ष')) {
+          const yrs = parseInt(r.age) || 0;
+          isUnder5 = yrs <= 5;
+        } else {
+          isUnder5 = true;
+        }
+      }
+      return isUnder5;
+    });
+
+    if (validPatients.length === 0) {
+      alert('यो बिरामीको उमेर ५ वर्षभन्दा बढी छ। CBIMNCI सेवा ५ वर्ष मुनिका बालबालिकाको लागि मात्र हो। (Patient age is over 5 years. CBIMNCI service is only for children under 5 years)');
+      setCurrentPatient(null);
+      return;
+    }
+
+    if (validPatients.length === 1) {
+      selectPatient(validPatients[0]);
       setSearchId('');
       setShowSearchResults(false);
-    } else if (results.length > 1) {
-      setSearchResults(results);
+    } else {
+      setSearchResults(validPatients);
       setShowSearchResults(true);
       setShowExistingResults(false);
-    } else {
-      alert('बिरामी भेटिएन वा उमेर ५ वर्षभन्दा बढी छ (Patient not found or age is over 5 years)');
-      setCurrentPatient(null);
     }
   };
 
