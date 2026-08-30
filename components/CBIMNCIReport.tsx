@@ -119,7 +119,7 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
 
     const diag = record.diagnosis || '';
     const data = record.assessmentData || {};
-    const meds = (record.prescriptions || []).map(p => p.medicineName.toLowerCase());
+    const meds = (record.prescriptions || []).map(p => (p.medicineName || '').toLowerCase());
 
     if (diag.includes('Possible Serious Bacterial Infection') || diag.includes('Very Severe Disease')) {
       if (isYoung) infantStats.severe_0_28++;
@@ -228,7 +228,7 @@ export const CBIMNCIReport: React.FC<CBIMNCIReportProps> = ({
     if (patient?.gender === 'Female') childStats.total_girl++;
 
     const diag = record.diagnosis || '';
-    const meds = (record.prescriptions || []).map(p => p.medicineName.toLowerCase());
+    const meds = (record.prescriptions || []).map(p => (p.medicineName || '').toLowerCase());
     const isRefer = record.isRefer || diag.includes('Severe') || (record.advice || '').toLowerCase().includes('refer');
     const isDeath = record.isDeath || false;
 

@@ -252,12 +252,12 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
         if (hasVaccineThisMonth) {
           // Check if they are fully immunized (all required vaccines from template are Given)
-          const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
+          const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !((req.name || '').includes('HPV')));
           const hasAllRequired = requiredVaccines.every(reqVax => {
             return record.vaccines.some(v => {
               if (v.status !== 'Given' || v.vaccinatedElsewhere) return false;
               const nameLower = (v.name || '').toLowerCase();
-              const reqLower = reqVax.name.toLowerCase();
+              const reqLower = (reqVax.name || '').toLowerCase();
               const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
               if (normalize(v.name) === normalize(reqVax.name)) return true;
               
@@ -387,12 +387,12 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         let receivedDoseThisMonth = false;
 
         // Check if child has taken ALL required vaccines (excluding HPV)
-        const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !req.name.includes('HPV'));
+        const requiredVaccines = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(req => !((req.name || '').includes('HPV')));
         const hasAllRequired = requiredVaccines.every(reqVax => {
           return record.vaccines.some(v => {
             if (v.status !== 'Given' || v.vaccinatedElsewhere) return false;
             const nameLower = (v.name || '').toLowerCase();
-            const reqLower = reqVax.name.toLowerCase();
+            const reqLower = (reqVax.name || '').toLowerCase();
             const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             if (normalize(v.name) === normalize(reqVax.name)) return true;
             
@@ -594,7 +594,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         });
 
         if (receivedDoseThisMonth) {
-            const gender = record.gender.toLowerCase();
+            const gender = (record.gender || '').toLowerCase();
             if (gender === 'male') stats.uniqueChildrenVax.male++;
             else if (gender === 'female') stats.uniqueChildrenVax.female++;
             else stats.uniqueChildrenVax.other++;

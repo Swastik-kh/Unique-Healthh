@@ -81,7 +81,7 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
              stats[log.userId].count++;
           }
           stats[log.userId].lastLogin = logTime;
-      } else if (log.eventType.toLowerCase() === 'logout') {
+      } else if ((log.eventType || '').toLowerCase() === 'logout') {
           if (log.durationMinutes && logTime >= boundaryTime) {
              stats[log.userId].pastDuration += log.durationMinutes;
           }

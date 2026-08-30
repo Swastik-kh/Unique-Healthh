@@ -302,11 +302,11 @@ export const OPDSewa: React.FC<OPDSewaProps> = ({
     if (!query) return;
 
     const results = serviceSeekerRecords.filter(r => {
-      const idMatch = r.uniquePatientId.toLowerCase().includes(query) || 
-                      r.uniquePatientId.replace(/[^0-9]/g, '').includes(query);
-      const nameMatch = r.name.toLowerCase().includes(query);
-      const regMatch = r.registrationNumber.toLowerCase().includes(query);
-      const mulDartaMatch = r.mulDartaNo && r.mulDartaNo.toLowerCase().includes(query);
+      const idMatch = (r.uniquePatientId || '').toLowerCase().includes(query) || 
+                      (r.uniquePatientId || '').replace(/[^0-9]/g, '').includes(query);
+      const nameMatch = (r.name || '').toLowerCase().includes(query);
+      const regMatch = (r.registrationNumber || '').toLowerCase().includes(query);
+      const mulDartaMatch = r.mulDartaNo && (r.mulDartaNo || '').toLowerCase().includes(query);
       return idMatch || nameMatch || regMatch || mulDartaMatch;
     });
 
