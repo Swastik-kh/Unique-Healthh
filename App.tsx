@@ -1206,16 +1206,19 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveAmbulanceRecord = async (record: AmbulanceRecord) => {
-    if (!currentUser) return;
+  const handleSaveAmbulanceRecord = async (record: AmbulanceRecord): Promise<boolean> => {
+    if (!currentUser) return false;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       await set(getOrgRef(`ambulanceRecords/${record.id}`), sanitized);
       if (record.serviceSeekerId) {
         await update(getOrgRef(`serviceSeekerRecords/${record.serviceSeekerId}`), { status: 'Completed' });
       }
+      return true;
     } catch (error) {
-      alert("एम्बुलेन्स रेकर्ड सुरक्षित गर्न सकिएन।");
+      console.error('Ambulance record save failed:', error);
+      alert("एम्बुलेन्स रेकर्ड सुरक्षित गर्न सकिएन। कृपया इन्टरनेट जडान जाँच गरी पुनः प्रयास गर्नुहोस्।");
+      return false;
     }
   };
 
@@ -1228,14 +1231,17 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveAmbulanceExpense = async (record: AmbulanceExpenseRecord) => {
-    if (!currentUser) return;
+  const handleSaveAmbulanceExpense = async (record: AmbulanceExpenseRecord): Promise<boolean> => {
+    if (!currentUser) return false;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
       await set(getOrgRef(`ambulanceExpenseRecords/${record.id}`, targetOrg), sanitized);
+      return true;
     } catch (error) {
-      alert("एम्बुलेन्स खर्च रेकर्ड सुरक्षित गर्न सकिएन।");
+      console.error('Ambulance expense save failed:', error);
+      alert("एम्बुलेन्स खर्च रेकर्ड सुरक्षित गर्न सकिएन। कृपया इन्टरनेट जडान जाँच गरी पुनः प्रयास गर्नुहोस्।");
+      return false;
     }
   };
 
@@ -1250,14 +1256,17 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveAmbulanceOdometerRecord = async (record: AmbulanceOdometerRecord) => {
-    if (!currentUser) return;
+  const handleSaveAmbulanceOdometerRecord = async (record: AmbulanceOdometerRecord): Promise<boolean> => {
+    if (!currentUser) return false;
     try {
       const sanitized = JSON.parse(JSON.stringify(record));
       const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
       await set(getOrgRef(`ambulanceOdometerRecords/${record.id}`, targetOrg), sanitized);
+      return true;
     } catch (error) {
-      alert("ओडोमिटर रेकर्ड सुरक्षित गर्न सकिएन।");
+      console.error('Ambulance odometer save failed:', error);
+      alert("ओडोमिटर रेकर्ड सुरक्षित गर्न सकिएन। कृपया इन्टरनेट जडान जाँच गरी पुनः प्रयास गर्नुहोस्।");
+      return false;
     }
   };
 
@@ -1271,58 +1280,6 @@ const App: React.FC = () => {
       alert("ओडोमिटर रेकर्ड हटाउन सकिएन।");
     }
   };
-
-  // Auto-purge Ambulance Odometer and Fuel Expense Records strictly for Shrawan (Month 04) of Fiscal Year 2083/084
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const isFy2083_084 = (fy?: string) => {
-      if (!fy) return false;
-      const clean = fy.replace(/[^0-9]/g, '');
-      return clean === '2083084' || clean === '208384' || fy.includes('2083/084') || fy.includes('२०८३/०८४');
-    };
-
-    const isShrawan = (month?: string, dateBs?: string) => {
-      if (month) {
-        const m = month.trim();
-        if (m === '04' || m === '4' || m.toLowerCase().includes('shrawan') || m.includes('साउन') || m.includes('श्रावण')) {
-          return true;
-        }
-      }
-      if (dateBs) {
-        const parts = dateBs.split(/[-/]/);
-        if (parts.length >= 2) {
-          const year = parts[0].replace(/[^0-9]/g, '');
-          const m = parts[1].padStart(2, '0');
-          if (m === '04' && (year === '2083' || year === '२०८३')) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
-
-    // 1. Delete matching ambulanceOdometerRecords for Shrawan 2083/084
-    ambulanceOdometerRecords.forEach((rec) => {
-      if (isFy2083_084(rec.fiscalYear) && isShrawan(rec.month)) {
-        const targetOrg = (rec as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
-        remove(getOrgRef(`ambulanceOdometerRecords/${rec.id}`, targetOrg)).catch(() => {});
-      }
-    });
-
-    // 2. Delete matching fuel ambulanceExpenseRecords for Shrawan 2083/084
-    ambulanceExpenseRecords.forEach((rec) => {
-      const isFuel = rec.expenseCategory === 'fuel' || !!rec.fuelLiters;
-      if (
-        isFuel &&
-        (isFy2083_084(rec.fiscalYear) || isShrawan(undefined, rec.dateBs)) &&
-        isShrawan(rec.month, rec.dateBs)
-      ) {
-        const targetOrg = (rec as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
-        remove(getOrgRef(`ambulanceExpenseRecords/${rec.id}`, targetOrg)).catch(() => {});
-      }
-    });
-  }, [ambulanceOdometerRecords, ambulanceExpenseRecords, currentUser, activeOrgName]);
 
   const handleSaveIPDRecord = async (record: IPDRecord) => {
     if (!currentUser) return;

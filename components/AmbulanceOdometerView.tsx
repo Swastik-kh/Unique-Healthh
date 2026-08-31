@@ -35,7 +35,7 @@ interface AmbulanceOdometerViewProps {
   generalSettings?: OrganizationSettings;
   currentUser?: User | null;
   users: User[];
-  onSaveOdometer?: (record: AmbulanceOdometerRecord) => void;
+  onSaveOdometer?: (record: AmbulanceOdometerRecord) => Promise<boolean> | void;
   onDeleteOdometer?: (id: string) => void;
 }
 
@@ -175,7 +175,7 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
   };
 
   // Handle Form Submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fiscalYear || !formData.month) {
       alert('कृपया आर्थिक वर्ष र महिना छान्नुहोस्।');
@@ -214,7 +214,10 @@ export const AmbulanceOdometerView: React.FC<AmbulanceOdometerViewProps> = ({
       recordedBy: currentUser?.fullName || currentUser?.username || 'User'
     };
 
-    onSaveOdometer?.(record);
+    const success = onSaveOdometer ? await onSaveOdometer(record) : false;
+    if (success === false) {
+      return;
+    }
     setIsModalOpen(false);
   };
 

@@ -15,7 +15,7 @@ import { db } from '../firebase';
 import { ref, onValue, get } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
-import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, SentLetter, ReceivedLetter } from '../types';
+import { User, LeaveApplication, LeaveStatus, Darta, Chalani, BharmanAdeshEntry, GarbhawotiRecord, PrasutiRecord, UttarPrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, InterFacilityRequest, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, SentLetter, ReceivedLetter } from '../types';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord, PaymentRequest, AllowanceRecord, GoswaraVoucher } from '../types/financeTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 import { TalimByabasthapan } from './TalimByabasthapan';
@@ -149,11 +149,14 @@ interface ExtendedDashboardProps extends DashboardProps {
   onSavePhysiotherapyRecord: (record: PhysiotherapyRecord) => void;
   onDeletePhysiotherapyRecord: (id: string) => void;
   ambulanceRecords: AmbulanceRecord[];
-  onSaveAmbulanceRecord: (record: AmbulanceRecord) => void;
+  onSaveAmbulanceRecord: (record: AmbulanceRecord) => Promise<boolean>;
   onDeleteAmbulanceRecord: (id: string) => void;
   ambulanceExpenseRecords?: AmbulanceExpenseRecord[];
-  onSaveAmbulanceExpense?: (record: AmbulanceExpenseRecord) => void;
+  onSaveAmbulanceExpense?: (record: AmbulanceExpenseRecord) => Promise<boolean>;
   onDeleteAmbulanceExpense?: (id: string) => void;
+  ambulanceOdometerRecords?: AmbulanceOdometerRecord[];
+  onSaveAmbulanceOdometerRecord?: (record: AmbulanceOdometerRecord) => Promise<boolean>;
+  onDeleteAmbulanceOdometerRecord?: (id: string) => void;
   ipdRecords: IPDRecord[];
   onSaveIPDRecord: (record: IPDRecord) => void;
   onDeleteIPDRecord: (id: string) => void;
@@ -408,11 +411,32 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
   const onDeleteUSGRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteUSGRecord?.(...args);
   const onSavePhysiotherapyRecord = (...args: any[]) => checkEditPermission() && rawOnSavePhysiotherapyRecord?.(...args);
   const onDeletePhysiotherapyRecord = (...args: any[]) => checkDeletePermission() && rawOnDeletePhysiotherapyRecord?.(...args);
-  const onSaveAmbulanceRecord = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceRecord?.(...args);
+  const onSaveAmbulanceRecord = async (...args: any[]): Promise<boolean> => {
+    if (!checkEditPermission()) return false;
+    try {
+      return (await rawOnSaveAmbulanceRecord?.(...args)) ?? false;
+    } catch {
+      return false;
+    }
+  };
   const onDeleteAmbulanceRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceRecord?.(...args);
-  const onSaveAmbulanceExpense = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceExpense?.(...args);
+  const onSaveAmbulanceExpense = async (...args: any[]): Promise<boolean> => {
+    if (!checkEditPermission()) return false;
+    try {
+      return (await rawOnSaveAmbulanceExpense?.(...args)) ?? false;
+    } catch {
+      return false;
+    }
+  };
   const onDeleteAmbulanceExpense = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceExpense?.(...args);
-  const onSaveAmbulanceOdometerRecord = (...args: any[]) => checkEditPermission() && rawOnSaveAmbulanceOdometerRecord?.(...args);
+  const onSaveAmbulanceOdometerRecord = async (...args: any[]): Promise<boolean> => {
+    if (!checkEditPermission()) return false;
+    try {
+      return (await rawOnSaveAmbulanceOdometerRecord?.(...args)) ?? false;
+    } catch {
+      return false;
+    }
+  };
   const onDeleteAmbulanceOdometerRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteAmbulanceOdometerRecord?.(...args);
   const onSaveIPDRecord = (...args: any[]) => checkEditPermission() && rawOnSaveIPDRecord?.(...args);
   const onDeleteIPDRecord = (...args: any[]) => checkDeletePermission() && rawOnDeleteIPDRecord?.(...args);

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X, Eye } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -15,11 +15,11 @@ interface AmbulanceSewaProps {
   odometerRecords?: AmbulanceOdometerRecord[];
   serviceSeekerRecords: ServiceSeekerRecord[];
   currentUser?: User | null;
-  onSave: (record: AmbulanceRecord) => void;
+  onSave: (record: AmbulanceRecord) => Promise<boolean>;
   onDelete: (id: string) => void;
-  onSaveExpense?: (record: AmbulanceExpenseRecord) => void;
+  onSaveExpense?: (record: AmbulanceExpenseRecord) => Promise<boolean>;
   onDeleteExpense?: (id: string) => void;
-  onSaveOdometer?: (record: AmbulanceOdometerRecord) => void;
+  onSaveOdometer?: (record: AmbulanceOdometerRecord) => Promise<boolean>;
   onDeleteOdometer?: (id: string) => void;
   currentFiscalYear: string;
   generalSettings?: OrganizationSettings;
@@ -100,21 +100,58 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     return todayStr;
   };
 
+  const normalizeToEngDigits = (str: string): string => {
+    return (str || '').replace(/[०-९]/g, d => "०१२३४५६७८९".indexOf(d).toString()).trim();
+  };
+
+  const normalizeFiscalYearStr = (fy?: string): string => {
+    if (!fy || fy === 'all') return 'all';
+    const clean = normalizeToEngDigits(fy).replace(/\s+/g, '');
+    const parts = clean.split(/[-/]/);
+    if (parts.length === 2) {
+      let y1 = parts[0];
+      let y2 = parts[1];
+      if (y1.length === 2) y1 = '20' + y1;
+      if (y2.length === 2) y2 = '0' + y2;
+      return `${y1}/${y2}`;
+    }
+    return clean;
+  };
+
   const getFiscalYearFromBsDate = (dateBs?: string, fallbackFy?: string): string => {
     if (!dateBs) return fallbackFy || currentFiscalYear || '2083/084';
-    const parts = dateBs.split(/[-/]/);
+    const cleanDate = normalizeToEngDigits(dateBs);
+    const parts = cleanDate.split(/[-/.]/);
     if (parts.length >= 2) {
       const yearNum = parseInt(parts[0], 10);
       const monthNum = parseInt(parts[1], 10);
       if (!isNaN(yearNum) && !isNaN(monthNum)) {
         if (monthNum >= 4) {
-          return `${yearNum}/${String(yearNum + 1).slice(-2)}`;
+          const nextYearShort = (yearNum + 1) % 100;
+          const nextYearStr = nextYearShort < 10 ? `0${nextYearShort}` : `${nextYearShort}`;
+          return `${yearNum}/0${nextYearStr}`; // e.g. "2083/084"
         } else {
-          return `${yearNum - 1}/${String(yearNum).slice(-2)}`;
+          const prevYear = yearNum - 1;
+          const yearShort = yearNum % 100;
+          const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
+          return `${prevYear}/0${yearStr}`; // e.g. "2082/083"
         }
       }
     }
     return fallbackFy || currentFiscalYear || '2083/084';
+  };
+
+  const getMonthFromBsDate = (dateBs?: string): string => {
+    if (!dateBs) return '';
+    const cleanDate = normalizeToEngDigits(dateBs);
+    const parts = cleanDate.split(/[-/.]/);
+    if (parts.length >= 2) {
+      const mNum = parseInt(parts[1], 10);
+      if (!isNaN(mNum) && mNum >= 1 && mNum <= 12) {
+        return String(mNum).padStart(2, '0');
+      }
+    }
+    return '';
   };
 
   const currentYearRecords = useMemo(() => {
@@ -178,10 +215,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
-  const [expenseFiscalYearFilter, setExpenseFiscalYearFilter] = useState<string>('all');
+  const [expenseFiscalYearFilter, setExpenseFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('all');
   const [expenseMonthFilter, setExpenseMonthFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (currentFiscalYear) {
+      setExpenseFiscalYearFilter(currentFiscalYear);
+    }
+  }, [currentFiscalYear]);
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -248,7 +291,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     }).slice(0, 10);
   }, [patientSearchInput, serviceSeekerRecords]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.patientName) {
       alert('कृपया सेवाग्राही/बिरामीको नाम प्रविष्ट गर्नुहोस्');
@@ -278,7 +321,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       remarks: formData.remarks || ''
     };
 
-    onSave(record);
+    const success = onSave ? await onSave(record) : false;
+    if (success === false) {
+      return;
+    }
+
     showToast(
       editingRecord 
         ? 'एम्बुलेन्स यात्रा विवरण सफलतापूर्वक परिमार्जन (अपडेट) गरियो।' 
@@ -314,7 +361,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleExpenseSubmit = (e: React.FormEvent) => {
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseFormData.amount || Number(expenseFormData.amount) <= 0) {
       alert('कृपया मान्य रकम प्रविष्ट गर्नुहोस्');
@@ -336,9 +383,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       remarks: expenseFormData.remarks || ''
     };
 
-    if (onSaveExpense) {
-      onSaveExpense(expRecord);
+    const success = onSaveExpense ? await onSaveExpense(expRecord) : false;
+    if (success === false) {
+      return;
     }
+
     showToast(
       editingExpense 
         ? 'एम्बुलेन्स खर्च विवरण सफलतापूर्वक परिमार्जन (अपडेट) गरियो।' 
@@ -378,14 +427,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [expenseRecords, currentFiscalYear]);
 
   const filteredExpenseRecords = useMemo(() => {
+    const targetFyNorm = normalizeFiscalYearStr(expenseFiscalYearFilter);
     return (expenseRecords || [])
       .filter(e => {
         if (!e) return false;
 
-        // 1. Fiscal Year Filter (default 'all' shows all records across all fiscal years)
-        if (expenseFiscalYearFilter !== 'all') {
-          const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
-          if (fy !== expenseFiscalYearFilter) return false;
+        // 1. Fiscal Year Filter
+        if (targetFyNorm !== 'all') {
+          const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+          const recFyNorm = normalizeFiscalYearStr(recFy);
+          if (recFyNorm !== targetFyNorm) return false;
         }
 
         // 2. Category Filter
@@ -393,13 +444,10 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
           if (e.expenseCategory !== expenseCategoryFilter) return false;
         }
 
-        // 3. Month Filter
+        // 3. Month Filter (robust matching with getMonthFromBsDate)
         if (expenseMonthFilter !== 'all') {
-          const parts = (e.dateBs || '').split(/[-/]/);
-          if (parts.length >= 2) {
-            const m = parts[1].padStart(2, '0');
-            if (m !== expenseMonthFilter) return false;
-          }
+          const m = getMonthFromBsDate(e.dateBs);
+          if (m !== expenseMonthFilter) return false;
         }
 
         // 4. Search query
@@ -430,38 +478,61 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       });
   }, [expenseRecords, expenseFiscalYearFilter, expenseCategoryFilter, expenseMonthFilter, expenseSearchTerm, currentFiscalYear]);
 
+  const monthWiseExpenseCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    NEPALI_MONTHS.forEach(m => { counts[m.id] = 0; });
+    const targetFyNorm = normalizeFiscalYearStr(expenseFiscalYearFilter);
+
+    (expenseRecords || []).forEach(e => {
+      if (!e) return;
+      if (targetFyNorm !== 'all') {
+        const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+        const recFyNorm = normalizeFiscalYearStr(recFy);
+        if (recFyNorm !== targetFyNorm) return;
+      }
+      if (expenseCategoryFilter !== 'all') {
+        if (e.expenseCategory !== expenseCategoryFilter) return;
+      }
+      const m = getMonthFromBsDate(e.dateBs);
+      if (m && counts[m] !== undefined) {
+        counts[m] += 1;
+      }
+    });
+    return counts;
+  }, [expenseRecords, expenseFiscalYearFilter, expenseCategoryFilter, currentFiscalYear, NEPALI_MONTHS]);
+
   const allMonthsExpenseSummary = useMemo(() => {
     const summaryMap: Record<string, { fuel: number; maintenance: number; driver_allowance: number; other: number; total: number; fuelLiters: number }> = {};
     NEPALI_MONTHS.forEach(m => {
       summaryMap[m.id] = { fuel: 0, maintenance: 0, driver_allowance: 0, other: 0, total: 0, fuelLiters: 0 };
     });
 
+    const activeFy = expenseFiscalYearFilter === 'all' ? currentFiscalYear : expenseFiscalYearFilter;
+    const targetFyNorm = normalizeFiscalYearStr(activeFy);
+
     const targetRecords = (expenseRecords || []).filter(e => {
       if (!e) return false;
-      const targetFy = expenseFiscalYearFilter === 'all' ? currentFiscalYear : expenseFiscalYearFilter;
-      const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
-      return fy === targetFy;
+      const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+      const recFyNorm = normalizeFiscalYearStr(recFy);
+      return recFyNorm === targetFyNorm;
     });
 
     targetRecords.forEach(record => {
-      const parts = (record.dateBs || '').split(/[-/]/);
-      if (parts.length >= 2) {
-        const monthKey = parts[1].padStart(2, '0');
-        if (summaryMap[monthKey]) {
-          const amt = Number(record.amount) || 0;
-          const cat = record.expenseCategory || 'other';
-          if (cat === 'fuel') {
-            summaryMap[monthKey].fuel += amt;
-            summaryMap[monthKey].fuelLiters += Number(record.fuelLiters) || 0;
-          } else if (cat === 'maintenance') {
-            summaryMap[monthKey].maintenance += amt;
-          } else if (cat === 'driver_allowance') {
-            summaryMap[monthKey].driver_allowance += amt;
-          } else {
-            summaryMap[monthKey].other += amt;
-          }
-          summaryMap[monthKey].total += amt;
+      const monthKey = getMonthFromBsDate(record.dateBs);
+      if (monthKey && summaryMap[monthKey]) {
+        const amt = Number(record.amount) || 0;
+        const cat = record.expenseCategory || 'other';
+        if (cat === 'fuel') {
+          summaryMap[monthKey].fuel += amt;
+          summaryMap[monthKey].fuelLiters += Number(record.fuelLiters) || 0;
+        } else if (cat === 'maintenance') {
+          summaryMap[monthKey].maintenance += amt;
+        } else if (cat === 'driver_allowance') {
+          summaryMap[monthKey].driver_allowance += amt;
+        } else {
+          summaryMap[monthKey].other += amt;
         }
+        summaryMap[monthKey].total += amt;
       }
     });
 
@@ -1674,6 +1745,78 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </div>
             </div>
 
+            {/* Quick Month Selector Bar */}
+            <div className="px-4 py-3 bg-slate-100/70 border-b border-slate-200/80 flex items-center gap-2 overflow-x-auto">
+              <span className="text-xs font-bold text-slate-500 font-nepali whitespace-nowrap flex items-center gap-1">
+                <Calendar size={14} className="text-slate-400" />
+                महिना:
+              </span>
+              <button
+                type="button"
+                onClick={() => setExpenseMonthFilter('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  expenseMonthFilter === 'all'
+                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
+                    : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                }`}
+              >
+                <span>सबै महिना (All Months)</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  expenseMonthFilter === 'all' ? 'bg-emerald-700/80 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {expenseRecords?.length || 0}
+                </span>
+              </button>
+
+              {NEPALI_MONTHS.map(m => {
+                const count = monthWiseExpenseCounts[m.id] || 0;
+                const isSelected = expenseMonthFilter === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setExpenseMonthFilter(m.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/20'
+                        : count > 0
+                        ? 'bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50 font-semibold'
+                        : 'bg-white/80 text-slate-500 hover:bg-slate-200 border border-slate-200/70'
+                    }`}
+                  >
+                    <span>{m.name.split(' ')[0]}</span>
+                    {count > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                        isSelected ? 'bg-emerald-700/80 text-white' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active Month Banner if filtered */}
+            {expenseMonthFilter !== 'all' && (
+              <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/70 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs text-amber-900 font-semibold font-nepali">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>
+                    हाल <strong>{NEPALI_MONTHS.find(m => m.id === expenseMonthFilter)?.name || expenseMonthFilter}</strong> महिनाको खर्च मात्र देखाइएको छ ({filteredExpenseRecords.length} वटा रेकर्ड)।
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExpenseMonthFilter('all')}
+                  className="px-2.5 py-1 bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm"
+                >
+                  <Eye size={13} />
+                  <span>सबै महिनाका खर्च हेर्नुहोस् (Show All Months)</span>
+                </button>
+              </div>
+            )}
+
             {/* Filter Toolbar */}
             <div className="p-4 bg-slate-50/70 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* 1. Search Box */}
@@ -1936,23 +2079,40 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {allMonthsExpenseSummary.map(row => (
-                      <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-3.5 font-bold text-slate-800 text-center font-nepali">{row.name}</td>
-                        <td className="p-3.5 text-right font-mono text-amber-700">
-                          रु. {row.fuel.toLocaleString()}
-                          {row.fuelLiters > 0 && <span className="block text-[10px] text-slate-400 font-sans">({row.fuelLiters} L)</span>}
-                        </td>
-                        <td className="p-3.5 text-right font-mono text-rose-700">रु. {row.maintenance.toLocaleString()}</td>
-                        <td className="p-3.5 text-right font-mono text-indigo-700">रु. {row.driver_allowance.toLocaleString()}</td>
-                        <td className="p-3.5 text-right font-mono text-slate-700">रु. {row.other.toLocaleString()}</td>
-                        <td className="p-3.5 text-right font-mono font-bold text-emerald-700">रु. {row.total.toLocaleString()}</td>
-                      </tr>
-                    ))}
+                    {allMonthsExpenseSummary.map(row => {
+                      const isSelected = expenseMonthFilter === row.id;
+                      return (
+                        <tr
+                          key={row.id}
+                          onClick={() => setExpenseMonthFilter(isSelected ? 'all' : row.id)}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected ? 'bg-emerald-50/80 font-semibold' : 'hover:bg-slate-50/70'
+                          }`}
+                          title={`क्लिक गरेर ${row.name} महिनाको खर्च सूची हेर्नुहोस्`}
+                        >
+                          <td className="p-3.5 font-bold text-slate-800 text-center font-nepali flex items-center justify-center gap-1.5">
+                            {isSelected && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                            <span>{row.name}</span>
+                          </td>
+                          <td className="p-3.5 text-right font-mono text-amber-700">
+                            रु. {row.fuel.toLocaleString()}
+                            {row.fuelLiters > 0 && <span className="block text-[10px] text-slate-400 font-sans">({row.fuelLiters} L)</span>}
+                          </td>
+                          <td className="p-3.5 text-right font-mono text-rose-700">रु. {row.maintenance.toLocaleString()}</td>
+                          <td className="p-3.5 text-right font-mono text-indigo-700">रु. {row.driver_allowance.toLocaleString()}</td>
+                          <td className="p-3.5 text-right font-mono text-slate-700">रु. {row.other.toLocaleString()}</td>
+                          <td className="p-3.5 text-right font-mono font-bold text-emerald-700">रु. {row.total.toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-emerald-50/60 font-bold text-emerald-900 border-t-2 border-emerald-100">
-                      <td className="p-3.5 text-center font-nepali">जम्मा (Total):</td>
+                    <tr
+                      onClick={() => setExpenseMonthFilter('all')}
+                      className="bg-emerald-50/60 font-bold text-emerald-900 border-t-2 border-emerald-100 cursor-pointer hover:bg-emerald-100/70 transition-colors"
+                      title="सबै महिनाका खर्च सूची हेर्न यहाँ थिच्नुहोस्"
+                    >
+                      <td className="p-3.5 text-center font-nepali">जम्मा (Total - सबै महिना):</td>
                       <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.fuel, 0).toLocaleString()}</td>
                       <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.maintenance, 0).toLocaleString()}</td>
                       <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.driver_allowance, 0).toLocaleString()}</td>

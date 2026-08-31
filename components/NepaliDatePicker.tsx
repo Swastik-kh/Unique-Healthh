@@ -159,18 +159,22 @@ export const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
     };
   }, [showCalendar, updatePosition]);
 
-  // Removed getDaysInMonth function entirely as per user instructions.
   const getDaysInMonth = (year: number, month: number) => {
-    // This function is still needed for rendering calendar days, but will be simplified.
-    // Given the strict instruction to remove existing methods, we need a simple fallback.
-    // For simplicity in rendering, we can use a fixed array or estimate.
-    // For actual date calculations, NepaliDate instance methods like `getDate()` work directly.
-    // For calendar *display*, an approximation is sufficient if `getTotalDaysInMonth` is not allowed.
-    // Let's use a very simplified estimation or re-evaluate.
-    // Since the prompt removed the original method, this needs to be a basic implementation.
-    // A simplified approach for display could be:
-    const daysInMonthArray = [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30]; // Typical Nepali month days
-    return daysInMonthArray[month]; // This is a simplification and might not be perfectly accurate for all years/months
+    try {
+      const nextYear = month === 11 ? year + 1 : year;
+      const nextMonth = month === 11 ? 0 : month + 1;
+      const startJsDate = new NepaliDate(year, month, 1).toJsDate();
+      const endJsDate = new NepaliDate(nextYear, nextMonth, 1).toJsDate();
+      const diffMs = endJsDate.getTime() - startJsDate.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays >= 28 && diffDays <= 33) {
+        return diffDays;
+      }
+    } catch (e) {
+      console.warn('Error calculating days in Nepali month:', e);
+    }
+    const daysInMonthFallback = [31, 31, 32, 31, 31, 30, 30, 30, 29, 30, 30, 30];
+    return daysInMonthFallback[month] || 30;
   };
   
 
