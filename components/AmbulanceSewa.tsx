@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -100,13 +100,53 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     return todayStr;
   };
 
+  const getFiscalYearFromBsDate = (dateBs?: string, fallbackFy?: string): string => {
+    if (!dateBs) return fallbackFy || currentFiscalYear || '2083/084';
+    const parts = dateBs.split(/[-/]/);
+    if (parts.length >= 2) {
+      const yearNum = parseInt(parts[0], 10);
+      const monthNum = parseInt(parts[1], 10);
+      if (!isNaN(yearNum) && !isNaN(monthNum)) {
+        if (monthNum >= 4) {
+          return `${yearNum}/${String(yearNum + 1).slice(-2)}`;
+        } else {
+          return `${yearNum - 1}/${String(yearNum).slice(-2)}`;
+        }
+      }
+    }
+    return fallbackFy || currentFiscalYear || '2083/084';
+  };
+
   const currentYearRecords = useMemo(() => {
-    return (records || []).filter(r => r.fiscalYear === currentFiscalYear);
+    return (records || []).filter(r => {
+      if (!r) return false;
+      const fy = r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear);
+      return fy === currentFiscalYear;
+    });
   }, [records, currentFiscalYear]);
 
   const currentYearExpenseRecords = useMemo(() => {
-    return (expenseRecords || []).filter(e => e.fiscalYear === currentFiscalYear);
+    return (expenseRecords || []).filter(e => {
+      if (!e) return false;
+      const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+      return fy === currentFiscalYear;
+    });
   }, [expenseRecords, currentFiscalYear]);
+
+  const NEPALI_MONTHS = useMemo(() => [
+    { id: '01', name: 'बैशाख (Baisakh)' },
+    { id: '02', name: 'जेठ (Jestha)' },
+    { id: '03', name: 'असार (Ashadh)' },
+    { id: '04', name: 'साउन (Shrawan)' },
+    { id: '05', name: 'भदौ (Bhadra)' },
+    { id: '06', name: 'असोज (Ashoj)' },
+    { id: '07', name: 'कात्तिक (Kartik)' },
+    { id: '08', name: 'मंसिर (Mangsir)' },
+    { id: '09', name: 'पुस (Poush)' },
+    { id: '10', name: 'माघ (Magh)' },
+    { id: '11', name: 'फागुन (Falgun)' },
+    { id: '12', name: 'चैत (Chaitra)' },
+  ], []);
 
   const [activeTab, setActiveTab] = useState<'trips' | 'expenses' | 'logbook' | 'odometer' | 'tracking'>('trips');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -138,6 +178,15 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToastMessage({ type, text });
+    setTimeout(() => {
+      setToastMessage(prev => prev?.text === text ? null : prev);
+    }, 4000);
+  };
+
   const [expenseFormData, setExpenseFormData] = useState<Partial<AmbulanceExpenseRecord>>(() => ({
     dateBs: getInitialMitiValue(),
     expenseCategory: 'fuel',
@@ -203,10 +252,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       return;
     }
 
+    const recordDateBs = formData.dateBs || getInitialMitiValue();
     const record: AmbulanceRecord = {
       id: editingRecord?.id || `AMB-${Date.now()}`,
-      fiscalYear: currentFiscalYear,
-      dateBs: formData.dateBs || getInitialMitiValue(),
+      fiscalYear: getFiscalYearFromBsDate(recordDateBs, currentFiscalYear),
+      dateBs: recordDateBs,
       serviceSeekerId: formData.serviceSeekerId,
       patientName: formData.patientName || '',
       age: formData.age || '',
@@ -220,12 +270,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       distanceKm: formData.distanceKm ? Number(formData.distanceKm) : undefined,
       startOdometer: formData.startOdometer !== undefined ? Number(formData.startOdometer) : undefined,
       endOdometer: formData.endOdometer !== undefined ? Number(formData.endOdometer) : undefined,
-      amountCharged: Number(formData.amountCharged) || 0,
-      receivedAmount: Number(formData.receivedAmount) || 0,
+      amountCharged: formData.amountCharged !== undefined && formData.amountCharged !== null ? Number(formData.amountCharged) : 0,
+      receivedAmount: formData.receivedAmount !== undefined && formData.receivedAmount !== null ? Number(formData.receivedAmount) : 0,
       remarks: formData.remarks || ''
     };
 
     onSave(record);
+    showToast(
+      editingRecord 
+        ? 'एम्बुलेन्स यात्रा विवरण सफलतापूर्वक परिमार्जन (अपडेट) गरियो।' 
+        : 'एम्बुलेन्स यात्रा विवरण सफलतापूर्वक सुरक्षित (सेभ) भयो।'
+    );
     setIsFormOpen(false);
     setEditingRecord(null);
     setPatientSearchInput('');
@@ -263,10 +318,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       return;
     }
 
+    const expDateBs = expenseFormData.dateBs || getInitialMitiValue();
     const expRecord: AmbulanceExpenseRecord = {
       id: editingExpense?.id || `AMB-EXP-${Date.now()}`,
-      fiscalYear: currentFiscalYear,
-      dateBs: expenseFormData.dateBs || getInitialMitiValue(),
+      fiscalYear: getFiscalYearFromBsDate(expDateBs, currentFiscalYear),
+      dateBs: expDateBs,
       expenseCategory: expenseFormData.expenseCategory || 'fuel',
       amount: Number(expenseFormData.amount) || 0,
       fuelLiters: expenseFormData.fuelLiters !== undefined ? Number(expenseFormData.fuelLiters) : undefined,
@@ -280,6 +336,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     if (onSaveExpense) {
       onSaveExpense(expRecord);
     }
+    showToast(
+      editingExpense 
+        ? 'एम्बुलेन्स खर्च विवरण सफलतापूर्वक परिमार्जन (अपडेट) गरियो।' 
+        : 'एम्बुलेन्स खर्च विवरण सफलतापूर्वक सुरक्षित (सेभ) भयो।'
+    );
     setIsExpenseFormOpen(false);
     setEditingExpense(null);
     setExpenseFormData({
@@ -303,15 +364,52 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const filteredExpenseRecords = (currentYearExpenseRecords || []).filter(e => {
     if (!e) return false;
-    const query = (expenseSearchTerm || '').toLowerCase();
+    const query = (expenseSearchTerm || '').toLowerCase().trim();
+    if (!query) return true;
     return (
       (e.expenseCategory && String(e.expenseCategory).toLowerCase().includes(query)) ||
       (e.driverName && String(e.driverName).toLowerCase().includes(query)) ||
       (e.paidTo && String(e.paidTo).toLowerCase().includes(query)) ||
       (e.billNo && String(e.billNo).toLowerCase().includes(query)) ||
-      (e.remarks && String(e.remarks).toLowerCase().includes(query))
+      (e.remarks && String(e.remarks).toLowerCase().includes(query)) ||
+      (e.dateBs && String(e.dateBs).toLowerCase().includes(query))
     );
   });
+
+  const allMonthsExpenseSummary = useMemo(() => {
+    const summaryMap: Record<string, { fuel: number; maintenance: number; driver_allowance: number; other: number; total: number; fuelLiters: number }> = {};
+    NEPALI_MONTHS.forEach(m => {
+      summaryMap[m.id] = { fuel: 0, maintenance: 0, driver_allowance: 0, other: 0, total: 0, fuelLiters: 0 };
+    });
+
+    (currentYearExpenseRecords || []).forEach(record => {
+      const parts = (record.dateBs || '').split(/[-/]/);
+      if (parts.length >= 2) {
+        const monthKey = parts[1].padStart(2, '0');
+        if (summaryMap[monthKey]) {
+          const amt = Number(record.amount) || 0;
+          const cat = record.expenseCategory || 'other';
+          if (cat === 'fuel') {
+            summaryMap[monthKey].fuel += amt;
+            summaryMap[monthKey].fuelLiters += Number(record.fuelLiters) || 0;
+          } else if (cat === 'maintenance') {
+            summaryMap[monthKey].maintenance += amt;
+          } else if (cat === 'driver_allowance') {
+            summaryMap[monthKey].driver_allowance += amt;
+          } else {
+            summaryMap[monthKey].other += amt;
+          }
+          summaryMap[monthKey].total += amt;
+        }
+      }
+    });
+
+    return NEPALI_MONTHS.map(m => ({
+      id: m.id,
+      name: m.name,
+      ...summaryMap[m.id]
+    }));
+  }, [currentYearExpenseRecords, NEPALI_MONTHS]);
 
   const filteredRecords = (currentYearRecords || []).filter(r => {
     if (!r) return false;
@@ -326,20 +424,6 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   });
 
   // Constants & memoized helpers for advanced log book filtering
-  const NEPALI_MONTHS = useMemo(() => [
-    { id: '01', name: 'बैशाख (Baisakh)' },
-    { id: '02', name: 'जेठ (Jestha)' },
-    { id: '03', name: 'असार (Ashadh)' },
-    { id: '04', name: 'साउन (Shrawan)' },
-    { id: '05', name: 'भदौ (Bhadra)' },
-    { id: '06', name: 'असोज (Ashoj)' },
-    { id: '07', name: 'कात्तिक (Kartik)' },
-    { id: '08', name: 'मंसिर (Mangsir)' },
-    { id: '09', name: 'पुस (Poush)' },
-    { id: '10', name: 'माघ (Magh)' },
-    { id: '11', name: 'फागुन (Falgun)' },
-    { id: '12', name: 'चैत (Chaitra)' },
-  ], []);
 
   const uniqueLogBookDrivers = useMemo(() => {
     const drivers = currentYearRecords.map(r => r.driverName).filter(Boolean);
@@ -532,6 +616,37 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   return (
     <div className="relative min-h-screen">
+      {/* Floating Success / Notification Toast */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={`p-4 rounded-2xl shadow-2xl border flex items-center gap-3 backdrop-blur-md ${
+            toastMessage.type === 'success'
+              ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/30'
+              : toastMessage.type === 'error'
+              ? 'bg-rose-600 text-white border-rose-500 shadow-rose-600/30'
+              : 'bg-slate-800 text-white border-slate-700 shadow-slate-900/30'
+          }`}>
+            <div className="p-1.5 bg-white/20 rounded-xl">
+              {toastMessage.type === 'success' ? (
+                <CheckCircle2 className="size-5 text-white" />
+              ) : (
+                <AlertCircle className="size-5 text-white" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold font-nepali">{toastMessage.text}</p>
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              title="बन्द गर्नुहोस्"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
           <div>
@@ -1029,8 +1144,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     required
                     min="0"
                     placeholder="जस्तै: 1500"
-                    value={formData.amountCharged || ''}
-                    onChange={e => setFormData({...formData, amountCharged: Number(e.target.value)})}
+                    value={formData.amountCharged !== undefined && formData.amountCharged !== null ? formData.amountCharged : ''}
+                    onChange={e => setFormData({...formData, amountCharged: e.target.value === '' ? 0 : Number(e.target.value)})}
                     disabled={isEditingAndNonAdmin}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-red-600 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
@@ -1044,8 +1159,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     required
                     min="0"
                     placeholder="जस्तै: 1500"
-                    value={formData.receivedAmount || ''}
-                    onChange={e => setFormData({...formData, receivedAmount: Number(e.target.value)})}
+                    value={formData.receivedAmount !== undefined && formData.receivedAmount !== null ? formData.receivedAmount : ''}
+                    onChange={e => setFormData({...formData, receivedAmount: e.target.value === '' ? 0 : Number(e.target.value)})}
                     disabled={isEditingAndNonAdmin}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-emerald-600 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
@@ -1544,6 +1659,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                                   onClick={() => {
                                     if (window.confirm('के तपाईं निश्चित रूपमा यो एम्बुलेन्स खर्च हटाउन चाहनुहुन्छ?')) {
                                       if (onDeleteExpense) onDeleteExpense(record.id);
+                                      showToast('खर्च विवरण सफलतापूर्वक हटाइयो।', 'info');
                                     }
                                   }}
                                   className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-rose-600 transition-all"
@@ -1568,6 +1684,55 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* All Months Expense Summary Table */}
+            <div className="mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
+                  <Calendar className="text-emerald-600 size-5" />
+                  महिनागत खर्च विवरण - सबै महिना (All Months Expense Summary for {currentFiscalYear})
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[800px] w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-100">
+                      <th className="p-3.5 font-nepali text-center">महिना (Month)</th>
+                      <th className="p-3.5 font-nepali text-right">इन्धन खर्च (Fuel)</th>
+                      <th className="p-3.5 font-nepali text-right">मर्मत संभार (Maintenance)</th>
+                      <th className="p-3.5 font-nepali text-right">चालक भत्ता (Allowance)</th>
+                      <th className="p-3.5 font-nepali text-right">अन्य खर्च (Other)</th>
+                      <th className="p-3.5 font-nepali text-right">कुल खर्च (Total)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {allMonthsExpenseSummary.map(row => (
+                      <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-3.5 font-bold text-slate-800 text-center font-nepali">{row.name}</td>
+                        <td className="p-3.5 text-right font-mono text-amber-700">
+                          रु. {row.fuel.toLocaleString()}
+                          {row.fuelLiters > 0 && <span className="block text-[10px] text-slate-400 font-sans">({row.fuelLiters} L)</span>}
+                        </td>
+                        <td className="p-3.5 text-right font-mono text-rose-700">रु. {row.maintenance.toLocaleString()}</td>
+                        <td className="p-3.5 text-right font-mono text-indigo-700">रु. {row.driver_allowance.toLocaleString()}</td>
+                        <td className="p-3.5 text-right font-mono text-slate-700">रु. {row.other.toLocaleString()}</td>
+                        <td className="p-3.5 text-right font-mono font-bold text-emerald-700">रु. {row.total.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-emerald-50/60 font-bold text-emerald-900 border-t-2 border-emerald-100">
+                      <td className="p-3.5 text-center font-nepali">जम्मा (Total):</td>
+                      <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.fuel, 0).toLocaleString()}</td>
+                      <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.maintenance, 0).toLocaleString()}</td>
+                      <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.driver_allowance, 0).toLocaleString()}</td>
+                      <td className="p-3.5 text-right font-mono">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.other, 0).toLocaleString()}</td>
+                      <td className="p-3.5 text-right font-mono text-emerald-800">रु. {allMonthsExpenseSummary.reduce((s, r) => s + r.total, 0).toLocaleString()}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
         ) : activeTab === 'odometer' ? (
