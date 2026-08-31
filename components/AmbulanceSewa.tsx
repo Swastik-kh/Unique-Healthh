@@ -178,6 +178,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
+  const [expenseFiscalYearFilter, setExpenseFiscalYearFilter] = useState<string>('all');
+  const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('all');
+  const [expenseMonthFilter, setExpenseMonthFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -362,19 +365,70 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     setIsExpenseFormOpen(true);
   };
 
-  const filteredExpenseRecords = (currentYearExpenseRecords || []).filter(e => {
-    if (!e) return false;
-    const query = (expenseSearchTerm || '').toLowerCase().trim();
-    if (!query) return true;
-    return (
-      (e.expenseCategory && String(e.expenseCategory).toLowerCase().includes(query)) ||
-      (e.driverName && String(e.driverName).toLowerCase().includes(query)) ||
-      (e.paidTo && String(e.paidTo).toLowerCase().includes(query)) ||
-      (e.billNo && String(e.billNo).toLowerCase().includes(query)) ||
-      (e.remarks && String(e.remarks).toLowerCase().includes(query)) ||
-      (e.dateBs && String(e.dateBs).toLowerCase().includes(query))
-    );
-  });
+  const uniqueExpenseFiscalYears = useMemo(() => {
+    const years = new Set<string>();
+    if (currentFiscalYear) years.add(currentFiscalYear);
+    (expenseRecords || []).forEach(e => {
+      if (e) {
+        const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+        if (fy) years.add(fy);
+      }
+    });
+    return Array.from(years).sort().reverse();
+  }, [expenseRecords, currentFiscalYear]);
+
+  const filteredExpenseRecords = useMemo(() => {
+    return (expenseRecords || [])
+      .filter(e => {
+        if (!e) return false;
+
+        // 1. Fiscal Year Filter (default 'all' shows all records across all fiscal years)
+        if (expenseFiscalYearFilter !== 'all') {
+          const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+          if (fy !== expenseFiscalYearFilter) return false;
+        }
+
+        // 2. Category Filter
+        if (expenseCategoryFilter !== 'all') {
+          if (e.expenseCategory !== expenseCategoryFilter) return false;
+        }
+
+        // 3. Month Filter
+        if (expenseMonthFilter !== 'all') {
+          const parts = (e.dateBs || '').split(/[-/]/);
+          if (parts.length >= 2) {
+            const m = parts[1].padStart(2, '0');
+            if (m !== expenseMonthFilter) return false;
+          }
+        }
+
+        // 4. Search query
+        const query = (expenseSearchTerm || '').toLowerCase().trim();
+        if (query) {
+          const match = (
+            (e.expenseCategory && String(e.expenseCategory).toLowerCase().includes(query)) ||
+            (e.driverName && String(e.driverName).toLowerCase().includes(query)) ||
+            (e.paidTo && String(e.paidTo).toLowerCase().includes(query)) ||
+            (e.billNo && String(e.billNo).toLowerCase().includes(query)) ||
+            (e.ambulanceNo && String(e.ambulanceNo).toLowerCase().includes(query)) ||
+            (e.remarks && String(e.remarks).toLowerCase().includes(query)) ||
+            (e.dateBs && String(e.dateBs).toLowerCase().includes(query)) ||
+            (e.fiscalYear && String(e.fiscalYear).toLowerCase().includes(query))
+          );
+          if (!match) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = a.dateBs || '';
+        const dateB = b.dateBs || '';
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA);
+        }
+        return (b.id || '').localeCompare(a.id || '');
+      });
+  }, [expenseRecords, expenseFiscalYearFilter, expenseCategoryFilter, expenseMonthFilter, expenseSearchTerm, currentFiscalYear]);
 
   const allMonthsExpenseSummary = useMemo(() => {
     const summaryMap: Record<string, { fuel: number; maintenance: number; driver_allowance: number; other: number; total: number; fuelLiters: number }> = {};
@@ -382,7 +436,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       summaryMap[m.id] = { fuel: 0, maintenance: 0, driver_allowance: 0, other: 0, total: 0, fuelLiters: 0 };
     });
 
-    (currentYearExpenseRecords || []).forEach(record => {
+    const targetRecords = (expenseRecords || []).filter(e => {
+      if (!e) return false;
+      const targetFy = expenseFiscalYearFilter === 'all' ? currentFiscalYear : expenseFiscalYearFilter;
+      const fy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+      return fy === targetFy;
+    });
+
+    targetRecords.forEach(record => {
       const parts = (record.dateBs || '').split(/[-/]/);
       if (parts.length >= 2) {
         const monthKey = parts[1].padStart(2, '0');
@@ -409,7 +470,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       name: m.name,
       ...summaryMap[m.id]
     }));
-  }, [currentYearExpenseRecords, NEPALI_MONTHS]);
+  }, [expenseRecords, expenseFiscalYearFilter, currentFiscalYear, NEPALI_MONTHS]);
 
   const filteredRecords = (currentYearRecords || []).filter(r => {
     if (!r) return false;
@@ -1561,49 +1622,186 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
           </div>
         ) : activeTab === 'expenses' ? (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-              <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
-                <Receipt className="text-slate-500 size-5" />
-                एम्बुलेन्स खर्च सूची (Ambulance Expenditure List)
-              </h3>
-              <div className="relative max-w-sm w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="खर्च खोज्नुहोस् (विवरण, चालक, बील नम्बर...)"
-                  value={expenseSearchTerm}
-                  onChange={e => setExpenseSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-semibold"
-                />
+            {/* Header & Action Bar */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+                  <Receipt size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 font-nepali text-base sm:text-lg flex items-center gap-2">
+                    एम्बुलेन्स खर्च सूची (Ambulance Expenditure List)
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
+                      जम्मा रेकर्ड: {filteredExpenseRecords.length}
+                    </span>
+                    <span className="text-xs bg-rose-100 text-rose-800 font-mono font-bold px-2.5 py-0.5 rounded-full">
+                      कुल खर्च: रु. {filteredExpenseRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                    </span>
+                    {expenseRecords && expenseRecords.length > 0 && filteredExpenseRecords.length !== expenseRecords.length && (
+                      <span className="text-[11px] text-slate-500 font-nepali">
+                        (कुल {expenseRecords.length} मध्ये {filteredExpenseRecords.length} देखाइएको)
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full lg:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingExpense(null);
+                    setExpenseFormData({
+                      dateBs: getInitialMitiValue(),
+                      expenseCategory: 'fuel',
+                      amount: 0,
+                      fuelLiters: undefined,
+                      ambulanceNo: generalSettings?.ambulanceNo || '',
+                      billNo: '',
+                      paidTo: '',
+                      driverName: generalSettings?.ambulanceDriverName || '',
+                      remarks: ''
+                    });
+                    setIsExpenseFormOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
+                >
+                  <Plus size={16} />
+                  <span>नयाँ खर्च थप्नुहोस् (Add Expense)</span>
+                </button>
               </div>
             </div>
 
+            {/* Filter Toolbar */}
+            <div className="p-4 bg-slate-50/70 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* 1. Search Box */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="खोज्नुहोस् (विवरण, चालक, बील नं., फर्म...)"
+                  value={expenseSearchTerm}
+                  onChange={e => setExpenseSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-semibold"
+                />
+                {expenseSearchTerm && (
+                  <button
+                    onClick={() => setExpenseSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                    title="खाली गर्नुहोस्"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* 2. Fiscal Year Filter */}
+              <div>
+                <select
+                  value={expenseFiscalYearFilter}
+                  onChange={e => setExpenseFiscalYearFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                >
+                  <option value="all">सबै आर्थिक वर्ष (All Fiscal Years)</option>
+                  {uniqueExpenseFiscalYears.map(fy => (
+                    <option key={fy} value={fy}>
+                      आ.व. {fy} {fy === currentFiscalYear ? '(चालु)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Category Filter */}
+              <div>
+                <select
+                  value={expenseCategoryFilter}
+                  onChange={e => setExpenseCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                >
+                  <option value="all">सबै खर्च वर्ग (All Categories)</option>
+                  <option value="fuel">इन्धन (Fuel)</option>
+                  <option value="maintenance">मर्मत संभार (Maintenance)</option>
+                  <option value="driver_allowance">चालक भत्ता (Driver Allowance)</option>
+                  <option value="other">अन्य (Other)</option>
+                </select>
+              </div>
+
+              {/* 4. Month Filter */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={expenseMonthFilter}
+                  onChange={e => setExpenseMonthFilter(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                >
+                  <option value="all">सबै महिना (All Months)</option>
+                  {NEPALI_MONTHS.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                {(expenseSearchTerm || expenseFiscalYearFilter !== 'all' || expenseCategoryFilter !== 'all' || expenseMonthFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setExpenseSearchTerm('');
+                      setExpenseFiscalYearFilter('all');
+                      setExpenseCategoryFilter('all');
+                      setExpenseMonthFilter('all');
+                    }}
+                    className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-all whitespace-nowrap"
+                    title="सबै फिल्टर हटाउनुहोस्"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Expenditure Records Table */}
             <div className="overflow-x-auto">
-              <table className="min-w-[1000px] w-full text-left border-collapse">
+              <table className="min-w-[1050px] w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-600 font-bold text-xs uppercase tracking-wider border-b border-slate-100">
-                    <th className="p-4 font-nepali">मिति (Date)</th>
-                    <th className="p-4 font-nepali">खर्च वर्ग (Category)</th>
-                    <th className="p-4 font-nepali text-right">रकम (Amount)</th>
-                    <th className="p-4 font-nepali">बील नम्बर (Bill No.)</th>
-                    <th className="p-4 font-nepali">प्राप्त गर्ने (Paid To)</th>
-                    <th className="p-4 font-nepali">चालकको नाम (Driver)</th>
-                    <th className="p-4 font-nepali">कैफियत (Remarks)</th>
-                    <th className="p-4 text-center">Actions</th>
+                    <th className="p-3.5 w-12 text-center font-nepali">क्र.सं.</th>
+                    <th className="p-3.5 font-nepali">मिति (Date)</th>
+                    <th className="p-3.5 font-nepali">आ.व. (FY)</th>
+                    <th className="p-3.5 font-nepali">खर्च वर्ग (Category)</th>
+                    <th className="p-3.5 font-nepali text-right">रकम (Amount)</th>
+                    <th className="p-3.5 font-nepali">बील नं. (Bill No.)</th>
+                    <th className="p-3.5 font-nepali">भुक्तानी पाउने (Paid To)</th>
+                    <th className="p-3.5 font-nepali">चालक (Driver)</th>
+                    <th className="p-3.5 font-nepali">गाडी नं.</th>
+                    <th className="p-3.5 font-nepali">कैफियत (Remarks)</th>
+                    <th className="p-3.5 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredExpenseRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-slate-400">
-                        <div className="max-w-[300px] mx-auto flex flex-col items-center gap-3">
-                          <AlertCircle className="text-slate-300 size-10" />
+                      <td colSpan={11} className="p-10 text-center text-slate-400">
+                        <div className="max-w-[320px] mx-auto flex flex-col items-center gap-3">
+                          <AlertCircle className="text-slate-300 size-12" />
                           <p className="text-sm font-semibold">कुनै पनि खर्च रेकर्ड फेला परेन।</p>
+                          {(expenseSearchTerm || expenseFiscalYearFilter !== 'all' || expenseCategoryFilter !== 'all' || expenseMonthFilter !== 'all') && (
+                            <button
+                              onClick={() => {
+                                setExpenseSearchTerm('');
+                                setExpenseFiscalYearFilter('all');
+                                setExpenseCategoryFilter('all');
+                                setExpenseMonthFilter('all');
+                              }}
+                              className="text-xs text-emerald-600 hover:text-emerald-700 font-bold underline"
+                            >
+                              सबै फिल्टरहरू हटाएर सबै खर्च हेर्नुहोस्
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredExpenseRecords.map(record => {
+                    filteredExpenseRecords.map((record, index) => {
                       const getCategoryLabel = (cat: string) => {
                         switch (cat) {
                           case 'fuel': return 'इन्धन (Fuel)';
@@ -1613,43 +1811,59 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                         }
                       };
 
+                      const recFy = record.fiscalYear || getFiscalYearFromBsDate(record.dateBs, currentFiscalYear);
+
                       return (
-                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-600 font-semibold">{record.dateBs}</td>
-                          <td className="p-4">
+                        <tr key={record.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="p-3.5 text-center text-xs font-mono font-bold text-slate-400">
+                            {index + 1}
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap text-sm font-mono text-slate-700 font-bold">
+                            {record.dateBs}
+                          </td>
+                          <td className="p-3.5 whitespace-nowrap text-xs font-mono text-slate-500 font-semibold">
+                            {recFy}
+                          </td>
+                          <td className="p-3.5">
                             <div className="flex flex-col gap-1">
                               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full w-max ${
-                                record.expenseCategory === 'fuel' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                                record.expenseCategory === 'maintenance' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                                record.expenseCategory === 'driver_allowance' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                                'bg-slate-50 text-slate-700 border border-slate-150'
+                                record.expenseCategory === 'fuel' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                record.expenseCategory === 'maintenance' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                                record.expenseCategory === 'driver_allowance' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                                'bg-slate-50 text-slate-700 border border-slate-200'
                               }`}>
                                 {getCategoryLabel(record.expenseCategory)}
                               </span>
-                              {record.expenseCategory === 'fuel' && record.fuelLiters && (
-                                <span className="text-xs font-bold text-amber-600 font-mono">
-                                  {record.fuelLiters} Liters
-                                </span>
-                              )}
-                              {record.ambulanceNo && (
-                                <span className="text-[10px] text-slate-500 font-mono font-bold">
-                                  {record.ambulanceNo}
+                              {record.expenseCategory === 'fuel' && record.fuelLiters !== undefined && Number(record.fuelLiters) > 0 && (
+                                <span className="text-[11px] font-bold text-amber-700 font-mono">
+                                  {record.fuelLiters} लिटर
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="p-4 text-sm font-mono font-bold text-red-650 text-right whitespace-nowrap">
+                          <td className="p-3.5 text-sm font-mono font-extrabold text-rose-600 text-right whitespace-nowrap">
                             रु. {record.amount?.toFixed(2)}
                           </td>
-                          <td className="p-4 text-sm font-mono font-bold text-slate-600">{record.billNo || '-'}</td>
-                          <td className="p-4 text-sm font-semibold text-slate-800">{record.paidTo || '-'}</td>
-                          <td className="p-4 text-sm text-slate-700 font-semibold">{record.driverName || '-'}</td>
-                          <td className="p-4 text-sm text-slate-500 italic max-w-[200px] truncate" title={record.remarks}>{record.remarks || '-'}</td>
-                          <td className="p-4">
+                          <td className="p-3.5 text-sm font-mono font-bold text-slate-600">
+                            {record.billNo || '-'}
+                          </td>
+                          <td className="p-3.5 text-sm font-semibold text-slate-800">
+                            {record.paidTo || '-'}
+                          </td>
+                          <td className="p-3.5 text-sm text-slate-700 font-semibold">
+                            {record.driverName || '-'}
+                          </td>
+                          <td className="p-3.5 text-xs font-mono font-bold text-slate-600">
+                            {record.ambulanceNo || '-'}
+                          </td>
+                          <td className="p-3.5 text-sm text-slate-500 italic max-w-[200px] truncate" title={record.remarks}>
+                            {record.remarks || '-'}
+                          </td>
+                          <td className="p-3.5">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => handleExpenseEdit(record)}
-                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-indigo-600 transition-all"
+                                className="p-1.5 hover:bg-emerald-50 rounded-lg text-slate-500 hover:text-emerald-700 transition-all"
                                 title="सम्पादन गर्नुहोस्"
                               >
                                 <Edit2 size={16} />
@@ -1683,6 +1897,21 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     })
                   )}
                 </tbody>
+                {filteredExpenseRecords.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-slate-100/80 font-bold text-slate-800 border-t-2 border-slate-200">
+                      <td colSpan={4} className="p-3.5 text-right font-nepali">
+                        जम्मा कुल रकम (Total Expense):
+                      </td>
+                      <td className="p-3.5 text-right font-mono text-rose-700 font-extrabold text-sm whitespace-nowrap">
+                        रु. {filteredExpenseRecords.reduce((sum, r) => sum + (r.amount || 0), 0).toFixed(2)}
+                      </td>
+                      <td colSpan={6} className="p-3.5 text-xs text-slate-500 font-nepali">
+                        (सूचीमा प्रदर्शित {filteredExpenseRecords.length} वटा रेकर्डहरूको योगफल)
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
 
@@ -1691,7 +1920,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-slate-800 font-nepali flex items-center gap-2">
                   <Calendar className="text-emerald-600 size-5" />
-                  महिनागत खर्च विवरण - सबै महिना (All Months Expense Summary for {currentFiscalYear})
+                  महिनागत खर्च विवरण (Monthly Expense Breakdown - आ.व. {expenseFiscalYearFilter === 'all' ? currentFiscalYear : expenseFiscalYearFilter})
                 </h3>
               </div>
               <div className="overflow-x-auto">
