@@ -6,6 +6,7 @@ import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient, getChildDisplayName } from '../types/healthTypes';
 import { Option, OrganizationSettings, User } from '../types/coreTypes';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration'; // Import the template
+import { MaternalTDDetailedReport, MaternalTDDetailRow } from './MaternalTDDetailedReport';
 import { matchRegNo } from './nepaliUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -181,7 +182,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   activeOrgName,
   onSetActiveOrgName
 }) => {
-  const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail' | 'graph'>('summary');
+  const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail' | 'maternal_detail' | 'graph'>('summary');
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [selectedVaccineFilter, setSelectedVaccineFilter] = useState('all');
@@ -216,16 +217,16 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
   const vaccineOptions: Option[] = useMemo(() => {
     const opts: Option[] = [
-      { id: 'all', value: 'all', label: '-- सबै खोपहरू (All Vaccines) --' }
+      { id: 'all', value: 'all', label: '-- सबै खोपहरू (All Vaccines) --' },
+      { id: 'गर्भवती TD', value: 'गर्भवती TD', label: 'गर्भवती TD (सबै TD खोप)' },
+      { id: 'TD1', value: 'TD1', label: 'TD1 (Maternal TD1)' },
+      { id: 'TD2', value: 'TD2', label: 'TD2 (Maternal TD2)' },
+      { id: 'TD Booster', value: 'TD Booster', label: 'TD Booster (Maternal Booster)' }
     ];
     // Add child vaccines
     NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.forEach(v => {
       opts.push({ id: v.name, value: v.name, label: `${v.name} (Child)` });
     });
-    // Add maternal vaccines
-    opts.push({ id: 'TD1', value: 'TD1', label: 'TD1 (Maternal)' });
-    opts.push({ id: 'TD2', value: 'TD2', label: 'TD2 (Maternal)' });
-    opts.push({ id: 'TD Booster', value: 'TD Booster', label: 'TD Booster (Maternal)' });
     return opts;
   }, []);
 
@@ -350,6 +351,129 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       matchRegNo(c.regNo, query)
     );
   }, [childrenDetailsThisMonth, searchQuery]);
+
+  const maternalDetailsThisPeriod = useMemo<MaternalTDDetailRow[]>(() => {
+    return maternalRecords
+      .filter(patient => matchesVaccinationCenter(patient.vaccinationCenter, filterCenter, defaultCenter, patient.remarks, patient.address))
+      .map(patient => {
+        const dosesGivenThisPeriod: {
+          doseName: 'TD1' | 'TD2' | 'TD Booster';
+          dateBs: string;
+          dateAd?: string | null;
+          vaccinatedElsewhere?: boolean;
+        }[] = [];
+
+        const checkDose = (
+          doseName: 'TD1' | 'TD2' | 'TD Booster',
+          dateBs?: string | null,
+          dateAd?: string | null,
+          vaccinatedElsewhere?: boolean
+        ) => {
+          if (!dateBs) return;
+          const m = getMonthFromBsDate(dateBs);
+          const matchesFY = matchesFiscalYear(dateBs, selectedFiscalYear, patient.fiscalYear);
+          const matchesMonth = selectedMonth === 'all' || m === selectedMonth;
+
+          let matchesVax = false;
+          if (selectedVaccine === 'all' || selectedVaccine === 'गर्भवती TD') {
+            matchesVax = true;
+          } else if (selectedVaccine === 'TD1' && doseName === 'TD1') {
+            matchesVax = true;
+          } else if (selectedVaccine === 'TD2' && doseName === 'TD2') {
+            matchesVax = true;
+          } else if ((selectedVaccine === 'TD Booster' || selectedVaccine.toLowerCase().includes('booster')) && doseName === 'TD Booster') {
+            matchesVax = true;
+          }
+
+          if (matchesFY && matchesMonth && matchesVax) {
+            dosesGivenThisPeriod.push({
+              doseName,
+              dateBs,
+              dateAd,
+              vaccinatedElsewhere: Boolean(vaccinatedElsewhere)
+            });
+          }
+        };
+
+        checkDose('TD1', patient.td1DateBs, patient.td1DateAd, patient.td1VaccinatedElsewhere);
+        checkDose('TD2', patient.td2DateBs, patient.td2DateAd, patient.td2VaccinatedElsewhere);
+        checkDose('TD Booster', patient.tdBoosterDateBs, patient.tdBoosterDateAd, patient.tdBoosterVaccinatedElsewhere);
+
+        if (dosesGivenThisPeriod.length > 0) {
+          const isCompleted = Boolean(patient.td2DateBs || patient.td2VaccinatedElsewhere || patient.tdBoosterDateBs || patient.tdBoosterVaccinatedElsewhere);
+          const statusText = isCompleted ? 'पूर्ण TD' : patient.td1DateBs ? 'आंशिक (TD1)' : 'सुरु';
+
+          return {
+            ...patient,
+            dosesGivenThisPeriod,
+            statusText,
+            isFullyProtected: isCompleted
+          };
+        }
+        return null;
+      })
+      .filter((item): item is MaternalTDDetailRow => item !== null);
+  }, [maternalRecords, selectedMonth, selectedFiscalYear, filterCenter, selectedVaccine, defaultCenter]);
+
+  const filteredMaternal = useMemo<MaternalTDDetailRow[]>(() => {
+    if (!searchQuery.trim()) return maternalDetailsThisPeriod;
+    const query = searchQuery.toLowerCase().trim();
+    return maternalDetailsThisPeriod.filter(p =>
+      (p.name && p.name.toLowerCase().includes(query)) ||
+      (p.address && p.address.toLowerCase().includes(query)) ||
+      (p.phone && p.phone.includes(query)) ||
+      (p.remarks && p.remarks.toLowerCase().includes(query)) ||
+      matchRegNo(p.regNo, query)
+    );
+  }, [maternalDetailsThisPeriod, searchQuery]);
+
+  const handleDownloadMaternalCSV = () => {
+    const headers = [
+      'क्र.सं.',
+      'दर्ता नं.',
+      'गर्भवतीको नाम',
+      'उमेर',
+      'गर्भ संख्या',
+      'ठेगाना',
+      'सम्पर्क फोन',
+      'अघिल्लो TD',
+      'यो अवधिमा लगाइएको TD',
+      'TD1 मिति',
+      'TD2 मिति',
+      'TD बुस्टर मिति',
+      'खोप केन्द्र',
+      'स्थिति',
+      'कैफियत'
+    ];
+
+    const rows = filteredMaternal.map((m, idx) => [
+      idx + 1,
+      `"${m.regNo || ''}"`,
+      `"${m.name || ''}"`,
+      m.age || '',
+      `"G${m.gravida || 1}"`,
+      `"${m.address || ''}"`,
+      `"${m.phone || ''}"`,
+      `"${m.previousTdCount ? `${m.previousTdCount} पटक` : '०'}"`,
+      `"${m.dosesGivenThisPeriod.map(d => `${d.doseName} (${d.dateBs}${d.vaccinatedElsewhere ? '-अन्यत्र' : ''})`).join(', ')}"`,
+      `"${m.td1DateBs || '-'}${m.td1VaccinatedElsewhere ? ' (अन्यत्र)' : ''}"`,
+      `"${m.td2DateBs || '-'}${m.td2VaccinatedElsewhere ? ' (अन्यत्र)' : ''}"`,
+      `"${m.tdBoosterDateBs || '-'}${m.tdBoosterVaccinatedElsewhere ? ' (अन्यत्र)' : ''}"`,
+      `"${m.vaccinationCenter || '-'}"`,
+      `"${m.statusText}"`,
+      `"${m.remarks || '-'}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Maternal_TD_Log_${selectedFiscalYear.replace(/\//g, '-')}_Month_${selectedMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const availableVaccinesList = useMemo(() => {
     const set = new Set<string>();
@@ -992,36 +1116,47 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       <div className="flex border-b border-slate-200 no-print bg-slate-50 rounded-lg p-1">
         <button
           onClick={() => setActiveReportTab('summary')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md font-bold font-nepali text-xs sm:text-sm transition-all duration-200 ${
             activeReportTab === 'summary'
               ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <BarChart size={16} />
-          संख्यात्मक विवरण प्रतिवेदन (Summary Report)
+          संख्यात्मक विवरण (Summary)
         </button>
         <button
           onClick={() => setActiveReportTab('detail')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md font-bold font-nepali text-xs sm:text-sm transition-all duration-200 ${
             activeReportTab === 'detail'
               ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <Users size={16} />
-          बालबालिका विस्तृत विवरण (Detailed Children Log)
+          बालबालिका विस्तृत विवरण (Child Log)
+        </button>
+        <button
+          onClick={() => setActiveReportTab('maternal_detail')}
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md font-bold font-nepali text-xs sm:text-sm transition-all duration-200 ${
+            activeReportTab === 'maternal_detail'
+              ? 'bg-white text-purple-700 shadow-sm border border-purple-200'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <UsersRound size={16} className={activeReportTab === 'maternal_detail' ? 'text-purple-600' : ''} />
+          गर्भवती महिला TD खोप (Maternal TD Log)
         </button>
         <button
           onClick={() => setActiveReportTab('graph')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-bold font-nepali text-sm transition-all duration-200 ${
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md font-bold font-nepali text-xs sm:text-sm transition-all duration-200 ${
             activeReportTab === 'graph'
               ? 'bg-white text-indigo-700 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           <BarChart3 size={16} />
-          महिनागत ग्राफ प्रतिवेदन (Graph Report)
+          महिनागत ग्राफ (Graph)
         </button>
       </div>
 
@@ -1061,16 +1196,18 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                 icon={<Droplets size={18} />} 
             />
           </div>
-          {activeReportTab === 'detail' && (
+          {(activeReportTab === 'detail' || activeReportTab === 'maternal_detail') && (
             <div className="flex-1 min-w-[240px]">
-              <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">बालबालिका खोज्नुहोस् (Search Child)</label>
+              <label className="block text-xs font-bold text-slate-600 mb-1 font-nepali">
+                {activeReportTab === 'maternal_detail' ? 'गर्भवती महिला खोज्नुहोस् (Search Woman)' : 'बालबालिका खोज्नुहोस् (Search Child)'}
+              </label>
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="दर्ता नं, नाम, ठेगाना, बुवा/आमा, फोन..."
+                  placeholder={activeReportTab === 'maternal_detail' ? "दर्ता नं, नाम, ठेगाना, फोन, कैफियत..." : "दर्ता नं, नाम, ठेगाना, बुवा/आमा, फोन..."}
                   className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-slate-200 bg-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-nepali"
                 />
               </div>
@@ -1088,10 +1225,26 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             </button>
           )}
           <button 
-            onClick={() => handlePrint(activeReportTab === 'summary' ? 'print-summary-content' : activeReportTab === 'detail' ? 'print-detailed-content' : 'print-graph-content')} 
+            onClick={() => handlePrint(
+              activeReportTab === 'summary' 
+                ? 'print-summary-content' 
+                : activeReportTab === 'detail' 
+                ? 'print-detailed-content' 
+                : activeReportTab === 'maternal_detail'
+                ? 'print-maternal-detailed-content'
+                : 'print-graph-content'
+            )} 
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap"
           >
-            <Printer size={18} /> {activeReportTab === 'summary' ? 'प्रिन्ट (संख्यात्मक)' : activeReportTab === 'detail' ? 'प्रिन्ट (विस्तृत विवरण)' : 'प्रिन्ट (ग्राफ प्रतिवेदन)'}
+            <Printer size={18} /> {
+              activeReportTab === 'summary' 
+                ? 'प्रिन्ट (संख्यात्मक)' 
+                : activeReportTab === 'detail' 
+                ? 'प्रिन्ट (बालबालिका)' 
+                : activeReportTab === 'maternal_detail'
+                ? 'प्रिन्ट (गर्भवती TD)'
+                : 'प्रिन्ट (ग्राफ)'
+            }
           </button>
         </div>
       </div>
@@ -1379,6 +1532,19 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
               <div className="border-t border-slate-900 pt-2">स्वीकृत गर्ने</div>
           </div>
         </div>
+      ) : activeReportTab === 'maternal_detail' ? (
+        /* ======================== MATERNAL TD DETAILED REPORT VIEW ======================== */
+        <MaternalTDDetailedReport
+          filteredMaternal={filteredMaternal}
+          generalSettings={generalSettings}
+          selectedFiscalYear={selectedFiscalYear}
+          selectedMonth={selectedMonth}
+          currentMonthLabel={currentMonthLabel}
+          filterCenter={filterCenter}
+          selectedVaccine={selectedVaccine}
+          searchQuery={searchQuery}
+          onDownloadCSV={handleDownloadMaternalCSV}
+        />
       ) : (
         /* ======================== GRAPH REPORT VIEW ======================== */
         <div id="print-graph-content" className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-[210mm] mx-auto print-full space-y-8">
