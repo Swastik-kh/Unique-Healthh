@@ -14,7 +14,8 @@ import {
   TrendingUp,
   Info,
   Filter,
-  Printer
+  Printer,
+  ArrowDownToLine
 } from 'lucide-react';
 import { db, safeEncodeKey } from '../firebase';
 import { ref, onValue, set, remove } from 'firebase/database';
@@ -194,6 +195,51 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
     setSupplyExpenses({});
     setSuccessMsg(null);
     setErrorMsg(null);
+  };
+
+  // Get previous month name based on current selected month in Nepali Fiscal Year order
+  const prevMonthName = useMemo(() => {
+    const currentMonthIdx = NEPALI_MONTHS.indexOf(selectedMonth);
+    return currentMonthIdx > 0 ? NEPALI_MONTHS[currentMonthIdx - 1] : null;
+  }, [selectedMonth]);
+
+  // Calculate remaining balance of a supply item from previous month (Received - Expenses)
+  const getPreviousMonthSupplyRemaining = (supplyName: string): number | null => {
+    if (!prevMonthName) return null;
+    const prevRec = monthlyRecords[prevMonthName];
+    if (!prevRec) return 0;
+    const received = prevRec.supplies?.[supplyName] || 0;
+    const expenses = prevRec.supplyExpenses?.[supplyName] || 0;
+    return Math.max(0, received - expenses);
+  };
+
+  // Fill previous month remaining balance into current month's received field for an individual supply item
+  const handleFillPreviousRemainingForSupply = (supplyName: string) => {
+    const remaining = getPreviousMonthSupplyRemaining(supplyName);
+    if (remaining === null) {
+      alert("साउन आ.व. को पहिलो महिना भएकोले अघिल्लो महिनाको रेकर्ड उपलब्ध छैन।");
+      return;
+    }
+    setSupplyInputs(prev => ({
+      ...prev,
+      [supplyName]: remaining
+    }));
+  };
+
+  // Fill all supply items' previous month remaining balance into current month's received fields
+  const handleFillAllPreviousRemainingSupplies = () => {
+    if (!prevMonthName) {
+      alert("साउन आ.व. को पहिलो महिना भएकोले अघिल्लो महिनाको रेकर्ड उपलब्ध छैन।");
+      return;
+    }
+    const updatedInputs: Record<string, number> = { ...supplyInputs };
+    SUPPLY_ITEMS.forEach(s => {
+      const remaining = getPreviousMonthSupplyRemaining(s.name);
+      if (remaining !== null) {
+        updatedInputs[s.name] = remaining;
+      }
+    });
+    setSupplyInputs(updatedInputs);
   };
 
   // Save/Update monthly records to Firebase
@@ -835,43 +881,85 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
 
               {/* Material Supplies */}
               <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                <h4 className="font-black text-slate-700 text-xs font-nepali flex items-center gap-1.5 border-b pb-2 mb-2 text-indigo-700">
-                  <Package size={16} />
-                  सामग्री प्राप्ति तथा खर्च (Supplies)
-                </h4>
+                <div className="flex flex-wrap items-center justify-between gap-1 border-b pb-2 mb-2">
+                  <h4 className="font-black text-slate-700 text-xs font-nepali flex items-center gap-1.5 text-indigo-700">
+                    <Package size={16} />
+                    सामग्री प्राप्ति तथा खर्च (Supplies)
+                  </h4>
+                  {prevMonthName && (
+                    <button
+                      type="button"
+                      onClick={handleFillAllPreviousRemainingSupplies}
+                      className="flex items-center gap-1 text-[10px] font-bold text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 px-2 py-0.5 rounded transition-all shadow-2xs font-nepali cursor-pointer"
+                      title={`${prevMonthName} महिनाको सबै सामग्रीको बाँकी मौज्दात (प्राप्त - खर्च) यसपटकको प्राप्तमा भर्नुहोस्`}
+                    >
+                      <ArrowDownToLine size={11} />
+                      <span>सबैमा {prevMonthName} बाँकी भर्नुहोस्</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="space-y-3.5">
                   <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-nepali">
-                    <div className="col-span-6">सामग्री विवरण</div>
-                    <div className="col-span-3 text-center">प्राप्त</div>
+                    <div className="col-span-5">सामग्री विवरण</div>
+                    <div className="col-span-4 text-center">प्राप्त (र बाँकी ल्याउने)</div>
                     <div className="col-span-3 text-center">खर्च</div>
                   </div>
-                  {SUPPLY_ITEMS.map(s => (
-                    <div key={s.id} className="grid grid-cols-12 gap-2 items-center">
-                      <label className="col-span-6 text-xs font-bold text-slate-600 font-nepali line-clamp-1">{s.label}</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={supplyInputs[s.name] === undefined ? '' : supplyInputs[s.name]}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                          setSupplyInputs({ ...supplyInputs, [s.name]: val });
-                        }}
-                        className="col-span-3 text-center font-bold font-mono px-2 py-1 rounded-lg border border-slate-200 outline-none focus:border-indigo-500 text-xs bg-white"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        value={supplyExpenses[s.name] === undefined ? '' : supplyExpenses[s.name]}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                          setSupplyExpenses({ ...supplyExpenses, [s.name]: val });
-                        }}
-                        className="col-span-3 text-center font-bold font-mono px-2 py-1 rounded-lg border border-slate-200 outline-none focus:border-rose-500 text-xs bg-white"
-                      />
-                    </div>
-                  ))}
+                  {SUPPLY_ITEMS.map(s => {
+                    const prevRemaining = getPreviousMonthSupplyRemaining(s.name);
+                    return (
+                      <div key={s.id} className="grid grid-cols-12 gap-2 items-start py-0.5">
+                        <div className="col-span-5 flex flex-col justify-center">
+                          <label className="text-xs font-bold text-slate-700 font-nepali line-clamp-1" title={s.label}>
+                            {s.label}
+                          </label>
+                          {prevMonthName && (
+                            <span className="text-[10px] text-slate-500 font-nepali mt-0.5">
+                              {prevMonthName} बाँकी: <strong className="font-mono text-indigo-700">{toNepaliDigits(prevRemaining ?? 0)}</strong>
+                            </span>
+                          )}
+                        </div>
+                        <div className="col-span-4 flex flex-col gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            value={supplyInputs[s.name] === undefined ? '' : supplyInputs[s.name]}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                              setSupplyInputs({ ...supplyInputs, [s.name]: val });
+                            }}
+                            className="w-full text-center font-bold font-mono px-2 py-1 rounded-lg border border-slate-200 outline-none focus:border-indigo-500 text-xs bg-white"
+                          />
+                          {prevMonthName && (
+                            <button
+                              type="button"
+                              onClick={() => handleFillPreviousRemainingForSupply(s.name)}
+                              className="w-full flex items-center justify-center gap-1 text-[9.5px] font-bold text-indigo-700 hover:text-white bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-600 rounded px-1 py-0.5 transition-all shadow-2xs font-nepali cursor-pointer"
+                              title={`${prevMonthName} को प्राप्तबाट खर्च घटाएर बाँकी रहेको (${prevRemaining ?? 0}) यसपटकको प्राप्तमा भर्नुहोस्`}
+                            >
+                              <ArrowDownToLine size={10} />
+                              <span>बाँकी {toNepaliDigits(prevRemaining ?? 0)} राख्नुहोस्</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="col-span-3 flex flex-col gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            value={supplyExpenses[s.name] === undefined ? '' : supplyExpenses[s.name]}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                              setSupplyExpenses({ ...supplyExpenses, [s.name]: val });
+                            }}
+                            className="w-full text-center font-bold font-mono px-2 py-1 rounded-lg border border-slate-200 outline-none focus:border-rose-500 text-xs bg-white"
+                          />
+                          {prevMonthName && <div className="h-[21px]" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
