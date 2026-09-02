@@ -11,7 +11,7 @@ import NepaliDate from 'nepali-date-converter';
 // Add missing import for NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE, calculateImmunizationDate } from './ChildImmunizationRegistration';
 import { FISCAL_YEARS } from '../constants';
-import { matchRegNo } from './nepaliUtils';
+import { matchRegNo, toNepaliNumber } from './nepaliUtils';
 import { safeEncodeKey } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
@@ -89,6 +89,23 @@ const calculateAge = (dobBs: string) => {
     } catch (e) { 
         return "Invalid"; 
     } 
+};
+
+export const getDaysOverdueFromBs = (scheduledDateBs?: string): number => {
+  if (!scheduledDateBs || scheduledDateBs === 'N/A' || scheduledDateBs === '-') return 0;
+  try {
+    const parts = scheduledDateBs.split('-').map(Number);
+    if (parts.length !== 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return 0;
+    const schedJs = new NepaliDate(parts[0], parts[1] - 1, parts[2]).toJsDate();
+    const todayJs = new NepaliDate().toJsDate();
+    schedJs.setHours(0, 0, 0, 0);
+    todayJs.setHours(0, 0, 0, 0);
+    const diffMs = todayJs.getTime() - schedJs.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  } catch (e) {
+    return 0;
+  }
 };
 
 export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
@@ -1856,12 +1873,30 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-1 mb-1">
+                                                <div className="flex flex-wrap gap-1.5 mb-1">
                                                     {item.vaccines.map((vax, vIdx) => {
                                                         const color = getDateColor(vax.scheduledDateBs, true);
+                                                        const overdueDays = getDaysOverdueFromBs(vax.scheduledDateBs);
                                                         return (
-                                                            <span key={vIdx} className={`flex items-center gap-1 font-black ${color.text} text-xs ${color.bg} px-1.5 py-0.5 rounded border ${color.border}`} title={`Date: ${vax.scheduledDateBs}`}>
-                                                                <Syringe size={10} className={color.icon} /> {vax.name} <span className="text-[9px] text-slate-400">({vax.scheduledDateBs})</span>
+                                                            <span 
+                                                                key={vIdx} 
+                                                                className={`inline-flex flex-wrap items-center gap-1.5 font-bold ${color.text} text-xs ${color.bg} px-2 py-1 rounded-md border ${color.border} shadow-2xs`}
+                                                                title={`निर्धारित मिति: ${vax.scheduledDateBs} | ${overdueDays} दिन अघि छुटेको`}
+                                                            >
+                                                                <div className="flex items-center gap-1">
+                                                                    <Syringe size={11} className={color.icon} />
+                                                                    <span>{vax.name}</span>
+                                                                </div>
+                                                                <span className="text-[10px] text-slate-500 font-mono">({vax.scheduledDateBs})</span>
+                                                                {overdueDays > 0 ? (
+                                                                    <span className="text-[9.5px] bg-red-600 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs font-nepali whitespace-nowrap">
+                                                                        {toNepaliNumber(overdueDays)} दिन छुटेको
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-[9.5px] bg-amber-500 text-white font-extrabold px-1.5 py-0.2 rounded shadow-2xs font-nepali whitespace-nowrap">
+                                                                        आज तोकिएको
+                                                                    </span>
+                                                                )}
                                                             </span>
                                                         );
                                                     })}
@@ -1871,9 +1906,21 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                                                 <span className={blurPhone ? "blur-sm select-none pointer-events-none" : ""}>{item.child.phone}</span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2 py-0.5 rounded-full text-[10px] font-bold border border-red-100 animate-pulse">
-                                                    <Clock size={10}/> Overdue
-                                                </span>
+                                                {(() => {
+                                                    const maxOverdueDays = Math.max(...item.vaccines.map(v => getDaysOverdueFromBs(v.scheduledDateBs)), 0);
+                                                    return (
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-red-200 animate-pulse whitespace-nowrap">
+                                                                <Clock size={10}/> Overdue
+                                                            </span>
+                                                            {maxOverdueDays > 0 && (
+                                                                <span className="text-[11px] font-black text-red-700 font-nepali whitespace-nowrap">
+                                                                    {toNepaliNumber(maxOverdueDays)} दिन ढिलो
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-6 py-4 text-right no-print">
                                                 <div className="flex items-center justify-end gap-1">
@@ -2599,24 +2646,34 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
                         <th>केन्द्र</th>
                         <th>छुटेका खोपहरू</th>
                         <th>निर्धारित मिति</th>
+                        <th>छुटेको अवधि</th>
                         <th>फोन नं</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {defaulterList.map((item, idx) => (
-                        <tr key={idx}>
-                            <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
-                            <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
-                            <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
-                            <td>{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</td>
-                            <td>{item.child.vaccinationCenter}</td>
-                            <td style={{color: 'red', fontWeight: 'bold'}}>
-                                {item.vaccines.map(v => v.name).join(', ')}
-                            </td>
-                            <td>{item.scheduledDateBs}</td>
-                            <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
-                        </tr>
-                    ))}
+                    {defaulterList.map((item, idx) => {
+                        const maxOverdue = Math.max(...item.vaccines.map(v => getDaysOverdueFromBs(v.scheduledDateBs)), 0);
+                        return (
+                            <tr key={idx}>
+                                <td>{item.child.childName} <br/> <small>{item.child.regNo}</small></td>
+                                <td><span className={blurDob ? "blur-sm" : ""}>{item.child.dobBs}</span></td>
+                                <td>{item.child.motherName} {item.child.fatherName && `/ ${item.child.fatherName}`}</td>
+                                <td>{item.child.address}{item.child.isOtherAddress ? ' (अन्य)' : ''}</td>
+                                <td>{item.child.vaccinationCenter}</td>
+                                <td style={{color: 'red', fontWeight: 'bold'}}>
+                                    {item.vaccines.map(v => {
+                                        const days = getDaysOverdueFromBs(v.scheduledDateBs);
+                                        return `${v.name}${days > 0 ? ` (${toNepaliNumber(days)} दिन छुटेको)` : ''}`;
+                                    }).join(', ')}
+                                </td>
+                                <td>{item.scheduledDateBs}</td>
+                                <td style={{color: 'red', fontWeight: 'bold', textAlign: 'center'}}>
+                                    {maxOverdue > 0 ? `${toNepaliNumber(maxOverdue)} दिन ढिलो` : '-'}
+                                </td>
+                                <td style={{fontFamily: 'monospace'}}><span className={blurPhone ? "blur-sm" : ""}>{item.child.phone}</span></td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
