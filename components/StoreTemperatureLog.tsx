@@ -185,16 +185,26 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
 
   // Modals
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
-  // Form State for Entry
+  // Form State for Entry: Supports Morning only, Evening only, or Both at the same time!
   const [formDateBs, setFormDateBs] = useState<string>(todayBs);
   const [formRoomId, setFormRoomId] = useState<string>('');
-  const [formSession, setFormSession] = useState<'Morning' | 'Evening'>('Morning');
-  const [formTemp, setFormTemp] = useState<string>('21.0');
-  const [formHumidity, setFormHumidity] = useState<string>('55');
-  const [formRemarks, setFormRemarks] = useState<string>('');
-  const [formCorrectiveAction, setFormCorrectiveAction] = useState<string>('');
+  const [formSessionMode, setFormSessionMode] = useState<'Morning' | 'Evening' | 'Both'>('Both');
+
+  // Morning session fields
+  const [morningTemp, setMorningTemp] = useState<string>('21.0');
+  const [morningHumidity, setMorningHumidity] = useState<string>('55');
+  const [morningRemarks, setMorningRemarks] = useState<string>('');
+  const [morningCorrectiveAction, setMorningCorrectiveAction] = useState<string>('');
+  const [morningLogId, setMorningLogId] = useState<string | null>(null);
+
+  // Evening session fields
+  const [eveningTemp, setEveningTemp] = useState<string>('21.0');
+  const [eveningHumidity, setEveningHumidity] = useState<string>('55');
+  const [eveningRemarks, setEveningRemarks] = useState<string>('');
+  const [eveningCorrectiveAction, setEveningCorrectiveAction] = useState<string>('');
+  const [eveningLogId, setEveningLogId] = useState<string | null>(null);
+
   const [formError, setFormError] = useState<string>('');
 
   // Room Manage Modal State
@@ -212,62 +222,73 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
   });
   const [roomFormError, setRoomFormError] = useState('');
 
-  // Open Entry Modal with pre-filling
-  const handleOpenEntryModal = (dateStr?: string, session?: 'Morning' | 'Evening', roomId?: string) => {
+  // Helper to load day data into state
+  const loadDayLogsIntoForm = (targetRoomId: string, targetDate: string) => {
+    const existingM = storeTemperatureLogs.find(l => {
+      const matchesRoom = l.roomId === targetRoomId || (l.roomName && targetRoomId && l.roomName.trim().toLowerCase() === targetRoomId.trim().toLowerCase());
+      return matchesRoom && normalizeBsDate(l.dateBs) === targetDate && l.session === 'Morning';
+    });
+    const existingE = storeTemperatureLogs.find(l => {
+      const matchesRoom = l.roomId === targetRoomId || (l.roomName && targetRoomId && l.roomName.trim().toLowerCase() === targetRoomId.trim().toLowerCase());
+      return matchesRoom && normalizeBsDate(l.dateBs) === targetDate && l.session === 'Evening';
+    });
+
+    if (existingM) {
+      setMorningLogId(existingM.id);
+      setMorningTemp(String(existingM.tempCelsius));
+      setMorningHumidity(existingM.humidityPercent !== undefined ? String(existingM.humidityPercent) : '55');
+      setMorningRemarks(existingM.remarks || '');
+      setMorningCorrectiveAction(existingM.correctiveAction || '');
+    } else {
+      setMorningLogId(null);
+      setMorningTemp('21.0');
+      setMorningHumidity('55');
+      setMorningRemarks('');
+      setMorningCorrectiveAction('');
+    }
+
+    if (existingE) {
+      setEveningLogId(existingE.id);
+      setEveningTemp(String(existingE.tempCelsius));
+      setEveningHumidity(existingE.humidityPercent !== undefined ? String(existingE.humidityPercent) : '55');
+      setEveningRemarks(existingE.remarks || '');
+      setEveningCorrectiveAction(existingE.correctiveAction || '');
+    } else {
+      setEveningLogId(null);
+      setEveningTemp('21.0');
+      setEveningHumidity('55');
+      setEveningRemarks('');
+      setEveningCorrectiveAction('');
+    }
+  };
+
+  // Open Entry Modal with pre-filling (can specify session or 'Both')
+  const handleOpenEntryModal = (dateStr?: string, session?: 'Morning' | 'Evening' | 'Both', roomId?: string) => {
     const targetRoomId = roomId || selectedRoomId || (activeRooms[0]?.id ?? '');
     const targetDate = normalizeBsDate(dateStr || todayBs);
 
-    let targetSession: 'Morning' | 'Evening' = session || 'Morning';
+    let targetMode: 'Morning' | 'Evening' | 'Both' = session || 'Both';
     if (!session) {
-      const currentHour = new Date().getHours();
-      targetSession = currentHour < 13 ? 'Morning' : 'Evening';
+      // Default to Both or current session, but Both gives instant access to both
+      targetMode = 'Both';
     }
 
     setFormRoomId(targetRoomId);
     setFormDateBs(targetDate);
-    setFormSession(targetSession);
+    setFormSessionMode(targetMode);
     setFormError('');
 
-    // Check if an existing log exists
-    const existing = storeTemperatureLogs.find(l => {
-      const matchesRoom = l.roomId === targetRoomId || (l.roomName && targetRoomId && l.roomName.trim().toLowerCase() === targetRoomId.trim().toLowerCase());
-      return matchesRoom && normalizeBsDate(l.dateBs) === targetDate && l.session === targetSession;
-    });
-
-    if (existing) {
-      setEditingLogId(existing.id);
-      setFormTemp(String(existing.tempCelsius));
-      setFormHumidity(existing.humidityPercent !== undefined ? String(existing.humidityPercent) : '55');
-      setFormRemarks(existing.remarks || '');
-      setFormCorrectiveAction(existing.correctiveAction || '');
-    } else {
-      setEditingLogId(null);
-      setFormTemp('21.0');
-      setFormHumidity('55');
-      setFormRemarks('');
-      setFormCorrectiveAction('');
-    }
-
+    loadDayLogsIntoForm(targetRoomId, targetDate);
     setIsEntryModalOpen(true);
   };
 
-  // Sync existing log when user changes room/date/session in modal
+  // Sync existing logs when user changes room or date in modal
   useEffect(() => {
-    if (isEntryModalOpen && formRoomId && formDateBs && formSession) {
+    if (isEntryModalOpen && formRoomId && formDateBs) {
       const normDate = normalizeBsDate(formDateBs);
-      const existing = storeTemperatureLogs.find(l => {
-        const matchesRoom = l.roomId === formRoomId || (l.roomName && formRoomId && l.roomName.trim().toLowerCase() === formRoomId.trim().toLowerCase());
-        return matchesRoom && normalizeBsDate(l.dateBs) === normDate && l.session === formSession;
-      });
-      if (existing && existing.id !== editingLogId) {
-        setEditingLogId(existing.id);
-        setFormTemp(String(existing.tempCelsius));
-        setFormHumidity(existing.humidityPercent !== undefined ? String(existing.humidityPercent) : '55');
-        setFormRemarks(existing.remarks || '');
-        setFormCorrectiveAction(existing.correctiveAction || '');
-      }
+      loadDayLogsIntoForm(formRoomId, normDate);
     }
-  }, [formRoomId, formDateBs, formSession, isEntryModalOpen, storeTemperatureLogs, editingLogId]);
+  }, [formRoomId, formDateBs, isEntryModalOpen]);
 
   // Convert BS to AD
   const calculateDateAd = (bsDate: string): string => {
@@ -297,17 +318,6 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
       setFormError('कृपया मिति छनोट गर्नुहोस्।');
       return;
     }
-    const tempVal = parseFloat(formTemp);
-    if (isNaN(tempVal)) {
-      setFormError('कृपया मान्य तापक्रम (°C) प्रविष्ट गर्नुहोस्।');
-      return;
-    }
-
-    const humidVal = formHumidity ? parseFloat(formHumidity) : undefined;
-    if (humidVal !== undefined && (isNaN(humidVal) || humidVal < 0 || humidVal > 100)) {
-      setFormError('कृपया मान्य आद्रता (० देखि १००%) प्रविष्ट गर्नुहोस्।');
-      return;
-    }
 
     const normDate = normalizeBsDate(formDateBs);
     const room = effectiveRooms.find(r => r.id === formRoomId);
@@ -316,28 +326,74 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
     const rMin = room?.minTempC ?? 15;
     const rMax = room?.maxTempC ?? 25;
     const rMaxHumid = room?.maxHumidityPercent ?? 65;
-
-    const isOutOfRange = (tempVal < rMin || tempVal > rMax) || (humidVal !== undefined && humidVal > rMaxHumid);
     const dateAd = calculateDateAd(normDate);
 
-    const logEntry: StoreTemperatureLogEntry = {
-      id: editingLogId || `stl-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      roomId: formRoomId,
-      roomName: roomName,
-      dateBs: normDate,
-      dateAd: dateAd || '',
-      session: formSession,
-      tempCelsius: tempVal,
-      humidityPercent: humidVal,
-      isOutOfRange: isOutOfRange,
-      recordedBy: currentUser?.fullName || currentUser?.username || 'स्टोर कर्मचारी',
-      recordedByUid: currentUser?.id || '',
-      remarks: formRemarks.trim() || '',
-      correctiveAction: formCorrectiveAction.trim() || '',
-      _orgName: activeOrgName || generalSettings.orgNameNepali || ''
+    // Helper to validate and construct a log entry
+    const createLogEntry = (
+      session: 'Morning' | 'Evening',
+      tempStr: string,
+      humidStr: string,
+      remarks: string,
+      corrAction: string,
+      existingId: string | null
+    ): StoreTemperatureLogEntry | null => {
+      const tempVal = parseFloat(tempStr);
+      if (isNaN(tempVal)) {
+        return null;
+      }
+      const humidVal = humidStr ? parseFloat(humidStr) : undefined;
+      if (humidVal !== undefined && (isNaN(humidVal) || humidVal < 0 || humidVal > 100)) {
+        return null;
+      }
+
+      const isOutOfRange = (tempVal < rMin || tempVal > rMax) || (humidVal !== undefined && humidVal > rMaxHumid);
+
+      return {
+        id: existingId || `stl-${Date.now()}-${session.toLowerCase()}-${Math.random().toString(36).substr(2, 4)}`,
+        roomId: formRoomId,
+        roomName: roomName,
+        dateBs: normDate,
+        dateAd: dateAd || '',
+        session: session,
+        tempCelsius: tempVal,
+        humidityPercent: humidVal,
+        isOutOfRange: isOutOfRange,
+        recordedBy: currentUser?.fullName || currentUser?.username || 'स्टोर कर्मचारी',
+        recordedByUid: currentUser?.id || '',
+        remarks: remarks.trim() || '',
+        correctiveAction: corrAction.trim() || '',
+        _orgName: activeOrgName || generalSettings.orgNameNepali || ''
+      };
     };
 
-    onSaveLog(logEntry);
+    if (formSessionMode === 'Morning') {
+      const morningLog = createLogEntry('Morning', morningTemp, morningHumidity, morningRemarks, morningCorrectiveAction, morningLogId);
+      if (!morningLog) {
+        setFormError('कृपया बिहानको मान्य तापक्रम (°C) र आद्रता प्रविष्ट गर्नुहोस्।');
+        return;
+      }
+      onSaveLog(morningLog);
+    } else if (formSessionMode === 'Evening') {
+      const eveningLog = createLogEntry('Evening', eveningTemp, eveningHumidity, eveningRemarks, eveningCorrectiveAction, eveningLogId);
+      if (!eveningLog) {
+        setFormError('कृपया अपराह्नको मान्य तापक्रम (°C) र आद्रता प्रविष्ट गर्नुहोस्।');
+        return;
+      }
+      onSaveLog(eveningLog);
+    } else {
+      // Both Morning and Evening
+      const morningLog = createLogEntry('Morning', morningTemp, morningHumidity, morningRemarks, morningCorrectiveAction, morningLogId);
+      const eveningLog = createLogEntry('Evening', eveningTemp, eveningHumidity, eveningRemarks, eveningCorrectiveAction, eveningLogId);
+
+      if (!morningLog && !eveningLog) {
+        setFormError('कृपया बिहान वा अपराह्नमध्ये कम्तिमा एक वा दुवै सत्रको मान्य तापक्रम (°C) प्रविष्ट गर्नुहोस्।');
+        return;
+      }
+
+      if (morningLog) onSaveLog(morningLog);
+      if (eveningLog) onSaveLog(eveningLog);
+    }
+
     setIsEntryModalOpen(false);
   };
 
@@ -1100,15 +1156,7 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => {
-                                setEditingLogId(log.id);
-                                setFormRoomId(log.roomId);
-                                setFormDateBs(log.dateBs);
-                                setFormSession(log.session);
-                                setFormTemp(String(log.tempCelsius));
-                                setFormHumidity(log.humidityPercent !== undefined ? String(log.humidityPercent) : '55');
-                                setFormRemarks(log.remarks || '');
-                                setFormCorrectiveAction(log.correctiveAction || '');
-                                setIsEntryModalOpen(true);
+                                handleOpenEntryModal(log.dateBs, log.session, log.roomId);
                               }}
                               className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
                               title="सम्पादन गर्नुहोस्"
@@ -1289,25 +1337,30 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
 
       {/* QUICK ENTRY MODAL */}
       {isEntryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 no-print animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 no-print animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 my-8">
+            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-                  <Warehouse size={18} />
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
+                  <Warehouse size={20} />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 text-base font-nepali">
-                    {editingLogId ? 'स्टोर तापक्रम रेकर्ड सम्पादन' : 'स्टोर दैनिक तापक्रम तथा आद्रता प्रविष्टि'}
+                    स्टोर दैनिक तापक्रम तथा आद्रता प्रविष्टि
                   </h3>
-                  <p className="text-xs text-slate-500 font-nepali">
-                    {currentRoom?.name}
+                  <p className="text-xs text-slate-500 font-nepali flex items-center gap-1.5">
+                    <span>{currentRoom?.name}</span>
+                    <span>•</span>
+                    <span>मानक: {toNepaliDigits(minTemp)}°C - {toNepaliDigits(maxTemp)}°C</span>
+                    <span>•</span>
+                    <span>आद्रता: &lt; {toNepaliDigits(maxHumidity)}% RH</span>
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsEntryModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -1315,12 +1368,13 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
 
             {formError && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-2">
-                <AlertCircle size={16} />
+                <AlertCircle size={16} className="shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
 
             <form onSubmit={handleSaveEntry} className="space-y-4 font-nepali">
+              {/* Top Selector: Room & Date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1333,150 +1387,319 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
                   >
                     {activeRooms.map(r => (
                       <option key={r.id} value={r.id}>
-                        {r.name}
+                        {r.name} {r.roomCode ? `(${r.roomCode})` : ''}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    रेकर्ड गर्ने समय (Session) *
-                  </label>
-                  <select
-                    value={formSession}
-                    onChange={e => setFormSession(e.target.value as 'Morning' | 'Evening')}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-hidden"
+                  <NepaliDatePicker
+                    label="मिति (BS) *"
+                    value={formDateBs}
+                    onChange={val => setFormDateBs(val)}
+                  />
+                </div>
+              </div>
+
+              {/* Session Switcher Pill: Morning, Evening, or Both */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  रेकर्ड सत्र छनोट (Session Mode) *
+                </label>
+                <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setFormSessionMode('Morning')}
+                    className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      formSessionMode === 'Morning'
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
                   >
-                    <option value="Morning">बिहानको समय (०९:०० - १०:००)</option>
-                    <option value="Evening">अपराह्नको समय (०४:०० - ०५:००)</option>
-                  </select>
+                    <span>☀️ बिहान मात्र</span>
+                    <span className="text-[10px] opacity-80 hidden md:inline">(०९:००)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormSessionMode('Evening')}
+                    className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      formSessionMode === 'Evening'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <span>🌙 अपराह्न मात्र</span>
+                    <span className="text-[10px] opacity-80 hidden md:inline">(०४:००)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormSessionMode('Both')}
+                    className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      formSessionMode === 'Both'
+                        ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-blue-600 text-white shadow-xs'
+                        : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                    }`}
+                  >
+                    <span>✨ दुवै (बिहान + अपराह्न)</span>
+                  </button>
                 </div>
               </div>
 
-              <div>
-                <NepaliDatePicker
-                  label="मिति (BS) *"
-                  value={formDateBs}
-                  onChange={val => setFormDateBs(val)}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    तापक्रम (°C) *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="0.1"
-                      required
-                      value={formTemp}
-                      onChange={e => setFormTemp(e.target.value)}
-                      placeholder="e.g. 21.5"
-                      className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 ${
-                        parseFloat(formTemp) < minTemp || parseFloat(formTemp) > maxTemp
-                          ? 'border-red-400 bg-red-50/50 text-red-700 focus:ring-red-400'
-                          : 'border-slate-300 focus:ring-amber-500 text-slate-800'
-                      }`}
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">°C</span>
+              {/* SECTION: Morning Form Fields */}
+              {(formSessionMode === 'Morning' || formSessionMode === 'Both') && (
+                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-200/70 pb-2">
+                    <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                      <Clock size={14} className="text-amber-600" />
+                      बिहानको सत्र (Morning Session: ०९:०० - १०:००)
+                    </span>
+                    {morningLogId && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                        मौजुद रेकर्ड सम्पादन
+                      </span>
+                    )}
                   </div>
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    तोकिएको दायरा: {minTemp}°C देखि {maxTemp}°C सम्म
-                  </span>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    आद्रता (% RH)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      max="100"
-                      value={formHumidity}
-                      onChange={e => setFormHumidity(e.target.value)}
-                      placeholder="e.g. 55"
-                      className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 ${
-                        parseFloat(formHumidity) > maxHumidity
-                          ? 'border-amber-400 bg-amber-50/50 text-amber-800 focus:ring-amber-400'
-                          : 'border-slate-300 focus:ring-blue-500 text-slate-800'
-                      }`}
-                    />
-                    <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
-                  </div>
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    अधिकतम सिमा: &lt; {maxHumidity}% RH
-                  </span>
-                </div>
-              </div>
-
-              {/* Warning Banner if Temp or Humidity out of range */}
-              {(() => {
-                const t = parseFloat(formTemp);
-                const h = parseFloat(formHumidity);
-                const tOut = !isNaN(t) && (t < minTemp || t > maxTemp);
-                const hOut = !isNaN(h) && h > maxHumidity;
-
-                if (tOut || hOut) {
-                  return (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 space-y-1">
-                      <div className="flex items-center gap-1.5 font-bold">
-                        <AlertTriangle size={14} className="text-red-600" />
-                        चेतावनी: तापक्रम वा आद्रता तोकिएको मानक दायरा भन्दा बाहिर छ!
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        बिहानको तापक्रम (°C) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          required={formSessionMode === 'Morning'}
+                          value={morningTemp}
+                          onChange={e => setMorningTemp(e.target.value)}
+                          placeholder="e.g. 21.5"
+                          className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 bg-white ${
+                            parseFloat(morningTemp) < minTemp || parseFloat(morningTemp) > maxTemp
+                              ? 'border-red-400 bg-red-50/50 text-red-700 focus:ring-red-400'
+                              : 'border-slate-300 focus:ring-amber-500 text-slate-800'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">°C</span>
                       </div>
-                      <p className="text-[11px] text-red-600">
-                        कृपया कोठाको AC/भेन्टिलेसन जाँच गर्नुहोस् र आवश्यक सुधार कार्य (Corrective Action) तल खुलाउनुहोस्।
-                      </p>
+                      <span className="text-[10.5px] text-slate-500 mt-1 block">
+                        मानक दायरा: {toNepaliDigits(minTemp)}°C देखि {toNepaliDigits(maxTemp)}°C
+                      </span>
                     </div>
-                  );
-                }
-                return null;
-              })()}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  कैफियत (Remarks)
-                </label>
-                <input
-                  type="text"
-                  value={formRemarks}
-                  onChange={e => setFormRemarks(e.target.value)}
-                  placeholder="e.g. कोठा सामान्य, भेन्टिलेसन चालु"
-                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-amber-500 text-slate-800"
-                />
-              </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        बिहानको आद्रता (% RH)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          max="100"
+                          value={morningHumidity}
+                          onChange={e => setMorningHumidity(e.target.value)}
+                          placeholder="e.g. 55"
+                          className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 bg-white ${
+                            parseFloat(morningHumidity) > maxHumidity
+                              ? 'border-amber-400 bg-amber-50/50 text-amber-800 focus:ring-amber-400'
+                              : 'border-slate-300 focus:ring-blue-500 text-slate-800'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                      </div>
+                      <span className="text-[10.5px] text-slate-500 mt-1 block">
+                        अधिकतम आद्रता: &lt; {toNepaliDigits(maxHumidity)}% RH
+                      </span>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  सुधार कार्य (Corrective Action - यदि आवश्यक परेमा)
-                </label>
-                <input
-                  type="text"
-                  value={formCorrectiveAction}
-                  onChange={e => setFormCorrectiveAction(e.target.value)}
-                  placeholder="e.g. AC चालु गरियो, झ्याल खुला गरियो, तापमान नियन्त्रणमा"
-                  className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-amber-500 text-slate-800"
-                />
-              </div>
+                  {/* Warning if Morning out of range */}
+                  {(() => {
+                    const t = parseFloat(morningTemp);
+                    const h = parseFloat(morningHumidity);
+                    const tOut = !isNaN(t) && (t < minTemp || t > maxTemp);
+                    const hOut = !isNaN(h) && h > maxHumidity;
+                    if (tOut || hOut) {
+                      return (
+                        <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-start gap-1.5">
+                          <AlertTriangle size={14} className="text-red-600 shrink-0 mt-0.5" />
+                          <span>बिहानको तापक्रम वा आद्रता मानक दायरा बाहिर छ! कृपया सुधार कार्य खुलाउनुहोस्।</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        कैफियत (Morning Remarks)
+                      </label>
+                      <input
+                        type="text"
+                        value={morningRemarks}
+                        onChange={e => setMorningRemarks(e.target.value)}
+                        placeholder="e.g. कोठा सामान्य, भेन्टिलेसन चालु"
+                        className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-amber-500 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        सुधार कार्य (Corrective Action)
+                      </label>
+                      <input
+                        type="text"
+                        value={morningCorrectiveAction}
+                        onChange={e => setMorningCorrectiveAction(e.target.value)}
+                        placeholder="e.g. AC चालु, झ्याल खोलियो"
+                        className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-amber-500 text-slate-800"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: Evening Form Fields */}
+              {(formSessionMode === 'Evening' || formSessionMode === 'Both') && (
+                <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-3">
+                  <div className="flex items-center justify-between border-b border-blue-200/70 pb-2">
+                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                      <Clock size={14} className="text-blue-600" />
+                      अपराह्नको सत्र (Evening Session: ०४:०० - ०५:००)
+                    </span>
+                    {eveningLogId && (
+                      <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-300">
+                        मौजुद रेकर्ड सम्पादन
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        अपराह्नको तापक्रम (°C) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          required={formSessionMode === 'Evening'}
+                          value={eveningTemp}
+                          onChange={e => setEveningTemp(e.target.value)}
+                          placeholder="e.g. 22.0"
+                          className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 bg-white ${
+                            parseFloat(eveningTemp) < minTemp || parseFloat(eveningTemp) > maxTemp
+                              ? 'border-red-400 bg-red-50/50 text-red-700 focus:ring-red-400'
+                              : 'border-slate-300 focus:ring-blue-500 text-slate-800'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">°C</span>
+                      </div>
+                      <span className="text-[10.5px] text-slate-500 mt-1 block">
+                        मानक दायरा: {toNepaliDigits(minTemp)}°C देखि {toNepaliDigits(maxTemp)}°C
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        अपराह्नको आद्रता (% RH)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="1"
+                          min="0"
+                          max="100"
+                          value={eveningHumidity}
+                          onChange={e => setEveningHumidity(e.target.value)}
+                          placeholder="e.g. 56"
+                          className={`w-full p-2.5 pr-10 border rounded-xl text-sm font-mono font-bold outline-hidden focus:ring-2 bg-white ${
+                            parseFloat(eveningHumidity) > maxHumidity
+                              ? 'border-amber-400 bg-amber-50/50 text-amber-800 focus:ring-amber-400'
+                              : 'border-slate-300 focus:ring-blue-500 text-slate-800'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                      </div>
+                      <span className="text-[10.5px] text-slate-500 mt-1 block">
+                        अधिकतम आद्रता: &lt; {toNepaliDigits(maxHumidity)}% RH
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Warning if Evening out of range */}
+                  {(() => {
+                    const t = parseFloat(eveningTemp);
+                    const h = parseFloat(eveningHumidity);
+                    const tOut = !isNaN(t) && (t < minTemp || t > maxTemp);
+                    const hOut = !isNaN(h) && h > maxHumidity;
+                    if (tOut || hOut) {
+                      return (
+                        <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-start gap-1.5">
+                          <AlertTriangle size={14} className="text-red-600 shrink-0 mt-0.5" />
+                          <span>अपराह्नको तापक्रम वा आद्रता मानक दायरा बाहिर छ! कृपया सुधार कार्य खुलाउनुहोस्।</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        कैफियत (Evening Remarks)
+                      </label>
+                      <input
+                        type="text"
+                        value={eveningRemarks}
+                        onChange={e => setEveningRemarks(e.target.value)}
+                        placeholder="e.g. कोठा सामान्य, AC चालु"
+                        className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        सुधार कार्य (Corrective Action)
+                      </label>
+                      <input
+                        type="text"
+                        value={eveningCorrectiveAction}
+                        onChange={e => setEveningCorrectiveAction(e.target.value)}
+                        placeholder="e.g. झ्याल बन्द, AC को टेम्प मिलाइयो"
+                        className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 text-slate-800"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsEntryModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 >
                   रद्द गर्नुहोस्
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-sm transition-all"
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-sm transition-all cursor-pointer ${
+                    formSessionMode === 'Both'
+                      ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-blue-600 hover:opacity-95'
+                      : formSessionMode === 'Evening'
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
                 >
-                  {editingLogId ? 'रेकर्ड अद्यावधिक गर्नुहोस्' : 'रेकर्ड सुरक्षित गर्नुहोस्'}
+                  {formSessionMode === 'Both'
+                    ? 'दुवै सत्रको रेकर्ड सुरक्षित गर्नुहोस् (Save Both)'
+                    : formSessionMode === 'Evening'
+                    ? (eveningLogId ? 'अपराह्न रेकर्ड अद्यावधिक' : 'अपराह्न रेकर्ड सुरक्षित')
+                    : (morningLogId ? 'बिहान रेकर्ड अद्यावधिक' : 'बिहान रेकर्ड सुरक्षित')}
                 </button>
               </div>
             </form>

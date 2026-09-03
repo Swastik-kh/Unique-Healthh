@@ -130,15 +130,22 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
 
   // Temperature Entry Modal State
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
-
-  // Form State
-  const [formDateBs, setFormDateBs] = useState<string>(todayBs);
   const [formEquipmentId, setFormEquipmentId] = useState<string>('');
-  const [formSession, setFormSession] = useState<'Morning' | 'Evening'>('Morning');
-  const [formTemp, setFormTemp] = useState<string>('4.0');
-  const [formRemarks, setFormRemarks] = useState<string>('');
-  const [formCorrectiveAction, setFormCorrectiveAction] = useState<string>('');
+  const [formDateBs, setFormDateBs] = useState<string>(todayBs);
+  const [formSessionMode, setFormSessionMode] = useState<'Morning' | 'Evening' | 'Both'>('Both');
+
+  // Morning Session Form
+  const [morningTemp, setMorningTemp] = useState<string>('4.0');
+  const [morningRemarks, setMorningRemarks] = useState<string>('');
+  const [morningCorrectiveAction, setMorningCorrectiveAction] = useState<string>('');
+  const [morningLogId, setMorningLogId] = useState<string | null>(null);
+
+  // Evening Session Form
+  const [eveningTemp, setEveningTemp] = useState<string>('4.0');
+  const [eveningRemarks, setEveningRemarks] = useState<string>('');
+  const [eveningCorrectiveAction, setEveningCorrectiveAction] = useState<string>('');
+  const [eveningLogId, setEveningLogId] = useState<string | null>(null);
+
   const [formError, setFormError] = useState<string>('');
 
   // SMS Alert State
@@ -147,65 +154,73 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
   const [customPhone, setCustomPhone] = useState<string>('');
 
   // Live Out of Range check
-  const numTemp = parseFloat(formTemp);
-  const isFormTempOutOfRange = !isNaN(numTemp) && (numTemp < minTemp || numTemp > maxTemp);
+  const numMorningTemp = parseFloat(morningTemp);
+  const isMorningOutOfRange = !isNaN(numMorningTemp) && (numMorningTemp < minTemp || numMorningTemp > maxTemp);
+  const numEveningTemp = parseFloat(eveningTemp);
+  const isEveningOutOfRange = !isNaN(numEveningTemp) && (numEveningTemp < minTemp || numEveningTemp > maxTemp);
+  const isFormTempOutOfRange = (formSessionMode === 'Morning' && isMorningOutOfRange) ||
+    (formSessionMode === 'Evening' && isEveningOutOfRange) ||
+    (formSessionMode === 'Both' && (isMorningOutOfRange || isEveningOutOfRange));
+
+  // Load existing logs for date & equipment
+  const loadColdChainDayLogs = (eqId: string, dateStr: string) => {
+    const normDate = normalizeBsDate(dateStr);
+    const mLog = coldChainLogs.find(l => {
+      const matchesEq = l.equipmentId === eqId || (l.equipmentName && eqId && l.equipmentName.trim().toLowerCase() === eqId.trim().toLowerCase());
+      return matchesEq && normalizeBsDate(l.dateBs) === normDate && l.session === 'Morning';
+    });
+    const eLog = coldChainLogs.find(l => {
+      const matchesEq = l.equipmentId === eqId || (l.equipmentName && eqId && l.equipmentName.trim().toLowerCase() === eqId.trim().toLowerCase());
+      return matchesEq && normalizeBsDate(l.dateBs) === normDate && l.session === 'Evening';
+    });
+
+    if (mLog) {
+      setMorningLogId(mLog.id);
+      setMorningTemp(String(mLog.tempCelsius));
+      setMorningRemarks(mLog.remarks || '');
+      setMorningCorrectiveAction(mLog.correctiveAction || '');
+    } else {
+      setMorningLogId(null);
+      setMorningTemp('4.0');
+      setMorningRemarks('');
+      setMorningCorrectiveAction('');
+    }
+
+    if (eLog) {
+      setEveningLogId(eLog.id);
+      setEveningTemp(String(eLog.tempCelsius));
+      setEveningRemarks(eLog.remarks || '');
+      setEveningCorrectiveAction(eLog.correctiveAction || '');
+    } else {
+      setEveningLogId(null);
+      setEveningTemp('4.0');
+      setEveningRemarks('');
+      setEveningCorrectiveAction('');
+    }
+  };
 
   // Open entry modal with presets
   const handleOpenEntryModal = (dateStr?: string, session?: 'Morning' | 'Evening', eqId?: string) => {
     const targetEqId = eqId || selectedEquipmentId || (activeEquipments[0]?.id ?? '');
     const targetDate = normalizeBsDate(dateStr || todayBs);
-    
-    // Determine default session: if passed, use it; otherwise, if morning before 12 PM, else evening
-    let targetSession: 'Morning' | 'Evening' = session || 'Morning';
-    if (!session) {
-      const currentHour = new Date().getHours();
-      targetSession = currentHour < 12 ? 'Morning' : 'Evening';
-    }
 
     setFormEquipmentId(targetEqId);
     setFormDateBs(targetDate);
-    setFormSession(targetSession);
+    setFormSessionMode(session ? session : 'Both');
     setSmsStatus(null);
     setFormError('');
     setCustomPhone(generalSettings.coldChainAlertPhone || '');
 
-    // Check if an existing log exists for (targetEqId, targetDate, targetSession)
-    const existing = coldChainLogs.find(l => {
-      const matchesEq = l.equipmentId === targetEqId || (l.equipmentName && targetEqId && l.equipmentName.trim().toLowerCase() === targetEqId.trim().toLowerCase());
-      return matchesEq && normalizeBsDate(l.dateBs) === targetDate && l.session === targetSession;
-    });
-
-    if (existing) {
-      setEditingLogId(existing.id);
-      setFormTemp(String(existing.tempCelsius));
-      setFormRemarks(existing.remarks || '');
-      setFormCorrectiveAction(existing.correctiveAction || '');
-    } else {
-      setEditingLogId(null);
-      setFormTemp('4.0');
-      setFormRemarks('');
-      setFormCorrectiveAction('');
-    }
-
+    loadColdChainDayLogs(targetEqId, targetDate);
     setIsEntryModalOpen(true);
   };
 
-  // Sync existing log when user changes date or session in modal
+  // Sync existing log when user changes date or equipment in modal
   useEffect(() => {
-    if (isEntryModalOpen && formEquipmentId && formDateBs && formSession) {
-      const normDate = normalizeBsDate(formDateBs);
-      const existing = coldChainLogs.find(l => {
-        const matchesEq = l.equipmentId === formEquipmentId || (l.equipmentName && formEquipmentId && l.equipmentName.trim().toLowerCase() === formEquipmentId.trim().toLowerCase());
-        return matchesEq && normalizeBsDate(l.dateBs) === normDate && l.session === formSession;
-      });
-      if (existing && existing.id !== editingLogId) {
-        setEditingLogId(existing.id);
-        setFormTemp(String(existing.tempCelsius));
-        setFormRemarks(existing.remarks || '');
-        setFormCorrectiveAction(existing.correctiveAction || '');
-      }
+    if (isEntryModalOpen && formEquipmentId && formDateBs) {
+      loadColdChainDayLogs(formEquipmentId, formDateBs);
     }
-  }, [formEquipmentId, formDateBs, formSession, isEntryModalOpen, coldChainLogs, editingLogId]);
+  }, [formEquipmentId, formDateBs, isEntryModalOpen, coldChainLogs]);
 
   // Convert Nepali date to AD
   const calculateDateAd = (bsDate: string): string => {
@@ -235,35 +250,67 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
       setFormError('कृपया मिति छनोट गर्नुहोस्।');
       return;
     }
-    const tempVal = parseFloat(formTemp);
-    if (isNaN(tempVal)) {
-      setFormError('कृपया मान्य तापक्रम (°C) प्रविष्ट गर्नुहोस्।');
-      return;
-    }
 
     const normDate = normalizeBsDate(formDateBs);
-    const eq = coldChainEquipment.find(e => e.id === formEquipmentId);
+    const eq = coldChainEquipment.find(item => item.id === formEquipmentId);
     const eqName = eq ? eq.name : 'खोप फ्रिज';
-    const isOutOfRange = tempVal < minTemp || tempVal > maxTemp;
     const dateAd = calculateDateAd(normDate);
 
-    const logEntry: ColdChainLogEntry = {
-      id: editingLogId || `ccl-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      equipmentId: formEquipmentId,
-      equipmentName: eqName || 'खोप फ्रिज',
-      dateBs: normDate,
-      dateAd: dateAd || '',
-      session: formSession,
-      tempCelsius: tempVal,
-      recordedBy: currentUser?.fullName || currentUser?.username || 'Staff',
-      recordedByUid: currentUser?.id || '',
-      isOutOfRange: isOutOfRange,
-      remarks: formRemarks.trim() || '',
-      correctiveAction: formCorrectiveAction.trim() || '',
-      _orgName: currentUser?.organizationName || generalSettings.orgNameNepali || ''
-    };
+    // Save Morning Entry
+    if (formSessionMode === 'Morning' || formSessionMode === 'Both') {
+      const mTemp = parseFloat(morningTemp);
+      if (formSessionMode === 'Morning' && isNaN(mTemp)) {
+        setFormError('कृपया बिहानको मान्य तापक्रम (°C) प्रविष्ट गर्नुहोस्।');
+        return;
+      }
+      if (!isNaN(mTemp)) {
+        const isOutOfRange = mTemp < minTemp || mTemp > maxTemp;
+        const logEntry: ColdChainLogEntry = {
+          id: morningLogId || `ccl-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          equipmentId: formEquipmentId,
+          equipmentName: eqName || 'खोप फ्रिज',
+          dateBs: normDate,
+          dateAd: dateAd || '',
+          session: 'Morning',
+          tempCelsius: mTemp,
+          recordedBy: currentUser?.fullName || currentUser?.username || 'Staff',
+          recordedByUid: currentUser?.id || '',
+          isOutOfRange: isOutOfRange,
+          remarks: morningRemarks.trim() || '',
+          correctiveAction: morningCorrectiveAction.trim() || '',
+          _orgName: currentUser?.organizationName || generalSettings.orgNameNepali || ''
+        };
+        onSaveLog(logEntry);
+      }
+    }
 
-    onSaveLog(logEntry);
+    // Save Evening Entry
+    if (formSessionMode === 'Evening' || formSessionMode === 'Both') {
+      const eTemp = parseFloat(eveningTemp);
+      if (formSessionMode === 'Evening' && isNaN(eTemp)) {
+        setFormError('कृपया बेलुकी/अपराह्नको मान्य तापक्रम (°C) प्रविष्ट गर्नुहोस्।');
+        return;
+      }
+      if (!isNaN(eTemp)) {
+        const isOutOfRange = eTemp < minTemp || eTemp > maxTemp;
+        const logEntry: ColdChainLogEntry = {
+          id: eveningLogId || `ccl-${Date.now() + 1}-${Math.random().toString(36).substr(2, 5)}`,
+          equipmentId: formEquipmentId,
+          equipmentName: eqName || 'खोप फ्रिज',
+          dateBs: normDate,
+          dateAd: dateAd || '',
+          session: 'Evening',
+          tempCelsius: eTemp,
+          recordedBy: currentUser?.fullName || currentUser?.username || 'Staff',
+          recordedByUid: currentUser?.id || '',
+          isOutOfRange: isOutOfRange,
+          remarks: eveningRemarks.trim() || '',
+          correctiveAction: eveningCorrectiveAction.trim() || '',
+          _orgName: currentUser?.organizationName || generalSettings.orgNameNepali || ''
+        };
+        onSaveLog(logEntry);
+      }
+    }
 
     // Synchronize current view so user immediately sees their record in the register table
     setSelectedEquipmentId(formEquipmentId);
@@ -287,12 +334,16 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
       return;
     }
 
-    const tempVal = parseFloat(formTemp);
+    const breachedTemps = [
+      isMorningOutOfRange ? `बिहान: ${morningTemp}°C` : '',
+      isEveningOutOfRange ? `बेलुकी: ${eveningTemp}°C` : ''
+    ].filter(Boolean).join(', ');
+
     const eq = coldChainEquipment.find(e => e.id === formEquipmentId);
     const eqName = eq ? eq.name : 'खोप फ्रिज';
     const orgName = generalSettings.orgNameNepali || 'स्वास्थ्य संस्था';
 
-    const message = `⚠️ कोल्ड चेन अलर्ट: ${orgName} मा ${eqName} को तापक्रम ${tempVal}°C रेकर्ड भयो, जुन सुरक्षित दायरा (${minTemp}°C देखि ${maxTemp}°C) भन्दा बाहिर छ। कृपया तुरुन्त निरिक्षण गर्नुहोस्।`;
+    const message = `⚠️ कोल्ड चेन अलर्ट: ${orgName} मा ${eqName} को तापक्रम (${breachedTemps || `${morningTemp}°C`}) रेकर्ड भयो, जुन सुरक्षित दायरा (${minTemp}°C देखि ${maxTemp}°C) भन्दा बाहिर छ। कृपया तुरुन्त निरिक्षण गर्नुहोस्।`;
 
     setIsSendingSms(true);
     setSmsStatus(null);
@@ -1232,7 +1283,7 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
       {/* Record Temperature Modal */}
       {isEntryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-200 font-nepali">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 flex flex-col max-h-[92vh] my-auto overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 flex flex-col max-h-[92vh] my-auto overflow-hidden">
             {/* Header */}
             <div className={`p-5 text-white flex items-center justify-between shrink-0 transition-colors ${
               isFormTempOutOfRange
@@ -1245,7 +1296,7 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold">
-                    {editingLogId ? 'तापक्रम सम्पादन (Edit Temperature)' : 'दैनिक तापक्रम दर्ता (Record Daily Temperature)'}
+                    दैनिक तापक्रम दर्ता तथा सम्पादन (Daily Temperature Record)
                   </h3>
                   <p className="text-xs text-cyan-100">
                     सुरक्षित मानक दायरा: {minTemp}°C देखि {maxTemp}°C
@@ -1262,15 +1313,15 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
 
             {/* Form Body - Scrollable */}
             <form onSubmit={handleSaveEntry} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
+              <div className="p-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
                 {formError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
-                    <AlertCircle size={16} />
+                    <AlertCircle size={16} className="shrink-0" />
                     <span>{formError}</span>
                   </div>
                 )}
 
-                {/* Equipment & Session */}
+                {/* Equipment & Date */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Select
                     label="उपकरण छनोट (Equipment) *"
@@ -1279,129 +1330,250 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
                     options={activeEquipments.map(eq => ({ value: eq.id, label: `${eq.name} (${eq.type})` }))}
                   />
 
-                  <Select
-                    label="समय / सत्र (Session) *"
-                    value={formSession}
-                    onChange={(e) => setFormSession(e.target.value as any)}
-                    options={[
-                      { value: 'Morning', label: 'बिहान (Morning - 10:00 AM)' },
-                      { value: 'Evening', label: 'बेलुकी (Evening - 04:00 PM)' }
-                    ]}
-                  />
-                </div>
-
-                {/* Date BS & Temp */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <NepaliDatePicker
                     label="मिति (Date BS) *"
                     value={formDateBs}
                     onChange={(val) => setFormDateBs(val)}
                     required
                   />
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      तापक्रम (°C Celsius) *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={formTemp}
-                        onChange={(e) => setFormTemp(e.target.value)}
-                        className={`w-full px-3.5 py-2.5 text-base font-bold font-mono border rounded-xl focus:outline-none transition-all ${
-                          isFormTempOutOfRange
-                            ? 'border-rose-400 bg-rose-50/40 text-rose-700 focus:ring-2 focus:ring-rose-500'
-                            : 'border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-cyan-500'
-                        }`}
-                        placeholder="उदा: 4.5"
-                        required
-                      />
-                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
-                        °C
-                      </span>
-                    </div>
+                {/* Session Mode Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    सत्र छनोट (Session) *
+                  </label>
+                  <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setFormSessionMode('Morning')}
+                      className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formSessionMode === 'Morning'
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <span>☀️ बिहान मात्र</span>
+                      <span className="text-[10px] opacity-80 hidden md:inline">(१०:०० AM)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormSessionMode('Evening')}
+                      className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formSessionMode === 'Evening'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <span>🌙 बेलुकी मात्र</span>
+                      <span className="text-[10px] opacity-80 hidden md:inline">(०४:०० PM)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFormSessionMode('Both')}
+                      className={`py-2 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formSessionMode === 'Both'
+                          ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-blue-600 text-white shadow-xs'
+                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <span>✨ दुवै (बिहान + बेलुकी)</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Real-time Out of Range Alert Box */}
-                {isFormTempOutOfRange && (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-3 animate-in fade-in">
-                    <div className="flex items-start gap-2.5 text-rose-800">
-                      <ShieldAlert size={20} className="text-rose-600 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="text-xs font-bold">⚠️ तापक्रम मान्य दायरा भन्दा बाहिर छ! (Temperature Breach)</h4>
-                        <p className="text-[11px] text-rose-700 mt-0.5">
-                          प्रविष्ट तापक्रम <b>{formTemp}°C</b> सुरक्षित भण्डारण दायरा ({minTemp}°C - {maxTemp}°C) भन्दा बाहिर छ। कृपया सुधारात्मक कदम तुरुन्त चाल्नुहोस्।
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 pt-1 border-t border-rose-200">
-                      <label className="block text-[11px] font-bold text-rose-900">
-                        सुधारात्मक कदम (Corrective Action Taken) *
-                      </label>
-                      <input
-                        type="text"
-                        value={formCorrectiveAction}
-                        onChange={(e) => setFormCorrectiveAction(e.target.value)}
-                        placeholder="उदा: जेनेरेटर चालु गरियो / थर्मोस्ट्याट मिलाइयो / खोप बक्समा सारियो"
-                        className="w-full text-xs px-3 py-2 border border-rose-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-800"
-                      />
-                    </div>
-
-                    {/* SMS Alert Section */}
-                    <div className="bg-white/80 p-3 rounded-xl border border-rose-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                          <Smartphone size={14} className="text-rose-600" />
-                          अलर्ट SMS पठाउने नम्बर:
+                {/* Morning Session Card */}
+                {(formSessionMode === 'Morning' || formSessionMode === 'Both') && (
+                  <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3">
+                    <div className="flex items-center justify-between border-b border-amber-200/70 pb-2">
+                      <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <Clock size={14} className="text-amber-600" />
+                        बिहानको समय (Morning - 10:00 AM)
+                      </span>
+                      {morningLogId && (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">
+                          मौजुद रेकर्ड सम्पादन
                         </span>
-                        {smsStatus && (
-                          <span className={`text-[10px] font-bold ${
-                            smsStatus.type === 'success' ? 'text-emerald-700' : 'text-rose-700'
-                          }`}>
-                            {smsStatus.message}
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          बिहानको तापक्रम (°C Celsius) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={morningTemp}
+                            onChange={(e) => setMorningTemp(e.target.value)}
+                            className={`w-full px-3 py-2 text-sm font-bold font-mono border rounded-xl focus:outline-none transition-all bg-white ${
+                              isMorningOutOfRange
+                                ? 'border-rose-400 bg-rose-50/40 text-rose-700 focus:ring-2 focus:ring-rose-500'
+                                : 'border-slate-300 text-slate-800 focus:ring-2 focus:ring-amber-500'
+                            }`}
+                            placeholder="उदा: 4.5"
+                            required={formSessionMode === 'Morning'}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
+                            °C
                           </span>
-                        )}
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          कैफियत (Morning Remarks)
+                        </label>
                         <input
-                          type="tel"
-                          value={customPhone}
-                          onChange={(e) => setCustomPhone(e.target.value)}
-                          placeholder="९८XXXXXXXX"
-                          className="flex-1 text-xs px-3 py-1.5 border border-slate-200 rounded-lg font-mono"
+                          type="text"
+                          value={morningRemarks}
+                          onChange={(e) => setMorningRemarks(e.target.value)}
+                          placeholder="उदा: बिजुली बत्ति चालु, फ्रिज सामान्य"
+                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800"
                         />
-                        <button
-                          type="button"
-                          onClick={handleSendAlertSms}
-                          disabled={isSendingSms}
-                          className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          {isSendingSms ? (
-                            <>
-                              <Loader2 size={13} className="animate-spin" /> पठाउँदैछ...
-                            </>
-                          ) : (
-                            <>
-                              <Send size={13} /> SMS पठाउनुहोस्
-                            </>
-                          )}
-                        </button>
                       </div>
                     </div>
+
+                    {/* Morning Breach Warning */}
+                    {isMorningOutOfRange && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-xs">
+                        <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                          <ShieldAlert size={15} className="text-rose-600 shrink-0" />
+                          <span>बिहानको तापक्रम मानक दायरा बाहिर छ ({morningTemp}°C)!</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={morningCorrectiveAction}
+                          onChange={(e) => setMorningCorrectiveAction(e.target.value)}
+                          placeholder="सुधारात्मक कदम: जेनेरेटर चालु / थर्मोस्ट्याट मिलाइयो"
+                          className="w-full text-xs px-3 py-1.5 border border-rose-300 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-rose-500"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* Remarks */}
-                <Input
-                  label="कैफियत (Remarks)"
-                  value={formRemarks}
-                  onChange={(e) => setFormRemarks(e.target.value)}
-                  placeholder="कुनै अतिरिक्त टिप्पणी भए यहाँ लेख्नुहोस्..."
-                />
+                {/* Evening Session Card */}
+                {(formSessionMode === 'Evening' || formSessionMode === 'Both') && (
+                  <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-3">
+                    <div className="flex items-center justify-between border-b border-blue-200/70 pb-2">
+                      <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                        <Clock size={14} className="text-blue-600" />
+                        बेलुकी / अपराह्नको समय (Evening - 04:00 PM)
+                      </span>
+                      {eveningLogId && (
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-300">
+                          मौजुद रेकर्ड सम्पादन
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          बेलुकीको तापक्रम (°C Celsius) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={eveningTemp}
+                            onChange={(e) => setEveningTemp(e.target.value)}
+                            className={`w-full px-3 py-2 text-sm font-bold font-mono border rounded-xl focus:outline-none transition-all bg-white ${
+                              isEveningOutOfRange
+                                ? 'border-rose-400 bg-rose-50/40 text-rose-700 focus:ring-2 focus:ring-rose-500'
+                                : 'border-slate-300 text-slate-800 focus:ring-2 focus:ring-blue-500'
+                            }`}
+                            placeholder="उदा: 4.8"
+                            required={formSessionMode === 'Evening'}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
+                            °C
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          कैफियत (Evening Remarks)
+                        </label>
+                        <input
+                          type="text"
+                          value={eveningRemarks}
+                          onChange={(e) => setEveningRemarks(e.target.value)}
+                          placeholder="उदा: कार्यालय बन्द समय, ठीक अवस्था"
+                          className="w-full text-xs px-3 py-2 border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Evening Breach Warning */}
+                    {isEveningOutOfRange && (
+                      <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-xs">
+                        <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                          <ShieldAlert size={15} className="text-rose-600 shrink-0" />
+                          <span>बेलुकीको तापक्रम मानक दायरा बाहिर छ ({eveningTemp}°C)!</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={eveningCorrectiveAction}
+                          onChange={(e) => setEveningCorrectiveAction(e.target.value)}
+                          placeholder="सुधारात्मक कदम: जेनेरेटर चालु / थर्मोस्ट्याट मिलाइयो"
+                          className="w-full text-xs px-3 py-1.5 border border-rose-300 rounded-lg bg-white text-slate-800 focus:ring-2 focus:ring-rose-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SMS Alert Section if any session out of range */}
+                {isFormTempOutOfRange && (
+                  <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <Smartphone size={14} className="text-rose-600" />
+                        अलर्ट SMS पठाउने नम्बर:
+                      </span>
+                      {smsStatus && (
+                        <span className={`text-[10px] font-bold ${
+                          smsStatus.type === 'success' ? 'text-emerald-700' : 'text-rose-700'
+                        }`}>
+                          {smsStatus.message}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={customPhone}
+                        onChange={(e) => setCustomPhone(e.target.value)}
+                        placeholder="९८XXXXXXXX"
+                        className="flex-1 text-xs px-3 py-1.5 border border-slate-200 rounded-lg font-mono bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendAlertSms}
+                        disabled={isSendingSms}
+                        className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSendingSms ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" /> पठाउँदैछ...
+                          </>
+                        ) : (
+                          <>
+                            <Send size={13} /> SMS पठाउनुहोस्
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -1416,12 +1588,18 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
                 <button
                   type="submit"
                   className={`px-6 py-2 rounded-xl text-xs font-bold text-white shadow-md transition-all cursor-pointer ${
-                    isFormTempOutOfRange
-                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
-                      : 'bg-cyan-600 hover:bg-cyan-700 shadow-cyan-600/20'
+                    formSessionMode === 'Both'
+                      ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-blue-600 hover:opacity-95'
+                      : formSessionMode === 'Evening'
+                      ? 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-amber-600 hover:bg-amber-700'
                   }`}
                 >
-                  सुरक्षित गर्नुहोस् (Save)
+                  {formSessionMode === 'Both'
+                    ? 'दुवै सत्रको रेकर्ड सुरक्षित गर्नुहोस् (Save Both)'
+                    : formSessionMode === 'Evening'
+                    ? (eveningLogId ? 'बेलुकी रेकर्ड अद्यावधिक' : 'बेलुकी रेकर्ड सुरक्षित')
+                    : (morningLogId ? 'बिहान रेकर्ड अद्यावधिक' : 'बिहान रेकर्ड सुरक्षित')}
                 </button>
               </div>
             </form>
