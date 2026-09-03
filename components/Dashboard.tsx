@@ -2892,14 +2892,9 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                         ${expandedMenu === menu.id ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}
                       `}
                     >
-                      <div className="flex items-center gap-3 relative">
+                      <div className="flex items-center gap-3">
                         <span className={`${expandedMenu === menu.id ? 'text-primary-600' : 'text-slate-700'}`}>{menu.icon}</span>
                         <span className="font-bold text-sm">{menu.label}</span>
-                        {menu.badgeCount !== undefined && menu.badgeCount > 0 && (
-                            <span className="absolute -top-1 -left-2 min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 ring-2 ring-white">
-                                {menu.badgeCount}
-                            </span>
-                        )}
                       </div>
                       <span className="transition-transform duration-300">
                         {expandedMenu === menu.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -2912,18 +2907,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                           sub.subItems ? (
                             <div key={sub.id} className="space-y-1">
                               <button
-                                onClick={() => {
-                                    setExpandedSubMenu(expandedSubMenu === sub.id ? null : sub.id);
-                                    if (sub.badgeCount && sub.badgeCount > 0) {
-                                        // Mark notifications as read
-                                        const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === sub.id).map(n => n.id);
-                                        if (notifIdsToMarkRead.length > 0) {
-                                            const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
-                                            setReadNotifIds(newReadIds);
-                                            handleUpdateReadNotifications(currentUser!.id, newReadIds);
-                                        }
-                                    }
-                                }}
+                                onClick={() => setExpandedSubMenu(expandedSubMenu === sub.id ? null : sub.id)}
                                 className={`
                                   w-full flex items-center justify-between p-2.5 rounded-lg text-sm transition-all
                                   ${expandedSubMenu === sub.id ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'}
@@ -2933,16 +2917,9 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                   <span className={`${expandedSubMenu === sub.id ? 'text-primary-600' : 'text-slate-500'}`}>{sub.icon}</span>
                                   <span>{sub.label}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {sub.badgeCount !== undefined && sub.badgeCount > 0 && (
-                                        <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                                            {sub.badgeCount}
-                                        </span>
-                                    )}
-                                    <span className="transition-transform duration-300">
-                                      {expandedSubMenu === sub.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                    </span>
-                                </div>
+                                <span className="transition-transform duration-300">
+                                  {expandedSubMenu === sub.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </span>
                               </button>
                               
                               {expandedSubMenu === sub.id && (
@@ -2988,15 +2965,6 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                             onClick={() => { 
                                 setActiveItem(sub.id); 
                                 setIsSidebarOpen(false);
-                                if (sub.badgeCount && sub.badgeCount > 0) {
-                                    // Mark notifications as read
-                                    const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === sub.id).map(n => n.id);
-                                    if (notifIdsToMarkRead.length > 0) {
-                                        const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
-                                        setReadNotifIds(newReadIds);
-                                        handleUpdateReadNotifications(currentUser!.id, newReadIds);
-                                    }
-                                }
                             }}
                             className={`
                               w-full flex items-center justify-between p-2.5 rounded-lg text-sm transition-all
@@ -3007,9 +2975,6 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                 <span className={`${activeItem === sub.id ? 'text-primary-600' : 'text-slate-500'}`}>{sub.icon}</span>
                                 <span>{sub.label}</span>
                             </div>
-                            {sub.badgeCount !== undefined && sub.badgeCount > 0 && (
-                              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm">{sub.badgeCount}</span>
-                            )}
                           </button>
                           )
                         ))}
