@@ -72,7 +72,15 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
         ]
       },
       { id: 'immunization_tracking', label: 'खोप अनुगमन', icon: <Baby size={16} /> },
-      { id: 'cold_chain_log', label: 'कोल्ड चेन लग', icon: <Thermometer size={16} /> },
+      { 
+        id: 'temperature_record_log', 
+        label: 'तापक्रम रेकर्ड लग', 
+        icon: <Thermometer size={16} />,
+        subItems: [
+          { id: 'cold_chain_log', label: 'कोल्ड चेन लग', icon: <Thermometer size={16} /> },
+          { id: 'store_temperature_log', label: 'स्टोर तापक्रम लग', icon: <Warehouse size={16} /> },
+        ]
+      },
       { 
         id: 'karyakram', 
         label: 'कार्यक्रम (Programs)', 

@@ -5,7 +5,7 @@ import {
   Thermometer, Plus, Edit2, Trash2, Printer, Download, Search, 
   Calendar, AlertTriangle, CheckCircle2, XCircle, ChevronLeft, 
   ChevronRight, ShieldAlert, Smartphone, Loader2, Send, Clock, 
-  Settings, RefreshCw, AlertCircle, Info, Sparkles, Filter, History
+  Settings, RefreshCw, AlertCircle, Info, Sparkles, Filter, History, Warehouse
 } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -44,6 +44,7 @@ interface ColdChainLogProps {
   generalSettings: OrganizationSettings;
   activeOrgName?: string;
   onUpdateGeneralSettings?: (settings: Partial<OrganizationSettings>) => void;
+  onNavigateToStore?: () => void;
 }
 
 const NEPALI_MONTHS = [
@@ -70,7 +71,8 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
   onDeleteEquipment,
   currentUser,
   generalSettings,
-  activeOrgName
+  activeOrgName,
+  onNavigateToStore
 }) => {
   // Navigation / View Modes
   const [viewMode, setViewMode] = useState<'LOGS' | 'EQUIPMENT'>('LOGS');
@@ -539,7 +541,7 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-slate-800">कोल्ड चेन तापक्रम लग (EPI Cold Chain Temperature Register)</h2>
+                <h2 className="text-xl font-bold text-slate-800">कोल्ड चेन तापक्रम लग (Cold Chain Log)</h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
                   मानक दायरा: {minTemp}°C - {maxTemp}°C
                 </span>
@@ -552,18 +554,37 @@ export const ColdChainLog: React.FC<ColdChainLogProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Sub-menu Switcher Tabs */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-white text-blue-700 shadow-sm transition-all"
+            >
+              <Thermometer size={14} className="text-blue-600" />
+              कोल्ड चेन लग
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToStore?.()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+            >
+              <Warehouse size={14} className="text-amber-600" />
+              स्टोर तापक्रम लग
+            </button>
+          </div>
+
           <button
             onClick={() => setViewMode('EQUIPMENT')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
           >
-            <Settings size={15} /> उपकरण व्यवस्थापन (Fridges: {coldChainEquipment.length})
+            <Settings size={15} /> उपकरण व्यवस्थापन ({coldChainEquipment.length})
           </button>
 
           <button
             onClick={() => handleOpenEntryModal(todayBs)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-600/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-600/20 transition-all cursor-pointer"
           >
-            <Plus size={16} /> आजको तापक्रम दर्ता गर्नुहोस् (Record Temp)
+            <Plus size={16} /> आजको तापक्रम दर्ता
           </button>
         </div>
       </div>

@@ -95,6 +95,7 @@ import { OnlineReport } from './OnlineReport';
 import { AuditLogViewer } from './AuditLogViewer';
 import { ColdChainLog } from './ColdChainLog';
 import { ColdChainEquipmentManager } from './ColdChainEquipment';
+import { StoreTemperatureLog } from './StoreTemperatureLog';
 import { ALL_MENU_ITEMS, MenuItem } from '../src/constants/menuItems';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -619,7 +620,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
 
     // Cold Chain badge: missing morning/evening logs or out of range
     if (coldChainAlerts && coldChainAlerts.hasAlert) {
-      res.cold_chain_log = coldChainAlerts.missingMorning.length + coldChainAlerts.missingEvening.length + coldChainAlerts.outOfRangeToday.length;
+      const ccAlertsCount = coldChainAlerts.missingMorning.length + coldChainAlerts.missingEvening.length + coldChainAlerts.outOfRangeToday.length;
+      res.cold_chain_log = ccAlertsCount;
+      res.temperature_record_log = ccAlertsCount;
     }
 
     // 1. Mag Faram Pending
@@ -890,6 +893,22 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN', 'HEALTH_SECTION'].includes(currentUser.role)) return false;
     if (menuId === 'general_setting' && currentUser.canManageMenu) return true;
     if (currentUser.role === 'SUPER_ADMIN') return true;
+    if (menuId === 'temperature_record_log') {
+      return (
+        currentUser.allowedMenus?.includes('temperature_record_log') ||
+        currentUser.allowedMenus?.includes('cold_chain_log') ||
+        currentUser.allowedMenus?.includes('store_temperature_log') ||
+        ['ADMIN', 'STOREKEEPER', 'HEALTH_POST', 'HEALTH_SECTION'].includes(currentUser.role)
+      );
+    }
+    if (menuId === 'store_temperature_log') {
+      return (
+        currentUser.allowedMenus?.includes('store_temperature_log') ||
+        currentUser.allowedMenus?.includes('cold_chain_log') ||
+        currentUser.allowedMenus?.includes('temperature_record_log') ||
+        ['ADMIN', 'STOREKEEPER', 'HEALTH_POST', 'HEALTH_SECTION'].includes(currentUser.role)
+      );
+    }
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
 
@@ -933,6 +952,8 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
           if (item.id === 'kharid_adesh') dynamicBadge = counts.kharid_adesh;
           if (item.id === 'nikasha_pratibedan') dynamicBadge = counts.nikasha_pratibedan;
           if (item.id === 'dakhila_pratibedan') dynamicBadge = counts.dakhila_pratibedan;
+          if (item.id === 'cold_chain_log') dynamicBadge = counts.cold_chain_log;
+          if (item.id === 'temperature_record_log') dynamicBadge = counts.temperature_record_log;
           if (item.id === 'conference') dynamicBadge = unreadConferenceCount > 0 ? unreadConferenceCount : undefined;
 
           // Calculate sub-badges sum if not specifically set
@@ -1418,6 +1439,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         activeOrgName={activeOrgName}
         onSetActiveOrgName={onSetActiveOrgName}
       />;
+      case 'temperature_record_log':
       case 'cold_chain_log': return <ColdChainLog
         coldChainLogs={props.coldChainLogs || []}
         coldChainEquipment={props.coldChainEquipment || []}
@@ -1429,6 +1451,19 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         generalSettings={generalSettings}
         activeOrgName={activeOrgName}
         onUpdateGeneralSettings={onUpdateGeneralSettings}
+        onNavigateToStore={() => setActiveItem('store_temperature_log')}
+      />;
+      case 'store_temperature_log': return <StoreTemperatureLog
+        storeRooms={props.storeRooms || []}
+        storeTemperatureLogs={props.storeTemperatureLogs || []}
+        onSaveLog={props.onSaveStoreTemperatureLog!}
+        onDeleteLog={props.onDeleteStoreTemperatureLog!}
+        onSaveRoom={props.onSaveStoreRoom!}
+        onDeleteRoom={props.onDeleteStoreRoom!}
+        currentUser={currentUser}
+        generalSettings={generalSettings}
+        activeOrgName={activeOrgName}
+        onNavigateToColdChain={() => setActiveItem('cold_chain_log')}
       />;
       case 'cold_chain_equipment': return <ColdChainEquipmentManager
         equipmentList={props.coldChainEquipment || []}

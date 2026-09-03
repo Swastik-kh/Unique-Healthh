@@ -13,7 +13,7 @@ import {
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
   GaunGharClinicRecord, AuditLogEntry,
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser,
-  ColdChainEquipment, ColdChainLogEntry
+  ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry
 } from './types';
 import { db } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -125,6 +125,8 @@ const App: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [coldChainEquipment, setColdChainEquipment] = useState<ColdChainEquipment[]>([]);
   const [coldChainLogs, setColdChainLogs] = useState<ColdChainLogEntry[]>([]);
+  const [storeRooms, setStoreRooms] = useState<StoreRoom[]>([]);
+  const [storeTemperatureLogs, setStoreTemperatureLogs] = useState<StoreTemperatureLogEntry[]>([]);
   
   // Financial State
   const [financialPrograms, setFinancialPrograms] = useState<any[]>([]);
@@ -387,6 +389,8 @@ const App: React.FC = () => {
     setupOrgListener('auditLogs', setAuditLogs);
     setupOrgListener('coldChainEquipment', setColdChainEquipment);
     setupOrgListener('coldChainLogs', setColdChainLogs);
+    setupOrgListener('storeRooms', setStoreRooms);
+    setupOrgListener('storeTemperatureLogs', setStoreTemperatureLogs);
 
     // Financial Listeners
     setupOrgListener('financialPrograms', setFinancialPrograms);
@@ -596,6 +600,56 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("Error deleting cold chain log", e);
       alert("तापक्रम रेकर्ड हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveStoreRoom = async (room: StoreRoom) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const roomRef = getOrgRef(`storeRooms/${room.id}`, org);
+      const safeData = cleanForFirebase({ ...room, _orgName: org });
+      await set(roomRef, safeData);
+    } catch (e) {
+      console.error("Error saving store room", e);
+      alert("स्टोर कोठा सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteStoreRoom = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const roomRef = getOrgRef(`storeRooms/${id}`, org);
+      await remove(roomRef);
+    } catch (e) {
+      console.error("Error deleting store room", e);
+      alert("स्टोर कोठा हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveStoreTemperatureLog = async (entry: StoreTemperatureLogEntry) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const logRef = getOrgRef(`storeTemperatureLogs/${entry.id}`, org);
+      const safeData = cleanForFirebase({ ...entry, _orgName: org });
+      await set(logRef, safeData);
+    } catch (e) {
+      console.error("Error saving store temperature log", e);
+      alert("स्टोर तापक्रम रेकर्ड सुरक्षित गर्न सकिएन।");
+    }
+  };
+
+  const handleDeleteStoreTemperatureLog = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const org = (!activeOrgName || activeOrgName === 'All') ? (currentUser.organizationName || 'default') : activeOrgName;
+      const logRef = getOrgRef(`storeTemperatureLogs/${id}`, org);
+      await remove(logRef);
+    } catch (e) {
+      console.error("Error deleting store temperature log", e);
+      alert("स्टोर तापक्रम रेकर्ड हटाउन सकिएन।");
     }
   };
 
@@ -2232,6 +2286,12 @@ const App: React.FC = () => {
     onDeleteColdChainEquipment={handleDeleteColdChainEquipment}
     onSaveColdChainLog={handleSaveColdChainLog}
     onDeleteColdChainLog={handleDeleteColdChainLog}
+    storeRooms={storeRooms}
+    storeTemperatureLogs={storeTemperatureLogs}
+    onSaveStoreRoom={handleSaveStoreRoom}
+    onDeleteStoreRoom={handleDeleteStoreRoom}
+    onSaveStoreTemperatureLog={handleSaveStoreTemperatureLog}
+    onDeleteStoreTemperatureLog={handleDeleteStoreTemperatureLog}
     onSaveGaunGharClinicRecord={handleSaveGaunGharClinicRecord}
     onDeleteGaunGharClinicRecord={handleDeleteGaunGharClinicRecord}
     onUpdateReadNotifications={handleUpdateReadNotifications}

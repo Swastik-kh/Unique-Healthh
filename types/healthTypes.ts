@@ -400,5 +400,35 @@ export interface ColdChainLogEntry {
   _orgName?: string;
 }
 
+export interface StoreRoom {
+  id: string;
+  name: string; // e.g. "मुख्य औषधि स्टोर (Main Medicine Store)", "खोप कक्ष (Vaccine Room)", "जिन्सी तथा सर्जिकल स्टोर (Surgical/General Store)"
+  roomCode?: string;
+  location?: string;
+  minTempC: number; // default 15
+  maxTempC: number; // default 25
+  maxHumidityPercent?: number; // default 65
+  isActive: boolean;
+  remarks?: string;
+  _orgName?: string;
+}
+
+export interface StoreTemperatureLogEntry {
+  id: string;
+  roomId: string;
+  roomName: string;
+  dateBs: string;
+  dateAd: string;
+  session: 'Morning' | 'Evening';
+  tempCelsius: number;
+  humidityPercent?: number;
+  isOutOfRange: boolean;
+  recordedBy: string;
+  recordedByUid: string;
+  remarks?: string;
+  correctiveAction?: string;
+  _orgName?: string;
+}
+
 
 

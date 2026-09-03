@@ -115,7 +115,14 @@ const PERMISSION_STRUCTURE = [
                 ]
             },
             { id: 'immunization_tracking', label: 'खोप अनुगमन (Immunization Tracking)' },
-            { id: 'cold_chain_log', label: 'कोल्ड चेन लग (Cold Chain Log)' }
+            { 
+                id: 'temperature_record_log', 
+                label: 'तापक्रम रेकर्ड लग (Temperature Record Log)',
+                children: [
+                    { id: 'cold_chain_log', label: 'कोल्ड चेन लग (Cold Chain Log)' },
+                    { id: 'store_temperature_log', label: 'स्टोर तापक्रम लग (Store Temperature Log)' }
+                ]
+            }
         ]
     },
     {
