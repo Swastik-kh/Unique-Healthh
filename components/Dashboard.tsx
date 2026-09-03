@@ -2912,7 +2912,18 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                           sub.subItems ? (
                             <div key={sub.id} className="space-y-1">
                               <button
-                                onClick={() => setExpandedSubMenu(expandedSubMenu === sub.id ? null : sub.id)}
+                                onClick={() => {
+                                    setExpandedSubMenu(expandedSubMenu === sub.id ? null : sub.id);
+                                    if (sub.badgeCount && sub.badgeCount > 0) {
+                                        // Mark notifications as read
+                                        const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === sub.id).map(n => n.id);
+                                        if (notifIdsToMarkRead.length > 0) {
+                                            const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
+                                            setReadNotifIds(newReadIds);
+                                            handleUpdateReadNotifications(currentUser!.id, newReadIds);
+                                        }
+                                    }
+                                }}
                                 className={`
                                   w-full flex items-center justify-between p-2.5 rounded-lg text-sm transition-all
                                   ${expandedSubMenu === sub.id ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'}
@@ -2922,9 +2933,16 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                   <span className={`${expandedSubMenu === sub.id ? 'text-primary-600' : 'text-slate-500'}`}>{sub.icon}</span>
                                   <span>{sub.label}</span>
                                 </div>
-                                <span className="transition-transform duration-300">
-                                  {expandedSubMenu === sub.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    {sub.badgeCount !== undefined && sub.badgeCount > 0 && (
+                                        <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                            {sub.badgeCount}
+                                        </span>
+                                    )}
+                                    <span className="transition-transform duration-300">
+                                      {expandedSubMenu === sub.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    </span>
+                                </div>
                               </button>
                               
                               {expandedSubMenu === sub.id && (
@@ -2932,14 +2950,33 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                   {sub.subItems.map((child) => (
                                     <button
                                       key={child.id}
-                                      onClick={() => { setActiveItem(child.id); setIsSidebarOpen(false); }}
+                                      onClick={() => { 
+                                        setActiveItem(child.id); 
+                                        setIsSidebarOpen(false);
+                                        if (child.badgeCount && child.badgeCount > 0) {
+                                            // Mark notifications as read
+                                            const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === child.id).map(n => n.id);
+                                            if (notifIdsToMarkRead.length > 0) {
+                                                const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
+                                                setReadNotifIds(newReadIds);
+                                                handleUpdateReadNotifications(currentUser!.id, newReadIds);
+                                            }
+                                        }
+                                      }}
                                       className={`
-                                        w-full flex items-center gap-3 p-2 rounded-lg text-xs transition-all
+                                        w-full flex items-center justify-between p-2 rounded-lg text-xs transition-all
                                         ${activeItem === child.id ? 'text-primary-700 font-bold bg-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}
                                       `}
                                     >
-                                      <span className={`${activeItem === child.id ? 'text-primary-600' : 'text-slate-400'}`}>{child.icon}</span>
-                                      <span>{child.label}</span>
+                                      <div className="flex items-center gap-3">
+                                        <span className={`${activeItem === child.id ? 'text-primary-600' : 'text-slate-400'}`}>{child.icon}</span>
+                                        <span>{child.label}</span>
+                                      </div>
+                                      {child.badgeCount !== undefined && child.badgeCount > 0 && (
+                                        <span className="min-w-[16px] h-[16px] bg-red-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                                            {child.badgeCount}
+                                        </span>
+                                      )}
                                     </button>
                                   ))}
                                 </div>
@@ -2948,16 +2985,30 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                           ) : (
                           <button
                             key={sub.id}
-                            onClick={() => { setActiveItem(sub.id); setIsSidebarOpen(false); }}
+                            onClick={() => { 
+                                setActiveItem(sub.id); 
+                                setIsSidebarOpen(false);
+                                if (sub.badgeCount && sub.badgeCount > 0) {
+                                    // Mark notifications as read
+                                    const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === sub.id).map(n => n.id);
+                                    if (notifIdsToMarkRead.length > 0) {
+                                        const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
+                                        setReadNotifIds(newReadIds);
+                                        handleUpdateReadNotifications(currentUser!.id, newReadIds);
+                                    }
+                                }
+                            }}
                             className={`
-                              w-full flex items-center gap-3 p-2.5 rounded-lg text-sm transition-all
+                              w-full flex items-center justify-between p-2.5 rounded-lg text-sm transition-all
                               ${activeItem === sub.id ? 'text-primary-700 font-black bg-white shadow-sm' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'}
                             `}
                           >
-                            <span className={`${activeItem === sub.id ? 'text-primary-600' : 'text-slate-500'}`}>{sub.icon}</span>
-                            <span>{sub.label}</span>
+                            <div className="flex items-center gap-3">
+                                <span className={`${activeItem === sub.id ? 'text-primary-600' : 'text-slate-500'}`}>{sub.icon}</span>
+                                <span>{sub.label}</span>
+                            </div>
                             {sub.badgeCount !== undefined && sub.badgeCount > 0 && (
-                              <span className="ml-auto bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm">{sub.badgeCount}</span>
+                              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm">{sub.badgeCount}</span>
                             )}
                           </button>
                           )
