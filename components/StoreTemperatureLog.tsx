@@ -411,9 +411,204 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
     };
   }, [monthlyLogs]);
 
-  // Print Handler
+  // Print Handler: Guarantees exact 1-page fit in A4 Portrait
   const handlePrintMonthlyLog = () => {
-    window.print();
+    const printContent = document.getElementById('store-temperature-print-content');
+    if (!printContent) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const monthLabel = NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label || selectedMonth;
+    const roomTitle = currentRoom?.name || 'स्टोर कक्ष';
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>स्टोर तापक्रम तथा आद्रता लग - ${roomTitle} (${monthLabel} ${selectedYear})</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700;800&family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 4mm 6mm 3mm 6mm;
+            }
+            @media print {
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: 100% !important;
+                overflow: hidden !important;
+              }
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: 'Mukta', sans-serif;
+              font-size: 9px;
+              line-height: 1.15;
+              color: #0f172a;
+              background: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .sheet-wrap {
+              width: 100%;
+              max-width: 100%;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .header-box {
+              position: relative;
+              text-align: center;
+              padding-bottom: 2px;
+              margin-bottom: 3px;
+              border-bottom: 1.5px solid #0f172a;
+            }
+            .header-logo {
+              position: absolute;
+              left: 2px;
+              top: 0;
+              height: 38px;
+              width: 38px;
+              object-fit: contain;
+            }
+            .header-texts {
+              padding: 0 42px;
+            }
+            .org-title {
+              font-size: 13.5px;
+              font-weight: 800;
+              color: #dc2626;
+              line-height: 1.15;
+              margin: 0;
+            }
+            .sub-title-1 {
+              font-size: 10.5px;
+              font-weight: 700;
+              color: #1e293b;
+              line-height: 1.15;
+              margin: 1px 0 0 0;
+            }
+            .sub-title-2 {
+              font-size: 9.5px;
+              font-weight: 600;
+              color: #475569;
+              line-height: 1.15;
+              margin: 0;
+            }
+            .doc-title {
+              margin-top: 2px;
+              font-size: 11px;
+              font-weight: 800;
+              color: #0f172a;
+              text-decoration: underline;
+              line-height: 1.15;
+            }
+            .meta-strip {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 9.5px;
+              font-weight: 700;
+              background: #f8fafc;
+              border: 1px solid #cbd5e1;
+              border-radius: 3px;
+              padding: 2px 6px;
+              margin-bottom: 3px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+            }
+            th, td {
+              border: 1px solid #334155;
+              padding: 1px 2px;
+              text-align: center;
+              font-size: 8.5px;
+              line-height: 1.15;
+              height: 16px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            th {
+              background-color: #f1f5f9;
+              font-weight: 700;
+              font-size: 9px;
+              padding: 1.5px 2px;
+            }
+            .bg-morning { background-color: #fef3c7 !important; }
+            .bg-evening { background-color: #e0f2fe !important; }
+            .out-of-range {
+              background-color: #fee2e2 !important;
+              color: #b91c1c !important;
+              font-weight: bold;
+            }
+            .font-mono { font-family: 'Fira Code', monospace; }
+            .summary-row td {
+              background-color: #f8fafc;
+              font-weight: bold;
+              font-size: 8.5px;
+              height: 17px;
+            }
+            .signatures-grid {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: 6px;
+              padding: 0 12px;
+              font-size: 9px;
+              font-weight: 700;
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .sig-col {
+              width: 180px;
+              text-align: center;
+            }
+            .sig-line {
+              border-top: 1px dashed #475569;
+              margin-top: 14px;
+              padding-top: 2px;
+              color: #334155;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="sheet-wrap">
+            ${printContent.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2000);
+    }, 400);
   };
 
   // Room Management Save
@@ -942,105 +1137,152 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
         </div>
       </div>
 
-      {/* PRINTABLE REPORT SHEET: Full 1 to 32 days Store Room Temperature & Humidity Sheet */}
-      <div id="store-temperature-print" className="hidden print:block p-6 font-nepali text-slate-900 bg-white">
-        {/* Header */}
-        <div className="text-center border-b-2 border-slate-800 pb-4 mb-4">
-          <h1 className="text-xl font-black text-red-600">
-            {generalSettings.orgNameNepali || 'स्वास्थ्य संस्था'}
-          </h1>
-          {generalSettings.subTitleNepali && (
-            <h2 className="text-sm font-bold text-slate-800">{generalSettings.subTitleNepali}</h2>
-          )}
-          {generalSettings.subTitleNepali2 && (
-            <h3 className="text-xs text-slate-700">{generalSettings.subTitleNepali2}</h3>
-          )}
-          <h2 className="text-base font-black underline mt-2 text-slate-900">
-            स्टोर कोठा दैनिक तापक्रम तथा आद्रता रेकर्ड लग (Store Room Temperature & Humidity Log)
-          </h2>
-          <div className="flex items-center justify-between text-xs font-bold mt-2 px-2">
-            <span>स्टोर कक्ष: {currentRoom?.name || 'मुख्य औषधि स्टोर'}</span>
-            <span>मानक दायरा: १५°C देखि २५°C | आद्रता: &lt; ६५% RH</span>
-            <span>अवधि: {NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear}</span>
+      {/* PRINTABLE REPORT SHEET: Full 1 to 32 days Store Room Temperature & Humidity Sheet (Guaranteed 1-Page Fit) */}
+      <div id="store-temperature-print" className="hidden">
+        <div id="store-temperature-print-content">
+          {/* Header */}
+          <div className="header-box">
+            <img 
+              src={generalSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+              alt="Nepal Emblem" 
+              className="header-logo" 
+            />
+            <div className="header-texts">
+              <h1 className="org-title">{generalSettings.orgNameNepali || 'स्वास्थ्य संस्था'}</h1>
+              {generalSettings.subTitleNepali && <h2 className="sub-title-1">{generalSettings.subTitleNepali}</h2>}
+              {generalSettings.subTitleNepali2 && <h3 className="sub-title-2">{generalSettings.subTitleNepali2}</h3>}
+              <div className="doc-title">
+                औषधि तथा सामग्री भण्डारण कक्ष दैनिक तापक्रम तथा आद्रता लग पाना
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* 1-32 Table */}
-        <table className="w-full text-[10.5px] border-collapse border border-slate-800 text-center">
-          <thead>
-            <tr className="bg-slate-100">
-              <th rowSpan={2} className="border border-slate-800 p-1 w-12">गते (Day)</th>
-              <th colSpan={3} className="border border-slate-800 p-1 bg-amber-50/50">बिहानको समय (०९:०० - १०:००)</th>
-              <th colSpan={3} className="border border-slate-800 p-1 bg-blue-50/50">अपराह्नको समय (०४:०० - ०५:००)</th>
-              <th rowSpan={2} className="border border-slate-800 p-1">कैफियत / सुधार कार्य (Remarks / Action)</th>
-            </tr>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-800 p-1">तापक्रम (°C)</th>
-              <th className="border border-slate-800 p-1">आद्रता (% RH)</th>
-              <th className="border border-slate-800 p-1">हस्ताक्षर</th>
-              <th className="border border-slate-800 p-1">तापक्रम (°C)</th>
-              <th className="border border-slate-800 p-1">आद्रता (% RH)</th>
-              <th className="border border-slate-800 p-1">हस्ताक्षर</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: daysInSelectedMonth }, (_, i) => i + 1).map(day => {
-              const dayData = monthlyDayMap.get(day);
-              const m = dayData?.morning;
-              const e = dayData?.evening;
-
-              const mOutOfRange = m?.isOutOfRange;
-              const eOutOfRange = e?.isOutOfRange;
-
-              const remarksList = [m?.correctiveAction || m?.remarks, e?.correctiveAction || e?.remarks].filter(Boolean);
-
-              return (
-                <tr key={day} className="h-6">
-                  <td className="border border-slate-800 font-bold font-mono">{toNepaliDigits(day)}</td>
-                  
-                  {/* Morning */}
-                  <td className={`border border-slate-800 font-mono font-bold ${mOutOfRange ? 'text-red-600 underline' : ''}`}>
-                    {m ? `${m.tempCelsius}°C` : ''}
-                  </td>
-                  <td className="border border-slate-800 font-mono">
-                    {m?.humidityPercent !== undefined ? `${m.humidityPercent}%` : ''}
-                  </td>
-                  <td className="border border-slate-800 text-[9.5px]">
-                    {m?.recordedBy || ''}
-                  </td>
-
-                  {/* Evening */}
-                  <td className={`border border-slate-800 font-mono font-bold ${eOutOfRange ? 'text-red-600 underline' : ''}`}>
-                    {e ? `${e.tempCelsius}°C` : ''}
-                  </td>
-                  <td className="border border-slate-800 font-mono">
-                    {e?.humidityPercent !== undefined ? `${e.humidityPercent}%` : ''}
-                  </td>
-                  <td className="border border-slate-800 text-[9.5px]">
-                    {e?.recordedBy || ''}
-                  </td>
-
-                  {/* Remarks */}
-                  <td className="border border-slate-800 text-left px-2 text-[9.5px]">
-                    {remarksList.join('; ')}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Signatures */}
-        <div className="grid grid-cols-2 mt-8 pt-4 text-xs font-bold">
-          <div className="text-left space-y-1">
-            <p>तयार गर्ने (स्टोर प्रमुख / शाखा प्रमुख):</p>
-            <p className="mt-8 text-slate-500">दस्तखत: ______________________</p>
-            <p>मिति: ________________________</p>
+          {/* Meta Info Strip */}
+          <div className="meta-strip">
+            <span><b>कक्ष:</b> {currentRoom?.name || 'मुख्य औषधि स्टोर'} {currentRoom?.roomCode ? `(${currentRoom.roomCode})` : ''}</span>
+            <span><b>मानक दायरा:</b> {toNepaliDigits(minTemp)}°C देखि {toNepaliDigits(maxTemp)}°C | <b>आद्रता:</b> &lt; {toNepaliDigits(maxHumidity)}% RH</span>
+            <span><b>अवधि:</b> {NEPALI_MONTHS.find(m => m.value === selectedMonth)?.label} {selectedYear} ({toNepaliDigits(daysInSelectedMonth)} दिन)</span>
           </div>
-          <div className="text-right space-y-1">
-            <p>प्रमाणीकरण गर्ने (कार्यालय प्रमुख):</p>
-            <p className="mt-8 text-slate-500">दस्तखत: ______________________</p>
-            <p>मिति: ________________________</p>
+
+          {/* 1-32 Days Table */}
+          <table>
+            <thead>
+              <tr>
+                <th rowSpan={2} style={{ width: '32px' }}>गते</th>
+                <th colSpan={3} className="bg-morning">बिहानको समय (०९:०० - १०:००)</th>
+                <th colSpan={3} className="bg-evening">अपराह्नको समय (०४:०० - ०५:००)</th>
+                <th rowSpan={2} style={{ width: '44px' }}>अवस्था</th>
+                <th rowSpan={2}>कैफियत / सुधारात्मक कदम (Remarks / Action)</th>
+              </tr>
+              <tr>
+                <th style={{ width: '54px' }}>तापक्रम (°C)</th>
+                <th style={{ width: '50px' }}>आद्रता (% RH)</th>
+                <th style={{ width: '68px' }}>रेकर्डकर्ता</th>
+                <th style={{ width: '54px' }}>तापक्रम (°C)</th>
+                <th style={{ width: '50px' }}>आद्रता (% RH)</th>
+                <th style={{ width: '68px' }}>रेकर्डकर्ता</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: daysInSelectedMonth }, (_, i) => i + 1).map(day => {
+                const dayData = monthlyDayMap.get(day);
+                const m = dayData?.morning;
+                const e = dayData?.evening;
+
+                const mOutOfRange = m?.isOutOfRange;
+                const eOutOfRange = e?.isOutOfRange;
+                const isBreach = mOutOfRange || eOutOfRange;
+
+                const remarksList = [m?.correctiveAction || m?.remarks, e?.correctiveAction || e?.remarks].filter(Boolean);
+
+                return (
+                  <tr key={day}>
+                    <td className="font-mono"><b>{toNepaliDigits(day)}</b></td>
+                    
+                    {/* Morning */}
+                    <td className={`font-mono ${mOutOfRange ? 'out-of-range' : ''}`}>
+                      {m ? `${m.tempCelsius}°C` : ''}
+                    </td>
+                    <td className="font-mono">
+                      {m?.humidityPercent !== undefined ? `${m.humidityPercent}%` : ''}
+                    </td>
+                    <td>
+                      {m?.recordedBy || ''}
+                    </td>
+
+                    {/* Evening */}
+                    <td className={`font-mono ${eOutOfRange ? 'out-of-range' : ''}`}>
+                      {e ? `${e.tempCelsius}°C` : ''}
+                    </td>
+                    <td className="font-mono">
+                      {e?.humidityPercent !== undefined ? `${e.humidityPercent}%` : ''}
+                    </td>
+                    <td>
+                      {e?.recordedBy || ''}
+                    </td>
+
+                    {/* Status */}
+                    <td className={isBreach ? 'out-of-range' : ''}>
+                      {isBreach ? 'विचलन' : (m || e ? 'सामान्य' : '-')}
+                    </td>
+
+                    {/* Remarks */}
+                    <td style={{ textAlign: 'left', paddingLeft: '4px' }}>
+                      {remarksList.join('; ')}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Monthly Summary Row */}
+              <tr className="summary-row">
+                <td><b>औसत</b></td>
+                <td className="font-mono">
+                  {monthlyLogs.filter(l => l.session === 'Morning').length > 0 ? (
+                    `${(monthlyLogs.filter(l => l.session === 'Morning').reduce((acc, l) => acc + l.tempCelsius, 0) / monthlyLogs.filter(l => l.session === 'Morning').length).toFixed(1)}°C`
+                  ) : '-'}
+                </td>
+                <td className="font-mono">
+                  {monthlyLogs.filter(l => l.session === 'Morning' && l.humidityPercent !== undefined).length > 0 ? (
+                    `${Math.round(monthlyLogs.filter(l => l.session === 'Morning' && l.humidityPercent !== undefined).reduce((acc, l) => acc + (l.humidityPercent || 0), 0) / monthlyLogs.filter(l => l.session === 'Morning' && l.humidityPercent !== undefined).length)}%`
+                  ) : '-'}
+                </td>
+                <td>-</td>
+                <td className="font-mono">
+                  {monthlyLogs.filter(l => l.session === 'Evening').length > 0 ? (
+                    `${(monthlyLogs.filter(l => l.session === 'Evening').reduce((acc, l) => acc + l.tempCelsius, 0) / monthlyLogs.filter(l => l.session === 'Evening').length).toFixed(1)}°C`
+                  ) : '-'}
+                </td>
+                <td className="font-mono">
+                  {monthlyLogs.filter(l => l.session === 'Evening' && l.humidityPercent !== undefined).length > 0 ? (
+                    `${Math.round(monthlyLogs.filter(l => l.session === 'Evening' && l.humidityPercent !== undefined).reduce((acc, l) => acc + (l.humidityPercent || 0), 0) / monthlyLogs.filter(l => l.session === 'Evening' && l.humidityPercent !== undefined).length)}%`
+                  ) : '-'}
+                </td>
+                <td>-</td>
+                <td className={monthlyStats.outOfRangeCount > 0 ? 'out-of-range' : ''}>
+                  {monthlyStats.outOfRangeCount > 0 ? `${toNepaliDigits(monthlyStats.outOfRangeCount)} विचलन` : 'सुरक्षित'}
+                </td>
+                <td style={{ textAlign: 'left', paddingLeft: '4px' }}>
+                  {monthlyStats.outOfRangeCount > 0 ? 'विचलन रेकर्ड भएकोमा सुधारात्मक कदम चालिएको छ।' : 'सम्पूर्ण महिना तापक्रम तथा आद्रता सुरक्षित दायराभित्र रहेको।'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Signatures */}
+          <div className="signatures-grid">
+            <div className="sig-col">
+              <p>तयार गर्ने (स्टोरकिपर / शाखा प्रमुख):</p>
+              <div className="sig-line">
+                <p>दस्तखत र मिति</p>
+              </div>
+            </div>
+            <div className="sig-col">
+              <p>प्रमाणीकरण गर्ने (स्वास्थ्य संस्था / कार्यालय प्रमुख):</p>
+              <div className="sig-line">
+                <p>हस्ताक्षर, नाम र कार्यालयको छाप</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
