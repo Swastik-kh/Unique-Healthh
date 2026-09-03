@@ -1199,6 +1199,8 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
               <h1 className="org-title">{generalSettings.orgNameNepali || 'स्वास्थ्य संस्था'}</h1>
               {generalSettings.subTitleNepali && <h2 className="sub-title-1">{generalSettings.subTitleNepali}</h2>}
               {generalSettings.subTitleNepali2 && <h3 className="sub-title-2">{generalSettings.subTitleNepali2}</h3>}
+                {generalSettings.subTitleNepali3 && <h4 className="sub-title-3">{generalSettings.subTitleNepali3}</h4>}
+                {generalSettings.subTitleNepali4 && <h5 className="sub-title-4">{generalSettings.subTitleNepali4}</h5>}
               <div className="doc-title">
                 औषधि तथा सामग्री भण्डारण कक्ष दैनिक तापक्रम तथा आद्रता लग पाना
               </div>
