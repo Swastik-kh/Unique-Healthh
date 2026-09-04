@@ -302,6 +302,10 @@ export interface AmbulanceRecord {
   amountCharged: number;
   receivedAmount: number;
   remarks?: string;
+  isDiscounted?: boolean;
+  discountRecommendedBy?: string;
+  discountAmount?: number;
+  discountPercentage?: number;
 }
 
 export interface AmbulanceExpenseRecord {

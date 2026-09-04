@@ -261,7 +261,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     endOdometer: undefined,
     amountCharged: 0,
     receivedAmount: 0,
-    remarks: ''
+    remarks: '',
+    isDiscounted: false,
+    discountRecommendedBy: '',
+    discountAmount: undefined,
+    discountPercentage: undefined
   }));
 
   const handlePatientSelect = (patient: ServiceSeekerRecord) => {
@@ -318,7 +322,11 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       endOdometer: formData.endOdometer !== undefined ? Number(formData.endOdometer) : undefined,
       amountCharged: formData.amountCharged !== undefined && formData.amountCharged !== null ? Number(formData.amountCharged) : 0,
       receivedAmount: formData.receivedAmount !== undefined && formData.receivedAmount !== null ? Number(formData.receivedAmount) : 0,
-      remarks: formData.remarks || ''
+      remarks: formData.remarks || '',
+      isDiscounted: formData.isDiscounted || false,
+      discountRecommendedBy: formData.discountRecommendedBy || '',
+      discountAmount: formData.discountAmount !== undefined ? Number(formData.discountAmount) : undefined,
+      discountPercentage: formData.discountPercentage !== undefined ? Number(formData.discountPercentage) : undefined
     };
 
     const success = onSave ? await onSave(record) : false;
@@ -1296,6 +1304,62 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     disabled={isEditingAndNonAdmin}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono font-bold text-emerald-600 disabled:opacity-75 disabled:bg-slate-100 disabled:cursor-not-allowed"
                   />
+                </div>
+
+                {/* Discount Option */}
+                <div className="space-y-1.5 lg:col-span-3">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 font-nepali cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isDiscounted || false}
+                      onChange={e => setFormData({...formData, isDiscounted: e.target.checked, discountRecommendedBy: e.target.checked ? formData.discountRecommendedBy : '', discountAmount: e.target.checked ? formData.discountAmount : undefined, discountPercentage: e.target.checked ? formData.discountPercentage : undefined})}
+                      disabled={isEditingAndNonAdmin}
+                      className="size-4 rounded text-rose-600 focus:ring-rose-500"
+                    />
+                    छुट सुविधा (Discount Facility)
+                  </label>
+                  
+                  {formData.isDiscounted && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3 p-4 bg-rose-50/50 rounded-2xl border border-rose-100">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-600 font-nepali">सिफारिसकर्ता (Recommended By) *</label>
+                        <select
+                          required
+                          value={formData.discountRecommendedBy || ''}
+                          onChange={e => setFormData({...formData, discountRecommendedBy: e.target.value})}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
+                        >
+                          <option value="">छान्नुहोस्</option>
+                          <option value="नगर प्रमुख">नगर प्रमुख</option>
+                          <option value="नगर उपप्रमुख">नगर उपप्रमुख</option>
+                          <option value="अध्यक्ष">अध्यक्ष</option>
+                          <option value="स्वास्थ्य चौकी प्रमुख">स्वास्थ्य चौकी प्रमुख</option>
+                          <option value="एम्बुलेन्स चालक स्वयमको निर्णय">एम्बुलेन्स चालक स्वयमको निर्णय</option>
+                          <option value="अन्य">अन्य</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-600 font-nepali">छुट रकम रु. (Discount Amount)</label>
+                        <input
+                          type="number"
+                          placeholder="रकम (रु)"
+                          value={formData.discountAmount || ''}
+                          onChange={e => setFormData({...formData, discountAmount: e.target.value === '' ? undefined : Number(e.target.value)})}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-600 font-nepali">छुट प्रतिशत % (Discount %)</label>
+                        <input
+                          type="number"
+                          placeholder="प्रतिशत (%)"
+                          value={formData.discountPercentage || ''}
+                          onChange={e => setFormData({...formData, discountPercentage: e.target.value === '' ? undefined : Number(e.target.value)})}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Remarks/Kaifiyat */}
