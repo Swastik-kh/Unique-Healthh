@@ -176,7 +176,8 @@ const PERMISSION_STRUCTURE = [
                 label: 'बिलिङ रिपोर्ट (Billing Report)',
                 children: [
                     { id: 'report_billing_sewa', label: 'सेवा बिलिङ रिपोर्ट (Service Billing Report)' },
-                    { id: 'report_billing_ambulance', label: 'एम्बुलेन्स सेवा आय/व्यय रिपोर्ट (Ambulance Service Report)' }
+                    { id: 'report_billing_ambulance', label: 'एम्बुलेन्स सेवा आय/व्यय रिपोर्ट (Ambulance Service Report)' },
+                    { id: 'report_billing_ambulance_driver', label: 'एम्बुलेन्स चालक प्रोत्साहन रिपोर्ट (Ambulance Driver Incentive Report)' }
                 ]
             },
             { 

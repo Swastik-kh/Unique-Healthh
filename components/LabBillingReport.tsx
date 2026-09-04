@@ -104,7 +104,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   }, [curNepaliDate]);
 
   // Filters state
-  const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance' | 'Protsahan'>('Sewa');
+  const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance' | 'Protsahan' | 'AmbulanceProtsahan'>('Sewa');
   const [ambulanceReportType, setAmbulanceReportType] = useState<'income' | 'expense'>('income');
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear);
 
@@ -115,10 +115,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedAmbulanceExpenseCategory, setSelectedAmbulanceExpenseCategory] = useState<string>('All');
+  const [selectedAmbulanceDriver, setSelectedAmbulanceDriver] = useState<string>('All');
   const [selectedService, setSelectedService] = useState<string>('All');
   const [selectedReferredBy, setSelectedReferredBy] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
+
+  // Ambulance Driver Incentive percentage state
+  const [ambulanceDriverIncentivePercent, setAmbulanceDriverIncentivePercent] = useState<number>(() => {
+    const saved = localStorage.getItem('protsahan_ambulance_driver_percent');
+    return saved ? Number(saved) : 15;
+  });
+  const [isDriverSettingsEditing, setIsDriverSettingsEditing] = useState<boolean>(false);
+  const [tempDriverIncentivePercent, setTempDriverIncentivePercent] = useState<number>(15);
 
   const getRecordAgeGender = (record: BillingRecord) => {
     let age = record.age;
@@ -222,7 +231,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       let userId: string | undefined;
       if (reportSource === 'Sewa') {
         userId = generalSettings.sewaBillingUserId;
-      } else if (reportSource === 'Ambulance') {
+      } else if (reportSource === 'Ambulance' || reportSource === 'AmbulanceProtsahan') {
         userId = generalSettings.ambulanceSewaUserId;
       }
       
@@ -234,7 +243,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       let userId: string | undefined;
       if (reportSource === 'Sewa') {
         userId = generalSettings.sewaBillingUserId;
-      } else if (reportSource === 'Ambulance') {
+      } else if (reportSource === 'Ambulance' || reportSource === 'AmbulanceProtsahan') {
         userId = generalSettings.ambulanceSewaUserId;
       }
       
@@ -300,11 +309,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return [...billingRecords, ...virtualRecords];
   }, [billingRecords, serviceSeekerRecords, currentFiscalYear]);
 
-  const hasSourceAccess = (source: 'Sewa' | 'Ambulance' | 'Protsahan') => {
+  const hasSourceAccess = (source: 'Sewa' | 'Ambulance' | 'Protsahan' | 'AmbulanceProtsahan') => {
     if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN') return true;
     if (source === 'Protsahan') {
       return currentUser.allowedMenus?.includes('report_billing_sewa') || false;
+    }
+    if (source === 'AmbulanceProtsahan') {
+      return currentUser.allowedMenus?.includes('report_billing_ambulance_driver') || currentUser.allowedMenus?.includes('report_billing_ambulance') || false;
     }
     const key = source === 'Sewa' ? 'report_billing_sewa' : 'report_billing_ambulance';
     return currentUser.allowedMenus?.includes(key) || false;
@@ -315,7 +327,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     if (currentUser.role === 'SUPER_ADMIN') return true;
     return (
       currentUser.allowedMenus?.includes('report_billing_sewa') ||
-      currentUser.allowedMenus?.includes('report_billing_ambulance')
+      currentUser.allowedMenus?.includes('report_billing_ambulance') ||
+      currentUser.allowedMenus?.includes('report_billing_ambulance_driver')
     );
   }, [currentUser]);
 
@@ -323,7 +336,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   React.useEffect(() => {
     if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
       if (!hasSourceAccess(reportSource)) {
-        const sources: ('Sewa' | 'Ambulance' | 'Protsahan')[] = ['Sewa', 'Ambulance', 'Protsahan'];
+        const sources: ('Sewa' | 'Ambulance' | 'Protsahan' | 'AmbulanceProtsahan')[] = ['Sewa', 'Ambulance', 'Protsahan', 'AmbulanceProtsahan'];
         const firstAllowed = sources.find(s => hasSourceAccess(s));
         if (firstAllowed) {
           setReportSource(firstAllowed);
@@ -577,6 +590,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     
     if (reportSource === 'Protsahan') {
       return `आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`;
+    } else if (reportSource === 'AmbulanceProtsahan') {
+      const driverSuffix = selectedAmbulanceDriver !== 'All' ? ` - चालक: ${selectedAmbulanceDriver}` : '';
+      return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण${driverSuffix}`;
     } else if (reportSource === 'Sewa') {
       return `आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`;
     } else {
@@ -593,7 +609,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`;
     }
 
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory]);
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory, selectedAmbulanceDriver]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
@@ -606,6 +622,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     
     if (reportSource === 'Protsahan') {
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`);
+    } else if (reportSource === 'AmbulanceProtsahan') {
+      const driverSuffix = selectedAmbulanceDriver !== 'All' ? ` - चालक: ${selectedAmbulanceDriver}` : '';
+      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण${driverSuffix}`);
     } else if (reportSource === 'Sewa') {
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`);
     } else {
@@ -622,7 +641,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`);
     }
 
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory]);
+  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory, selectedAmbulanceDriver]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
@@ -830,10 +849,118 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     });
   }, [ambulanceExpenseRecords, selectedFiscalYear, selectedMonth, searchQuery, selectedAmbulanceExpenseCategory]);
 
+  // Driver options list
+  const ambulanceDriverOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (generalSettings?.ambulanceDriverName?.trim()) {
+      set.add(generalSettings.ambulanceDriverName.trim());
+    }
+    (ambulanceRecords || []).forEach(r => {
+      if (r.driverName?.trim()) set.add(r.driverName.trim());
+    });
+    return Array.from(set).sort();
+  }, [ambulanceRecords, generalSettings?.ambulanceDriverName]);
+
+  // Filtered trips for Ambulance Driver Protsahan
+  const filteredAmbulanceDriverTrips = useMemo(() => {
+    return (ambulanceRecords || []).filter((record) => {
+      // 1. Fiscal Year Match
+      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
+      if (!fyMatch) return false;
+
+      // 2. Month Match
+      if (selectedMonth !== 'all') {
+        const dateStr = record.dateBs || '';
+        const dateParts = dateStr.split(/[-/]/);
+        if (dateParts.length < 2) return false;
+        const recordMonth = dateParts[1];
+        
+        const targetMonthParsed = parseInt(selectedMonth);
+        const recordMonthParsed = parseInt(recordMonth);
+        if (targetMonthParsed !== recordMonthParsed) return false;
+      }
+
+      // 3. Driver Filter
+      if (selectedAmbulanceDriver !== 'All') {
+        if ((record.driverName || '').trim().toLowerCase() !== selectedAmbulanceDriver.trim().toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 4. Search Query Match
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase().trim();
+        const pName = record.patientName?.toLowerCase() || '';
+        const drName = record.driverName?.toLowerCase() || '';
+        const ambNo = record.ambulanceNo?.toLowerCase() || '';
+        const dest = record.destination?.toLowerCase() || '';
+        const start = record.startLocation?.toLowerCase() || '';
+        const bill = record.billNo?.toLowerCase() || '';
+        if (!pName.includes(query) && !drName.includes(query) && !ambNo.includes(query) && !dest.includes(query) && !start.includes(query) && !bill.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      return (a.dateBs || '').localeCompare(b.dateBs || '');
+    });
+  }, [ambulanceRecords, selectedFiscalYear, selectedMonth, selectedAmbulanceDriver, searchQuery]);
+
+  // Trip-level driver incentive calculated items
+  const ambulanceDriverTripData = useMemo(() => {
+    return filteredAmbulanceDriverTrips.map(trip => {
+      const fareAmount = trip.receivedAmount || 0;
+      const incentiveAmount = fareAmount * (ambulanceDriverIncentivePercent / 100);
+      return {
+        trip,
+        fareAmount,
+        incentiveAmount
+      };
+    });
+  }, [filteredAmbulanceDriverTrips, ambulanceDriverIncentivePercent]);
+
+  // Grouped Summary by Driver
+  const ambulanceDriverSummary = useMemo(() => {
+    interface DriverSummaryAccumulator {
+      driverName: string;
+      ambulanceNo: string;
+      tripCount: number;
+      totalDistance: number;
+      totalFare: number;
+      totalIncentive: number;
+    }
+    const map = new Map<string, DriverSummaryAccumulator>();
+
+    ambulanceDriverTripData.forEach(({ trip, fareAmount, incentiveAmount }) => {
+      const driver = trip.driverName?.trim() || 'अज्ञात चालक';
+      const existing = map.get(driver) || {
+        driverName: driver,
+        ambulanceNo: trip.ambulanceNo || '-',
+        tripCount: 0,
+        totalDistance: 0,
+        totalFare: 0,
+        totalIncentive: 0,
+      };
+      existing.tripCount += 1;
+      existing.totalDistance += Number(trip.distanceKm) || 0;
+      existing.totalFare += fareAmount;
+      existing.totalIncentive += incentiveAmount;
+      if (trip.ambulanceNo && (existing.ambulanceNo === '-' || !existing.ambulanceNo)) {
+        existing.ambulanceNo = trip.ambulanceNo;
+      }
+      map.set(driver, existing);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalIncentive - a.totalIncentive);
+  }, [ambulanceDriverTripData]);
+
   // Totals calculations
   const totalAmountSum = useMemo(() => {
     if (reportSource === 'Sewa') {
       return filteredRecords.reduce((sum, r) => sum + getRecordAmountForSelectedService(r), 0);
+    } else if (reportSource === 'AmbulanceProtsahan') {
+      return ambulanceDriverTripData.reduce((sum, d) => sum + d.incentiveAmount, 0);
     } else {
       if (ambulanceReportType === 'expense') {
         return filteredAmbulanceExpenses.reduce((sum, r) => sum + (r.amount || 0), 0);
@@ -841,7 +968,11 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0);
       }
     }
-  }, [reportSource, ambulanceReportType, filteredRecords, filteredAmbulanceRecords, filteredAmbulanceExpenses, selectedCategory, selectedService, serviceItems, testSubRelations, serviceCategoryMap]);
+  }, [reportSource, ambulanceReportType, filteredRecords, filteredAmbulanceRecords, filteredAmbulanceExpenses, ambulanceDriverTripData, selectedCategory, selectedService, serviceItems, testSubRelations, serviceCategoryMap]);
+
+  const totalAmbulanceDriverFareSum = useMemo(() => {
+    return ambulanceDriverTripData.reduce((sum, d) => sum + d.fareAmount, 0);
+  }, [ambulanceDriverTripData]);
 
   const totalAmbulanceChargedSum = useMemo(() => {
     return filteredAmbulanceRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0);
@@ -986,6 +1117,56 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Export to CSV function
   const handleExportCSV = () => {
+    if (reportSource === 'AmbulanceProtsahan') {
+      if (ambulanceDriverTripData.length === 0) {
+        alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
+        return;
+      }
+
+      const headers = [
+        "सि.न. (S.N.)",
+        "मिति (Date)",
+        "सेवाग्राहीको नामथर (Seeker Name)",
+        "बिल नं. (Bill No.)",
+        "चालकको नाम (Driver Name)",
+        "एम्बुलेन्स नं (Ambulance No)",
+        "प्रस्थान विन्दु (From)",
+        "गन्तव्य विन्दु (To)",
+        "दुरी (Distance KM)",
+        "प्राप्त भाडा रकम (Fare Amount)",
+        `चालक प्रोत्साहन (${ambulanceDriverIncentivePercent}%)`,
+        "कैफियत (Remarks)"
+      ];
+
+      const rows = ambulanceDriverTripData.map((item, idx) => {
+        const serial = (idx + 1).toString();
+        const date = item.trip.dateBs || '-';
+        const patient = item.trip.patientName || '-';
+        const billNo = item.trip.billNo || '-';
+        const driver = item.trip.driverName || '-';
+        const ambNo = item.trip.ambulanceNo || '-';
+        const start = item.trip.startLocation || '-';
+        const dest = item.trip.destination || '-';
+        const dist = item.trip.distanceKm ? item.trip.distanceKm.toString() : '-';
+        const fare = item.fareAmount.toFixed(2);
+        const incentive = item.incentiveAmount.toFixed(2);
+        const remarks = item.trip.remarks || '-';
+
+        return [serial, date, patient, billNo, driver, ambNo, start, dest, dist, fare, incentive, remarks];
+      });
+
+      const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Ambulance_Driver_Incentive_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (reportSource === 'Protsahan') {
       if (protsahanReportData.length === 0) {
         alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
@@ -1253,11 +1434,33 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             >
               {hasSourceAccess('Sewa') && <option value="Sewa">सेवा बिलिङ (Sewa Billing)</option>}
               {hasSourceAccess('Ambulance') && <option value="Ambulance">एम्बुलेन्स सेवा (Ambulance Sewa)</option>}
-              {hasSourceAccess('Sewa') && <option value="Protsahan">प्रयोगशाला प्रोत्साहन (Protsahan Report)</option>}
+              {hasSourceAccess('Protsahan') && <option value="Protsahan">प्रयोगशाला प्रोत्साहन (Lab Protsahan)</option>}
+              {hasSourceAccess('AmbulanceProtsahan') && <option value="AmbulanceProtsahan">एम्बुलेन्स चालक प्रोत्साहन (Driver Incentive)</option>}
             </select>
             <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
           </div>
         </div>
+
+        {reportSource === 'AmbulanceProtsahan' && (
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5 font-nepali">चालक छान्नुहोस् (Select Driver)</label>
+            <div className="relative">
+              <select
+                value={selectedAmbulanceDriver}
+                onChange={(e) => setSelectedAmbulanceDriver(e.target.value)}
+                className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+              >
+                <option value="All">सबै चालकहरू (All Drivers)</option>
+                {ambulanceDriverOptions.map((dr) => (
+                  <option key={dr} value={dr}>
+                    {dr}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+            </div>
+          </div>
+        )}
 
         {reportSource === 'Ambulance' && (
           <>
@@ -1458,6 +1661,79 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
         </div>
       </div>
+
+      {reportSource === 'AmbulanceProtsahan' && (
+        <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 print:hidden">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 font-nepali flex items-center gap-2">
+                एम्बुलेन्स चालक प्रोत्साहन दर सेटिङ (Ambulance Driver Incentive Settings)
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 font-medium">
+                एम्बुलेन्स यात्राको कुल प्राप्त भाडा रकमको आधारमा चालक प्रोत्साहन प्रतिशत यहाँ निर्धारण गर्नुहोस्।
+              </p>
+            </div>
+            {!isDriverSettingsEditing && (
+              <button
+                onClick={() => {
+                  setTempDriverIncentivePercent(ambulanceDriverIncentivePercent);
+                  setIsDriverSettingsEditing(true);
+                }}
+                className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all"
+              >
+                दर परिमार्जन गर्नुहोस् (Edit Incentive %)
+              </button>
+            )}
+          </div>
+
+          {isDriverSettingsEditing ? (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              setAmbulanceDriverIncentivePercent(tempDriverIncentivePercent);
+              localStorage.setItem('protsahan_ambulance_driver_percent', tempDriverIncentivePercent.toString());
+              setIsDriverSettingsEditing(false);
+            }} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
+              <div className="max-w-xs">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 font-nepali">चालक प्रोत्साहन दर % (Driver Incentive % of Fare):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  value={tempDriverIncentivePercent}
+                  onChange={(e) => setTempDriverIncentivePercent(Number(e.target.value))}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsDriverSettingsEditing(false)}
+                  className="px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  रद्द (Cancel)
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-sm transition-all"
+                >
+                  बचत गर्नुहोस् (Save)
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[140px] bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl text-center">
+                <span className="block text-[10px] text-emerald-800 font-bold tracking-wider uppercase font-nepali">चालक प्रोत्साहन दर</span>
+                <span className="block text-xl font-extrabold text-emerald-700 font-mono mt-1">{toNepaliDigits(ambulanceDriverIncentivePercent)}%</span>
+                <span className="text-[10px] text-slate-500 font-nepali font-medium">यात्रा भाडा रकमको</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {reportSource === 'Protsahan' && (
         <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 print:hidden">
@@ -1723,7 +1999,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
           
           <h2 className="text-base font-black font-nepali tracking-wider text-slate-950 mt-4 underline decoration-double decoration-1 underline-offset-4">
-            {reportSource === 'Protsahan' ? 'प्रयोगशाला (ल्याब) सेवा प्रोत्साहन विवरण' : reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
+            {reportSource === 'Protsahan' ? 'प्रयोगशाला (ल्याब) सेवा प्रोत्साहन विवरण' : reportSource === 'AmbulanceProtsahan' ? 'एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण' : reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
             {activeReportTitle}
