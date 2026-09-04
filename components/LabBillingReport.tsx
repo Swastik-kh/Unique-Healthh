@@ -316,7 +316,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       return currentUser.allowedMenus?.includes('report_billing_sewa') || false;
     }
     if (source === 'AmbulanceProtsahan') {
-      return currentUser.allowedMenus?.includes('report_billing_ambulance_driver') || currentUser.allowedMenus?.includes('report_billing_ambulance') || false;
+      return currentUser.allowedMenus?.includes('report_billing_ambulance_driver') || false;
     }
     const key = source === 'Sewa' ? 'report_billing_sewa' : 'report_billing_ambulance';
     return currentUser.allowedMenus?.includes(key) || false;
@@ -2496,7 +2496,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
-                {renderPrintPageHeaderRow(9)}
+                {renderPrintPageHeaderRow(10)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
@@ -2522,6 +2522,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">
                     प्राप्त रकम
                   </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24 text-emerald-800">
+                    प्रोत्साहन ({toNepaliDigits(ambulanceDriverIncentivePercent)}%)
+                  </th>
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
                     छुट/बक्यौता
                   </th>
@@ -2531,8 +2534,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {filteredAmbulanceRecords.length > 0 ? (
-                  filteredAmbulanceRecords.map((record, index) => {
+                {ambulanceDriverTripData.length > 0 ? (
+                  ambulanceDriverTripData.map((item, index) => {
+                    const record = item.trip;
                     const sNoStr = formatNumberValue(index + 1);
                     const clientName = record.patientName || '-';
                     const displayBillNo = record.billNo ? (useNepaliNumerals ? toNepaliDigits(record.billNo) : record.billNo) : '-';
@@ -2543,7 +2547,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       : '';
                     const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)${odoText}`;
                     const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
-                    const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
+                    const formattedReceived = formatNumberValue(item.fareAmount.toFixed(2));
+                    const formattedIncentive = formatNumberValue(item.incentiveAmount.toFixed(2));
                     const baseRemarks = record.remarks || '';
                     const clientRemarks = baseRemarks.trim() ? baseRemarks : '-';
 
@@ -2573,9 +2578,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border border-slate-950 p-2 text-right font-bold font-mono">
                           {formattedReceived}
                         </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono text-emerald-800 bg-emerald-50/30">
+                          {formattedIncentive}
+                        </td>
                         <td className="border border-slate-950 p-2 text-left font-bold text-xs">
-                          {((record.amountCharged || 0) - (record.receivedAmount || 0) > 0 && !record.isDiscounted) 
-                            ? <span className="text-amber-700">Due: रु. {formatNumberValue(((record.amountCharged || 0) - (record.receivedAmount || 0)).toFixed(2))}</span> 
+                          {((record.amountCharged || 0) - (item.fareAmount) > 0 && !record.isDiscounted) 
+                            ? <span className="text-amber-700">Due: रु. {formatNumberValue(((record.amountCharged || 0) - (item.fareAmount)).toFixed(2))}</span> 
                             : '-'}
                           {record.isDiscounted && <div className="text-indigo-700 italic font-normal text-[10px]">(छुट: {record.discountRecommendedBy || 'स्वयम'}{record.discountAmount ? ` रु. ${record.discountAmount}` : ''}{record.discountPercentage ? ` ${record.discountPercentage}%` : ''})</div>}
                         </td>
@@ -2587,8 +2595,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
-                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।
+                    <td colSpan={11} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स चालक प्रोत्साहन रेकर्ड भेटिएन।
                     </td>
                   </tr>
                 )}
@@ -2601,8 +2609,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     {formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmbulanceDriverFareSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-900 bg-emerald-50/50">
                     {formatNumberValue(totalAmountSum.toFixed(2))}
                   </td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
                   <td className="border-2 border-slate-950 p-2.5"></td>
                 </tr>
               </tbody>
