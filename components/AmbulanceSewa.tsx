@@ -219,6 +219,18 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('all');
   const [expenseMonthFilter, setExpenseMonthFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+  const [showPaidToDropdown, setShowPaidToDropdown] = useState(false);
+  const paidToDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutsidePaidTo = (event: MouseEvent) => {
+      if (paidToDropdownRef.current && !paidToDropdownRef.current.contains(event.target as Node)) {
+        setShowPaidToDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsidePaidTo);
+    return () => document.removeEventListener('mousedown', handleClickOutsidePaidTo);
+  }, []);
 
   useEffect(() => {
     if (currentFiscalYear) {
@@ -582,6 +594,32 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       ...summaryMap[m.id]
     }));
   }, [expenseRecords, expenseFiscalYearFilter, currentFiscalYear, NEPALI_MONTHS]);
+
+  // Unique payees list with their most recent associated PAN/VAT for autocomplete in expense entry
+  const uniquePayeeSuggestions = useMemo(() => {
+    const payeeMap: Record<string, string> = {};
+    // Iterate from oldest to latest or latest records so latest non-empty PAN/VAT takes precedence
+    (expenseRecords || []).forEach(exp => {
+      const name = (exp.paidTo || '').trim();
+      if (name) {
+        if (exp.panVatNo && exp.panVatNo.trim()) {
+          payeeMap[name] = exp.panVatNo.trim();
+        } else if (payeeMap[name] === undefined) {
+          payeeMap[name] = '';
+        }
+      }
+    });
+    return Object.entries(payeeMap).map(([name, panVatNo]) => ({ name, panVatNo }));
+  }, [expenseRecords]);
+
+  // Filtered payee suggestions based on current paidTo input
+  const filteredPayeeSuggestions = useMemo(() => {
+    const input = (expenseFormData.paidTo || '').trim().toLowerCase();
+    if (!input) return uniquePayeeSuggestions.slice(0, 8);
+    return uniquePayeeSuggestions
+      .filter(p => p.name.toLowerCase().includes(input))
+      .slice(0, 8);
+  }, [expenseFormData.paidTo, uniquePayeeSuggestions]);
 
   const filteredRecords = (currentYearRecords || []).slice().reverse().filter(r => {
     if (!r) return false;
@@ -1535,16 +1573,70 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   </div>
                 )}
 
-                {/* Paid To */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 font-nepali">भुक्तानी प्राप्त गर्ने (Paid To)</label>
+                {/* Paid To with suggestions and PAN/VAT autofill */}
+                <div className="space-y-1.5 relative" ref={paidToDropdownRef}>
+                  <label className="text-xs font-bold text-slate-600 font-nepali flex items-center justify-between">
+                    <span>भुक्तानी प्राप्त गर्ने (Paid To) *</span>
+                    {uniquePayeeSuggestions.length > 0 && (
+                      <span className="text-[10px] font-normal text-slate-400">
+                        (अगाडि प्रविष्ट नामहरूबाट सुझाव उपलब्ध)
+                      </span>
+                    )}
+                  </label>
                   <input
                     type="text"
+                    required
                     placeholder="जस्तै: एबीसी फ्यूल सेन्टर"
                     value={expenseFormData.paidTo || ''}
-                    onChange={e => setExpenseFormData({...expenseFormData, paidTo: e.target.value})}
+                    onFocus={() => setShowPaidToDropdown(true)}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setExpenseFormData(prev => ({ ...prev, paidTo: val }));
+                      setShowPaidToDropdown(true);
+                    }}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm"
                   />
+
+                  {/* Payee suggestions dropdown */}
+                  {showPaidToDropdown && filteredPayeeSuggestions.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                      <div className="px-3 py-1.5 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+                        <span>अघिल्लो रेकर्डका भुक्तानी प्राप्तकर्ताहरू</span>
+                        <span className="text-[10px] font-normal text-emerald-600">क्लिक गरी चयन गर्नुहोस्</span>
+                      </div>
+                      {filteredPayeeSuggestions.map((item, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setExpenseFormData(prev => ({
+                              ...prev,
+                              paidTo: item.name,
+                              // Automatically update panVatNo to match newly selected payee
+                              panVatNo: item.panVatNo || ''
+                            }));
+                            setShowPaidToDropdown(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-emerald-50/70 transition-colors flex items-center justify-between group"
+                        >
+                          <div>
+                            <span className="font-semibold text-slate-800 group-hover:text-emerald-700">
+                              {item.name}
+                            </span>
+                          </div>
+                          {item.panVatNo ? (
+                            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-emerald-100/70 text-emerald-800">
+                              PAN/VAT: {item.panVatNo}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">
+                              (PAN उपलब्ध छैन)
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Driver Name */}
