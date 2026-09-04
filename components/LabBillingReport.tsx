@@ -1084,7 +1084,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           return;
         }
 
-        const headers = ["सि.न. (S.N.)", "मिति (Date)", "खर्च वर्ग (Category)", "रकम (Amount)", "बील नम्बर (Bill No.)", "भुक्तानी प्राप्त गर्ने (Paid To)", "चालकको नाम (Driver)", "कैफियत (Remarks)"];
+        const headers = ["सि.न. (S.N.)", "मिति (Date)", "खर्च वर्ग (Category)", "रकम (Amount)", "बील नम्बर (Bill No.)", "प्यान/भ्याट नं (PAN/VAT No.)", "भुक्तानी प्राप्त गर्ने (Paid To)", "चालकको नाम (Driver)", "कैफियत (Remarks)"];
         
         const getCategoryLabel = (cat: string) => {
           switch (cat) {
@@ -1101,11 +1101,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           const category = getCategoryLabel(r.expenseCategory || 'other');
           const amount = r.amount ? r.amount.toString() : '0';
           const billNo = r.billNo || '-';
+          const panVatNo = r.panVatNo || '-';
           const paidTo = r.paidTo || '-';
           const driver = r.driverName || '-';
           const remarks = r.remarks || '-';
           
-          return [serial, date, category, amount, billNo, paidTo, driver, remarks];
+          return [serial, date, category, amount, billNo, panVatNo, paidTo, driver, remarks];
         });
 
         const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -2114,7 +2115,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           ) : ambulanceReportType === 'expense' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
-                {renderPrintPageHeaderRow(8)}
+                {renderPrintPageHeaderRow(9)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
@@ -2127,6 +2128,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">
                     बील नम्बर (Bill No.)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    प्यान/भ्याट नं.
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
                     भुक्तानी प्राप्त गर्ने (Paid To)
@@ -2156,6 +2160,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       }
                     })();
                     const billNo = record.billNo || '-';
+                    const panVatNo = record.panVatNo || '-';
                     const paidTo = record.paidTo || '-';
                     const driverName = record.driverName || '-';
                     const formattedAmount = formatNumberValue((record.amount || 0).toFixed(2));
@@ -2175,6 +2180,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border border-slate-950 p-2 text-center font-bold font-mono">
                           {billNo}
                         </td>
+                        <td className="border border-slate-950 p-2 text-center font-mono font-medium">
+                          {panVatNo}
+                        </td>
                         <td className="border border-slate-950 p-2 font-medium">
                           {paidTo}
                         </td>
@@ -2192,14 +2200,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                    <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
                       चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स खर्च विवरण रेकर्ड भेटिएन।
                     </td>
                   </tr>
                 )}
                 {/* Grand Total Row */}
                 <tr className="bg-slate-50 font-bold">
-                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                  <td colSpan={7} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा सिफारिस/खर्च रकम (Grand Total):
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">

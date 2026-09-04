@@ -240,6 +240,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     fuelLiters: undefined,
     ambulanceNo: generalSettings?.ambulanceNo || '',
     billNo: '',
+    panVatNo: '',
     paidTo: '',
     driverName: generalSettings?.ambulanceDriverName || '',
     remarks: ''
@@ -415,6 +416,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       fuelLiters: expenseFormData.fuelLiters !== undefined ? Number(expenseFormData.fuelLiters) : undefined,
       ambulanceNo: expenseFormData.ambulanceNo || '',
       billNo: expenseFormData.billNo || '',
+      panVatNo: (expenseFormData.expenseCategory === 'fuel' || expenseFormData.expenseCategory === 'maintenance') ? (expenseFormData.panVatNo || '') : '',
       paidTo: expenseFormData.paidTo || '',
       driverName: expenseFormData.driverName || '',
       remarks: expenseFormData.remarks || ''
@@ -439,6 +441,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       fuelLiters: undefined,
       ambulanceNo: generalSettings?.ambulanceNo || '',
       billNo: '',
+      panVatNo: '',
       paidTo: '',
       driverName: generalSettings?.ambulanceDriverName || '',
       remarks: ''
@@ -2093,7 +2096,12 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                             रु. {record.amount?.toFixed(2)}
                           </td>
                           <td className="p-3.5 text-sm font-mono font-bold text-slate-600">
-                            {record.billNo || '-'}
+                            <div>{record.billNo || '-'}</div>
+                            {record.panVatNo && (
+                              <div className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+                                PAN/VAT: {record.panVatNo}
+                              </div>
+                            )}
                           </td>
                           <td className="p-3.5 text-sm font-semibold text-slate-800">
                             {record.paidTo || '-'}
