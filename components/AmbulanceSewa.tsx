@@ -580,7 +580,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     }));
   }, [expenseRecords, expenseFiscalYearFilter, currentFiscalYear, NEPALI_MONTHS]);
 
-  const filteredRecords = (currentYearRecords || []).filter(r => {
+  const filteredRecords = (currentYearRecords || []).slice().reverse().filter(r => {
     if (!r) return false;
     const query = (searchTerm || '').toLowerCase();
     return (

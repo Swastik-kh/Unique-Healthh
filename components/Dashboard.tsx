@@ -619,11 +619,11 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     const res: Record<string, number> = {};
 
     // Cold Chain badge: missing morning/evening logs or out of range
-    if (coldChainAlerts && coldChainAlerts.hasAlert) {
-      const ccAlertsCount = coldChainAlerts.missingMorning.length + coldChainAlerts.missingEvening.length + coldChainAlerts.outOfRangeToday.length;
-      res.cold_chain_log = ccAlertsCount;
-      res.temperature_record_log = ccAlertsCount;
-    }
+    // if (coldChainAlerts && coldChainAlerts.hasAlert) {
+    //   const ccAlertsCount = coldChainAlerts.missingMorning.length + coldChainAlerts.missingEvening.length + coldChainAlerts.outOfRangeToday.length;
+    //   res.cold_chain_log = ccAlertsCount;
+    //   res.temperature_record_log = ccAlertsCount;
+    // }
 
     // 1. Mag Faram Pending
     if (currentUser.role === 'STOREKEEPER') {
