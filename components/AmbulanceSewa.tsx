@@ -313,6 +313,24 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       return;
     }
 
+    if (formData.isDiscounted && formData.discountRecommendedBy) {
+        const limitPercent = generalSettings?.discountLimits?.[formData.discountRecommendedBy] || 0;
+        const baseAmount = Number(formData.amountCharged) || 0;
+        const maxDiscountAmount = (baseAmount * limitPercent) / 100;
+        
+        let requestedDiscount = 0;
+        if (formData.discountPercentage !== undefined) {
+             requestedDiscount = (baseAmount * formData.discountPercentage) / 100;
+        } else if (formData.discountAmount !== undefined) {
+             requestedDiscount = formData.discountAmount;
+        }
+
+        if (requestedDiscount > maxDiscountAmount) {
+             alert(`${formData.discountRecommendedBy} को लागि अधिकतम छुट ${limitPercent}% (रु. ${maxDiscountAmount.toFixed(2)}) सम्म मात्र तोकिएको छ। कृपया सोही सिमाभित्र छुट राख्नुहोस्।`);
+             return;
+        }
+    }
+
     const recordDateBs = formData.dateBs || getInitialMitiValue();
     const record: AmbulanceRecord = {
       id: editingRecord?.id || `AMB-${Date.now()}`,

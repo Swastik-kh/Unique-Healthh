@@ -712,6 +712,30 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 </div>
                 
                 <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट प्रतिशत सीमा (Discount % Limits by Role)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ प्रत्येक सिफारिसकर्ताको लागि अधिकतम छुट प्रतिशत (%) सेट गर्नुहोस्।</p>
+                    <div className="space-y-2">
+                        {['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य'].map(role => (
+                            <div key={role} className="flex gap-2 items-center">
+                                <span className="text-xs font-medium text-slate-500 w-48">{role}:</span>
+                                <input
+                                    type="number"
+                                    className="w-24 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                                    value={localSettings.discountLimits?.[role] || 0}
+                                    onChange={(e) => {
+                                        const newLimits = { ...(localSettings.discountLimits || {}) };
+                                        newLimits[role] = Number(e.target.value);
+                                        handleChange('discountLimits', newLimits);
+                                    }}
+                                    placeholder="Max %"
+                                />
+                                <span className="text-xs text-slate-400">%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <div className="border-t pt-4">
                     <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स मार्ग र निर्धारित भाडा दर (Routes & Fare Rates Config)</label>
                     <p className="text-xs text-slate-400 mb-3">यहाँ नयाँ रुट तथा सो रुटको भाडा दर प्रविष्ट गर्नुहोस्। एम्बुलेन्स सेवा इन्ट्री गर्दा यी रुटहरू छान्न मिल्नेछ र भाडा दर स्वयम् भरिनेछ।</p>
                     <div className="space-y-3">

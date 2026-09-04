@@ -191,6 +191,7 @@ export interface OrganizationSettings {
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
   menuConfig?: MenuConfigItem[];
+  discountLimits?: Record<string, number>; // New field for discount limits
 }
 
 export interface DHIS2CellMapping {
