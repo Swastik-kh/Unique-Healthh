@@ -295,6 +295,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     }).slice(0, 10);
   }, [patientSearchInput, serviceSeekerRecords]);
 
+  useEffect(() => {
+    if (formData.isDiscounted) {
+      const base = Number(formData.amountCharged) || 0;
+      const fixed = Number(formData.discountAmount) || 0;
+      const percent = Number(formData.discountPercentage) || 0;
+      const discount = fixed + (base * percent / 100);
+      const effective = Math.max(0, base - discount);
+      setFormData(prev => ({ ...prev, receivedAmount: effective }));
+    }
+  }, [formData.amountCharged, formData.discountAmount, formData.discountPercentage, formData.isDiscounted]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.patientName) {
@@ -1672,7 +1683,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   ) : (
                     filteredRecords.map(record => {
                       const due = (record.amountCharged || 0) - (record.receivedAmount || 0);
-                      const isFullyPaid = due <= 0;
+                      const isFullyPaid = due <= 0 || !!record.isDiscounted;
 
                       return (
                         <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
@@ -1706,7 +1717,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           <td className="p-4 text-center whitespace-nowrap">
                             <div className="flex flex-col items-center gap-1.5">
                               {isFullyPaid ? (
-                                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-100">Paid</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${record.isDiscounted ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                                  {record.isDiscounted ? 'Discounted' : 'Paid'}
+                                </span>
                               ) : (
                                 <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-100">Due: रु. {due.toFixed(2)}</span>
                               )}

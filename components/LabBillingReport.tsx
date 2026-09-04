@@ -2239,6 +2239,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     प्राप्त रकम
                   </th>
                   <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
+                    छुट/बक्यौता
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
                     कैफियत
                   </th>
                 </tr>
@@ -2285,6 +2288,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         </td>
                         <td className="border border-slate-950 p-2 text-right font-bold font-mono">
                           {formattedReceived}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-left font-bold text-xs">
+                          {((record.amountCharged || 0) - (record.receivedAmount || 0) > 0 && !record.isDiscounted) 
+                            ? <span className="text-amber-700">Due: रु. {formatNumberValue(((record.amountCharged || 0) - (record.receivedAmount || 0)).toFixed(2))}</span> 
+                            : '-'}
+                          {record.isDiscounted && <div className="text-indigo-700 italic font-normal text-[10px]">(छुट: {record.discountRecommendedBy || 'स्वयम'}{record.discountAmount ? ` रु. ${record.discountAmount}` : ''}{record.discountPercentage ? ` ${record.discountPercentage}%` : ''})</div>}
                         </td>
                         <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
                           {clientRemarks}
