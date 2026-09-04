@@ -1519,6 +1519,19 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                   />
                 </div>
 
+                {(expenseFormData.expenseCategory === 'fuel' || expenseFormData.expenseCategory === 'maintenance') && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 font-nepali">PAN/VAT No.</label>
+                    <input
+                      type="text"
+                      placeholder="PAN/VAT नम्बर प्रविष्ट गर्नुहोस्"
+                      value={expenseFormData.panVatNo || ''}
+                      onChange={e => setExpenseFormData({...expenseFormData, panVatNo: e.target.value})}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-sm font-semibold"
+                    />
+                  </div>
+                )}
+
                 {/* Paid To */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-600 font-nepali">भुक्तानी प्राप्त गर्ने (Paid To)</label>

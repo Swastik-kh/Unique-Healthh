@@ -317,6 +317,7 @@ export interface AmbulanceExpenseRecord {
   fuelLiters?: number;
   ambulanceNo?: string;
   billNo?: string;
+  panVatNo?: string;
   paidTo?: string;
   driverName?: string;
   remarks?: string;
