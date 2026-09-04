@@ -227,7 +227,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [localError, setLocalError] = useState<string | null>(null);
 
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
-  const userAllowedMenusSet = useMemo(() => new Set(currentUser.allowedMenus || []), [currentUser.allowedMenus]);
+  const userAllowedMenusSet = useMemo(() => {
+    const set = new Set(currentUser.allowedMenus || []);
+    if (isSuperAdmin || currentUser.role === 'ADMIN' || currentUser.role === 'HEALTH_SECTION') {
+      set.add('report_lab_billing');
+      set.add('report_billing_sewa');
+      set.add('report_billing_ambulance');
+      set.add('report_billing_ambulance_driver');
+    }
+    return set;
+  }, [currentUser]);
 
   // Restrict visible and assignable permission structure based on currentUser's allowed menus
   const visiblePermissionStructure = useMemo(() => {

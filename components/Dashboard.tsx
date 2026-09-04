@@ -909,6 +909,14 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         ['ADMIN', 'STOREKEEPER', 'HEALTH_POST', 'HEALTH_SECTION'].includes(currentUser.role)
       );
     }
+    if (menuId === 'report_lab_billing') {
+      return (
+        currentUser.allowedMenus?.includes('report_lab_billing') ||
+        currentUser.allowedMenus?.includes('report_billing_sewa') ||
+        currentUser.allowedMenus?.includes('report_billing_ambulance') ||
+        currentUser.allowedMenus?.includes('report_billing_ambulance_driver')
+      );
+    }
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
 
