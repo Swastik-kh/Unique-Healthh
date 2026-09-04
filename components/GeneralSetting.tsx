@@ -712,11 +712,30 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 </div>
                 
                 <div className="border-t pt-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट प्रतिशत सीमा (Discount % Limits by Role)</label>
-                    <p className="text-xs text-slate-400 mb-3">यहाँ प्रत्येक सिफारिसकर्ताको लागि अधिकतम छुट प्रतिशत (%) सेट गर्नुहोस्।</p>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट सिफारिसकर्ताहरू (Discount Recommenders Config)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ छुट दिन मिल्ने सिफारिसकर्ताहरूको सूची थप्नुहोस् वा हटाउनुहोस्।</p>
+                    <div className="flex gap-2 mb-3">
+                        <input
+                            type="text"
+                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                            placeholder="नयाँ सिफारिसकर्ताको नाम"
+                            id="newRoleInput"
+                        />
+                        <button
+                            className="px-3 py-2 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700"
+                            onClick={() => {
+                                const input = document.getElementById('newRoleInput') as HTMLInputElement;
+                                if (input.value) {
+                                    const newRoles = [...(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']), input.value];
+                                    handleChange('discountRoles', newRoles);
+                                    input.value = '';
+                                }
+                            }}
+                        >थप्नुहोस्</button>
+                    </div>
                     <div className="space-y-2">
-                        {['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य'].map(role => (
-                            <div key={role} className="flex gap-2 items-center">
+                        {(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).map((role, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
                                 <span className="text-xs font-medium text-slate-500 w-48">{role}:</span>
                                 <input
                                     type="number"
@@ -730,6 +749,13 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                     placeholder="Max %"
                                 />
                                 <span className="text-xs text-slate-400">%</span>
+                                <button
+                                    className="p-1 text-red-500 hover:text-red-700"
+                                    onClick={() => {
+                                        const newRoles = (localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).filter((_, i) => i !== idx);
+                                        handleChange('discountRoles', newRoles);
+                                    }}
+                                >×</button>
                             </div>
                         ))}
                     </div>

@@ -1359,12 +1359,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           className="w-full p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all text-sm"
                         >
                           <option value="">छान्नुहोस्</option>
-                          <option value="नगर प्रमुख">नगर प्रमुख</option>
-                          <option value="नगर उपप्रमुख">नगर उपप्रमुख</option>
-                          <option value="अध्यक्ष">अध्यक्ष</option>
-                          <option value="स्वास्थ्य चौकी प्रमुख">स्वास्थ्य चौकी प्रमुख</option>
-                          <option value="एम्बुलेन्स चालक स्वयमको निर्णय">एम्बुलेन्स चालक स्वयमको निर्णय</option>
-                          <option value="अन्य">अन्य</option>
+                          {(generalSettings?.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).map((role) => (
+                              <option key={role} value={role}>{role}</option>
+                          ))}
                         </select>
                       </div>
                       <div className="space-y-1.5">
