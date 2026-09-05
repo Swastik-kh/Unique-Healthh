@@ -1031,6 +1031,15 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   };
 
   const handleSaveBill = async () => {
+    // Validate discount percentage against settings
+    if (generalSettings?.maxSewaDiscountPercent !== undefined && subTotal > 0) {
+      const actualDiscountPercent = (discountAmount / subTotal) * 100;
+      if (actualDiscountPercent > generalSettings.maxSewaDiscountPercent) {
+        alert(`माफ गर्नुहोला, तपाईंले ${generalSettings.maxSewaDiscountPercent}% भन्दा बढी छुट दिन मिल्दैन। (तपाईंले दिनुभएको छुट: ${actualDiscountPercent.toFixed(1)}%)`);
+        return;
+      }
+    }
+
     if (isDirectBilling) {
       if (!directPatientName.trim()) {
         alert("कृपया सेवाग्राहीको नामथर प्रविष्ट गर्नुहोस्।");

@@ -193,6 +193,7 @@ export interface OrganizationSettings {
   menuConfig?: MenuConfigItem[];
   discountLimits?: Record<string, number>; 
   discountRoles?: string[]; 
+  maxSewaDiscountPercent?: number;
 }
 
 export interface DHIS2CellMapping {

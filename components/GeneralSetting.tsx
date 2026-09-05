@@ -712,6 +712,20 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 </div>
                 
                 <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2">सेवा बिलिङ अधिकतम छुट सीमा (Sewa Billing Max Discount %)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ सेवा बिलिङ (नियमित र प्रत्यक्ष) गर्दा दिन मिल्ने अधिकतम छुट प्रतिशत सेट गर्नुहोस्।</p>
+                    <input
+                        type="number"
+                        max={100}
+                        min={0}
+                        className="w-48 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                        placeholder="उदा: 100"
+                        value={localSettings.maxSewaDiscountPercent !== undefined ? localSettings.maxSewaDiscountPercent : ''}
+                        onChange={(e) => handleChange('maxSewaDiscountPercent', e.target.value ? Number(e.target.value) : undefined)}
+                    />
+                </div>
+
+                <div className="border-t pt-4">
                     <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट सिफारिसकर्ताहरू (Discount Recommenders Config)</label>
                     <p className="text-xs text-slate-400 mb-3">यहाँ छुट दिन मिल्ने सिफारिसकर्ताहरूको सूची थप्नुहोस् वा हटाउनुहोस्।</p>
                     <div className="flex gap-2 mb-3">
