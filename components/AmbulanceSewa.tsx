@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X, Eye, Tag } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -1688,7 +1688,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         )}
 
         {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 print:hidden">
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
@@ -1717,7 +1717,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-amber-800">बाँकी बक्यौता (Total Due)</p>
               <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">
-                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0)).toLocaleString()}
+                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0)).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm">
@@ -1725,9 +1725,21 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             </div>
           </div>
 
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-4 rounded-2xl border border-purple-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-purple-800">कुल छुट (Total Discount)</p>
+              <p className="text-lg font-extrabold text-purple-950 mt-1 font-mono">
+                रु. {currentYearRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-purple-600 shadow-sm">
+              <Tag size={18} />
+            </div>
+          </div>
+
           <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4 rounded-2xl border border-indigo-200/60 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-indigo-800">कूल एम्बुलेन्स खर्च (Total Expense)</p>
+              <p className="text-xs font-bold text-indigo-800">कूल खर्च (Expense)</p>
               <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">
                 रु. {(currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
               </p>
@@ -1841,7 +1853,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                             <div className="flex flex-col items-center gap-1.5">
                               {isFullyPaid ? (
                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${record.isDiscounted ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                                  {record.isDiscounted ? 'Discounted' : 'Paid'}
+                                  {record.isDiscounted ? `Discounted: रु. ${(record.discountAmount || ((record.amountCharged || 0) - (record.receivedAmount || 0))).toFixed(2)}` : `Paid: रु. ${(record.receivedAmount || 0).toFixed(2)}`}
                                 </span>
                               ) : (
                                 <span className="text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-100">Due: रु. {due.toFixed(2)}</span>
