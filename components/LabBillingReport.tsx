@@ -139,7 +139,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         if (!gender) gender = seeker.gender;
       }
     }
-    const ageStr = age || '';
+    const ageStr = age ? formatNumberValue(age) : '';
     const genderStr = gender || '';
     if (ageStr && genderStr) return `${ageStr} / ${genderStr}`;
     return ageStr || genderStr || '-';
@@ -1305,7 +1305,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           return;
         }
 
-        const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "बिल नम्बर (Bill No.)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "कैफियत (Remarks)"];
+        const headers = ["सि.न. (S.N.)", "सेवाग्राहीको नामथर (Seeker Name)", "बिल नम्बर (Bill No.)", "एम्बुलेन्स नं (Ambulance No)", "चालक (Driver)", "मिति (Date)", "प्रस्थान विन्दु (From)", "गन्तव्य विन्दु (To)", "दुरी (Distance KM)", "कूल शुल्क (Total Charged)", "प्राप्त रकम (Received Amount)", "छुट/बक्यौता (Discount/Due)", "कैफियत (Remarks)"];
         
         const rows = filteredAmbulanceRecords.map((r, idx) => {
           const serial = (idx + 1).toString();
@@ -1320,10 +1320,21 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           const amtCharged = r.amountCharged ? r.amountCharged.toString() : '0';
           const amtRec = r.receivedAmount ? r.receivedAmount.toString() : '0';
           
+          let discountDueText = '-';
+          const isDue = (r.amountCharged || 0) - (r.receivedAmount || 0) > 0 && !r.isDiscounted;
+          if (isDue) {
+            discountDueText = `बक्यौता: रु. ${((r.amountCharged || 0) - (r.receivedAmount || 0)).toFixed(2)}`;
+          } else if (r.isDiscounted) {
+            const parts = [`छुट: ${r.discountRecommendedBy || 'स्वयम'}`];
+            if (r.discountAmount) parts.push(`रु. ${r.discountAmount}`);
+            if (r.discountPercentage) parts.push(`${r.discountPercentage}%`);
+            discountDueText = parts.join(', ');
+          }
+
           const baseRemarks = r.remarks || '';
           const remarksCombined = baseRemarks.trim() ? baseRemarks : '-';
           
-          return [serial, patient, billNo, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, remarksCombined];
+          return [serial, patient, billNo, ambNo, driver, date, fromLoc, toLoc, dist, amtCharged, amtRec, discountDueText, remarksCombined];
         });
 
         const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
@@ -2435,8 +2446,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         default: return 'अन्य (Other)';
                       }
                     })();
-                    const billNo = record.billNo || '-';
-                    const panVatNo = record.panVatNo || '-';
+                    const billNo = record.billNo ? formatNumberValue(record.billNo) : '-';
+                    const panVatNo = record.panVatNo ? formatNumberValue(record.panVatNo) : '-';
                     const paidTo = record.paidTo || '-';
                     const driverName = record.driverName || '-';
                     const formattedAmount = formatNumberValue((record.amount || 0).toFixed(2));
@@ -2493,10 +2504,134 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 </tr>
               </tbody>
             </table>
-          ) : (
+          ) : reportSource === 'Ambulance' ? (
             <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
               <thead>
                 {renderPrintPageHeaderRow(10)}
+                <tr className="bg-slate-50">
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
+                    सि.न.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[150px]">
+                    सेवाग्राहीको नामथर
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-24">
+                    बिल नं.
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">
+                    एम्बुलेन्स नं / चालक
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-28">
+                    मिति
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">
+                    यात्रा विवरण (From ➔ To)
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">
+                    कूल शुल्क
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">
+                    प्राप्त रकम
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
+                    छुट/बक्यौता
+                  </th>
+                  <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali w-24">
+                    कैफियत
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAmbulanceRecords.length > 0 ? (
+                  filteredAmbulanceRecords.map((record, index) => {
+                    const sNoStr = formatNumberValue(index + 1);
+                    const clientName = record.patientName || '-';
+                    const displayBillNo = record.billNo ? (useNepaliNumerals ? toNepaliDigits(record.billNo) : record.billNo) : '-';
+                    const driverDetail = `${record.ambulanceNo ? formatNumberValue(record.ambulanceNo) : '-'} / ${record.driverName || '-'}`;
+                    const displayDate = formatRawDateToNepaliUi(record.dateBs);
+                    const odoText = (record.startOdometer !== undefined && record.endOdometer !== undefined)
+                      ? ` [Odo: ${formatNumberValue(record.startOdometer)} ➔ ${formatNumberValue(record.endOdometer)}]`
+                      : '';
+                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${formatNumberValue(record.distanceKm || 0)} KM)${odoText}`;
+                    const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
+                    const formattedReceived = formatNumberValue((record.receivedAmount || 0).toFixed(2));
+                    const baseRemarks = record.remarks || '';
+                    const clientRemarks = baseRemarks.trim() ? baseRemarks : '-';
+                    const isDue = (record.amountCharged || 0) - (record.receivedAmount || 0) > 0 && !record.isDiscounted;
+                    const dueAmount = (record.amountCharged || 0) - (record.receivedAmount || 0);
+
+                    return (
+                      <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                        <td className="border border-slate-950 p-2 text-center font-bold">
+                          {sNoStr}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium">
+                          {clientName}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-bold font-mono">
+                          {displayBillNo}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {driverDetail}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-center font-medium">
+                          {displayDate}
+                        </td>
+                        <td className="border border-slate-950 p-2 font-medium text-xs">
+                          {travelDetail}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedCharged}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                          {formattedReceived}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-left font-bold text-xs">
+                          {isDue && (
+                            <div className="text-amber-700">बक्यौता: रु. {formatNumberValue(dueAmount.toFixed(2))}</div>
+                          )}
+                          {record.isDiscounted && (
+                            <div className="text-indigo-700 italic font-normal text-[10px]">
+                              छुट: {record.discountRecommendedBy || 'स्वयम'}
+                              {record.discountAmount ? `, रु. ${formatNumberValue(record.discountAmount)}` : ''}
+                              {record.discountPercentage ? `, ${formatNumberValue(record.discountPercentage)}%` : ''}
+                            </div>
+                          )}
+                          {!isDue && !record.isDiscounted && '-'}
+                        </td>
+                        <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
+                          {clientRemarks}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={10} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
+                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।
+                    </td>
+                  </tr>
+                )}
+                {/* Grand Total Row */}
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                    कुल जम्मा रकम (Grand Total):
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmbulanceChargedSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
+                    {formatNumberValue(totalAmountSum.toFixed(2))}
+                  </td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
+                  <td className="border-2 border-slate-950 p-2.5"></td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+              <thead>
+                {renderPrintPageHeaderRow(11)}
                 <tr className="bg-slate-50">
                   <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">
                     सि.न.
@@ -2540,17 +2675,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const sNoStr = formatNumberValue(index + 1);
                     const clientName = record.patientName || '-';
                     const displayBillNo = record.billNo ? (useNepaliNumerals ? toNepaliDigits(record.billNo) : record.billNo) : '-';
-                    const driverDetail = `${record.ambulanceNo || '-'} / ${record.driverName || '-'}`;
+                    const driverDetail = `${record.ambulanceNo ? formatNumberValue(record.ambulanceNo) : '-'} / ${record.driverName || '-'}`;
                     const displayDate = formatRawDateToNepaliUi(record.dateBs);
                     const odoText = (record.startOdometer !== undefined && record.endOdometer !== undefined)
-                      ? ` [Odo: ${record.startOdometer} ➔ ${record.endOdometer}]`
+                      ? ` [Odo: ${formatNumberValue(record.startOdometer)} ➔ ${formatNumberValue(record.endOdometer)}]`
                       : '';
-                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${record.distanceKm || 0} KM)${odoText}`;
+                    const travelDetail = `${record.startLocation || '-'} ➔ ${record.destination || '-'} (${formatNumberValue(record.distanceKm || 0)} KM)${odoText}`;
                     const formattedCharged = formatNumberValue((record.amountCharged || 0).toFixed(2));
                     const formattedReceived = formatNumberValue(item.fareAmount.toFixed(2));
                     const formattedIncentive = formatNumberValue(item.incentiveAmount.toFixed(2));
                     const baseRemarks = record.remarks || '';
                     const clientRemarks = baseRemarks.trim() ? baseRemarks : '-';
+                    const isDue = (record.amountCharged || 0) - (record.receivedAmount || 0) > 0 && !record.isDiscounted;
+                    const dueAmount = (record.amountCharged || 0) - (record.receivedAmount || 0);
 
                     return (
                       <tr key={record.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
@@ -2582,10 +2719,17 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                           {formattedIncentive}
                         </td>
                         <td className="border border-slate-950 p-2 text-left font-bold text-xs">
-                          {((record.amountCharged || 0) - (item.fareAmount) > 0 && !record.isDiscounted) 
-                            ? <span className="text-amber-700">Due: रु. {formatNumberValue(((record.amountCharged || 0) - (item.fareAmount)).toFixed(2))}</span> 
-                            : '-'}
-                          {record.isDiscounted && <div className="text-indigo-700 italic font-normal text-[10px]">(छुट: {record.discountRecommendedBy || 'स्वयम'}{record.discountAmount ? ` रु. ${record.discountAmount}` : ''}{record.discountPercentage ? ` ${record.discountPercentage}%` : ''})</div>}
+                          {isDue && (
+                            <div className="text-amber-700">बक्यौता: रु. {formatNumberValue(dueAmount.toFixed(2))}</div>
+                          )}
+                          {record.isDiscounted && (
+                            <div className="text-indigo-700 italic font-normal text-[10px]">
+                              छुट: {record.discountRecommendedBy || 'स्वयम'}
+                              {record.discountAmount ? `, रु. ${formatNumberValue(record.discountAmount)}` : ''}
+                              {record.discountPercentage ? `, ${formatNumberValue(record.discountPercentage)}%` : ''}
+                            </div>
+                          )}
+                          {!isDue && !record.isDiscounted && '-'}
                         </td>
                         <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
                           {clientRemarks}
