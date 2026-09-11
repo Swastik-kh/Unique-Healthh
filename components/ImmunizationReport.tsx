@@ -327,11 +327,25 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           const isFullyImmunized = hasAllRequired || hasCompletionVax;
           const statusText = isFullyImmunized ? 'पूर्ण खोप' : 'आंशिक खोप';
 
+          const vaccinators = new Set<string>();
+          record.vaccines.forEach(v => {
+            if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+              const m = getMonthFromBsDate(v.givenDateBs);
+              const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
+              if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+                if (v.givenBy) vaccinators.add(v.givenBy);
+              }
+            }
+          });
+          const givenByText = Array.from(vaccinators).join(', ');
+
           return {
             ...record,
             vaccinesGiven,
             statusText,
             isFullyImmunized,
+            createdBy: record.createdBy || '-',
+            givenBy: givenByText || '-'
           };
         }
         return null;
@@ -1474,6 +1488,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                               <th className="border-b border-r border-slate-200 p-2">बुवा / आमाको नाम (Parents)</th>
                               <th className="border-b border-r border-slate-200 p-2">ठेगाना र फोन (Address & Contact)</th>
                               <th className="border-b border-r border-slate-200 p-2">यो महिना लगाइएको खोप (Vaccines Given)</th>
+                              <th className="border-b border-r border-slate-200 p-2">जिम्मेवार प्रयोगकर्ता (Responsible Users)</th>
                               <th className="border-b border-r border-slate-200 p-2 text-center">खोप केन्द्र</th>
                               <th className="border-b border-slate-200 p-2 w-20 text-center">स्थिति (Status)</th>
                           </tr>
@@ -1481,7 +1496,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                       <tbody className="divide-y divide-slate-200">
                           {filteredChildren.length === 0 ? (
                               <tr>
-                                  <td colSpan={10} className="p-4 text-center text-slate-500 font-nepali font-medium bg-slate-50">यस अवधिमा कुनै खोपको विवरण फेला परेन।</td>
+                                  <td colSpan={11} className="p-4 text-center text-slate-500 font-nepali font-medium bg-slate-50">यस अवधिमा कुनै खोपको विवरण फेला परेन।</td>
                               </tr>
                           ) : (
                               filteredChildren.map((child, idx) => (
@@ -1507,6 +1522,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
                                                   </span>
                                               ))}
                                           </div>
+                                      </td>
+                                      <td className="border-r border-slate-200 p-2 text-[11px] leading-relaxed">
+                                          <div><span className="text-slate-500 font-nepali">दर्ता:</span> <span className="font-semibold text-slate-700">{child.createdBy || '-'}</span></div>
+                                          <div><span className="text-slate-500 font-nepali">खोप:</span> <span className="font-semibold text-indigo-700">{child.givenBy || '-'}</span></div>
                                       </td>
                                       <td className="border-r border-slate-200 p-2 text-center text-xs font-medium text-slate-600">{child.vaccinationCenter || '-'}</td>
                                       <td className="p-2 text-center text-[10px] font-bold">

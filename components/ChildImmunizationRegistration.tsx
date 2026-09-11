@@ -868,9 +868,23 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
     const sanitizedChildName = formData.nameNotAssigned ? '' : formData.childName.trim();
 
+    const existingRecord = editingRecordId ? records.find(r => r.id === editingRecordId) : null;
+    const authorName = currentUser?.fullName || currentUser?.username || existingRecord?.createdBy || 'System';
+
+    const updatedVaccinesForSave = (formData.vaccines || []).map(v => {
+      const oldV = existingRecord?.vaccines?.find(ov => ov.name === v.name);
+      if (v.status === 'Given') {
+        if (!v.givenBy || (oldV && oldV.status !== 'Given')) {
+          return { ...v, givenBy: authorName };
+        }
+      }
+      return v;
+    });
+
     // Sanitize optional fields to null if they are undefined
     const sanitizedData: ChildImmunizationRecord = {
       ...formData,
+      vaccines: updatedVaccinesForSave,
       childName: sanitizedChildName,
       nameNotAssigned: !!formData.nameNotAssigned,
       phone: cleanedPhone || null,
@@ -882,6 +896,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       jatCode: formData.jatCode || null,
       id: editingRecordId || Date.now().toString(),
       fiscalYear: currentFiscalYear,
+      createdBy: existingRecord?.createdBy || authorName,
     };
 
     // Soft duplicate warning check on childName (only if name is assigned and non-empty)
@@ -1020,6 +1035,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
     const currentVaccines = formData.vaccines || [];
     
+    const userName = currentUser?.fullName || currentUser?.username || 'System';
     // Map existing vaccines to update status and vaccinatedElsewhere for the target vaccine
     const targetVaccines = currentVaccines.map(v => {
       if (v.name === vaccineName) {
@@ -1028,7 +1044,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           status,
           givenDateBs: status === 'Given' ? givenDateBs : null,
           givenDateAd: status === 'Given' ? givenDateAd : null,
-          vaccinatedElsewhere: status === 'Given' ? (vaccinatedElsewhere !== undefined ? vaccinatedElsewhere : !!v.vaccinatedElsewhere) : undefined
+          vaccinatedElsewhere: status === 'Given' ? (vaccinatedElsewhere !== undefined ? vaccinatedElsewhere : !!v.vaccinatedElsewhere) : undefined,
+          givenBy: status === 'Given' ? (v.givenBy || userName) : undefined
         };
       }
       return v;
@@ -1110,6 +1127,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       }
     }
 
+    const userName = currentUser?.fullName || currentUser?.username || 'System';
     const preMappedVaccines = (latestRecord.vaccines || []).map((v, idx) => {
         if (idx === vaccineIndex) {
             return {
@@ -1117,7 +1135,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 status: 'Given' as const,
                 givenDateAd,
                 givenDateBs: modalGivenDateBs,
-                vaccinatedElsewhere: modalVaccinatedElsewhere
+                vaccinatedElsewhere: modalVaccinatedElsewhere,
+                givenBy: v.givenBy || userName
             };
         }
         return v;

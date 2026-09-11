@@ -143,6 +143,7 @@ export interface ChildImmunizationVaccine {
   givenDateAd?: string | null;
   status: 'Pending' | 'Given' | 'Missed';
   vaccinatedElsewhere?: boolean;
+  givenBy?: string;
 }
 
 export interface ChildImmunizationRecord {
@@ -166,6 +167,7 @@ export interface ChildImmunizationRecord {
   vaccines: ChildImmunizationVaccine[];
   remarks?: string;
   vaccinationCenter?: string; // Added for center tracking
+  createdBy?: string;
 }
 
 export function getChildDisplayName(record?: { nameNotAssigned?: boolean; childName?: string } | null): string {
