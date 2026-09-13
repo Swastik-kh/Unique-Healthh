@@ -59,6 +59,7 @@ export interface User {
   allowSmsAccess?: boolean; // Toggled by Super Admin in User Management
   smsQuota?: number; // Pre-set SMS limit
   smsUsedCount?: number; // Count of SMS sent
+  maxUsersAllowed?: number; // Maximum number of sub-users this ADMIN can create (only editable by SUPER_ADMIN). Defaults to 5 if unset.
   createdFromApp?: string;
   updatedFromApp?: string;
   appSignature?: string;

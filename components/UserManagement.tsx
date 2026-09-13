@@ -320,6 +320,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canEditBilling: boolean;
     canDeleteAmbulance: boolean;
     canManageMenu: boolean;
+    allowSmsAccess?: boolean;
+    smsQuota?: number;
+    smsUsedCount?: number;
+    maxUsersAllowed?: number;
     parentId?: string;
   }>({
     id: '',
@@ -340,6 +344,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     canEditBilling: false,
     canDeleteAmbulance: false,
     canManageMenu: false,
+    allowSmsAccess: false,
+    smsQuota: 0,
+    smsUsedCount: 0,
+    maxUsersAllowed: 5,
     parentId: currentUser.id
   });
 
@@ -409,6 +417,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowSmsAccess: false,
         smsQuota: 0,
         smsUsedCount: 0,
+        maxUsersAllowed: 5,
         parentId: currentUser.id
       });
       setEditingId(null);
@@ -436,6 +445,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           allowSmsAccess: user.allowSmsAccess ?? false,
           smsQuota: user.smsQuota ?? 0,
           smsUsedCount: user.smsUsedCount ?? 0,
+          maxUsersAllowed: user.maxUsersAllowed ?? 5,
           parentId: user.parentId
       });
       setShowForm(true);
@@ -666,6 +676,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         return;
     }
 
+    // Check per-admin user creation limit for ADMIN role users creating new sub-users
+    if (!editingId && currentUser.role === 'ADMIN') {
+        const adminLimit = currentUser.maxUsersAllowed ?? 5;
+        const currentSubUsersCount = users.filter(u => u.parentId === currentUser.id).length;
+        if (currentSubUsersCount >= adminLimit) {
+            setLocalError(`तपाईंले सिर्जना गर्न सक्ने प्रयोगकर्ताको सीमा (${adminLimit}) पुगिसक्यो। थप प्रयोगकर्ता चाहिएमा Super Admin लाई सम्पर्क गर्नुहोस्।`);
+            setIsSaving(false);
+            return;
+        }
+    }
+
     // Validation: Email is mandatory for new user creation
     const emailTrimmed = formData.email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -742,6 +763,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : (isEditingSelf ? (currentUser.allowSmsAccess ?? false) : false),
         smsQuota: isSuperAdmin ? formData.smsQuota : (isEditingSelf ? (currentUser.smsQuota ?? 0) : 0),
         smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
+        maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : undefined) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
         parentId: formData.parentId || currentUser.id,
         createdFromApp: "SmartHealthOfficialApp",
         updatedFromApp: "SmartHealthOfficialApp",
@@ -1162,6 +1184,55 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
             )}
 
+            {/* Super Admin User Creation Limit (only for ADMIN role) */}
+            {currentUser?.role === 'SUPER_ADMIN' && formData.role === 'ADMIN' && (
+                <div className="md:col-span-2 p-4 bg-indigo-50/90 border border-indigo-200 rounded-2xl mt-2 space-y-3 font-nepali">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-indigo-600 rounded-xl text-white shadow-md shadow-indigo-500/20">
+                            <Users size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-indigo-950">थप प्रयोगकर्ता सिर्जना सीमा (Max User Creation Limit)</p>
+                            <p className="text-xs text-indigo-700">यो Admin ले आफ्नो संस्था अन्तर्गत सिर्जना गर्न पाउने अधिकतम प्रयोगकर्ता (Sub-users) संख्या निर्धारण गर्नुहोस्</p>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4 pt-3 border-t border-indigo-200/60">
+                        <div>
+                            <label className="block text-xs font-bold text-indigo-900 mb-1">
+                                अधिकतम प्रयोगकर्ता सीमा (Max Users Allowed):
+                            </label>
+                            <input 
+                                type="number"
+                                min="0"
+                                value={formData.maxUsersAllowed !== undefined ? formData.maxUsersAllowed : 5}
+                                onChange={(e) => {
+                                    const parsed = parseInt(e.target.value, 10);
+                                    setFormData(prev => ({ ...prev, maxUsersAllowed: isNaN(parsed) ? 0 : parsed }));
+                                }}
+                                placeholder="डिफल्ट: ५"
+                                className="w-full text-xs font-mono font-bold px-3 py-2 bg-white border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                            <span className="text-[10px] text-indigo-600 mt-1 block">डिफल्ट रूपमा ५ रहनेछ। आवश्यकता अनुसार संख्या थप/घट गर्न सकिन्छ।</span>
+                        </div>
+                        <div className="bg-white/90 p-3 rounded-xl border border-indigo-200 flex flex-col justify-between space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-slate-600 font-medium">हालसम्म सिर्जना गरिएका प्रयोगकर्ता (Created):</span>
+                                <span className="font-mono font-bold text-indigo-700">
+                                    {users.filter(u => u.parentId === formData.id).length} जना
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs pt-1.5 border-t border-slate-100">
+                                <span className="text-slate-600 font-medium">थप्न बाँकी कोटा (Available Slots):</span>
+                                <span className="font-mono font-black text-emerald-600">
+                                    {Math.max(0, (formData.maxUsersAllowed ?? 5) - users.filter(u => u.parentId === formData.id).length)} जना
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="md:col-span-2 mt-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
                     <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
@@ -1243,11 +1314,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </thead>
             <tbody className="divide-y">
                 {managedUsers.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">कुनै प्रयोगकर्ता भेटिएन।</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">कुनै प्रयोगकर्ता भेटिएन।</td></tr>
                 ) : (
                     managedUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4"><div><p className="font-bold text-slate-800">{user.fullName}</p><p className="text-xs text-slate-400">@{user.username}</p></div></td>
+                        <td className="px-6 py-4">
+                            <div>
+                                <p className="font-bold text-slate-800">{user.fullName}</p>
+                                <p className="text-xs text-slate-400">@{user.username}</p>
+                                {user.role === 'ADMIN' && (
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="यो Admin ले सिर्जना गरेका सब-प्रयोगकर्ता र कुल सीमा">
+                                            <Users size={10} />
+                                            प्रयोगकर्ता: {users.filter(u => u.parentId === user.id).length}/{user.maxUsersAllowed ?? 5}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </td>
                         <td className="px-6 py-4">
                             <div className="space-y-1">
                                 {user.email && <p className="text-xs text-blue-600 font-medium flex items-center gap-1"><Mail size={10} /> {user.email}</p>}
