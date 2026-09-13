@@ -514,7 +514,7 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
         csvContent += `"${currentSno}","${item.medicineName}","${item.dosageForm}","${item.strength}","${avail}",${item.fy1Qty},${item.fy2Qty},${item.fy3Qty},${avg},${target}\n`;
       });
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
@@ -530,7 +530,7 @@ export const DrugQuantification: React.FC<DrugQuantificationProps> = ({
         csvContent += `"${index + 1}","${drug.name}","${drug.sources.join(', ')}",${drug.totalPrescribedQty},"${drug.unit}",${drug.currentStock},"${drug.stockStatus}",${drug.req1Month},${drug.req3Month},${drug.req1Year},${drug.estimatedReorderQty}\n`;
       });
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
