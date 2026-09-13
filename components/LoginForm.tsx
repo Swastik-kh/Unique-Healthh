@@ -182,7 +182,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         senderAddress: orgSettings.emailSenderAddress,
         senderName: orgSettings.emailSenderName,
         to: foundUser.email,
-        subject: "पासवर्ड रिसेट कोड - Unique Health",
+        subject: "पासवर्ड रिसेट कोड - Smart Inventory",
         htmlBody: `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px; margin: auto;">
             <h2 style="color: #4f46e5;">पासवर्ड रिसेट कोड</h2>

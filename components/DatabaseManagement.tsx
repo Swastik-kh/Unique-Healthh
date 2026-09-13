@@ -380,6 +380,10 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
   };
 
   const handleDelete = (sectionId: string, title: string) => {
+      if (sectionId === 'users') {
+          alert('सुरक्षा तथा प्रमाणीकरण कारणले, सबै प्रयोगकर्ताहरू एकैपटक मेटाउन मिल्दैन। प्रयोगकर्ता व्यवस्थापनको लागि कृपया "प्रयोगकर्ता व्यवस्थापन" (User Management) मेनु प्रयोग गर्नुहोस्।');
+          return;
+      }
       if (window.confirm(`के तपाईं निश्चित हुनुहुन्छ कि तपाईं "${title}" को सम्पूर्ण डाटा मेटाउन चाहनुहुन्छ? यो कार्य स्थायी हो र पूर्ववत गर्न सकिँदैन।`)) {
           if (onClearData) {
               onClearData(sectionId);

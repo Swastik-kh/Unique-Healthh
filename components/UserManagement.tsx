@@ -676,6 +676,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         return;
     }
 
+    // Validation: Username is mandatory when creating a new user (or updating)
+    const usernameTrimmed = formData.username.trim();
+    if (!editingId && !usernameTrimmed) {
+        setLocalError("प्रयोगकर्ता नाम (Username) अनिवार्य छ। कृपया लगइन गर्न प्रयोग हुने Username भर्नुहोस्।");
+        setIsSaving(false);
+        return;
+    }
+
     // Check per-admin user creation limit for ADMIN role users creating new sub-users
     if (!editingId && currentUser.role === 'ADMIN') {
         const adminLimit = currentUser.maxUsersAllowed ?? 5;
@@ -946,6 +954,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 label="कर्मचारी संकेत नं. (User ID)" 
                 value={formData.id} 
                 onChange={e => setFormData({...formData, id: e.target.value})} 
+                onBlur={() => {
+                    if (!formData.username || formData.username.trim() === '') {
+                        setFormData(prev => ({ ...prev, username: prev.id.trim() }));
+                    }
+                }}
                 required 
                 icon={<IdCard size={16} />} 
                 disabled={isSaving} 
