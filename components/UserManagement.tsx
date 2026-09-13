@@ -5,6 +5,10 @@ import { UserManagementProps } from '../types/dashboardTypes';
 import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
+import { db } from '../firebase';
+import { ref, get } from 'firebase/database';
+import { hashPassword } from '../lib/crypto';
+import axios from 'axios';
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
@@ -638,6 +642,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     );
   };
 
+  const generateSecureRandomPassword = (length = 14): string => {
+    const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
+    const array = new Uint8Array(length);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => charset[byte % charset.length]).join('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canManageUsers || isSaving) return;
@@ -653,6 +664,45 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         setLocalError("यो कर्मचारी संकेत नं. (ID) पहिले नै प्रयोगमा छ। कृपया अर्को ID प्रयोग गर्नुहोस्।");
         setIsSaving(false);
         return;
+    }
+
+    // Validation: Email is mandatory for new user creation
+    const emailTrimmed = formData.email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!editingId) {
+        if (!emailTrimmed) {
+            setLocalError("नयाँ प्रयोगकर्ताको लागि Email ठेगाना अनिवार्य छ।");
+            setIsSaving(false);
+            return;
+        }
+        if (!emailRegex.test(emailTrimmed)) {
+            setLocalError("कृपया मान्य Email ठेगाना प्रविष्ट गर्नुहोस् (उदा: user@example.com)।");
+            setIsSaving(false);
+            return;
+        }
+    } else if (emailTrimmed && !emailRegex.test(emailTrimmed)) {
+        setLocalError("कृपया मान्य Email ठेगाना प्रविष्ट गर्नुहोस् (उदा: user@example.com)।");
+        setIsSaving(false);
+        return;
+    }
+
+    // Password generation and hashing
+    let finalPassword = '';
+    let plainPasswordForEmail = '';
+
+    if (!editingId) {
+        // For new user: generate a strong random password and hash it before saving
+        plainPasswordForEmail = generateSecureRandomPassword(14);
+        finalPassword = hashPassword(plainPasswordForEmail);
+    } else {
+        // For editing existing user
+        const origUser = users.find(u => u.id === editingId);
+        const inputPassword = formData.password.trim();
+        if (origUser && inputPassword && inputPassword !== origUser.password) {
+            finalPassword = hashPassword(inputPassword);
+        } else {
+            finalPassword = inputPassword || origUser?.password || '';
+        }
     }
 
     let finalMenus = Array.from(new Set([...formData.allowedMenus]));
@@ -673,12 +723,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     const userToSave: User = {
         id: newId,
         username: formData.username.trim().toLowerCase(), 
-        password: formData.password.trim(),
+        password: finalPassword,
         role: isEditingSelf ? currentUser.role : formData.role, 
         fullName: formData.fullName.trim(), 
         designation: formData.designation.trim(),
         phoneNumber: formData.phoneNumber.trim(), 
-        email: formData.email.trim(),
+        email: emailTrimmed,
         organizationName: formData.organizationName.trim(),
         allowedMenus: isEditingSelf ? (currentUser.allowedMenus || []) : finalMenus,
         editAccessMenus: isEditingSelf ? (currentUser.editAccessMenus || []) : finalEditMenus,
@@ -721,6 +771,48 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             else await onAddUser(userToSave);
         }
 
+        // Send welcome email with login credentials for new user creation
+        let emailSent = false;
+        if (!editingId && plainPasswordForEmail && userToSave.email) {
+            try {
+                const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
+                const orgSettings = orgSettingsSnap.exists() ? orgSettingsSnap.val() : {};
+
+                if (orgSettings.emailApiKey && orgSettings.emailSenderAddress) {
+                    const emailResponse = await axios.post('/api/email/send', {
+                        apiKey: orgSettings.emailApiKey,
+                        senderAddress: orgSettings.emailSenderAddress,
+                        senderName: orgSettings.emailSenderName || 'Unique Health',
+                        to: userToSave.email,
+                        subject: "Welcome to Unique Health - तपाईंको लगइन विवरण",
+                        htmlBody: `
+                          <div style="font-family: sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 520px; margin: auto; background-color: #ffffff;">
+                            <h2 style="color: #4f46e5; margin-top: 0; font-size: 20px;">Unique Health मा स्वागत छ!</h2>
+                            <p style="color: #334155; font-size: 14px; line-height: 1.6;">तपाईंको नयाँ प्रयोगकर्ता खाता सफलतापूर्वक सिर्जना गरिएको छ। प्रणालीमा लगइन गर्न निम्न विवरण प्रयोग गर्नुहोस्:</p>
+                            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                              <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>कर्मचारी संकेत नं. (ID):</strong> ${userToSave.id}</p>
+                              <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>प्रयोगकर्ता नाम (Username):</strong> ${userToSave.username}</p>
+                              <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>अस्थायी पासवर्ड (Password):</strong> <span style="font-family: monospace; font-weight: bold; background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 4px; font-size: 15px;">${plainPasswordForEmail}</span></p>
+                            </div>
+                            <p style="color: #dc2626; font-size: 13px; font-weight: bold;">सुरक्षाको लागि प्रणालीमा पहिलो पटक लगइन गरेपछि तुरुन्तै आफ्नो पासवर्ड परिवर्तन गर्नुहोस्।</p>
+                            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">यो ईमेल प्रणालीद्वारा स्वचालित रूपमा पठाइएको हो।</p>
+                          </div>
+                        `
+                    });
+                    if (emailResponse.data && emailResponse.data.success) {
+                        emailSent = true;
+                    }
+                } else {
+                    console.warn("Email configuration not configured in organization settings.");
+                }
+            } catch (emailErr) {
+                console.error("Failed to send welcome email:", emailErr);
+            }
+            // Discard plaintext password reference immediately
+            plainPasswordForEmail = '';
+        }
+
         // --- Sujhab Petika Auto-create User ---
         if (finalMenus.includes('sujhab_petika')) {
             try {
@@ -752,7 +844,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
         setShowForm(false);
         resetForm();
-        alert("प्रयोगकर्ता सफलतापूर्वक सुरक्षित गरियो।");
+        if (!editingId) {
+            if (emailSent) {
+                alert("नयाँ प्रयोगकर्ता सफलतापूर्वक सिर्जना गरियो र लगइन विवरण सम्बन्धित Email मा पठाइयो।");
+            } else {
+                alert("नयाँ प्रयोगकर्ता सफलतापूर्वक सिर्जना गरियो। (नोट: प्रणालीमा Email सेटिङ नमिलेको वा प्राविधिक समस्याका कारण लगइन विवरण Email गर्न सकिएन)");
+            }
+        } else {
+            alert("प्रयोगकर्ता सफलतापूर्वक अद्यावधिक गरियो।");
+        }
     } catch (err: any) {
         setLocalError(err.message || "डेटाबेस जडानमा त्रुटि आयो।");
     } finally {
@@ -839,11 +939,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <Input label="पद" value={formData.designation} onChange={e => setFormData({...formData, designation: e.target.value})} required icon={<Briefcase size={16} />} disabled={isSaving} />
             <Input label="फोन नं." value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value})} required icon={<Phone size={16} />} disabled={isSaving} />
             <Input 
-                label="Email ठेगाना" 
+                label={`Email ठेगाना ${!editingId ? '*' : ''}`} 
                 type="email"
                 value={formData.email} 
                 onChange={e => setFormData({...formData, email: e.target.value})} 
-                placeholder="पासवर्ड बिर्सिएमा प्रयोग हुन्छ"
+                required={!editingId}
+                placeholder={!editingId ? "लगइन विवरण र पासवर्ड पठाउन ईमेल (अनिवार्य)" : "पासवर्ड बिर्सिएमा प्रयोग हुन्छ"}
                 icon={<Mail size={16} />} 
                 disabled={isSaving} 
             />
@@ -869,7 +970,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               />
             )}
             <Input label="प्रयोगकर्ता नाम" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} required icon={<UserIcon size={16} />} disabled={isSaving} />
-            <Input label="पासवर्ड" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required type="password" disabled={isSaving} />
+            {editingId && (
+              <Input 
+                label="पासवर्ड (परिवर्तन गर्न चाहेमा नयाँ पासवर्ड)" 
+                value={formData.password} 
+                onChange={e => setFormData({...formData, password: e.target.value})} 
+                type="password" 
+                disabled={isSaving} 
+                placeholder="यथावत राख्न नचलाउनुहोस्"
+              />
+            )}
             
             <div className="md:col-span-2 flex items-center justify-between p-4 bg-indigo-50 border border-indigo-100 rounded-xl mt-2">
                 <div className="flex items-center gap-3">
