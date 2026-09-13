@@ -117,13 +117,29 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
     return `${secs}s`;
   };
 
-  // Filtered users search mapping
+  // Filtered and sorted users mapping (Active/Online users first)
   const filteredUsers = useMemo(() => {
-    return users.filter(user => 
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      user.username.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [users, searchQuery]);
+    return users
+      .filter(user => 
+        user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        user.username.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        const aOnline = presenceStates[a.id]?.state === 'online' ? 1 : 0;
+        const bOnline = presenceStates[b.id]?.state === 'online' ? 1 : 0;
+        if (aOnline !== bOnline) {
+          return bOnline - aOnline; // Online users first
+        }
+        // If both online, sort by who was active / logged in most recently
+        if (aOnline && bOnline) {
+          const aActive = presenceStates[a.id]?.lastActive || 0;
+          const bActive = presenceStates[b.id]?.lastActive || 0;
+          return bActive - aActive;
+        }
+        // Otherwise sort alphabetically by fullName / username
+        return (a.fullName || a.username).localeCompare(b.fullName || b.username);
+      });
+  }, [users, searchQuery, presenceStates]);
 
   // General counters info
   const totalUsersCount = users.length;
