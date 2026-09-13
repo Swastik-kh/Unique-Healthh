@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Database, Download, Upload, HardDrive, FileText, ShoppingCart, Archive, FileUp, CheckCircle2, Info, Trash2, Lock, FileOutput, RotateCcw, Wrench, Scroll, ClipboardList, Send, Warehouse, Layers, ShieldCheck, Table as TableIcon, AlertTriangle, Loader2, X, Banknote, UsersRound } from 'lucide-react';
 import { User, BillingRecord } from '../types/coreTypes'; // Changed import
 import { InventoryItem, MagFormEntry, PurchaseOrderEntry, IssueReportEntry, FirmEntry, Store, DakhilaPratibedanEntry, ReturnEntry, MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry } from '../types/inventoryTypes'; // Changed import
-import { RabiesPatient, TBPatient } from '../types/healthTypes'; // Changed import
+import { RabiesPatient, TBPatient, ChildImmunizationRecord } from '../types/healthTypes'; // Changed import
+import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
 import { Select } from './Select';
 
 interface DatabaseManagementProps {
@@ -300,6 +301,84 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
     document.body.removeChild(link);
   };
 
+  const downloadChildImmunizationCSV = (data: ChildImmunizationRecord[]) => {
+    if (!data || data.length === 0) {
+      alert("डाउनलोड गर्नको लागि कुनै डाटा छैन");
+      return;
+    }
+
+    const escapeCsv = (val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+
+    const vaccineColumns = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.map(v => v.name);
+    const headers = [
+      'क्र.सं.',
+      'दर्ता नं.',
+      'बच्चाको नाम',
+      'लिङ्ग',
+      'जन्म मिति (BS)',
+      'आमाको नाम',
+      'बुबाको नाम',
+      'ठेगाना',
+      'फोन',
+      'दर्ता मिति',
+      'खोप केन्द्र',
+      ...vaccineColumns,
+      'जम्मा लागेका खोप संख्या'
+    ];
+
+    const rows = data.map((child, idx) => {
+      const childName = child.childName || (child.nameNotAssigned ? 'नाम नखुलेको' : '-');
+      const gender = child.gender === 'Male' ? 'पुरुष' : child.gender === 'Female' ? 'महिला' : (child.gender || '-');
+      const givenCount = Array.isArray(child.vaccines)
+        ? child.vaccines.filter((v: any) => v.status === 'Given').length
+        : 0;
+
+      const baseCells = [
+        idx + 1,
+        escapeCsv(child.regNo || ''),
+        escapeCsv(childName),
+        escapeCsv(gender),
+        escapeCsv(child.dobBs || ''),
+        escapeCsv(child.motherName || ''),
+        escapeCsv(child.fatherName || ''),
+        escapeCsv(child.address || ''),
+        escapeCsv(child.phone || ''),
+        escapeCsv(child.regDateBs || '-'),
+        escapeCsv(child.vaccinationCenter || '-')
+      ];
+
+      const vaccineCells = vaccineColumns.map(templateName => {
+        const norm = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchedVax = Array.isArray(child.vaccines)
+          ? child.vaccines.find((v: any) => v.name === templateName || norm(v.name) === norm(templateName))
+          : undefined;
+
+        if (!matchedVax) return escapeCsv('-');
+        if (matchedVax.status === 'Given') {
+          const dateText = matchedVax.givenDateBs || '-';
+          const elsewhereText = matchedVax.vaccinatedElsewhere ? ' (अन्यत्र)' : '';
+          return escapeCsv(`${dateText}${elsewhereText}`);
+        }
+        if (matchedVax.status === 'Missed') {
+          return escapeCsv('छुटेको');
+        }
+        return escapeCsv('-');
+      });
+
+      return [...baseCells, ...vaccineCells, givenCount];
+    });
+
+    const csvContent = '\uFEFF' + [headers.map(h => escapeCsv(h)).join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Child_Immunization_Records_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDelete = (sectionId: string, title: string) => {
       if (window.confirm(`के तपाईं निश्चित हुनुहुन्छ कि तपाईं "${title}" को सम्पूर्ण डाटा मेटाउन चाहनुहुन्छ? यो कार्य स्थायी हो र पूर्ववत गर्न सकिँदैन।`)) {
           if (onClearData) {
@@ -420,7 +499,13 @@ export const DatabaseManagement: React.FC<DatabaseManagementProps> = ({
                   </div>
                 </div>
                 <button
-                  onClick={() => downloadCSV(section.data, section.title.replace(/\s/g, '_'))}
+                  onClick={() => {
+                    if (section.id === 'bachhaImmunizationRecords') {
+                      downloadChildImmunizationCSV(section.data || []);
+                    } else {
+                      downloadCSV(section.data, section.title.replace(/\s/g, '_'));
+                    }
+                  }}
                   className="px-3 py-1.5 bg-white text-blue-600 rounded-md text-xs font-bold hover:bg-blue-50 transition-colors border border-blue-200"
                 >
                   CSV डाउनलोड
