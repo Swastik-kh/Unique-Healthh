@@ -4,7 +4,8 @@ import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
-import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock } from 'lucide-react';
+import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut } from 'lucide-react';
+import { ChangePassword } from './components/ChangePassword';
 import { 
   User, OrganizationSettings, MagFormEntry, RabiesPatient, PurchaseOrderEntry, 
   IssueReportEntry, FirmEntry, QuotationEntry, InventoryItem, Store, StockEntryRequest, 
@@ -2177,21 +2178,81 @@ const App: React.FC = () => {
     dhis2CellMappings: globalDhis2Mappings.dhis2CellMappings || generalSettings.dhis2CellMappings
   }), [generalSettings, globalDhis2Mappings]);
 
+  const handleChangePassword = async (id: string, pass: string) => {
+    try {
+      const updates = { 
+        password: hashPassword(pass),
+        mustChangePassword: false,
+        updatedFromApp: "SmartHealthOfficialApp",
+        appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
+        passwordLastChangedFrom: "SmartHealthOfficialApp",
+        updatedAt: new Date().toISOString()
+      };
+      await update(ref(db, `users/${id}`), updates);
+      if (currentUser && currentUser.id === id) {
+        setCurrentUser(prev => prev ? ({ ...prev, ...updates }) : null);
+      }
+    } catch (error) {
+      console.error("Error changing password:", error);
+      alert("पासवर्ड परिवर्तन गर्दा समस्या आयो।");
+    }
+  };
+
   return (
     <>
       {currentUser ? (
-        <Dashboard 
-          onLogout={handleLogout} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
-          users={allUsers} onAddUser={handleSaveUser}
-          onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
-          onDeleteOrganization={handleDeleteOrganization}
-          onChangePassword={(id, pass) => update(ref(db, `users/${id}`), { 
-            password: hashPassword(pass),
-            updatedFromApp: "SmartHealthOfficialApp",
-            appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
-            passwordLastChangedFrom: "SmartHealthOfficialApp",
-            updatedAt: new Date().toISOString()
-          })}
+        currentUser.mustChangePassword ? (
+          <div className="min-h-screen bg-slate-900/90 fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
+            <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+              <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 p-6 sm:p-8 text-white text-center relative overflow-hidden">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm border border-white/30 shadow-inner">
+                  <KeyRound className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-2xl font-black font-nepali tracking-tight">पासवर्ड परिवर्तन अनिवार्य</h2>
+                <p className="text-amber-100 text-sm mt-1.5 font-nepali max-w-md mx-auto">
+                  सुरक्षाको लागि, कृपया पहिलोपटक लगइन गर्दा नयाँ पासवर्ड सेट गर्नुहोस्।
+                </p>
+              </div>
+
+              <div className="p-6 sm:p-8 space-y-6">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-900">
+                  <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs leading-relaxed font-nepali">
+                    <p className="font-bold mb-0.5">नयाँ प्रयोगकर्ता सुरक्षा सूचना:</p>
+                    तपाईंको खाता पहिलो पटक प्रयोग हुँदैछ वा अस्थायी पासवर्ड जारी गरिएको छ। प्रणालीमा अगाडि बढ्नको लागि पहिले तपाईंलाई प्राप्त भएको हालको पासवर्ड प्रविष्ट गरी नयाँ गोप्य पासवर्ड सेट गर्नुहोस्।
+                  </div>
+                </div>
+
+                <ChangePassword 
+                  currentUser={currentUser}
+                  users={allUsers}
+                  onChangePassword={handleChangePassword}
+                  onUpdateUser={handleSaveUser}
+                />
+
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 font-medium font-nepali">
+                    लगइन खाता: <span className="font-bold text-slate-700">{currentUser.fullName}</span> (@{currentUser.username})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl transition-colors border border-red-200 shadow-sm"
+                  >
+                    <LogOut size={14} />
+                    लगआउट (Logout)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Dashboard 
+            onLogout={handleLogout} currentUser={currentUser} currentFiscalYear={currentFiscalYear} 
+            users={allUsers} onAddUser={handleSaveUser}
+            onUpdateUser={handleSaveUser} onDeleteUser={handleDeleteUser}
+            onDeleteOrganization={handleDeleteOrganization}
+            onChangePassword={handleChangePassword}
           isDbLocked={isDbLocked}
           generalSettings={mergedSettings} 
           onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}
@@ -2388,7 +2449,7 @@ const App: React.FC = () => {
     onDeletePaymentRequest={handleDeletePaymentRequest}
     onDeleteAllowance={handleDeleteAllowance}
         />
-      ) : (
+      )) : (
         <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
           <div className="w-full max-w-[440px] animate-in fade-in zoom-in-95 duration-500">
             {dbError && (

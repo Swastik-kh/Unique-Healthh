@@ -764,6 +764,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         smsQuota: isSuperAdmin ? formData.smsQuota : (isEditingSelf ? (currentUser.smsQuota ?? 0) : 0),
         smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
         maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : undefined) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
+        mustChangePassword: !editingId ? true : (users.find(u => u.id === editingId)?.mustChangePassword ?? false),
         parentId: formData.parentId || currentUser.id,
         createdFromApp: "SmartHealthOfficialApp",
         updatedFromApp: "SmartHealthOfficialApp",
