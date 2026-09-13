@@ -743,7 +743,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
     const userToSave: User = {
         id: newId,
-        username: formData.username.trim().toLowerCase(), 
+        username: formData.username.trim(), 
         password: finalPassword,
         role: isEditingSelf ? currentUser.role : formData.role, 
         fullName: formData.fullName.trim(), 

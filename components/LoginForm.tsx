@@ -83,7 +83,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         return;
       }
 
-      const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+      const foundUser = users.find(u => u.username.trim() === username.trim());
       
       if (!foundUser) {
         setErrors({ form: 'यो Username भएको प्रयोगकर्ता भेटिएन।' });
@@ -341,7 +341,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
           
           // Allow login if it matches the secure hash, OR matches the legacy plain-text password, OR is superadmin checking with admin default
           const isSuperAdminDefault = u.id === 'superadmin' && inputUsername.toLowerCase() === 'admin' && inputPassword === 'admin';
-          return dbUsername.toLowerCase() === inputUsername.toLowerCase() && 
+          return dbUsername === inputUsername && 
                  (dbPassword === hashedInput || dbPassword === inputPassword || isSuperAdminDefault);
       });
 
