@@ -121,7 +121,7 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
             <Shield className="text-emerald-600 shrink-0" size={20} />
             <div className="leading-relaxed font-nepali">
                 <span className="font-bold text-emerald-900 block">आधिकारिक एप सेक्युरिटी लक:</span>
-                पासवर्ड परिवर्तन र प्रयोगकर्ता नाम अपडेट गर्ने अधिकार केवल यसै <b>Smart Health आधिकारिक एप</b> भित्रबाट मात्र सम्भव हुने गरी बाँधिएको छ।
+                पासवर्ड परिवर्तन र प्रयोगकर्ता नाम अपडेट गर्ने अधिकार केवल यसै <b>Smart Inventory आधिकारिक एप</b> भित्रबाट मात्र सम्भव हुने गरी बाँधिएको छ।
             </div>
         </div>
         {error && (
