@@ -782,21 +782,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     const emailResponse = await axios.post('/api/email/send', {
                         apiKey: orgSettings.emailApiKey,
                         senderAddress: orgSettings.emailSenderAddress,
-                        senderName: orgSettings.emailSenderName || 'Unique Health',
+                        senderName: orgSettings.emailSenderName || 'Smart Inventory',
                         to: userToSave.email,
-                        subject: "Welcome to Unique Health - तपाईंको लगइन विवरण",
+                        subject: "Smart Inventory मा स्वागत छ - तपाईंको लगइन विवरण",
                         htmlBody: `
                           <div style="font-family: sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 520px; margin: auto; background-color: #ffffff;">
-                            <h2 style="color: #4f46e5; margin-top: 0; font-size: 20px;">Unique Health मा स्वागत छ!</h2>
+                            <h2 style="color: #4f46e5; margin-top: 0; font-size: 20px;">Smart Inventory मा स्वागत छ!</h2>
                             <p style="color: #334155; font-size: 14px; line-height: 1.6;">तपाईंको नयाँ प्रयोगकर्ता खाता सफलतापूर्वक सिर्जना गरिएको छ। प्रणालीमा लगइन गर्न निम्न विवरण प्रयोग गर्नुहोस्:</p>
                             <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
                               <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>कर्मचारी संकेत नं. (ID):</strong> ${userToSave.id}</p>
                               <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>प्रयोगकर्ता नाम (Username):</strong> ${userToSave.username}</p>
                               <p style="margin: 6px 0; color: #1e293b; font-size: 14px;"><strong>अस्थायी पासवर्ड (Password):</strong> <span style="font-family: monospace; font-weight: bold; background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 4px; font-size: 15px;">${plainPasswordForEmail}</span></p>
                             </div>
+                            <div style="margin: 24px 0; text-align: center;">
+                              <a href="https://smartinventoryy.com" target="_blank" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block;">सिस्टममा लगइन गर्नुहोस् (smartinventoryy.com)</a>
+                            </div>
+                            <p style="text-align: center; margin: 8px 0 16px; font-size: 13px; color: #475569;">
+                              वा लिंक खोल्नुहोस्: <a href="https://smartinventoryy.com" target="_blank" style="color: #4f46e5; font-weight: 600; text-decoration: underline;">https://smartinventoryy.com</a>
+                            </p>
                             <p style="color: #dc2626; font-size: 13px; font-weight: bold;">सुरक्षाको लागि प्रणालीमा पहिलो पटक लगइन गरेपछि तुरुन्तै आफ्नो पासवर्ड परिवर्तन गर्नुहोस्।</p>
                             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-                            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">यो ईमेल प्रणालीद्वारा स्वचालित रूपमा पठाइएको हो।</p>
+                            <p style="font-size: 12px; color: #94a3b8; margin-bottom: 0;">यो ईमेल Smart Inventory प्रणालीद्वारा स्वचालित रूपमा पठाइएको हो।</p>
                           </div>
                         `
                     });
