@@ -2941,10 +2941,9 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                         if (child.badgeCount && child.badgeCount > 0) {
                                             // Mark notifications as read
                                             const notifIdsToMarkRead = allDakhilaNotifs.filter(n => n.isNew && n.targetMenu === child.id).map(n => n.id);
-                                            if (notifIdsToMarkRead.length > 0) {
-                                                const newReadIds = [...readNotifIds, ...notifIdsToMarkRead];
-                                                setReadNotifIds(newReadIds);
-                                                handleUpdateReadNotifications(currentUser!.id, newReadIds);
+                                            if (notifIdsToMarkRead.length > 0 && currentUser) {
+                                                const newReadIds = Array.from(new Set([...readNotifIds, ...notifIdsToMarkRead]));
+                                                onUpdateReadNotifications(currentUser.id, newReadIds);
                                             }
                                         }
                                       }}

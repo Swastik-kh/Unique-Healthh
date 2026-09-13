@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
@@ -15,9 +15,10 @@ import {
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser,
   ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry
 } from './types';
-import { db } from './firebase';
+import { db, connectedRef } from './firebase';
 import { hashPassword } from './lib/crypto';
-import { ref, onValue, set, remove, update, get, Unsubscribe, off, push } from "firebase/database";
+import { ref, onValue, set, remove, update, get, Unsubscribe, off, push, onDisconnect } from "firebase/database";
+import { logUserActivity } from './lib/logger';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -453,7 +454,38 @@ const App: React.FC = () => {
     }
   };
 
+  const connectedUnsubRef = useRef<Unsubscribe | null>(null);
+  const sessionLoginTimeRef = useRef<number | null>(null);
+
   const handleLogout = () => {
+    if (currentUser) {
+      const user = currentUser;
+      const userPresenceRef = ref(db, `presence/${user.id}`);
+      try {
+        onDisconnect(userPresenceRef).cancel();
+      } catch (e) {
+        console.error("Error cancelling onDisconnect", e);
+      }
+      set(userPresenceRef, {
+        state: 'offline',
+        lastActive: Date.now(),
+        username: user.username,
+        fullName: user.fullName
+      }).catch(e => console.error("Error setting offline presence", e));
+
+      const loginTime = sessionLoginTimeRef.current;
+      const durationMinutes = loginTime ? Math.max(0, (Date.now() - loginTime) / (1000 * 60)) : undefined;
+      logUserActivity(user.id, user.username, 'logout', currentFiscalYear, durationMinutes).catch(err => {
+        console.error("Error logging logout activity", err);
+      });
+    }
+
+    if (connectedUnsubRef.current) {
+      connectedUnsubRef.current();
+      connectedUnsubRef.current = null;
+    }
+    sessionLoginTimeRef.current = null;
+
     setCurrentUser(null);
     localStorage.removeItem('smart_inv_active_item');
   };
@@ -463,6 +495,41 @@ const App: React.FC = () => {
     setActiveOrgName(user.organizationName);
     setCurrentFiscalYear(fiscalYear);
     localStorage.removeItem('smart_inv_active_item');
+
+    const loginTimestamp = Date.now();
+    sessionLoginTimeRef.current = loginTimestamp;
+
+    // 2a. Write to presence/${user.id} with online state
+    const presenceRef = ref(db, `presence/${user.id}`);
+    set(presenceRef, {
+      state: 'online',
+      lastActive: loginTimestamp,
+      username: user.username,
+      fullName: user.fullName
+    }).catch(err => console.error("Error setting presence online:", err));
+
+    // 2b. Set up onValue listener on .info/connected
+    if (connectedUnsubRef.current) {
+      connectedUnsubRef.current();
+      connectedUnsubRef.current = null;
+    }
+    const unsub = onValue(connectedRef, (snapshot) => {
+      if (snapshot.val() === true) {
+        const userPresenceRef = ref(db, `presence/${user.id}`);
+        onDisconnect(userPresenceRef).set({
+          state: 'offline',
+          lastActive: Date.now(),
+          username: user.username,
+          fullName: user.fullName
+        });
+      }
+    });
+    connectedUnsubRef.current = unsub;
+
+    // 2c. Append new entry to userActivityLogs for this login event
+    logUserActivity(user.id, user.username, 'login', fiscalYear).catch(err => {
+      console.error("Error logging login activity:", err);
+    });
   };
 
   // Auto-logout after 5 minutes of inactivity

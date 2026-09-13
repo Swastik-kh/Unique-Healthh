@@ -101,6 +101,22 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Helper to format live active duration in exact hours, minutes, seconds (e.g. "2h 14m 32s")
+  const formatLiveDuration = (ms: number) => {
+    if (ms < 0) ms = 0;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m ${secs}s`;
+    }
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
   // Filtered users search mapping
   const filteredUsers = useMemo(() => {
     return users.filter(user => 
@@ -126,7 +142,8 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
     filteredUsers.forEach(u => {
       const stats = userStats[u.id];
       const isOnline = presenceStates[u.id]?.state === 'online';
-      const activeDuration = isOnline && stats?.lastLogin ? (now - stats.lastLogin) / (1000 * 60) : 0;
+      const lastActive = presenceStates[u.id]?.lastActive;
+      const activeDuration = isOnline && lastActive ? Math.max(0, (now - lastActive) / (1000 * 60)) : 0;
       const pastDuration = stats?.pastDuration || 0;
       sum += pastDuration + activeDuration;
     });
@@ -297,7 +314,9 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
                 filteredUsers.map(user => {
                   const stats = userStats[user.id];
                   const isOnline = presenceStates[user.id]?.state === 'online';
-                  const activeDuration = isOnline && stats?.lastLogin ? (now - stats.lastLogin) / (1000 * 60) : 0;
+                  const lastActive = presenceStates[user.id]?.lastActive;
+                  const liveActiveDurationMs = isOnline && lastActive ? Math.max(0, now - lastActive) : 0;
+                  const activeDuration = isOnline && lastActive ? liveActiveDurationMs / (1000 * 60) : 0;
                   const pastDuration = stats?.pastDuration || 0;
                   const totalDuration = pastDuration + activeDuration;
                   const loginTimes = stats?.count || 0;
@@ -375,10 +394,10 @@ export const UserHistory: React.FC<{ users: User[] }> = ({ users }) => {
 
                       {/* Current Active Session Tracker */}
                       <td className="py-4 px-6 text-center">
-                        {isOnline ? (
+                        {isOnline && lastActive ? (
                           <div className="flex items-center justify-center gap-1.5 font-mono text-emerald-600 font-bold bg-emerald-50 py-1.5 px-3 rounded-xl border border-emerald-100 w-fit mx-auto shadow-sm">
                             <Timer className="h-3.5 w-3.5 animate-spin text-emerald-500" />
-                            {formatDuration(activeDuration)}
+                            {formatLiveDuration(liveActiveDurationMs)}
                           </div>
                         ) : (
                           <span className="text-slate-400 text-xs font-mono">-</span>

@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
+import { getDatabase, ref } from "firebase/database";
 import { getStorage } from "firebase/storage";
 
 /**
@@ -32,6 +32,8 @@ if (!firebaseConfig.databaseURL) {
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 export const storage = getStorage(app);
+export const connectedRef = ref(db, '.info/connected');
+export const getConnectionStatusRef = () => ref(db, '.info/connected');
 
 /**
  * Encodes keys to be safe for Firebase Realtime Database

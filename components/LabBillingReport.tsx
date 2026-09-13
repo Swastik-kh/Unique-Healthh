@@ -118,6 +118,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [selectedAmbulanceDriver, setSelectedAmbulanceDriver] = useState<string>('All');
   const [selectedService, setSelectedService] = useState<string>('All');
   const [selectedReferredBy, setSelectedReferredBy] = useState<string>('All');
+  const [selectedGender, setSelectedGender] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
@@ -756,13 +757,30 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const refMatch = record.referredBy === selectedReferredBy;
         if (!refMatch) return false;
       }
+      // 5.6. Gender filter match
+      if (selectedGender !== 'all') {
+        let gender = record.gender;
+        if (!gender) {
+          const seeker = serviceSeekerRecords?.find(s => s.id === record.serviceSeekerId);
+          if (seeker) gender = seeker.gender;
+        }
+        const gStr = (gender || '').trim().toLowerCase();
+        const target = selectedGender.toLowerCase();
+        let matchesGender = false;
+        if (target === 'male' && (gStr === 'male' || gStr === 'पुरुष' || gStr === 'm')) matchesGender = true;
+        else if (target === 'female' && (gStr === 'female' || gStr === 'महिला' || gStr === 'f')) matchesGender = true;
+        else if (target === 'other' && (gStr === 'other' || gStr === 'अन्य')) matchesGender = true;
+        else if (gStr === target) matchesGender = true;
+
+        if (!matchesGender) return false;
+      }
 
       return true;
     }).sort((a,b) => {
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, selectedReferredBy, testSubRelations, serviceCategoryMap, getServiceCategory]);
+  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, selectedReferredBy, selectedGender, serviceSeekerRecords, testSubRelations, serviceCategoryMap, getServiceCategory]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
@@ -1651,6 +1669,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         {u.fullName} ({u.designation || u.role})
                       </option>
                     ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 font-nepali">लिङ्ग (Gender)</label>
+              <div className="relative">
+                <select
+                  value={selectedGender}
+                  onChange={(e) => setSelectedGender(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer font-nepali text-slate-700"
+                >
+                  <option value="all">सबै लिङ्ग (All Genders)</option>
+                  <option value="Male">पुरुष (Male)</option>
+                  <option value="Female">महिला (Female)</option>
+                  <option value="Other">अन्य (Other)</option>
                 </select>
                 <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
               </div>
