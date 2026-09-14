@@ -59,7 +59,7 @@ const DEFAULT_ADMIN: User = {
     fullName: 'Administrator',
     designation: 'System Manager',
     phoneNumber: '98XXXXXXXX',
-    allowedMenus: ['dashboard', 'inventory', 'settings', 'services', 'khop_sewa', 'emergency_sewa', 'cbimnci_sewa', 'conference', 'karyakram', 'vitamin_a', 'khop_abhiyan', 'online_report']
+    allowedMenus: ['dashboard', 'inventory', 'settings', 'services', 'khop_sewa', 'emergency_sewa', 'cbimnci_sewa', 'conference', 'karyakram', 'vitamin_a', 'khop_abhiyan', 'online_report', 'change_password']
 };
 
 const App: React.FC = () => {
@@ -1545,8 +1545,12 @@ const App: React.FC = () => {
           const rawPassword = (u.password || '').trim();
           // Detect if it is already a 64-character hexadecimal SHA-256 string
           const isHashed = /^[0-9a-fA-F]{64}$/.test(rawPassword);
+          const userAllowedMenus = Array.from(new Set([...(u.allowedMenus || []), 'change_password']));
+          const userEditAccessMenus = Array.from(new Set([...(u.editAccessMenus || []), 'change_password']));
           const securedUser: User = {
               ...u,
+              allowedMenus: userAllowedMenus,
+              editAccessMenus: userEditAccessMenus,
               password: isHashed ? rawPassword : hashPassword(rawPassword),
               createdFromApp: u.createdFromApp || "SmartHealthOfficialApp",
               updatedFromApp: "SmartHealthOfficialApp",

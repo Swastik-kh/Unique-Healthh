@@ -888,6 +888,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
 
   const hasAccess = useCallback((menuId: string) => {
     if (!currentUser) return false;
+    if (menuId === 'change_password') return true;
     if (menuId === 'organization_management' && currentUser.role !== 'SUPER_ADMIN') return false;
     if (menuId === 'audit_log' && currentUser.role !== 'SUPER_ADMIN') return false;
     if (menuId === 'talim_byabasthapan' && !['SUPER_ADMIN', 'ADMIN', 'HEALTH_SECTION'].includes(currentUser.role)) return false;

@@ -239,8 +239,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       set.add('report_billing_ambulance');
       set.add('report_billing_ambulance_driver');
     }
+    set.add('change_password');
     return set;
-  }, [currentUser]);
+  }, [currentUser, isSuperAdmin]);
 
   // Restrict visible and assignable permission structure based on currentUser's allowed menus
   const visiblePermissionStructure = useMemo(() => {
@@ -335,8 +336,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     email: '',
     organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
     role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
-    allowedMenus: [],
-    editAccessMenus: [],
+    allowedMenus: ['change_password'],
+    editAccessMenus: ['change_password'],
     deleteAccessMenus: [],
     serviceType: 'Permanent',
     hasSaveAccess: true,
@@ -405,8 +406,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         email: '',
         organizationName: currentUser.role === 'ADMIN' ? currentUser.organizationName : '',
         role: (rolesForDropdown.length > 0 ? (rolesForDropdown[0].value as UserRole) : 'STAFF'),
-        allowedMenus: [],
-        editAccessMenus: [],
+        allowedMenus: ['change_password'],
+        editAccessMenus: ['change_password'],
         deleteAccessMenus: [],
         serviceType: 'Permanent',
         hasSaveAccess: true,
@@ -433,8 +434,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           email: user.email || '',
           organizationName: user.organizationName,
           role: user.role,
-          allowedMenus: user.allowedMenus || [],
-          editAccessMenus: user.editAccessMenus || [],
+          allowedMenus: Array.from(new Set([...(user.allowedMenus || []), 'change_password'])),
+          editAccessMenus: Array.from(new Set([...(user.editAccessMenus || []), 'change_password'])),
           deleteAccessMenus: user.deleteAccessMenus || [],
           serviceType: user.serviceType || 'Permanent',
           hasSaveAccess: user.hasSaveAccess ?? true,
@@ -734,19 +735,26 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         }
     }
 
-    let finalMenus = Array.from(new Set([...formData.allowedMenus]));
-    let finalEditMenus = Array.from(new Set([...formData.editAccessMenus]));
+    let finalMenus = Array.from(new Set([...formData.allowedMenus, 'change_password']));
+    let finalEditMenus = Array.from(new Set([...formData.editAccessMenus, 'change_password']));
     let finalDeleteMenus = Array.from(new Set([...formData.deleteAccessMenus]));
 
     if (isEditingSelf) {
         // Enforce that self-editing cannot modify permissions, roles, or special privileges
-        finalMenus = currentUser.allowedMenus || [];
-        finalEditMenus = currentUser.editAccessMenus || [];
+        finalMenus = Array.from(new Set([...(currentUser.allowedMenus || []), 'change_password']));
+        finalEditMenus = Array.from(new Set([...(currentUser.editAccessMenus || []), 'change_password']));
         finalDeleteMenus = currentUser.deleteAccessMenus || [];
     } else if (!isSuperAdmin && adminManageableIds) {
-        finalMenus = finalMenus.filter(id => adminManageableIds.has(id));
-        finalEditMenus = finalEditMenus.filter(id => adminManageableIds.has(id));
+        finalMenus = finalMenus.filter(id => adminManageableIds.has(id) || id === 'change_password');
+        finalEditMenus = finalEditMenus.filter(id => adminManageableIds.has(id) || id === 'change_password');
         finalDeleteMenus = finalDeleteMenus.filter(id => adminManageableIds.has(id));
+    }
+
+    if (!finalMenus.includes('change_password')) {
+        finalMenus.push('change_password');
+    }
+    if (!finalEditMenus.includes('change_password')) {
+        finalEditMenus.push('change_password');
     }
 
     const userToSave: User = {
@@ -935,7 +943,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               <Shield className="text-emerald-600 shrink-0" size={20} />
               <div className="leading-relaxed font-nepali">
                   <span className="font-bold text-emerald-900 block">सुरक्षा प्रतिबन्ध (App Authorization Lock):</span>
-                  प्रयोगकर्ता थप्न (Add) तथा प्रयोगकर्ता नाम (Username) र पासवर्ड (Password) परिवर्तन गर्ने सुविधा केवल यसै <b>Smart Health आधिकारिक एप</b> बाट मात्र गर्न मिल्ने गरी सुरक्षित गरिएको छ। अन्य बाह्य एप वा माध्यमबाट फेरबदल गर्न मिल्दैन।
+                  प्रयोगकर्ता थप्न (Add) तथा प्रयोगकर्ता नाम (Username) र पासवर्ड (Password) परिवर्तन गर्ने सुविधा केवल यसै <b>Smart Inventory आधिकारिक एप</b> बाट मात्र गर्न मिल्ने गरी सुरक्षित गरिएको छ। अन्य बाह्य एप वा माध्यमबाट फेरबदल गर्न मिल्दैन।
               </div>
           </div>
 
