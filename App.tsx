@@ -4,7 +4,7 @@ import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
-import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut } from 'lucide-react';
+import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw } from 'lucide-react';
 import { ChangePassword } from './components/ChangePassword';
 import { 
   User, OrganizationSettings, MagFormEntry, RabiesPatient, PurchaseOrderEntry, 
@@ -16,7 +16,7 @@ import {
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser,
   ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry
 } from './types';
-import { db, connectedRef } from './firebase';
+import { auth, signInAnonymously, onAuthStateChanged, db, connectedRef } from './firebase';
 import { hashPassword } from './lib/crypto';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push, onDisconnect } from "firebase/database";
 import { logUserActivity } from './lib/logger';
@@ -63,6 +63,59 @@ const DEFAULT_ADMIN: User = {
 };
 
 const App: React.FC = () => {
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthRetrying, setIsAuthRetrying] = useState(false);
+
+  // 1. Initial anonymous Firebase authentication layer
+  useEffect(() => {
+    let isMounted = true;
+
+    // Track authentication state
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!isMounted) return;
+      if (user) {
+        setIsAuthReady(true);
+        setAuthError(null);
+      }
+    });
+
+    // Initiate anonymous authentication once on mount
+    signInAnonymously(auth)
+      .then(() => {
+        if (!isMounted) return;
+        setIsAuthReady(true);
+        setAuthError(null);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.error("Firebase anonymous sign-in failed on mount:", err);
+        if (!auth.currentUser) {
+          setAuthError("Connection issue, please retry");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const handleRetryAuth = async () => {
+    setIsAuthRetrying(true);
+    setAuthError(null);
+    try {
+      await signInAnonymously(auth);
+      setIsAuthReady(true);
+      setAuthError(null);
+    } catch (err: any) {
+      console.error("Firebase anonymous sign-in retry failed:", err);
+      setAuthError("Connection issue, please retry");
+    } finally {
+      setIsAuthRetrying(false);
+    }
+  };
+
   const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_ADMIN]); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeOrgName, setActiveOrgName] = useState<string>('');
@@ -231,6 +284,8 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!isAuthReady) return;
+
     const connectedRef = ref(db, ".info/connected");
     const onConnect = onValue(connectedRef, (snap) => {
         setIsDbConnected(snap.val() === true);
@@ -263,11 +318,13 @@ const App: React.FC = () => {
         off(connectedRef, 'value', onConnect);
         unsubUsers();
     };
-  }, []);
+  }, [isAuthReady]);
 
   useEffect(() => {
-    if (!currentUser) {
-      setActiveOrgName('');
+    if (!isAuthReady || !currentUser) {
+      if (!currentUser) {
+        setActiveOrgName('');
+      }
       return;
     }
 
@@ -425,7 +482,7 @@ const App: React.FC = () => {
     unsubscribes.push(unsubGlobalRequests);
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [currentUser, activeOrgName]);
+  }, [isAuthReady, currentUser, activeOrgName]);
 
   useEffect(() => {
     if (currentUser) {
@@ -2201,6 +2258,60 @@ const App: React.FC = () => {
       alert("पासवर्ड परिवर्तन गर्दा समस्या आयो।");
     }
   };
+
+  if (!isAuthReady) {
+    if (authError) {
+      return (
+        <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-100 p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800 font-nepali mb-2">
+              जडानमा समस्या आयो
+            </h2>
+            <p className="text-sm text-slate-600 mb-6 font-nepali">
+              Connection issue, please retry
+            </p>
+            <button
+              type="button"
+              onClick={handleRetryAuth}
+              disabled={isAuthRetrying}
+              className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-all shadow-md shadow-primary-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isAuthRetrying ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span className="font-nepali">पुनः प्रयास गरिँदैछ...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={18} />
+                  <span className="font-nepali">पुनः प्रयास गर्नुहोस् (Retry)</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen w-full bg-[#f8fafc] flex items-center justify-center p-6 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]">
+        <div className="text-center animate-in fade-in duration-300">
+          <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-primary-100 shadow-sm">
+            <Loader2 size={32} className="animate-spin" />
+          </div>
+          <h3 className="text-base font-bold text-slate-700 font-nepali mb-1">
+            प्रणाली लोड हुँदैछ...
+          </h3>
+          <p className="text-xs text-slate-400 font-medium">
+            Connecting to secure server...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

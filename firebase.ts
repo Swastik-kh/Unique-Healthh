@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref } from "firebase/database";
 import { getStorage } from "firebase/storage";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 
 /**
  * Safely access Vite environment variables.
@@ -30,10 +31,12 @@ if (!firebaseConfig.databaseURL) {
 }
 
 const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 export const db = getDatabase(app);
 export const storage = getStorage(app);
 export const connectedRef = ref(db, '.info/connected');
 export const getConnectionStatusRef = () => ref(db, '.info/connected');
+export { signInAnonymously, onAuthStateChanged };
 
 /**
  * Encodes keys to be safe for Firebase Realtime Database
