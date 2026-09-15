@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Download, ExternalLink, ShieldAlert, FileCheck, Copy, Check, Info, Link2
 } from 'lucide-react';
 import { User, OrganizationSettings } from '../types';
+import { db } from '../firebase';
+import { ref, onValue } from 'firebase/database';
 
 interface DownloadCenterProps {
   currentUser: User;
@@ -11,7 +13,19 @@ interface DownloadCenterProps {
 
 export const DownloadCenter: React.FC<DownloadCenterProps> = ({ currentUser, settings }) => {
   const [copied, setCopied] = useState(false);
-  const downloadUrl = (settings?.downloadCenterUrl || '').trim();
+  const [liveUrl, setLiveUrl] = useState<string>('');
+
+  useEffect(() => {
+    const downloadUrlRef = ref(db, 'globalData/downloadCenterUrl');
+    const unsub = onValue(downloadUrlRef, (snap) => {
+      if (snap.exists() && typeof snap.val() === 'string') {
+        setLiveUrl(snap.val());
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const downloadUrl = (liveUrl || settings?.downloadCenterUrl || '').trim();
 
   const handleCopyLink = () => {
     if (!downloadUrl) return;

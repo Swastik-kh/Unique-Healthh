@@ -121,6 +121,7 @@ const App: React.FC = () => {
   const [activeOrgName, setActiveOrgName] = useState<string>('');
   const [currentFiscalYear, setCurrentFiscalYear] = useState<string>('2083/084');
   const [generalSettings, setGeneralSettings] = useState<OrganizationSettings>(INITIAL_SETTINGS);
+  const [globalDownloadUrl, setGlobalDownloadUrl] = useState<string>('');
   const [globalDhis2Mappings, setGlobalDhis2Mappings] = useState<{
     dhis2DatasetMappings?: Record<string, string>;
     dhis2CellMappings?: any[];
@@ -468,6 +469,15 @@ const App: React.FC = () => {
         }
     });
     unsubscribes.push(unsubGlobalMappings);
+
+    // Global Download Center URL Listener
+    const globalDownloadUrlRef = ref(db, 'globalData/downloadCenterUrl');
+    const unsubGlobalDownloadUrl = onValue(globalDownloadUrlRef, (snap) => {
+        if (snap.exists() && typeof snap.val() === 'string') {
+            setGlobalDownloadUrl(snap.val());
+        }
+    });
+    unsubscribes.push(unsubGlobalDownloadUrl);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -2235,9 +2245,10 @@ const App: React.FC = () => {
 
   const mergedSettings = useMemo(() => ({
     ...generalSettings,
+    downloadCenterUrl: globalDownloadUrl || generalSettings.downloadCenterUrl,
     dhis2DatasetMappings: globalDhis2Mappings.dhis2DatasetMappings || generalSettings.dhis2DatasetMappings,
     dhis2CellMappings: globalDhis2Mappings.dhis2CellMappings || generalSettings.dhis2CellMappings
-  }), [generalSettings, globalDhis2Mappings]);
+  }), [generalSettings, globalDhis2Mappings, globalDownloadUrl]);
 
   const handleChangePassword = async (id: string, pass: string) => {
     try {
@@ -2370,7 +2381,12 @@ const App: React.FC = () => {
             onChangePassword={handleChangePassword}
           isDbLocked={isDbLocked}
           generalSettings={mergedSettings} 
-          onUpdateGeneralSettings={(s) => set(getOrgRef('settings'), s)}
+          onUpdateGeneralSettings={(s) => {
+            set(getOrgRef('settings'), s);
+            if (s.downloadCenterUrl !== undefined) {
+              set(ref(db, 'globalData/downloadCenterUrl'), s.downloadCenterUrl);
+            }
+          }}
           onUpdateGlobalDhis2Mappings={(m) => set(ref(db, 'globalData/dhis2Mappings'), m)}
           magForms={magForms} onSaveMagForm={handleSaveMagForm} onDeleteMagForm={handleDeleteMagForm}
           purchaseOrders={purchaseOrders} onUpdatePurchaseOrder={(o) => set(getOrgRef(`purchaseOrders/${o.id}`), o)}
