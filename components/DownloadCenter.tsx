@@ -16,13 +16,21 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ currentUser, set
   const [liveUrl, setLiveUrl] = useState<string>('');
 
   useEffect(() => {
-    const downloadUrlRef = ref(db, 'globalData/downloadCenterUrl');
-    const unsub = onValue(downloadUrlRef, (snap) => {
-      if (snap.exists() && typeof snap.val() === 'string') {
-        setLiveUrl(snap.val());
-      }
-    });
-    return () => unsub();
+    const refsToListen = [
+      ref(db, 'globalData/downloadCenterUrl'),
+      ref(db, 'organizationSettings/config/downloadCenterUrl'),
+      ref(db, 'downloadCenterUrl')
+    ];
+
+    const unsubs = refsToListen.map(r => 
+      onValue(r, (snap) => {
+        if (snap.exists() && typeof snap.val() === 'string' && snap.val().trim()) {
+          setLiveUrl(snap.val().trim());
+        }
+      })
+    );
+
+    return () => unsubs.forEach(unsub => unsub());
   }, []);
 
   const downloadUrl = (liveUrl || settings?.downloadCenterUrl || '').trim();

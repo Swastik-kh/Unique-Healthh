@@ -282,6 +282,18 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     e.preventDefault();
     onUpdateSettings(localSettings);
     
+    // Save Download Center Link Globally to ensure all users across any org get it
+    try {
+        if (localSettings.downloadCenterUrl !== undefined) {
+            const urlToSave = (localSettings.downloadCenterUrl || '').trim();
+            await set(ref(rtdb, 'globalData/downloadCenterUrl'), urlToSave);
+            await set(ref(rtdb, 'organizationSettings/config/downloadCenterUrl'), urlToSave);
+            await set(ref(rtdb, 'downloadCenterUrl'), urlToSave);
+        }
+    } catch (err) {
+        console.error("Global Download Center Link Save Failed:", err);
+    }
+
     // If superadmin, also update global DHIS2 mappings
     if (currentUser.role === 'SUPER_ADMIN') {
         if (onUpdateGlobalDhis2Mappings) {
