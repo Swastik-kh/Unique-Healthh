@@ -1081,6 +1081,26 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                     />
                                 </div>
                             </div>
+
+                            {/* Download Center Link Setting - Added for SUPER_ADMIN */}
+                            <div className="mt-8 border-t pt-6">
+                                <h4 className="font-bold text-emerald-900 mb-1 flex items-center gap-2 font-nepali text-sm">
+                                    <ExternalLink size={18} className="text-emerald-600"/>
+                                    डाउनलोड सेन्टर लिङ्क सेटिङ (Super Admin Only)
+                                </h4>
+                                <p className="text-xs text-slate-500 font-nepali mb-4">
+                                    यहाँ राखिएको डाउनलोड लिङ्क (URL) प्रणालीका प्रयोगकर्ताहरूका लागि 'डाउनलोड (Download)' मेनुमा उपलब्ध हुनेछ।
+                                </p>
+                                <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
+                                    <Input 
+                                        label="डाउनलोड सेन्टर लिङ्क (Download Center Link URL)" 
+                                        value={localSettings.downloadCenterUrl || ''} 
+                                        onChange={(e) => handleChange('downloadCenterUrl', e.target.value)} 
+                                        placeholder="उदा: https://drive.google.com/file/d/xyz/view वा APK/फाइलको लिङ्क"
+                                        icon={<ExternalLink size={16} />} 
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

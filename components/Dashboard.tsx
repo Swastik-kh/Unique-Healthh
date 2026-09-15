@@ -24,6 +24,7 @@ import { SujhabPetika } from './SujhabPetika';
 import { UserManagement } from './UserManagement';
 import { OrganizationManagement } from './OrganizationManagement';
 import { Conference } from './Conference';
+import { DownloadCenter } from './DownloadCenter';
 import { ChangePassword } from './ChangePassword';
 import { UserHistory } from './UserHistory';
 import { TBPatientRegistration } from './TBPatientRegistration';
@@ -1503,6 +1504,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         onSetActiveOrgName={onSetActiveOrgName}
       />;
       case 'conference': return <Conference currentUser={currentUser} allUsers={users} />;
+      case 'download': return <DownloadCenter currentUser={currentUser} settings={generalSettings} />;
       case 'organization_management': return <OrganizationManagement currentUser={currentUser} users={users} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} onDeleteOrganization={onDeleteOrganization} />;
       case 'user_management': return <UserManagement currentUser={currentUser} users={users} onAddUser={onAddUser} onUpdateUser={onUpdateUser} onDeleteUser={onDeleteUser} isDbLocked={isDbLocked} />;
       case 'audit_log': return currentUser?.role === 'SUPER_ADMIN' ? <AuditLogViewer auditLogs={props.auditLogs || []} users={users} activeOrgName={activeOrgName} /> : null;

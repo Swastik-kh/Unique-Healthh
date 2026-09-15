@@ -5,7 +5,7 @@ import {
   Calculator, Calendar, Syringe, HeartHandshake, CheckCircle2, Package, Warehouse, 
   ClipboardCheck, FilePlus, ShoppingCart, FileOutput, Archive, Book, BookOpen, RotateCcw, 
   Wrench, Trash2, Scroll, FileSpreadsheet, BarChart3, MessageSquare, Settings, Sliders, 
-  ShieldCheck, ShieldAlert, Store, KeyRound, Database, Globe, Thermometer
+  ShieldCheck, ShieldAlert, Store, KeyRound, Database, Globe, Thermometer, Download
 } from 'lucide-react';
 
 export interface MenuItem {
@@ -151,6 +151,11 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
     id: 'conference',
     label: 'कन्फरेन्स (Conference)',
     icon: <MessageSquare size={20} />,
+  },
+  {
+    id: 'download',
+    label: 'डाउनलोड (Download)',
+    icon: <Download size={20} />,
   },
   {
     id: 'settings',

@@ -165,6 +165,7 @@ export interface OrganizationSettings {
   emailApiKey?: string; // Resend बाट लिएको re_xxxx... key
   emailSenderAddress?: string; // जस्तै: noreply@smartinventoryy.com
   emailSenderName?: string; // जस्तै: "Unique Health"
+  downloadCenterUrl?: string; // Super Admin ले सामान्य सेटिङबाट सेट गर्ने डाउनलोड लिङ्क
   ipdWards?: WardConfig[]; 
   isSubscribed?: boolean;
   subscriptionExpiryDate?: string;

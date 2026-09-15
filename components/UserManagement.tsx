@@ -198,6 +198,11 @@ const PERMISSION_STRUCTURE = [
         label: 'कन्फरेन्स (Conference)',
         children: []
     },
+    {
+        id: 'download',
+        label: 'डाउनलोड (Download)',
+        children: []
+    },
     { 
         id: 'settings', 
         label: 'सेटिङ (Settings)',
