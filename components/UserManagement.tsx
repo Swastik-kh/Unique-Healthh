@@ -798,7 +798,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         allowSmsAccess: isSuperAdmin ? formData.allowSmsAccess : (isEditingSelf ? (currentUser.allowSmsAccess ?? false) : false),
         smsQuota: isSuperAdmin ? formData.smsQuota : (isEditingSelf ? (currentUser.smsQuota ?? 0) : 0),
         smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
-        maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : undefined) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
+        maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : 5) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
         mustChangePassword: !editingId ? true : (users.find(u => u.id === editingId)?.mustChangePassword ?? false),
         parentId: formData.parentId || currentUser.id,
         createdFromApp: "SmartHealthOfficialApp",
@@ -806,6 +806,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
         appOrigin: typeof window !== 'undefined' ? window.location.origin : 'official_app'
     };
+
+    // Remove any undefined properties to prevent Firebase set errors
+    Object.keys(userToSave).forEach(key => {
+        if ((userToSave as any)[key] === undefined) {
+            delete (userToSave as any)[key];
+        }
+    });
 
     try {
         if (editingId && editingId !== newId) {
