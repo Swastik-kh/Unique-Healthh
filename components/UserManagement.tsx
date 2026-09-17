@@ -5,6 +5,7 @@ import { UserManagementProps } from '../types/dashboardTypes';
 import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
+import { SearchableSelect } from './SearchableSelect';
 import { db } from '../firebase';
 import { ref, get } from 'firebase/database';
 import { hashPassword } from '../lib/crypto';
@@ -299,6 +300,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     { id: 'account', value: 'ACCOUNT', label: 'लेखा शाखा (Account)' },
     { id: 'approval', value: 'APPROVAL', label: 'स्वीकृत गर्ने (Approval/Head)' },
   ];
+
+  const existingOrganizations = useMemo(() => {
+    const orgs = users.map(u => u.organizationName).filter(Boolean);
+    return Array.from(new Set(orgs)).sort();
+  }, [users]);
+
+  const orgOptions: Option[] = useMemo(() => {
+    return existingOrganizations.map(org => ({
+      id: org,
+      value: org,
+      label: org
+    }));
+  }, [existingOrganizations]);
 
   const rolesForDropdown = useMemo(() => {
     if (currentUser.role === 'SUPER_ADMIN') return allCreatableRoles;
@@ -1003,17 +1017,30 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 icon={<Mail size={16} />} 
                 disabled={isSaving} 
             />
-            <Input 
-                label="संस्था (कार्यालयको नाम)" 
-                value={formData.organizationName} 
-                onChange={e => setFormData({...formData, organizationName: e.target.value})} 
-                required 
-                readOnly={currentUser.role === 'ADMIN'} 
-                className={currentUser.role === 'ADMIN' ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''} 
-                icon={<Building2 size={16} />} 
-                disabled={isSaving}
-                placeholder="उदा: स्वास्थ्य चौकी, प्राथमिक स्वास्थ्य केन्द्र..."
-            />
+            {currentUser.role === 'SUPER_ADMIN' ? (
+              <SearchableSelect 
+                  label="संस्था (कार्यालयको नाम)" 
+                  value={formData.organizationName} 
+                  onChange={(val) => setFormData({...formData, organizationName: val})} 
+                  options={orgOptions}
+                  required 
+                  icon={<Building2 size={16} />} 
+                  disabled={isSaving}
+                  placeholder="विद्यमान संस्था छान्नुहोस् वा नयाँ टाइप गर्नुहोस्..."
+              />
+            ) : (
+              <Input 
+                  label="संस्था (कार्यालयको नाम)" 
+                  value={formData.organizationName} 
+                  onChange={e => setFormData({...formData, organizationName: e.target.value})} 
+                  required 
+                  readOnly={currentUser.role === 'ADMIN'} 
+                  className={currentUser.role === 'ADMIN' ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''} 
+                  icon={<Building2 size={16} />} 
+                  disabled={isSaving}
+                  placeholder="उदा: स्वास्थ्य चौकी, प्राथमिक स्वास्थ्य केन्द्र..."
+              />
+            )}
             {(canManageUsers) && (
               <Select 
                   label="भूमिका" 
