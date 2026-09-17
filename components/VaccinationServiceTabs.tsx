@@ -81,6 +81,14 @@ export const VaccinationServiceTabs: React.FC<VaccinationServiceTabsProps> = ({
       alert("कम्तिमा एउटा केन्द्र हुनुपर्छ।");
       return;
     }
+    const hasChildRecords = bachhaImmunizationRecords?.some(r => r.vaccinationCenter === centerName);
+    const hasMaternalRecords = garbhawatiPatients?.some(p => p.vaccinationCenter === centerName);
+
+    if (hasChildRecords || hasMaternalRecords) {
+      alert(`"${centerName}" खोप केन्द्रमा बालबालिका वा गर्भवतीको खोप सेवा दर्ता (Records) भएकाले यो केन्द्र मेटाउन (Delete) मिल्दैन।`);
+      return;
+    }
+
     const updatedCenters = centers.filter(c => c !== centerName);
     onUpdateGeneralSettings({ ...generalSettings, vaccinationCenters: updatedCenters });
   };
