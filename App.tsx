@@ -14,7 +14,8 @@ import {
   GarbhawotiRecord, PrasutiRecord, ServiceSeekerRecord, OPDRecord, EmergencyRecord, CBIMNCIRecord, BillingRecord, ServiceItem, LabReport, DispensaryRecord, PariwarSewaRecord, XRayRecord, ECGRecord, USGRecord, PhysiotherapyRecord, IPDRecord, ItemEntry, InterFacilityRequest, Talim, KarmachariTalimRecord,
   GaunGharClinicRecord, AuditLogEntry,
   PaymentRequest, AllowanceRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, GoswaraVoucher, JournalEntry, isSystemManagerUser,
-  ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry
+  ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry,
+  OxygenCylinderRecord, OxygenDistributionRecord
 } from './types';
 import { auth, signInAnonymously, onAuthStateChanged, db, connectedRef } from './firebase';
 import { hashPassword } from './lib/crypto';
@@ -183,6 +184,8 @@ const App: React.FC = () => {
   const [coldChainLogs, setColdChainLogs] = useState<ColdChainLogEntry[]>([]);
   const [storeRooms, setStoreRooms] = useState<StoreRoom[]>([]);
   const [storeTemperatureLogs, setStoreTemperatureLogs] = useState<StoreTemperatureLogEntry[]>([]);
+  const [oxygenCylinders, setOxygenCylinders] = useState<OxygenCylinderRecord[]>([]);
+  const [oxygenDistributionRecords, setOxygenDistributionRecords] = useState<OxygenDistributionRecord[]>([]);
   
   // Financial State
   const [financialPrograms, setFinancialPrograms] = useState<any[]>([]);
@@ -451,6 +454,8 @@ const App: React.FC = () => {
     setupOrgListener('coldChainLogs', setColdChainLogs);
     setupOrgListener('storeRooms', setStoreRooms);
     setupOrgListener('storeTemperatureLogs', setStoreTemperatureLogs);
+    setupOrgListener('oxygenCylinders', setOxygenCylinders);
+    setupOrgListener('oxygenDistributionRecords', setOxygenDistributionRecords);
 
     // Financial Listeners
     setupOrgListener('financialPrograms', setFinancialPrograms);
@@ -1467,6 +1472,56 @@ const App: React.FC = () => {
       await remove(getOrgRef(`ambulanceOdometerRecords/${id}`, targetOrg));
     } catch (error) {
       alert("ओडोमिटर रेकर्ड हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveOxygenCylinder = async (record: OxygenCylinderRecord): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const sanitized = JSON.parse(JSON.stringify(record));
+      const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await set(getOrgRef(`oxygenCylinders/${record.id}`, targetOrg), sanitized);
+      return true;
+    } catch (error) {
+      console.error('Oxygen cylinder save failed:', error);
+      alert("अक्सिजन सिलिन्डर रेकर्ड सुरक्षित गर्न सकिएन।");
+      return false;
+    }
+  };
+
+  const handleDeleteOxygenCylinder = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const rec = oxygenCylinders.find(r => r.id === id);
+      const targetOrg = (rec as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await remove(getOrgRef(`oxygenCylinders/${id}`, targetOrg));
+    } catch (error) {
+      alert("अक्सिजन सिलिन्डर हटाउन सकिएन।");
+    }
+  };
+
+  const handleSaveOxygenDistribution = async (record: OxygenDistributionRecord): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const sanitized = JSON.parse(JSON.stringify(record));
+      const targetOrg = (record as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await set(getOrgRef(`oxygenDistributionRecords/${record.id}`, targetOrg), sanitized);
+      return true;
+    } catch (error) {
+      console.error('Oxygen distribution save failed:', error);
+      alert("अक्सिजन वितरण रेकर्ड सुरक्षित गर्न सकिएन।");
+      return false;
+    }
+  };
+
+  const handleDeleteOxygenDistribution = async (id: string) => {
+    if (!currentUser) return;
+    try {
+      const rec = oxygenDistributionRecords.find(r => r.id === id);
+      const targetOrg = (rec as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+      await remove(getOrgRef(`oxygenDistributionRecords/${id}`, targetOrg));
+    } catch (error) {
+      alert("अक्सिजन वितरण रेकर्ड हटाउन सकिएन।");
     }
   };
 
@@ -2530,6 +2585,12 @@ const App: React.FC = () => {
     ambulanceOdometerRecords={ambulanceOdometerRecords}
     onSaveAmbulanceOdometerRecord={handleSaveAmbulanceOdometerRecord}
     onDeleteAmbulanceOdometerRecord={handleDeleteAmbulanceOdometerRecord}
+    oxygenCylinders={oxygenCylinders}
+    onSaveOxygenCylinder={handleSaveOxygenCylinder}
+    onDeleteOxygenCylinder={handleDeleteOxygenCylinder}
+    oxygenDistributionRecords={oxygenDistributionRecords}
+    onSaveOxygenDistribution={handleSaveOxygenDistribution}
+    onDeleteOxygenDistribution={handleDeleteOxygenDistribution}
     ipdRecords={ipdRecords}
     onSaveIPDRecord={handleSaveIPDRecord}
     onDeleteIPDRecord={handleDeleteIPDRecord}

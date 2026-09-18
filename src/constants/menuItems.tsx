@@ -39,6 +39,14 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
       { id: 'ambulance_sewa', label: 'एम्बुलेन्स सेवा', icon: <Truck size={16} /> },
       { id: 'gaun_ghar_clinic', label: 'गाउँ घर क्लिनिक', icon: <Building2 size={16} /> },
       { 
+        id: 'anya_sewa', 
+        label: 'अन्य सेवा (Anya Sewa)', 
+        icon: <Package size={16} />,
+        subItems: [
+          { id: 'oxygen_sewa', label: 'अक्सिजन सेवा (Oxygen Service)', icon: <Activity size={16} /> }
+        ]
+      },
+      { 
         id: 'administration', 
         label: 'प्रशासन', 
         icon: <Users size={16} />,

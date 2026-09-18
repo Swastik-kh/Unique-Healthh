@@ -5,7 +5,7 @@ import {
   InventoryItem, Store, StockEntryRequest, DakhilaPratibedanEntry, ReturnEntry, 
   MarmatEntry, DhuliyaunaEntry, LogBookEntry, ItemEntry
 } from './inventoryTypes';
-import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, AuditLogEntry, ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry } from './healthTypes';
+import { RabiesPatient, TBPatient, GarbhawatiPatient, ChildImmunizationRecord, AmbulanceRecord, AmbulanceExpenseRecord, AmbulanceOdometerRecord, AuditLogEntry, ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry, OxygenCylinderRecord, OxygenDistributionRecord } from './healthTypes';
 import { FinancialProgram, ListedParty, FinancialTransaction, PartyPaymentRecord } from './financeTypes';
 
 export interface LoginFormProps {
@@ -197,6 +197,13 @@ export interface DashboardProps {
   ambulanceOdometerRecords?: AmbulanceOdometerRecord[];
   onSaveAmbulanceOdometerRecord?: (record: AmbulanceOdometerRecord) => void;
   onDeleteAmbulanceOdometerRecord?: (id: string) => void;
+
+  oxygenCylinders?: OxygenCylinderRecord[];
+  onSaveOxygenCylinder?: (record: OxygenCylinderRecord) => Promise<boolean>;
+  onDeleteOxygenCylinder?: (id: string) => void;
+  oxygenDistributionRecords?: OxygenDistributionRecord[];
+  onSaveOxygenDistribution?: (record: OxygenDistributionRecord) => Promise<boolean>;
+  onDeleteOxygenDistribution?: (id: string) => void;
 
   onClearData: (sectionId: string) => void; 
   onUploadData?: (sectionId: string, data: any[]) => void;

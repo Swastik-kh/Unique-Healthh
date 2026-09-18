@@ -92,6 +92,7 @@ import { FCHVKaryakram } from './FCHVKaryakram';
 import { FCHVCompilationReport } from './FCHVCompilationReport';
 import { KhopAbhiyan } from './KhopAbhiyan';
 import { AmbulanceSewa } from './AmbulanceSewa';
+import { OxygenSewa } from './OxygenSewa';
 import { OnlineReport } from './OnlineReport';
 import { AuditLogViewer } from './AuditLogViewer';
 import { ColdChainLog } from './ColdChainLog';
@@ -2745,6 +2746,19 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                       generalSettings={generalSettings}
                                       users={users}
                                     />;
+      case 'oxygen_sewa': return <OxygenSewa
+                                    cylinders={props.oxygenCylinders || []}
+                                    distributionRecords={props.oxygenDistributionRecords || []}
+                                    serviceSeekerRecords={serviceSeekerRecords}
+                                    currentUser={currentUser}
+                                    onSaveCylinder={props.onSaveOxygenCylinder || (async () => false)}
+                                    onDeleteCylinder={props.onDeleteOxygenCylinder || (() => {})}
+                                    onSaveDistribution={props.onSaveOxygenDistribution || (async () => false)}
+                                    onDeleteDistribution={props.onDeleteOxygenDistribution || (() => {})}
+                                    currentFiscalYear={currentFiscalYear}
+                                    generalSettings={generalSettings}
+                                    users={users}
+                                  />;
       case 'gaun_ghar_clinic': return <GaunGharClinic 
                                         records={props.gaunGharClinicRecords || []} 
                                         onSaveRecord={props.onSaveGaunGharClinicRecord!} 

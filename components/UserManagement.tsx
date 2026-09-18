@@ -89,6 +89,13 @@ const PERMISSION_STRUCTURE = [
             },
             { id: 'gaun_ghar_clinic', label: 'गाउँ घर क्लिनिक (Gaun Ghar Clinic)' },
             { 
+                id: 'anya_sewa', 
+                label: 'अन्य सेवा (Other Services)',
+                children: [
+                    { id: 'oxygen_sewa', label: 'अक्सिजन सेवा (Oxygen Service)' }
+                ]
+            },
+            { 
                 id: 'administration', 
                 label: 'प्रशासन (Administration)',
                 children: [

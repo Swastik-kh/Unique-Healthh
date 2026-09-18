@@ -325,6 +325,33 @@ export interface AmbulanceExpenseRecord {
   remarks?: string;
 }
 
+export interface OxygenCylinderRecord {
+  id: string;
+  cylinderNo: string;
+  size: 'Jumbo' | 'Medium' | 'Small' | 'D-Type' | 'B-Type' | string;
+  status: 'Full (भरिएको)' | 'Empty (खाली)' | 'In Use (प्रयोगमा)' | 'Maintenance (मर्मतमा)' | string;
+  location: string;
+  lastRefilledDateBs?: string;
+  pressurePsi?: number;
+  remarks?: string;
+  _orgName?: string;
+}
+
+export interface OxygenDistributionRecord {
+  id: string;
+  cylinderId?: string;
+  cylinderNo: string;
+  patientName: string;
+  patientPhone?: string;
+  wardOrDept: string;
+  issuedDateBs: string;
+  returnDateBs?: string;
+  status: 'Issued (वितरण गरिएको)' | 'Returned (फिर्ता आएको)' | string;
+  issuedBy?: string;
+  remarks?: string;
+  _orgName?: string;
+}
+
 export interface AmbulanceOdometerRecord {
   id: string;
   fiscalYear: string;
