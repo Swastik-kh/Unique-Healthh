@@ -350,6 +350,7 @@ export interface OxygenDistributionRecord {
   issuedBy?: string;
   invoiceNo?: string;
   serviceFee?: number;
+  returnCondition?: string;
   remarks?: string;
   _orgName?: string;
 }

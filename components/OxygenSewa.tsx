@@ -59,11 +59,18 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
     issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
     returnDateBs: '',
     status: 'Issued (वितरण गरिएको)',
-    issuedBy: currentUser?.name || '',
+    issuedBy: currentUser?.fullName || currentUser?.username || '',
     invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
     serviceFee: 1000,
+    returnCondition: '',
     remarks: ''
   });
+
+  // Return Modal State
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returningDist, setReturningDist] = useState<OxygenDistributionRecord | null>(null);
+  const [returnConditionForm, setReturnConditionForm] = useState('Empty (खाली)');
+  const [returnDateForm, setReturnDateForm] = useState(new NepaliDate().format('YYYY-MM-DD'));
 
   // Invoice Print Modal State
   const [printingDist, setPrintingDist] = useState<OxygenDistributionRecord | null>(null);
@@ -104,6 +111,19 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
     const activeIssued = distributionRecords.filter(d => d.status?.includes('Issued') || d.status?.includes('वितरण गरिएको')).length;
     return { total, full, empty, inUse, maintenance, activeIssued };
   }, [cylinders, distributionRecords]);
+
+  // Available Cylinders for Distribution (Only Full / available, excluding empty or currently in use)
+  const availableCylindersForDist = useMemo(() => {
+    return cylinders.filter(c => {
+      if (editingDist && editingDist.cylinderNo === c.cylinderNo) return true;
+      const status = c.status || '';
+      const isFull = status.includes('Full') || status.includes('भरिएको');
+      const isEmpty = status.includes('Empty') || status.includes('खाली');
+      const isInUse = status.includes('In Use') || status.includes('प्रयोगमा');
+      const isMaint = status.includes('Maintenance') || status.includes('मर्मतमा');
+      return isFull && !isEmpty && !isInUse && !isMaint;
+    });
+  }, [cylinders, editingDist]);
 
   // Handle Cylinder Save
   const handleSaveCylinderSubmit = async (e: React.FormEvent) => {
@@ -157,15 +177,35 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
       issuedDateBs: distForm.issuedDateBs || new NepaliDate().format('YYYY-MM-DD'),
       returnDateBs: distForm.returnDateBs || '',
       status: distForm.status || 'Issued (वितरण गरिएको)',
-      issuedBy: distForm.issuedBy || currentUser?.name || 'Admin',
+      issuedBy: distForm.issuedBy || currentUser?.fullName || currentUser?.username || 'Admin',
       invoiceNo: distForm.invoiceNo || `OXY-INV-${Date.now().toString().slice(-6)}`,
       serviceFee: distForm.serviceFee !== undefined ? Number(distForm.serviceFee) : 1000,
+      returnCondition: distForm.returnCondition || '',
       remarks: distForm.remarks || '',
       _orgName: activeOrgName
     };
 
     const success = await onSaveDistribution(record);
     if (success) {
+      // Automatically update corresponding cylinder status and location
+      const targetCylinder = cylinders.find(c => c.cylinderNo === record.cylinderNo);
+      if (targetCylinder) {
+        let newCylStatus = targetCylinder.status;
+        let newLocation = targetCylinder.location;
+        if (record.status.includes('Issued') || record.status.includes('वितरण गरिएको')) {
+          newCylStatus = 'In Use (प्रयोगमा)';
+          newLocation = `वितरित - ${record.patientName} (${record.wardOrDept})`;
+        } else if (record.status.includes('Returned') || record.status.includes('फिर्ता आएको')) {
+          newCylStatus = record.returnCondition || 'Empty (खाली)';
+          newLocation = 'मुख्य स्टोर';
+        }
+        await onSaveCylinder({
+          ...targetCylinder,
+          status: newCylStatus,
+          location: newLocation
+        });
+      }
+
       setIsDistModalOpen(false);
       setEditingDist(null);
       setDistForm({
@@ -176,22 +216,39 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
         issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
         returnDateBs: '',
         status: 'Issued (वितरण गरिएको)',
-        issuedBy: currentUser?.name || '',
+        issuedBy: currentUser?.fullName || currentUser?.username || '',
         invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
         serviceFee: 1000,
+        returnCondition: '',
         remarks: ''
       });
     }
   };
 
-  const handleMarkAsReturned = async (dist: OxygenDistributionRecord) => {
-    const today = new NepaliDate().format('YYYY-MM-DD');
+  const handleConfirmReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returningDist) return;
+
     const updated: OxygenDistributionRecord = {
-      ...dist,
+      ...returningDist,
       status: 'Returned (फिर्ता आएको)',
-      returnDateBs: today
+      returnDateBs: returnDateForm,
+      returnCondition: returnConditionForm
     };
-    await onSaveDistribution(updated);
+
+    const success = await onSaveDistribution(updated);
+    if (success) {
+      const targetCylinder = cylinders.find(c => c.cylinderNo === returningDist.cylinderNo);
+      if (targetCylinder) {
+        await onSaveCylinder({
+          ...targetCylinder,
+          status: returnConditionForm,
+          location: 'मुख्य स्टोर'
+        });
+      }
+      setIsReturnModalOpen(false);
+      setReturningDist(null);
+    }
   };
 
   return (
@@ -324,7 +381,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
                   returnDateBs: '',
                   status: 'Issued (वितरण गरिएको)',
-                  issuedBy: currentUser?.name || '',
+                  issuedBy: currentUser?.fullName || currentUser?.username || '',
                   invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
                   serviceFee: 1000,
                   remarks: ''
@@ -455,11 +512,18 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                       <td className="p-3 text-slate-700">{dist.wardOrDept}</td>
                       <td className="p-3 text-center font-mono font-bold text-slate-800">Rs. {dist.serviceFee ?? 1000}</td>
                       <td className="p-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${
-                          dist.status?.includes('Issued') || dist.status?.includes('वितरण गरिएको') ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {dist.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 w-fit ${
+                            dist.status?.includes('Issued') || dist.status?.includes('वितरण गरिएको') ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            {dist.status}
+                          </span>
+                          {dist.returnCondition && (
+                            <span className="text-[11px] text-slate-600 font-medium">
+                              अवस्था: <span className="font-bold text-cyan-900">{dist.returnCondition}</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 font-mono text-slate-600 text-xs">{dist.returnDateBs || '-'}</td>
                       <td className="p-3 text-slate-600 text-xs">{dist.issuedBy || '-'}</td>
@@ -474,7 +538,12 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                           </button>
                           {(dist.status?.includes('Issued') || dist.status?.includes('वितरण गरिएको')) && (
                             <button
-                              onClick={() => handleMarkAsReturned(dist)}
+                              onClick={() => {
+                                setReturningDist(dist);
+                                setReturnConditionForm('Empty (खाली)');
+                                setReturnDateForm(new NepaliDate().format('YYYY-MM-DD'));
+                                setIsReturnModalOpen(true);
+                              }}
                               className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold transition-colors"
                               title="फिर्ता भयो भनी चिन्ह लगाउनुहोस्"
                             >
@@ -487,7 +556,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                               setDistForm({
                                 ...dist,
                                 serviceFee: dist.serviceFee ?? 1000,
-                                issuedBy: dist.issuedBy || currentUser?.name || ''
+                                issuedBy: dist.issuedBy || currentUser?.fullName || currentUser?.username || ''
                               });
                               setIsDistModalOpen(true);
                             }}
@@ -667,7 +736,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white font-mono"
                   >
                     <option value="">-- सिलिन्डर छान्नुहोस् --</option>
-                    {cylinders.map(c => (
+                    {availableCylindersForDist.map(c => (
                       <option key={c.id} value={c.cylinderNo}>
                         {c.cylinderNo} ({c.size} - {c.status})
                       </option>
@@ -724,6 +793,22 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 </div>
               </div>
 
+              {distForm.status === 'Returned (फिर्ता आएको)' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">फिर्ता हुँदा सिलिन्डरको अवस्था (Return Condition) *</label>
+                  <select
+                    value={distForm.returnCondition || 'Empty (खाली)'}
+                    onChange={(e) => setDistForm({ ...distForm, returnCondition: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white font-bold text-emerald-800"
+                  >
+                    <option value="Full (भरिएको)">Full (भरिएको)</option>
+                    <option value="Empty (खाली)">Empty (खाली)</option>
+                    <option value="In Use (प्रयोगमा)">In Use (प्रयोगमा)</option>
+                    <option value="Maintenance (मर्मतमा)">Maintenance (मर्मतमा)</option>
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <NepaliDatePicker
                   label="वितरण मिति (BS) *"
@@ -754,7 +839,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   <input
                     type="text"
                     required
-                    value={distForm.issuedBy || currentUser?.name || ''}
+                    value={distForm.issuedBy || currentUser?.fullName || currentUser?.username || ''}
                     onChange={(e) => setDistForm({ ...distForm, issuedBy: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                   />
@@ -920,6 +1005,67 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 <Printer size={16} /> बिल प्रिन्ट गर्नुहोस्
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return Modal */}
+      {isReturnModalOpen && returningDist && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-cyan-900 text-white px-6 py-4 flex items-center justify-between">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <CheckCircle2 size={20} /> सिलिन्डर फिर्ता दर्ता (Return Cylinder)
+              </h3>
+              <button onClick={() => setIsReturnModalOpen(false)} className="text-cyan-200 hover:text-white cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleConfirmReturn} className="p-6 space-y-4">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1">
+                <p>सिलिन्डर नं: <span className="font-mono font-bold text-cyan-900">{returningDist.cylinderNo}</span></p>
+                <p>बिरामी: <span className="font-semibold text-slate-800">{returningDist.patientName}</span></p>
+                <p>वार्ड/विभाग: <span className="font-semibold text-slate-700">{returningDist.wardOrDept}</span></p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">फिर्ता हुँदा सिलिन्डरको अवस्था (Return Condition) *</label>
+                <select
+                  value={returnConditionForm}
+                  onChange={(e) => setReturnConditionForm(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white font-bold text-emerald-800"
+                >
+                  <option value="Empty (खाली)">Empty (खाली)</option>
+                  <option value="Full (भरिएको)">Full (भरिएको)</option>
+                  <option value="Maintenance (मर्मतमा)">Maintenance (मर्मतमा)</option>
+                  <option value="In Use (प्रयोगमा)">In Use (प्रयोगमा)</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">यसले मुख्य सिलिन्डर सूचीमा सोही अनुसार स्थिति (Status) अपडेट गर्नेछ र स्थान मुख्य स्टोरमा फिर्ता गर्नेछ।</p>
+              </div>
+
+              <NepaliDatePicker
+                label="फिर्ता मिति (BS) *"
+                required
+                value={returnDateForm}
+                onChange={(val) => setReturnDateForm(val)}
+              />
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsReturnModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-sm transition-colors cursor-pointer"
+                >
+                  रद्द गर्नुहोस्
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                >
+                  फिर्ता सुरक्षित गर्नुहोस्
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
