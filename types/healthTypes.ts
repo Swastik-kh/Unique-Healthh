@@ -348,6 +348,8 @@ export interface OxygenDistributionRecord {
   returnDateBs?: string;
   status: 'Issued (वितरण गरिएको)' | 'Returned (फिर्ता आएको)' | string;
   issuedBy?: string;
+  invoiceNo?: string;
+  serviceFee?: number;
   remarks?: string;
   _orgName?: string;
 }
