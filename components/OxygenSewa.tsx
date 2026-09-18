@@ -879,7 +879,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
       {/* Invoice Print Modal */}
       {printingDist && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static printable-modal-wrapper">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden print:shadow-none print:border-none print:w-full print:max-w-none">
             {/* Modal Header controls (Hidden during print) */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
@@ -906,12 +906,26 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 <div className="w-20">
                   <LogoDisplay settings={generalSettings} width={75} height={75} />
                 </div>
-                <div className="text-center flex-1 px-4">
-                  <h2 className="text-xl font-black text-slate-900 tracking-wide font-nepali">
-                    {generalSettings?.organizationName || activeOrgName || 'स्वास्थ्य संस्था'}
+                <div className="text-center flex-1 px-4 font-nepali">
+                  <h2 className="text-base font-black text-slate-900 leading-tight">
+                    {generalSettings?.orgNameNepali || generalSettings?.organizationName || activeOrgName || 'स्वास्थ्य संस्था'}
                   </h2>
-                  <p className="text-xs text-slate-600 font-medium">{generalSettings?.address || 'नेपाल'}</p>
-                  <p className="text-xs text-cyan-800 font-bold mt-1">अक्सिजन सिलिन्डर वितरण तथा सेवा शुल्क इनभ्वाइस</p>
+                  {generalSettings?.subTitleNepali && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali}</p>
+                  )}
+                  {generalSettings?.subTitleNepali2 && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali2}</p>
+                  )}
+                  {generalSettings?.subTitleNepali3 && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali3}</p>
+                  )}
+                  {generalSettings?.subTitleNepali4 && (
+                    <p className="text-xs font-bold text-slate-600 leading-tight mt-0.5">{generalSettings.subTitleNepali4}</p>
+                  )}
+                  {!generalSettings?.subTitleNepali && !generalSettings?.subTitleNepali2 && (
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">{generalSettings?.address || 'नेपाल'}</p>
+                  )}
+                  <p className="text-xs text-cyan-800 font-bold mt-1.5 uppercase tracking-wider">अक्सिजन सिलिन्डर वितरण तथा सेवा शुल्क इनभ्वाइस</p>
                 </div>
                 <div className="text-right text-xs font-mono text-slate-600">
                   <p className="font-bold">आर्थिक वर्ष: {currentFiscalYear}</p>
