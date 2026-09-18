@@ -7,20 +7,6 @@
     display: block !important;
   }
 
-  /* Printable Modal Wrapper support */
-  body > *:not(.printable-modal-wrapper) {
-    display: none !important;
-  }
-  .printable-modal-wrapper {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    background: white !important;
-    display: block !important;
-    z-index: 999999 !important;
-  }
-  
   /* Reset overflow for printing full pages */
   html, body, #root, main, .overflow-hidden, .overflow-y-auto, .overflow-auto {
     height: auto !important;
@@ -39,5 +25,33 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     background: white !important;
+  }
+
+  /* Dedicated Oxygen Invoice Print Rules: hides background UI and ensures invoice prints cleanly */
+  body:has(#printable-oxygen-invoice) *,
+  body.printing-oxygen-invoice * {
+    visibility: hidden;
+  }
+
+  body:has(#printable-oxygen-invoice) #printable-oxygen-invoice,
+  body:has(#printable-oxygen-invoice) #printable-oxygen-invoice *,
+  body.printing-oxygen-invoice #printable-oxygen-invoice,
+  body.printing-oxygen-invoice #printable-oxygen-invoice * {
+    visibility: visible;
+  }
+
+  body:has(#printable-oxygen-invoice) #printable-oxygen-invoice,
+  body.printing-oxygen-invoice #printable-oxygen-invoice {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 6mm 10mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 9999999 !important;
   }
 }

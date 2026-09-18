@@ -104,12 +104,36 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
   // Statistics
   const stats = useMemo(() => {
     const total = cylinders.length;
-    const full = cylinders.filter(c => c.status?.includes('Full') || c.status?.includes('भरिएको')).length;
-    const empty = cylinders.filter(c => c.status?.includes('Empty') || c.status?.includes('खाली')).length;
-    const inUse = cylinders.filter(c => c.status?.includes('In Use') || c.status?.includes('प्रयोगमा')).length;
-    const maintenance = cylinders.filter(c => c.status?.includes('Maintenance') || c.status?.includes('मर्मतमा')).length;
-    const activeIssued = distributionRecords.filter(d => d.status?.includes('Issued') || d.status?.includes('वितरण गरिएको')).length;
-    return { total, full, empty, inUse, maintenance, activeIssued };
+    const totalList = cylinders.map(c => c.cylinderNo).filter(Boolean);
+
+    const fullCylinders = cylinders.filter(c => c.status?.includes('Full') || c.status?.includes('भरिएको'));
+    const full = fullCylinders.length;
+    const fullList = fullCylinders.map(c => c.cylinderNo).filter(Boolean);
+
+    const emptyCylinders = cylinders.filter(c => c.status?.includes('Empty') || c.status?.includes('खाली'));
+    const empty = emptyCylinders.length;
+    const emptyList = emptyCylinders.map(c => c.cylinderNo).filter(Boolean);
+
+    const inUseCylinders = cylinders.filter(c => c.status?.includes('In Use') || c.status?.includes('प्रयोगमा'));
+    const inUse = inUseCylinders.length;
+    const inUseList = inUseCylinders.map(c => c.cylinderNo).filter(Boolean);
+
+    const maintenanceCylinders = cylinders.filter(c => c.status?.includes('Maintenance') || c.status?.includes('मर्मतमा'));
+    const maintenance = maintenanceCylinders.length;
+    const maintenanceList = maintenanceCylinders.map(c => c.cylinderNo).filter(Boolean);
+
+    const activeIssuedRecords = distributionRecords.filter(d => d.status?.includes('Issued') || d.status?.includes('वितरण गरिएको'));
+    const activeIssued = activeIssuedRecords.length;
+    const activeIssuedList = Array.from(new Set(activeIssuedRecords.map(d => d.cylinderNo).filter(Boolean)));
+
+    return { 
+      total, totalList,
+      full, fullList,
+      empty, emptyList,
+      inUse, inUseList,
+      maintenance, maintenanceList,
+      activeIssued, activeIssuedList 
+    };
   }, [cylinders, distributionRecords]);
 
   // Available Cylinders for Distribution (Only Full / available, excluding empty or currently in use)
@@ -251,6 +275,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
     }
   };
 
+  const handlePrintInvoice = () => {
+    document.body.classList.add('printing-oxygen-invoice');
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-oxygen-invoice');
+    }, 1500);
+  };
+
   return (
     <div className="space-y-6 p-4 max-w-7xl mx-auto font-nepali">
       {/* Header Banner */}
@@ -289,28 +321,111 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
       {/* Statistics Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 print:hidden">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-cyan-300 transition-all">
-          <span className="text-xs font-bold text-slate-500 uppercase">जम्मा सिलिन्डर</span>
-          <span className="text-2xl font-black text-slate-800 mt-2">{stats.total}</span>
+          <div>
+            <span className="text-xs font-bold text-slate-500 uppercase">जम्मा सिलिन्डर</span>
+            <div className="text-2xl font-black text-slate-800 mt-1">{stats.total}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex flex-wrap gap-1">
+            {stats.totalList.length > 0 ? (
+              stats.totalList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-slate-400">-</span>
+            )}
+          </div>
         </div>
+
         <div className="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-emerald-700 uppercase">भरिएको (Full)</span>
-          <span className="text-2xl font-black text-emerald-800 mt-2">{stats.full}</span>
+          <div>
+            <span className="text-xs font-bold text-emerald-700 uppercase">भरिएको (Full)</span>
+            <div className="text-2xl font-black text-emerald-800 mt-1">{stats.full}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-emerald-200/60 flex flex-wrap gap-1">
+            {stats.fullList.length > 0 ? (
+              stats.fullList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-emerald-100/90 text-emerald-800 border border-emerald-200 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-emerald-600/60">-</span>
+            )}
+          </div>
         </div>
+
         <div className="bg-rose-50/70 p-4 rounded-xl border border-rose-200 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-rose-700 uppercase">खाली (Empty)</span>
-          <span className="text-2xl font-black text-rose-800 mt-2">{stats.empty}</span>
+          <div>
+            <span className="text-xs font-bold text-rose-700 uppercase">खाली (Empty)</span>
+            <div className="text-2xl font-black text-rose-800 mt-1">{stats.empty}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-rose-200/60 flex flex-wrap gap-1">
+            {stats.emptyList.length > 0 ? (
+              stats.emptyList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-rose-100/90 text-rose-800 border border-rose-200 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-rose-600/60">-</span>
+            )}
+          </div>
         </div>
+
         <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-200 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-blue-700 uppercase">प्रयोगमा (In Use)</span>
-          <span className="text-2xl font-black text-blue-800 mt-2">{stats.inUse}</span>
+          <div>
+            <span className="text-xs font-bold text-blue-700 uppercase">प्रयोगमा (In Use)</span>
+            <div className="text-2xl font-black text-blue-800 mt-1">{stats.inUse}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-blue-200/60 flex flex-wrap gap-1">
+            {stats.inUseList.length > 0 ? (
+              stats.inUseList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-blue-100/90 text-blue-800 border border-blue-200 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-blue-600/60">-</span>
+            )}
+          </div>
         </div>
+
         <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-amber-700 uppercase">मर्मतमा (Maint.)</span>
-          <span className="text-2xl font-black text-amber-800 mt-2">{stats.maintenance}</span>
+          <div>
+            <span className="text-xs font-bold text-amber-700 uppercase">मर्मतमा (Maint.)</span>
+            <div className="text-2xl font-black text-amber-800 mt-1">{stats.maintenance}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex flex-wrap gap-1">
+            {stats.maintenanceList.length > 0 ? (
+              stats.maintenanceList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-amber-100/90 text-amber-800 border border-amber-200 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-amber-600/60">-</span>
+            )}
+          </div>
         </div>
+
         <div className="bg-indigo-50/70 p-4 rounded-xl border border-indigo-200 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-bold text-indigo-700 uppercase">हाल वितरण गरिएको</span>
-          <span className="text-2xl font-black text-indigo-800 mt-2">{stats.activeIssued}</span>
+          <div>
+            <span className="text-xs font-bold text-indigo-700 uppercase">हाल वितरण गरिएको</span>
+            <div className="text-2xl font-black text-indigo-800 mt-1">{stats.activeIssued}</div>
+          </div>
+          <div className="mt-2.5 pt-2 border-t border-indigo-200/60 flex flex-wrap gap-1">
+            {stats.activeIssuedList.length > 0 ? (
+              stats.activeIssuedList.map(no => (
+                <span key={no} className="px-1.5 py-0.5 bg-indigo-100/90 text-indigo-800 border border-indigo-200 rounded text-[11px] font-mono font-bold">
+                  {no}
+                </span>
+              ))
+            ) : (
+              <span className="text-[11px] text-indigo-600/60">-</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -879,7 +994,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
       {/* Invoice Print Modal */}
       {printingDist && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static printable-modal-wrapper">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden print:shadow-none print:border-none print:w-full print:max-w-none">
             {/* Modal Header controls (Hidden during print) */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
@@ -888,26 +1003,31 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               </h3>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => window.print()}
+                  type="button"
+                  onClick={handlePrintInvoice}
                   className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Printer size={16} /> प्रिन्ट गर्नुहोस्
                 </button>
-                <button onClick={() => setPrintingDist(null)} className="text-slate-300 hover:text-white cursor-pointer p-1">
+                <button 
+                  type="button"
+                  onClick={() => setPrintingDist(null)} 
+                  className="text-slate-300 hover:text-white cursor-pointer p-1"
+                >
                   <X size={20} />
                 </button>
               </div>
             </div>
 
             {/* Printable Invoice Body */}
-            <div className="p-8 space-y-6 print:p-6 text-slate-800 bg-white">
+            <div id="printable-oxygen-invoice" className="p-8 space-y-5 print:p-0 text-slate-800 bg-white">
               {/* Organization Header */}
-              <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4">
-                <div className="w-20">
+              <div className="flex items-center justify-between border-b-2 border-slate-800 pb-3">
+                <div className="w-20 shrink-0">
                   <LogoDisplay settings={generalSettings} width={75} height={75} />
                 </div>
                 <div className="text-center flex-1 px-4 font-nepali">
-                  <h2 className="text-base font-black text-slate-900 leading-tight">
+                  <h2 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
                     {generalSettings?.orgNameNepali || generalSettings?.organizationName || activeOrgName || 'स्वास्थ्य संस्था'}
                   </h2>
                   {generalSettings?.subTitleNepali && (
@@ -927,9 +1047,26 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   )}
                   <p className="text-xs text-cyan-800 font-bold mt-1.5 uppercase tracking-wider">अक्सिजन सिलिन्डर वितरण तथा सेवा शुल्क इनभ्वाइस</p>
                 </div>
-                <div className="text-right text-xs font-mono text-slate-600">
-                  <p className="font-bold">आर्थिक वर्ष: {currentFiscalYear}</p>
-                  <p className="text-indigo-900 font-black text-sm mt-1">बिल नं: {printingDist.invoiceNo || 'N/A'}</p>
+                <div className="w-20 shrink-0 flex justify-end">
+                  {generalSettings?.provinceLogoUrl ? (
+                    <img 
+                      src={generalSettings.provinceLogoUrl} 
+                      alt="Province Logo" 
+                      className="w-14 h-14 object-contain"
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Line Muni (Below Header Line): Fiscal Year on Left & Invoice No on Right */}
+              <div className="flex items-center justify-between text-xs font-mono text-slate-700 border-b border-slate-200 pb-2 px-1">
+                <div className="font-bold text-slate-800">
+                  <span className="font-nepali">आर्थिक वर्ष: </span>
+                  <span className="font-mono text-slate-900 font-black">{currentFiscalYear}</span>
+                </div>
+                <div className="font-black text-indigo-950 text-sm">
+                  <span className="font-nepali text-slate-700 font-bold text-xs">बिल नं: </span>
+                  <span className="font-mono tracking-wide">{printingDist.invoiceNo || 'N/A'}</span>
                 </div>
               </div>
 
@@ -1013,7 +1150,8 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 बन्द गर्नुहोस्
               </button>
               <button
-                onClick={() => window.print()}
+                type="button"
+                onClick={handlePrintInvoice}
                 className="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Printer size={16} /> बिल प्रिन्ट गर्नुहोस्
