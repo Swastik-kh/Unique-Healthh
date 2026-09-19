@@ -183,7 +183,13 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   onSetActiveOrgName
 }) => {
   const [activeReportTab, setActiveReportTab] = useState<'summary' | 'detail' | 'maternal_detail' | 'graph'>('summary');
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    try {
+      return new NepaliDate().format('MM');
+    } catch (e) {
+      return '01';
+    }
+  });
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [selectedVaccineFilter, setSelectedVaccineFilter] = useState('all');
 
