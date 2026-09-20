@@ -4,7 +4,7 @@ import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
-import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw } from 'lucide-react';
+import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { ChangePassword } from './components/ChangePassword';
 import { 
   User, OrganizationSettings, MagFormEntry, RabiesPatient, PurchaseOrderEntry, 
@@ -2702,6 +2702,22 @@ const App: React.FC = () => {
                     <p className="text-primary-100 font-semibold tracking-wide uppercase text-xs">जिन्सी व्यवस्थापन पोर्टल</p>
                 </div>
               </div>
+
+              {/* Universal Kudos / Notice Scrolling Ribbon in Red Color Font - Placed right below the blue header */}
+              {mergedSettings.enableLoginRibbonMessage && mergedSettings.loginRibbonMessage?.trim() && (
+                <div className="w-full bg-rose-50/95 border-b border-rose-200 py-2.5 px-4 flex items-center gap-2.5 select-none shadow-xs group">
+                  <div className="flex items-center gap-1 shrink-0 bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-md font-nepali shadow-xs">
+                    <Sparkles size={12} className="animate-pulse" />
+                    <span>सूचना:</span>
+                  </div>
+                  <div className="relative overflow-hidden w-full h-5 flex items-center">
+                    <div className="whitespace-nowrap inline-block font-bold text-rose-600 text-xs sm:text-sm font-nepali animate-marquee-rtl group-hover:[animation-play-state:paused]">
+                      {mergedSettings.loginRibbonMessage}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="p-10">
                 <LoginForm 
                     users={allUsers} 
