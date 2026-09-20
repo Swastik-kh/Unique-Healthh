@@ -558,8 +558,16 @@ export const ImmunizationTracking: React.FC<ImmunizationTrackingProps> = ({
   // Helper to find effective scheduled date dynamically based on preceding vaccine given dates (6-week -> 10-week -> 14-week)
   const getEffectiveVaccineScheduledBs = useCallback((child: ChildImmunizationRecord, vaccine: ChildImmunizationVaccine) => {
     const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === vaccine.name);
-    if (templateItem && child.dobAd) {
-      const { bs } = calculateImmunizationDate(child.dobAd, templateItem.relativeDays, templateItem.base, child.vaccines || []);
+    if (templateItem && (child.dobAd || child.dobBs)) {
+      const { bs } = calculateImmunizationDate(
+        child.dobAd, 
+        templateItem.relativeDays, 
+        templateItem.base, 
+        child.vaccines || [], 
+        child.dobBs, 
+        (templateItem as any).relativeMonths, 
+        (templateItem as any).relativeYears
+      );
       if (bs && bs !== 'N/A' && bs !== 'Error') return bs;
       if (templateItem.base !== 'dob') {
         return 'N/A';

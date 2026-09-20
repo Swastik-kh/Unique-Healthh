@@ -197,6 +197,8 @@ export interface OrganizationSettings {
   discountLimits?: Record<string, number>; 
   discountRoles?: string[]; 
   maxSewaDiscountPercent?: number;
+  enableLoginRibbonMessage?: boolean; // Toggled by Super Admin to show/hide marquee ribbon on login page
+  loginRibbonMessage?: string; // Kudos / Notice scrolling message displayed under Login button in red font
 }
 
 export interface DHIS2CellMapping {

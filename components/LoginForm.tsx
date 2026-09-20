@@ -1,14 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import NepaliDate from 'nepali-date-converter';
-import { Calendar, User, Lock, LogIn, Eye, EyeOff, Loader2, AlertCircle, Info, Code, ShieldAlert, Mail, ArrowLeft, RefreshCw, KeyRound, Save } from 'lucide-react';
+import { Calendar, User, Lock, LogIn, Eye, EyeOff, Loader2, AlertCircle, Info, Code, ShieldAlert, Mail, ArrowLeft, RefreshCw, KeyRound, Save, Sparkles } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { FISCAL_YEARS } from '../constants';
 import { LoginFormData, User as AppUser, OrganizationSettings } from '../types/coreTypes';
 import { logUserActivity } from '../lib/logger';
 import { db } from '../firebase';
-import { ref, update, get, set, remove, child } from 'firebase/database';
+import { ref, update, get, set, remove, child, onValue } from 'firebase/database';
 import { hashPassword } from '../lib/crypto';
 import axios from 'axios';
 
@@ -25,6 +25,44 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
     username: '',
     password: '',
   });
+
+  const [ribbonConfig, setRibbonConfig] = useState<{
+    enable: boolean;
+    message: string;
+  }>({
+    enable: settings?.enableLoginRibbonMessage ?? false,
+    message: settings?.loginRibbonMessage ?? '',
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setRibbonConfig(prev => ({
+        enable: settings.enableLoginRibbonMessage !== undefined ? !!settings.enableLoginRibbonMessage : prev.enable,
+        message: settings.loginRibbonMessage !== undefined ? (settings.loginRibbonMessage || '') : prev.message,
+      }));
+    }
+  }, [settings?.enableLoginRibbonMessage, settings?.loginRibbonMessage]);
+
+  useEffect(() => {
+    const ribbonRef = ref(db, 'globalData/loginRibbon');
+    const unsub = onValue(ribbonRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        if (typeof val === 'object' && val !== null) {
+          setRibbonConfig({
+            enable: !!val.enable,
+            message: val.message || '',
+          });
+        } else if (typeof val === 'string') {
+          setRibbonConfig({
+            enable: true,
+            message: val,
+          });
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [resetStep, setResetStep] = useState<'verify' | 'send' | 'reset'>('verify');
@@ -622,6 +660,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         {isLoading ? <Loader2 size={20} className="animate-spin" /> : <LogIn size={20} />}
         <span>{isLoading ? 'प्रक्रियामा छ...' : 'लगइन गर्नुहोस्'}</span>
       </button>
+
+      {/* Universal Kudos / Notice Scrolling Ribbon in Red Color Font */}
+      {ribbonConfig.enable && ribbonConfig.message?.trim() && (
+        <div className="w-full overflow-hidden bg-rose-50/90 border border-rose-200 rounded-xl py-2 px-3 shadow-xs flex items-center gap-2 select-none group">
+          <div className="flex items-center gap-1 shrink-0 bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-md font-nepali shadow-xs">
+            <Sparkles size={12} className="animate-pulse" />
+            <span>सूचना:</span>
+          </div>
+          <div className="relative overflow-hidden w-full h-5 flex items-center">
+            <div className="whitespace-nowrap inline-block font-bold text-rose-600 text-xs sm:text-sm font-nepali animate-marquee-rtl group-hover:[animation-play-state:paused]">
+              {ribbonConfig.message}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="text-center pt-2">
           <div className="flex items-center justify-center gap-1.5 text-slate-400">

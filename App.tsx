@@ -37,6 +37,8 @@ const INITIAL_SETTINGS: OrganizationSettings = {
     activeFiscalYear: '2083/084',
     enableEnglishDate: 'no',
     logoUrl: '',
+    enableLoginRibbonMessage: false,
+    loginRibbonMessage: '',
     allServiceOptions: AVAILABLE_SERVICES,
     hibBaseUrl: 'https://imislegacy.hib.gov.np/',
     hibUsername: 'testuser',
@@ -123,6 +125,7 @@ const App: React.FC = () => {
   const [currentFiscalYear, setCurrentFiscalYear] = useState<string>('2083/084');
   const [generalSettings, setGeneralSettings] = useState<OrganizationSettings>(INITIAL_SETTINGS);
   const [globalDownloadUrl, setGlobalDownloadUrl] = useState<string>('');
+  const [globalLoginRibbon, setGlobalLoginRibbon] = useState<{ enable: boolean; message: string } | null>(null);
   const [globalDhis2Mappings, setGlobalDhis2Mappings] = useState<{
     dhis2DatasetMappings?: Record<string, string>;
     dhis2CellMappings?: any[];
@@ -483,6 +486,26 @@ const App: React.FC = () => {
         }
     });
     unsubscribes.push(unsubGlobalDownloadUrl);
+
+    // Global Login Ribbon / Kudos Notice Listener
+    const globalLoginRibbonRef = ref(db, 'globalData/loginRibbon');
+    const unsubGlobalLoginRibbon = onValue(globalLoginRibbonRef, (snap) => {
+        if (snap.exists()) {
+            const data = snap.val();
+            if (typeof data === 'object' && data !== null) {
+                setGlobalLoginRibbon({
+                    enable: !!data.enable,
+                    message: data.message || ''
+                });
+            } else if (typeof data === 'string') {
+                setGlobalLoginRibbon({
+                    enable: true,
+                    message: data
+                });
+            }
+        }
+    });
+    unsubscribes.push(unsubGlobalLoginRibbon);
 
     // Global Inter-Facility Requests Listener
     const globalRequestsRef = ref(db, 'interFacilityRequests');
@@ -2301,9 +2324,11 @@ const App: React.FC = () => {
   const mergedSettings = useMemo(() => ({
     ...generalSettings,
     downloadCenterUrl: globalDownloadUrl || generalSettings.downloadCenterUrl,
+    enableLoginRibbonMessage: globalLoginRibbon ? globalLoginRibbon.enable : (generalSettings.enableLoginRibbonMessage ?? false),
+    loginRibbonMessage: globalLoginRibbon ? globalLoginRibbon.message : (generalSettings.loginRibbonMessage ?? ''),
     dhis2DatasetMappings: globalDhis2Mappings.dhis2DatasetMappings || generalSettings.dhis2DatasetMappings,
     dhis2CellMappings: globalDhis2Mappings.dhis2CellMappings || generalSettings.dhis2CellMappings
-  }), [generalSettings, globalDhis2Mappings, globalDownloadUrl]);
+  }), [generalSettings, globalDhis2Mappings, globalDownloadUrl, globalLoginRibbon]);
 
   const handleChangePassword = async (id: string, pass: string) => {
     try {
@@ -2440,6 +2465,13 @@ const App: React.FC = () => {
             set(getOrgRef('settings'), s);
             if (s.downloadCenterUrl !== undefined) {
               set(ref(db, 'globalData/downloadCenterUrl'), s.downloadCenterUrl);
+            }
+            if (s.loginRibbonMessage !== undefined || s.enableLoginRibbonMessage !== undefined) {
+              const ribbonData = {
+                enable: !!s.enableLoginRibbonMessage,
+                message: (s.loginRibbonMessage || '').trim()
+              };
+              set(ref(db, 'globalData/loginRibbon'), ribbonData);
             }
           }}
           onUpdateGlobalDhis2Mappings={(m) => set(ref(db, 'globalData/dhis2Mappings'), m)}
@@ -2675,7 +2707,7 @@ const App: React.FC = () => {
                     users={allUsers} 
                     onLoginSuccess={handleLoginSuccess} 
                     initialFiscalYear={'2083/084'} 
-                    settings={generalSettings}
+                    settings={mergedSettings}
                 />
               </div>
               <div className="bg-slate-50 p-5 text-center border-t border-slate-100 flex items-center justify-center gap-3">

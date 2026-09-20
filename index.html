@@ -43,6 +43,15 @@
                 800: '#075985',
                 900: '#0c4a6e',
               }
+            },
+            keyframes: {
+              marquee: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(-100%)' },
+              }
+            },
+            animation: {
+              marquee: 'marquee 18s linear infinite',
             }
           },
         },
@@ -56,6 +65,19 @@
         /* Removed overflow-hidden from body */
       }
       .font-nepali { font-family: 'Mukta', sans-serif; }
+
+      @keyframes marqueeRtl {
+        0% { transform: translateX(100%); }
+        100% { transform: translateX(-100%); }
+      }
+      .animate-marquee-rtl {
+        display: inline-block;
+        white-space: nowrap;
+        animation: marqueeRtl 18s linear infinite;
+      }
+      .animate-marquee-rtl:hover {
+        animation-play-state: paused;
+      }
       
       @media print {
         .no-print { display: none !important; }

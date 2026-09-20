@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe, Printer, Clock, FileText } from 'lucide-react';
+import { Save, RotateCcw, Baby, Calendar, CalendarDays, FileDigit, User as UserIcon, Phone, MapPin, Plus, Edit, Trash2, Search, UsersRound, Weight, Droplets, CheckCircle2, AlertTriangle, Info, Code, CalendarClock, MapPinned, X, ShieldCheck, Activity, Award, UserPlus, TrendingUp, Syringe, Printer, Clock, FileText, RefreshCw } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -37,7 +37,7 @@ const jatCodeOptions: Option[] = [
 ];
 
 export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
-    { name: 'BCG (जन्ममा)', relativeDays: 0, base: 'dob', cluster: 'जन्ममा' },
+    { name: 'BCG (जन्ममा)', relativeDays: 0, relativeMonths: 0, base: 'dob', cluster: 'जन्ममा' },
     { name: 'DPT-HepB-Hib-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
     { name: 'OPV-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
     { name: 'PCV-1 (६ हप्ता)', relativeDays: 42, base: 'dob', cluster: '६ हप्ता' },
@@ -49,13 +49,13 @@ export const NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE = [
     { name: 'FIPV-1 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)', cluster: '१४ हप्ता' },
     { name: 'DPT-HepB-Hib-3 (१४ हप्ता)', relativeDays: 28, base: 'DPT-HepB-Hib-2 (१० हप्ता)', cluster: '१४ हप्ता' },
     { name: 'OPV-3 (१४ हप्ता)', relativeDays: 28, base: 'OPV-2 (१० हप्ता)', cluster: '१४ हप्ता' },
-    { name: 'MR-1 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' },
-    { name: 'PCV-3 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' }, 
-    { name: 'FIPV-2 (९ महिना)', relativeDays: 270, base: 'dob', cluster: '९ महिना' }, 
-    { name: 'JE (१२ महिना)', relativeDays: 360, base: 'dob', cluster: '१२ महिना' }, 
-    { name: 'MR-2 (१५ महिना)', relativeDays: 450, base: 'dob', cluster: '१५ महिना' },
-    { name: 'Typhoid (१५ महिना)', relativeDays: 450, base: 'dob', cluster: '१५ महिना' },
-    { name: 'HPV (१४ वर्ष)', relativeDays: 5110, base: 'dob', femaleOnly: true, cluster: '१४ वर्ष' }, 
+    { name: 'MR-1 (९ महिना)', relativeDays: 270, relativeMonths: 9, base: 'dob', cluster: '९ महिना' },
+    { name: 'PCV-3 (९ महिना)', relativeDays: 270, relativeMonths: 9, base: 'dob', cluster: '९ महिना' }, 
+    { name: 'FIPV-2 (९ महिना)', relativeDays: 270, relativeMonths: 9, base: 'dob', cluster: '९ महिना' }, 
+    { name: 'JE (१२ महिना)', relativeDays: 365, relativeMonths: 12, base: 'dob', cluster: '१२ महिना' }, 
+    { name: 'MR-2 (१५ महिना)', relativeDays: 456, relativeMonths: 15, base: 'dob', cluster: '१५ महिना' },
+    { name: 'Typhoid (१५ महिना)', relativeDays: 456, relativeMonths: 15, base: 'dob', cluster: '१५ महिना' },
+    { name: 'HPV (१४ वर्ष)', relativeDays: 5110, relativeYears: 14, base: 'dob', femaleOnly: true, cluster: '१४ वर्ष' }, 
 ];
 
 export const isChildFullyImmunized = (record: ChildImmunizationRecord): boolean => {
@@ -165,15 +165,42 @@ export const calculateImmunizationDate = (
     dobAd: string,
     relativeDays: number,
     baseName: string,
-    allVaccines: ChildImmunizationVaccine[] = []
+    allVaccines: ChildImmunizationVaccine[] = [],
+    dobBs?: string,
+    relativeMonths?: number,
+    relativeYears?: number
 ): { bs: string; ad: string; } => {
     try {
-        let actualBaseAdDate = parseDateLocal(dobAd);
+        let actualBaseAdDate: Date;
         
-        if (baseName !== 'dob') {
+        if (baseName === 'dob') {
+            if (dobAd && dobAd.trim() !== '') {
+                actualBaseAdDate = parseDateLocal(dobAd);
+            } else if (dobBs && dobBs.trim() !== '') {
+                try {
+                    const nd = new NepaliDate(dobBs);
+                    actualBaseAdDate = parseDateLocal(toLocalISO(nd.toJsDate()));
+                } catch (e) {
+                    return { bs: "N/A", ad: "N/A" };
+                }
+            } else {
+                return { bs: "N/A", ad: "N/A" };
+            }
+        } else {
             const baseVaccine = allVaccines.find(v => v.name === baseName);
-            if (baseVaccine && baseVaccine.status === 'Given' && baseVaccine.givenDateAd) {
-                actualBaseAdDate = parseDateLocal(baseVaccine.givenDateAd);
+            if (baseVaccine && baseVaccine.status === 'Given') {
+                if (baseVaccine.givenDateAd && baseVaccine.givenDateAd.trim() !== '') {
+                    actualBaseAdDate = parseDateLocal(baseVaccine.givenDateAd);
+                } else if (baseVaccine.givenDateBs && baseVaccine.givenDateBs.trim() !== '') {
+                    try {
+                        const nd = new NepaliDate(baseVaccine.givenDateBs);
+                        actualBaseAdDate = parseDateLocal(toLocalISO(nd.toJsDate()));
+                    } catch (e) {
+                        return { bs: "N/A", ad: "N/A" };
+                    }
+                } else {
+                    return { bs: "N/A", ad: "N/A" };
+                }
             } else {
                 return { bs: "N/A", ad: "N/A" };
             }
@@ -183,7 +210,73 @@ export const calculateImmunizationDate = (
             return { bs: "N/A", ad: "N/A" };
         }
 
-        const scheduledAdDate = new Date(actualBaseAdDate);
+        // Exact month / year calculation for milestone vaccines based on DOB (9m, 12m JE, 15m MR-2/Typhoid, 14y HPV)
+        if (baseName === 'dob') {
+            let monthsToAdd: number | null = null;
+            let yearsToAdd: number | null = null;
+
+            if (typeof relativeMonths === 'number') {
+                monthsToAdd = relativeMonths;
+            } else if (typeof relativeYears === 'number') {
+                yearsToAdd = relativeYears;
+            } else if (relativeDays === 0) {
+                monthsToAdd = 0;
+            } else if (relativeDays >= 260 && relativeDays <= 280) { // 9 महिना (MR-1, PCV-3, FIPV-2)
+                monthsToAdd = 9;
+            } else if (relativeDays >= 355 && relativeDays <= 370) { // 12 महिना (JE)
+                monthsToAdd = 12;
+            } else if (relativeDays >= 440 && relativeDays <= 470) { // 15 महिना (MR-2, Typhoid)
+                monthsToAdd = 15;
+            } else if (relativeDays >= 5000) { // 14 वर्ष (HPV)
+                yearsToAdd = 14;
+            }
+
+            if (monthsToAdd !== null || yearsToAdd !== null) {
+                let currentDobBs = dobBs;
+                if (!currentDobBs) {
+                    try {
+                        const baseNd = new NepaliDate(actualBaseAdDate);
+                        currentDobBs = baseNd.format('YYYY-MM-DD');
+                    } catch (e) {}
+                }
+
+                if (currentDobBs) {
+                    const parts = currentDobBs.split('-').map(Number);
+                    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                        const y = parts[0];
+                        const m = parts[1]; // 1-12
+                        const d = parts[2];
+
+                        let newYear = y;
+                        let newMonth = m;
+
+                        if (yearsToAdd !== null) {
+                            newYear = y + yearsToAdd;
+                        }
+
+                        if (monthsToAdd !== null) {
+                            const totalMonths = m + monthsToAdd;
+                            const addedYears = Math.floor((totalMonths - 1) / 12);
+                            newMonth = ((totalMonths - 1) % 12) + 1;
+                            newYear = y + addedYears;
+                        }
+
+                        const targetNd = new NepaliDate(newYear, newMonth - 1, d);
+                        const targetBs = targetNd.format('YYYY-MM-DD');
+                        const targetJsDate = targetNd.toJsDate();
+                        const targetAd = toLocalISO(targetJsDate);
+
+                        return {
+                            bs: targetBs,
+                            ad: targetAd
+                        };
+                    }
+                }
+            }
+        }
+
+        // Exact day addition for 6 weeks (42 days) and interval vaccines
+        const scheduledAdDate = new Date(actualBaseAdDate.getTime());
         scheduledAdDate.setDate(actualBaseAdDate.getDate() + relativeDays);
         
         const schedYear = scheduledAdDate.getFullYear();
@@ -192,7 +285,6 @@ export const calculateImmunizationDate = (
         }
 
         const scheduledAdDateString = toLocalISO(scheduledAdDate);
-
         let scheduledNepaliDate = new NepaliDate(scheduledAdDate);
         
         return {
@@ -204,7 +296,7 @@ export const calculateImmunizationDate = (
     }
 };
 
-const getInitialVaccineSchedule = (dobAd: string, gender: string): ChildImmunizationVaccine[] => {
+const getInitialVaccineSchedule = (dobAd: string, gender: string, dobBs?: string): ChildImmunizationVaccine[] => {
   try {
     const filteredTemplate = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.filter(v => {
       if (v.name.includes('HPV') && gender === 'Male') return false;
@@ -216,7 +308,10 @@ const getInitialVaccineSchedule = (dobAd: string, gender: string): ChildImmuniza
         dobAd,
         vaccine.relativeDays,
         vaccine.base,
-        []
+        [],
+        dobBs,
+        (vaccine as any).relativeMonths,
+        (vaccine as any).relativeYears
       );
 
       return {
@@ -259,6 +354,60 @@ const calculateAge = (dobBs: string) => {
     } 
 };
 
+// Normalizes and synchronizes any child record's vaccine schedule to match the exact Nepali month/year milestone calculation
+export const normalizeRecordVaccineSchedule = (record: ChildImmunizationRecord): { updatedRecord: ChildImmunizationRecord; hasChanged: boolean } => {
+  if (!record || !record.vaccines || !Array.isArray(record.vaccines)) {
+    return { updatedRecord: record, hasChanged: false };
+  }
+
+  let hasChanged = false;
+  const currentVaccines = [...record.vaccines];
+  const dobAd = record.dobAd;
+  const dobBs = record.dobBs;
+
+  const newVaccines = currentVaccines.map(v => {
+    const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === v.name);
+    if (!templateItem) return v;
+
+    const { bs: calcBs, ad: calcAd } = calculateImmunizationDate(
+      dobAd,
+      templateItem.relativeDays,
+      templateItem.base,
+      currentVaccines,
+      dobBs,
+      (templateItem as any).relativeMonths,
+      (templateItem as any).relativeYears
+    );
+
+    if (calcBs && calcBs !== 'N/A' && calcBs !== 'Error') {
+      const scheduledBsDifferent = v.scheduledDateBs !== calcBs;
+      const scheduledAdDifferent = calcAd && calcAd !== 'N/A' && v.scheduledDateAd !== calcAd;
+
+      if (scheduledBsDifferent || scheduledAdDifferent) {
+        hasChanged = true;
+        return {
+          ...v,
+          scheduledDateBs: calcBs,
+          scheduledDateAd: (calcAd && calcAd !== 'N/A') ? calcAd : v.scheduledDateAd,
+        };
+      }
+    }
+    return v;
+  });
+
+  if (hasChanged) {
+    return {
+      updatedRecord: {
+        ...record,
+        vaccines: newVaccines,
+      },
+      hasChanged: true,
+    };
+  }
+
+  return { updatedRecord: record, hasChanged: false };
+};
+
 export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrationProps> = ({
   currentFiscalYear,
   records,
@@ -298,8 +447,16 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   // Helper to find effective scheduled date dynamically based on preceding vaccine given dates (6-week -> 10-week -> 14-week)
   const getEffectiveVaccineScheduledBs = useCallback((child: ChildImmunizationRecord, vaccine: ChildImmunizationVaccine) => {
     const templateItem = NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE.find(t => t.name === vaccine.name);
-    if (templateItem && child.dobAd) {
-      const { bs } = calculateImmunizationDate(child.dobAd, templateItem.relativeDays, templateItem.base, child.vaccines || []);
+    if (templateItem && (child.dobAd || child.dobBs)) {
+      const { bs } = calculateImmunizationDate(
+        child.dobAd, 
+        templateItem.relativeDays, 
+        templateItem.base, 
+        child.vaccines || [], 
+        child.dobBs, 
+        (templateItem as any).relativeMonths, 
+        (templateItem as any).relativeYears
+      );
       if (bs && bs !== 'N/A' && bs !== 'Error') return bs;
       if (templateItem.base !== 'dob') {
         return 'N/A';
@@ -669,7 +826,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     birthWeightKg: undefined,
     regDateBs: getTodayBs(),
     regDateAd: getTodayAd(),
-    vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
+    vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male', getTodayBs()),
     remarks: '',
     vaccinationCenter: centerOptions[0]?.value || '',
   });
@@ -687,7 +844,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             regDateBs: getTodayBs(),
             regDateAd: getTodayAd(),
             jatCode: '',
-            vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
+            vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male', getTodayBs()),
             vaccinationCenter: centerOptions[0]?.value || '',
         }));
     }
@@ -716,7 +873,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     formData.dobAd,
                     vaccine.relativeDays,
                     vaccine.base,
-                    existingVaccines
+                    existingVaccines,
+                    formData.dobBs,
+                    (vaccine as any).relativeMonths,
+                    (vaccine as any).relativeYears
                 );
 
                 return {
@@ -744,7 +904,24 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         dateAd = toLocalISO(nd.toJsDate());
       } catch (e) {}
     }
-    setFormData(prev => ({ ...prev, dobBs: dateBs, dobAd: dateAd }));
+    setFormData(prev => {
+      const existingVaccines = prev.vaccines || [];
+      const updatedVaccines = recalculateFutureDoses(
+        existingVaccines, 
+        "", 
+        "", 
+        "", 
+        dateAd || prev.dobAd, 
+        prev.gender, 
+        dateBs
+      );
+      return { 
+        ...prev, 
+        dobBs: dateBs, 
+        dobAd: dateAd,
+        vaccines: updatedVaccines
+      };
+    });
   };
 
   const recalculateFutureDoses = useCallback((
@@ -753,7 +930,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     givenDateAd: string,
     givenDateBs: string,
     childDobAd: string,
-    childGender: string
+    childGender: string,
+    childDobBs?: string
   ): ChildImmunizationVaccine[] => {
     const updatedVaccinesMap = new Map<string, ChildImmunizationVaccine>();
     currentVaccines.forEach(v => updatedVaccinesMap.set(v.name, v));
@@ -788,7 +966,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 childDobAd,
                 templateVaccine.relativeDays,
                 templateVaccine.base,
-                Array.from(updatedVaccinesMap.values())
+                Array.from(updatedVaccinesMap.values()),
+                childDobBs,
+                (templateVaccine as any).relativeMonths,
+                (templateVaccine as any).relativeYears
             );
 
             if (existingVaccineInMap) {
@@ -980,7 +1161,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
             givenDateBs: v.givenDateBs || null,
         }))
     };
-    const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines || [], "", "", "", loadedRecord.dobAd, loadedRecord.gender);
+    const reEvaluatedVaccines = recalculateFutureDoses(loadedRecord.vaccines || [], "", "", "", loadedRecord.dobAd, loadedRecord.gender, loadedRecord.dobBs);
     setFormData({ ...loadedRecord, vaccines: reEvaluatedVaccines });
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1014,7 +1195,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       birthWeightKg: undefined,
       regDateBs: getTodayBs(),
       regDateAd: getTodayAd(),
-      vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male'),
+      vaccines: getInitialVaccineSchedule(getTodayAd(), 'Male', getTodayBs()),
       remarks: '',
       vaccinationCenter: centerOptions[0]?.value || '',
     }));
@@ -1058,7 +1239,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       givenDateAd || '',
       givenDateBs,
       formData.dobAd,
-      formData.gender
+      formData.gender,
+      formData.dobBs
     );
 
     if (status === 'Pending') {
@@ -1079,7 +1261,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         "",
         "",
         formData.dobAd,
-        formData.gender
+        formData.gender,
+        formData.dobBs
       );
       setFormData(prev => ({ ...prev, vaccines: finalRecalculated }));
     } else {
@@ -1142,7 +1325,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         return v;
     });
 
-    const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, latestRecord.dobAd, latestRecord.gender);
+    const finalVaccines = recalculateFutureDoses(preMappedVaccines, currentVaccine.name, givenDateAd, modalGivenDateBs, latestRecord.dobAd, latestRecord.gender, latestRecord.dobBs);
     onUpdateRecord({ ...latestRecord, vaccines: finalVaccines });
     
     // If this record is currently being edited on the top form, update the form state as well
@@ -1179,7 +1362,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         return v;
       });
 
-      const finalVaccines = recalculateFutureDoses(preMappedVaccines, "", "", "", latestRecord.dobAd, latestRecord.gender);
+      const finalVaccines = recalculateFutureDoses(preMappedVaccines, "", "", "", latestRecord.dobAd, latestRecord.gender, latestRecord.dobBs);
       onUpdateRecord({ ...latestRecord, vaccines: finalVaccines });
       
       if (editingRecordId === latestRecord.id) {
@@ -1193,6 +1376,59 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       setSelectedVaccineForUpdate(null);
     }
   };
+
+  // Auto-sync / migration check for existing records whose scheduledDateBs/Ad was calculated using old day offsets
+  const outdatedCount = useMemo(() => {
+    return (records || []).reduce((count, record) => {
+      const { hasChanged } = normalizeRecordVaccineSchedule(record);
+      return count + (hasChanged ? 1 : 0);
+    }, 0);
+  }, [records]);
+
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+
+  const handleSyncAllExistingRecords = useCallback(() => {
+    if (!records || records.length === 0) return;
+    setIsSyncingAll(true);
+    let updatedCount = 0;
+    try {
+      for (const record of records) {
+        const { updatedRecord, hasChanged } = normalizeRecordVaccineSchedule(record);
+        if (hasChanged) {
+          onUpdateRecord(updatedRecord);
+          updatedCount++;
+        }
+      }
+      if (updatedCount > 0) {
+        setSuccessMessage(`सफलतापूर्वक ${updatedCount} वटा बालबालिकाको खोप तालिका (JE १२ महिना, MR-2 १५ महिना, Typhoid १५ महिना, ९ महिना) नयाँ नेपाली महिना प्रणाली अनुसार अद्यावधिक गरियो!`);
+      } else {
+        setSuccessMessage('सबै बालबालिकाको खोप तालिका पहिले नै नयाँ नेपाली महिना प्रणाली अनुसार अद्यावधिक छ!');
+      }
+    } catch (e) {
+      console.error('Error syncing records schedule:', e);
+      setValidationError('तालिका अद्यावधिक गर्दा समस्या आयो।');
+    } finally {
+      setIsSyncingAll(false);
+    }
+  }, [records, onUpdateRecord]);
+
+  // Seamless background auto-update for existing records on load
+  const hasAutoSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!hasAutoSyncedRef.current && records && records.length > 0) {
+      let changed = 0;
+      for (const record of records) {
+        const { updatedRecord, hasChanged } = normalizeRecordVaccineSchedule(record);
+        if (hasChanged) {
+          onUpdateRecord(updatedRecord);
+          changed++;
+        }
+      }
+      if (changed > 0) {
+        hasAutoSyncedRef.current = true;
+      }
+    }
+  }, [records, onUpdateRecord]);
 
   const filteredRecords = useMemo(() => {
     const query = (searchTerm || '').trim().toLowerCase();
@@ -1720,6 +1956,21 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
 
             <button
               type="button"
+              onClick={handleSyncAllExistingRecords}
+              disabled={isSyncingAll}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all font-nepali active:scale-95 hover:shadow cursor-pointer ${
+                outdatedCount > 0 
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white animate-pulse' 
+                  : 'bg-teal-700 hover:bg-teal-800 text-white'
+              }`}
+              title="सबै पुराना बालबालिकाको खोप तालिका (JE १२ महिना, MR-2 १५ महिना, Typhoid १५ महिना, ९ महिना आदि) नयाँ नेपाली महिना प्रणाली अनुसार अद्यावधिक गर्नुहोस्"
+            >
+              <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
+              <span>{isSyncingAll ? 'अद्यावधिक हुँदैछ...' : `तालिका सिङ्क${outdatedCount > 0 ? ` (${outdatedCount})` : ''}`}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handlePrintAllChildren}
               className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all font-nepali active:scale-95 hover:shadow cursor-pointer"
               title="सबै बालबालिका खोप सूची प्रिन्ट गर्नुहोस्"
@@ -1866,7 +2117,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                               {v.name}
                                             </span>
                                             <div className="flex flex-col text-[7px] font-normal leading-tight">
-                                                <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {v.scheduledDateBs}</span>
+                                                <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {getEffectiveVaccineScheduledBs(record, v)}</span>
                                                 {v.givenDateBs && (
                                                   <span className={`flex items-center gap-0.5 font-bold ${isGivenToday ? 'text-emerald-900' : 'text-green-700'}`}>
                                                     <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
@@ -1949,7 +2200,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs border-b pb-1">
                             <span className="text-slate-500">निर्धारित मिति (Scheduled):</span>
-                            <span className="font-bold">{selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex].scheduledDateBs}</span>
+                            <span className="font-bold">{getEffectiveVaccineScheduledBs(selectedVaccineForUpdate.record, selectedVaccineForUpdate.record.vaccines[selectedVaccineForUpdate.vaccineIndex])}</span>
                         </div>
                         <NepaliDatePicker 
                             label="लगाएको वास्तविक मिति (Administered) *" 

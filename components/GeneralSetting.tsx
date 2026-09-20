@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert, Sparkles, Megaphone } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
@@ -292,6 +292,18 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
         }
     } catch (err) {
         console.error("Global Download Center Link Save Failed:", err);
+    }
+
+    // Save Login Ribbon / Kudos Notice Globally for Universal Access
+    try {
+        const ribbonData = {
+            enable: !!localSettings.enableLoginRibbonMessage,
+            message: (localSettings.loginRibbonMessage || '').trim()
+        };
+        await set(ref(rtdb, 'globalData/loginRibbon'), ribbonData);
+        await set(ref(rtdb, 'organizationSettings/config/loginRibbon'), ribbonData);
+    } catch (err) {
+        console.error("Global Login Ribbon Save Failed:", err);
     }
 
     // If superadmin, also update global DHIS2 mappings
@@ -1111,6 +1123,88 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         placeholder="उदा: https://drive.google.com/file/d/xyz/view वा APK/फाइलको लिङ्क"
                                         icon={<ExternalLink size={16} />} 
                                     />
+                                </div>
+                            </div>
+
+                            {/* Login Page Ribbon / Kudos Message Setting - Added for SUPER_ADMIN */}
+                            <div className="mt-8 border-t pt-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                    <h4 className="font-bold text-rose-950 flex items-center gap-2 font-nepali text-sm">
+                                        <Megaphone size={18} className="text-rose-600"/>
+                                        लगइन पृष्ठ सन्देश / कुडोस रिबन सेटिङ (Login Page Ribbon & Kudos Message)
+                                    </h4>
+                                    <span className="text-[11px] bg-rose-100 text-rose-800 font-semibold px-2.5 py-0.5 rounded-full font-nepali self-start sm:self-auto">
+                                        विश्वव्यापी (Universal)
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 font-nepali mb-4">
+                                    यहाँ सेट गरिएको सन्देश लगइन पृष्ठको <strong>'लगइन गर्नुहोस्'</strong> बटनको मुनि <strong>रातो रङको फन्ट (Red Font)</strong> मा दायाँबाट बायाँ (Right-to-Left) स्क्रोल भएर देखिनेछ। यो सन्देश सबै प्रयोगकर्ताहरूको लगइन स्क्रिनमा विश्वव्यापी (Universal) रूपमा लागु हुन्छ। यदि सन्देश प्रदर्शन गर्न नचाहेमा तलको चेकबक्स अनचेक (Disable) गर्न सक्नुहुन्छ।
+                                </p>
+                                <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-100 space-y-4">
+                                    <label className="flex items-center gap-3 cursor-pointer select-none bg-white p-3.5 rounded-xl border border-rose-200 hover:border-rose-300 transition-colors shadow-xs">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={!!localSettings.enableLoginRibbonMessage}
+                                            onChange={(e) => handleChange('enableLoginRibbonMessage', e.target.checked)}
+                                            className="w-4 h-4 text-rose-600 rounded border-rose-300 focus:ring-rose-500"
+                                        />
+                                        <div>
+                                            <span className="text-xs font-bold text-slate-800 font-nepali block">
+                                                लगइन पृष्ठमा सन्देश रिबन देखाउनुहोस् (Display Kudos/Notice Ribbon on Login Page)
+                                            </span>
+                                            <span className="text-[11px] text-slate-500 font-nepali block mt-0.5">
+                                                {localSettings.enableLoginRibbonMessage ? 'हाल लगइन स्क्रिनमा सन्देश प्रदर्शन सक्रिय छ।' : 'सन्देश प्रदर्शन निष्क्रिय गरिएको छ (लगइन स्क्रिनमा केही देखिने छैन)।'}
+                                            </span>
+                                        </div>
+                                    </label>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-700 font-nepali mb-1.5 flex items-center justify-between">
+                                            <span>सन्देश / कुडोस व्यहोरा (Notice / Kudos Message Text):</span>
+                                            <span className="text-[11px] font-normal text-slate-400">
+                                                {(localSettings.loginRibbonMessage || '').length} अक्षर
+                                            </span>
+                                        </label>
+                                        <textarea 
+                                            rows={2}
+                                            value={localSettings.loginRibbonMessage || ''}
+                                            onChange={(e) => handleChange('loginRibbonMessage', e.target.value)}
+                                            placeholder="उदा: स्वास्थ्य सेवा प्रणालीमा यहाँलाई स्वागत छ! सेवाग्राहीलाई छिटो र प्रभावकारी सेवा प्रदान गरौं..."
+                                            className="w-full text-xs font-nepali p-3 rounded-xl border border-slate-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none bg-white transition-all text-slate-800"
+                                        />
+                                    </div>
+
+                                    {/* Live Preview of the Ribbon */}
+                                    <div className="pt-2 border-t border-rose-200/60">
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[11px] font-bold text-rose-800 font-nepali flex items-center gap-1.5">
+                                                <Sparkles size={13} className="text-rose-600" />
+                                                प्रत्यक्ष पूर्वावलोकन (Live Preview in Login Screen):
+                                            </span>
+                                            {!localSettings.enableLoginRibbonMessage && (
+                                                <span className="text-[10px] text-slate-400 font-nepali bg-slate-100 px-2 py-0.5 rounded">
+                                                    (निष्क्रिय गरिएकोले लगइनमा लुक्नेछ)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="w-full overflow-hidden bg-white border border-rose-200 rounded-xl py-2 px-3 shadow-xs flex items-center gap-2">
+                                            <div className="flex items-center gap-1 shrink-0 bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-md font-nepali">
+                                                <Sparkles size={11} className="animate-pulse" />
+                                                <span>सूचना:</span>
+                                            </div>
+                                            <div className="relative overflow-hidden w-full h-5 flex items-center">
+                                                {localSettings.loginRibbonMessage?.trim() ? (
+                                                    <div className="whitespace-nowrap inline-block font-bold text-rose-600 text-xs sm:text-sm font-nepali animate-marquee-rtl">
+                                                        {localSettings.loginRibbonMessage}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-slate-400 italic font-nepali">
+                                                        कुनै सन्देश लेखिएको छैन...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
