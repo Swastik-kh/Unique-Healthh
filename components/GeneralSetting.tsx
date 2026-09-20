@@ -1138,7 +1138,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-500 font-nepali mb-4">
-                                    यहाँ सेट गरिएको सन्देश लगइन पृष्ठको <strong>'लगइन गर्नुहोस्'</strong> बटनको मुनि <strong>रातो रङको फन्ट (Red Font)</strong> मा दायाँबाट बायाँ (Right-to-Left) स्क्रोल भएर देखिनेछ। यो सन्देश सबै प्रयोगकर्ताहरूको लगइन स्क्रिनमा विश्वव्यापी (Universal) रूपमा लागु हुन्छ। यदि सन्देश प्रदर्शन गर्न नचाहेमा तलको चेकबक्स अनचेक (Disable) गर्न सक्नुहुन्छ।
+                                    यहाँ सेट गरिएको सन्देश लगइन पृष्ठको <strong>'आर्थिक वर्ष (Fiscal Year)'</strong> को फिल्डभन्दा माथि <strong>रातो रङको फन्ट (Red Font)</strong> मा दायाँबाट बायाँ (Right-to-Left) स्क्रोल भएर देखिनेछ। यो सन्देश सबै प्रयोगकर्ताहरूको लगइन स्क्रिनमा विश्वव्यापी (Universal) रूपमा लागु हुन्छ। यदि सन्देश प्रदर्शन गर्न नचाहेमा तलको चेकबक्स अनचेक (Disable) गर्न सक्नुहुन्छ।
                                 </p>
                                 <div className="bg-rose-50/60 p-5 rounded-2xl border border-rose-100 space-y-4">
                                     <label className="flex items-center gap-3 cursor-pointer select-none bg-white p-3.5 rounded-xl border border-rose-200 hover:border-rose-300 transition-colors shadow-xs">

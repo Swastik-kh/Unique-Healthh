@@ -592,6 +592,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         </div>
       )}
 
+      {/* Universal Kudos / Notice Scrolling Ribbon in Red Color Font */}
+      {ribbonConfig.enable && ribbonConfig.message?.trim() && (
+        <div className="w-full overflow-hidden bg-rose-50/90 border border-rose-200 rounded-xl py-2 px-3 shadow-xs flex items-center gap-2 select-none group">
+          <div className="flex items-center gap-1 shrink-0 bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-md font-nepali shadow-xs">
+            <Sparkles size={12} className="animate-pulse" />
+            <span>सूचना:</span>
+          </div>
+          <div className="relative overflow-hidden w-full h-5 flex items-center">
+            <div className="whitespace-nowrap inline-block font-bold text-rose-600 text-xs sm:text-sm font-nepali animate-marquee-rtl group-hover:[animation-play-state:paused]">
+              {ribbonConfig.message}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <Select
           label="आर्थिक वर्ष (Fiscal Year)"
