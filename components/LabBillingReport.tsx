@@ -1428,7 +1428,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className={`w-full space-y-6 ${showBharpaiModal ? 'print:hidden' : ''}`}>
       {/* Title Panel - Hide on print */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs print:hidden">
         <div>
@@ -3074,11 +3074,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       <LabProtsahanBharpaiModal
         isOpen={showBharpaiModal}
         onClose={() => setShowBharpaiModal(false)}
-        selectedFiscalYear={selectedFiscalYear}
-        selectedMonth={selectedMonth}
-        protsahanByReferrer={protsahanByReferrer}
+        allBillingRecordsCombined={allBillingRecordsCombined}
+        initialFiscalYear={selectedFiscalYear}
+        initialMonth={selectedMonth}
         protsahanRecipients={protsahanRecipients}
-        protsahanReportData={protsahanReportData}
+        labIncentivePercent={labIncentivePercent}
+        users={users}
+        getServiceCategory={getServiceCategory}
         useNepaliNumerals={useNepaliNumerals}
         toNepaliDigits={toNepaliDigits}
         generalSettings={generalSettings}
