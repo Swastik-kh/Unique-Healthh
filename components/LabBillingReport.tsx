@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle, Plus, Trash2, GripVertical, ChevronUp, RotateCcw } from 'lucide-react';
+import { Printer, FileSpreadsheet, Search, Filter, Calendar, ChevronDown, CheckCheck, Loader2, Landmark, AlertCircle, Plus, Trash2, GripVertical, ChevronUp, RotateCcw, FileText } from 'lucide-react';
 import { BillingRecord, OrganizationSettings, User, ServiceItem, AmbulanceRecord, AmbulanceExpenseRecord, ServiceSeekerRecord } from '../types';
 import { FISCAL_YEARS } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { LogoDisplay } from './LogoDisplay';
+import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 
 const COMMON_LAB_KWS = new Set([
   'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain'
@@ -153,7 +154,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     nameEn: string;
     sharePercent: number;
     isSystemReferrer?: boolean;
+    staffName?: string; // कर्मचारी वा व्यक्तिको नाम (Staff / Person Name - comma separated if multiple)
   }
+
+  const parseStaffNames = (staffName?: string): string[] => {
+    if (!staffName) return [];
+    return staffName
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  };
 
   const [labIncentivePercent, setLabIncentivePercent] = useState<number>(() => {
     const saved = localStorage.getItem('protsahan_lab_incentive_percent');
@@ -164,21 +174,28 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     const saved = localStorage.getItem('protsahan_recipients');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map(r => ({
+            ...r,
+            staffName: r.staffName || ''
+          }));
+        }
       } catch (e) {
         console.error("Error parsing protsahan_recipients", e);
       }
     }
     return [
-      { id: 'referrer', nameNe: 'सिफारिसकर्ता', nameEn: 'Referrer', sharePercent: 40, isSystemReferrer: true },
-      { id: 'lab_staff', nameNe: 'प्रयोगशालाकर्मी', nameEn: 'Lab Staff', sharePercent: 40 },
-      { id: 'helper', nameNe: 'सहयोगी/सफाईकर्मी', nameEn: 'Helper/Cleaner', sharePercent: 20 }
+      { id: 'referrer', nameNe: 'सिफारिसकर्ता', nameEn: 'Referrer', sharePercent: 40, isSystemReferrer: true, staffName: '' },
+      { id: 'lab_staff', nameNe: 'प्रयोगशालाकर्मी', nameEn: 'Lab Staff', sharePercent: 40, staffName: '' },
+      { id: 'helper', nameNe: 'सहयोगी/सफाईकर्मी', nameEn: 'Helper/Cleaner', sharePercent: 20, staffName: '' }
     ];
   });
 
   const [isSettingsEditing, setIsSettingsEditing] = useState<boolean>(false);
   const [tempIncentivePercent, setTempIncentivePercent] = useState<number>(10);
   const [tempRecipients, setTempRecipients] = useState<ProtsahanRecipient[]>([]);
+  const [showBharpaiModal, setShowBharpaiModal] = useState<boolean>(false);
 
   // Drag and drop ordering for Referrer Summary table
   const [customReferrerOrder, setCustomReferrerOrder] = useState<string[]>(() => {
@@ -1025,6 +1042,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           id: recipient.id,
           nameNe: recipient.nameNe,
           nameEn: recipient.nameEn,
+          staffName: recipient.staffName,
           sharePercent: recipient.sharePercent,
           shareAmount,
           isSystemReferrer: !!recipient.isSystemReferrer
@@ -1199,7 +1217,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         "ल्याब खुद रकम (Lab Net Amount)", 
         "कुल प्रोत्साहन (Total Incentive)", 
         "सिफारिस गर्ने (Referred By)",
-        ...protsahanRecipients.map(recipient => `${recipient.nameNe} हिस्सा (${recipient.sharePercent}%)`)
+        ...protsahanRecipients.map(recipient => {
+          const staffList = parseStaffNames(recipient.staffName);
+          if (staffList.length > 1) {
+            return `${recipient.nameNe} (${staffList.join(', ')} - ${staffList.length} जना बराबरी) हिस्सा (${recipient.sharePercent}%)`;
+          }
+          return `${recipient.nameNe}${recipient.staffName ? ` (${recipient.staffName})` : ''} हिस्सा (${recipient.sharePercent}%)`;
+        })
       ];
 
       const rows = protsahanReportData.map((r, idx) => {
@@ -1439,6 +1463,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             <FileSpreadsheet size={15} className="text-normal text-emerald-600" />
             CSV मा निर्यात
           </button>
+
+          {/* Bharpai Button (For Lab Protsahan) */}
+          {reportSource === 'Protsahan' && (
+            <button
+              type="button"
+              onClick={() => setShowBharpaiModal(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+            >
+              <FileText size={15} />
+              भरपाई (Bharpai)
+            </button>
+          )}
 
           {/* Print Button */}
           <button
@@ -1822,6 +1858,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               </div>
 
               <div className="border-t border-slate-100 pt-4">
+                <datalist id="all-protsahan-staff-list">
+                  {users.map(u => (
+                    <option key={u.id} value={u.fullName}>
+                      {u.fullName} {u.designation ? `(${u.designation})` : ''}
+                    </option>
+                  ))}
+                </datalist>
+
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="text-xs font-bold text-slate-800 font-nepali">
                     प्रोत्साहन प्राप्तकर्ताहरू र बाँडफाँड प्रतिशत (Recipients & Share Percentages):
@@ -1835,7 +1879,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                           id: 'recipient_' + Date.now(),
                           nameNe: '',
                           nameEn: '',
-                          sharePercent: 0
+                          sharePercent: 0,
+                          staffName: ''
                         }
                       ]);
                     }}
@@ -1848,9 +1893,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
                 <div className="space-y-3">
                   {tempRecipients.map((recipient, index) => (
-                    <div key={recipient.id} className="flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">प्राप्तकर्ताको नाम (नेपाली):</label>
+                    <div key={recipient.id} className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">प्राप्तकर्ताको पद/शीर्षक (नेपाली):</label>
                         <input
                           type="text"
                           value={recipient.nameNe}
@@ -1859,13 +1904,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                             updated[index] = { ...recipient, nameNe: e.target.value };
                             setTempRecipients(updated);
                           }}
-                          placeholder="उदा: प्रयोगशालाकर्मी, सहयोगी"
+                          placeholder="उदा: प्रयोगशालाकर्मी, सहयोगी/सफाईकर्मी"
                           className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg outline-none font-medium focus:ring-1 focus:ring-emerald-500"
                           required
                         />
                       </div>
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">Recipient Name (English):</label>
+                      <div className="flex-1 min-w-[130px]">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">Recipient Title (English):</label>
                         <input
                           type="text"
                           value={recipient.nameEn}
@@ -1874,12 +1919,78 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                             updated[index] = { ...recipient, nameEn: e.target.value };
                             setTempRecipients(updated);
                           }}
-                          placeholder="e.g. Lab Staff, Helper"
+                          placeholder="e.g. Lab Staff, Helper/Cleaner"
                           className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg outline-none font-medium focus:ring-1 focus:ring-emerald-500"
                           required
                         />
                       </div>
-                      <div className="w-full md:w-32">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">
+                          कर्मचारी / व्यक्तिको नाम (एक भन्दा बढी भए अल्पविराम , ले छुट्याउनुहोस्):
+                        </label>
+                        {recipient.isSystemReferrer ? (
+                          <input
+                            type="text"
+                            disabled
+                            value="सिस्टम (बिलको सिफारिसकर्ता अनुसार)"
+                            className="w-full text-xs p-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 italic font-nepali cursor-not-allowed select-none"
+                            title="यो सिफारिसकर्ताको नाम प्रत्येक बिल अनुसार स्वचालित हुन्छ"
+                          />
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={recipient.staffName || ''}
+                                onChange={(e) => {
+                                  const updated = [...tempRecipients];
+                                  updated[index] = { ...recipient, staffName: e.target.value };
+                                  setTempRecipients(updated);
+                                }}
+                                placeholder="उदा: राम श्रेष्ठ, श्याम थापा (वा छान्नुहोस्)"
+                                className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-lg outline-none font-medium focus:ring-1 focus:ring-emerald-500 font-nepali text-slate-800"
+                              />
+                              <select
+                                aria-label="कर्मचारी छान्नुहोस्"
+                                className="w-28 text-[11px] p-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-slate-700 font-nepali outline-none cursor-pointer transition-colors"
+                                value=""
+                                onChange={(e) => {
+                                  const chosenName = e.target.value;
+                                  if (!chosenName) return;
+                                  const currentNames = parseStaffNames(recipient.staffName);
+                                  if (!currentNames.includes(chosenName)) {
+                                    const updatedNames = [...currentNames, chosenName];
+                                    const updated = [...tempRecipients];
+                                    updated[index] = { ...recipient, staffName: updatedNames.join(', ') };
+                                    setTempRecipients(updated);
+                                  }
+                                }}
+                              >
+                                <option value="">+ कर्मचारी</option>
+                                {users.map(u => (
+                                  <option key={u.id} value={u.fullName}>
+                                    {u.fullName} {u.designation ? `(${u.designation})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            {(() => {
+                              const sList = parseStaffNames(recipient.staffName);
+                              if (sList.length > 1) {
+                                const perPerson = (recipient.sharePercent / sList.length).toFixed(2);
+                                return (
+                                  <div className="text-[10px] text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 font-nepali flex items-center justify-between">
+                                    <span>✨ कुल {toNepaliDigits(sList.length)} जना कर्मचारी</span>
+                                    <span className="font-bold">प्रतिव्यक्ति {toNepaliDigits(perPerson)}% बराबरी बाँडफाँड (१/{toNepaliDigits(sList.length)})</span>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="w-full lg:w-28">
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 font-nepali">बाँडफाँड हिस्सा % (Share %):</label>
                         <input
                           type="number"
@@ -1892,13 +2003,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                             updated[index] = { ...recipient, sharePercent: Number(e.target.value) };
                             setTempRecipients(updated);
                           }}
-                          className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg font-bold outline-none focus:ring-1 focus:ring-emerald-500 text-right"
+                          className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg font-bold outline-none focus:ring-1 focus:ring-emerald-500 text-right font-mono"
                           required
                         />
                       </div>
-                      <div className="flex items-end justify-end md:self-end h-9 pb-1">
+                      <div className="flex items-end justify-end lg:self-end h-9 pb-1">
                         {recipient.isSystemReferrer ? (
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 font-nepali" title="यो सिफारिसकर्ताको नाम बिल अनुसार परिवर्तन हुन्छ">
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100 font-nepali" title="यो सिफारिसकर्ताको नाम बिल अनुसार परिवर्तन हुन्छ">
                             सिस्टम (System)
                           </span>
                         ) : (
@@ -1949,13 +2060,24 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <span className="block text-xl font-extrabold text-emerald-700 font-mono mt-1">{toNepaliDigits(labIncentivePercent)}%</span>
                 <span className="text-[10px] text-slate-500 font-nepali font-medium">ल्याब बिलको रकम</span>
               </div>
-              {protsahanRecipients.map(recipient => (
-                <div key={recipient.id} className="flex-1 min-w-[140px] bg-sky-50/50 border border-sky-100 p-3 rounded-2xl text-center">
-                  <span className="block text-[10px] text-sky-800 font-bold tracking-wider uppercase font-nepali">{recipient.nameNe} हिस्सा</span>
-                  <span className="block text-xl font-extrabold text-sky-700 font-mono mt-1">{toNepaliDigits(recipient.sharePercent)}%</span>
-                  <span className="text-[10px] text-slate-500 font-nepali font-medium">कुल प्रोत्साहनको हिस्सा</span>
-                </div>
-              ))}
+              {protsahanRecipients.map(recipient => {
+                const staffList = parseStaffNames(recipient.staffName);
+                const perPersonPercent = staffList.length > 1 ? (recipient.sharePercent / staffList.length) : recipient.sharePercent;
+                return (
+                  <div key={recipient.id} className="flex-1 min-w-[150px] bg-sky-50/50 border border-sky-100 p-3 rounded-2xl text-center">
+                    <span className="block text-[10px] text-sky-800 font-bold tracking-wider uppercase font-nepali">{recipient.nameNe} हिस्सा</span>
+                    {staffList.length > 0 && (
+                      <span className="block text-xs font-bold text-slate-700 font-nepali mt-0.5 truncate" title={staffList.join(', ')}>
+                        ({staffList.join(', ')}) {staffList.length > 1 ? `[${toNepaliDigits(staffList.length)} जना]` : ''}
+                      </span>
+                    )}
+                    <span className="block text-xl font-extrabold text-sky-700 font-mono mt-0.5">{toNepaliDigits(recipient.sharePercent)}%</span>
+                    <span className="text-[10px] text-slate-500 font-nepali font-medium">
+                      {staffList.length > 1 ? `प्रतिव्यक्ति: ${toNepaliDigits(perPersonPercent.toFixed(2))}% बराबरी` : 'कुल प्रोत्साहनको हिस्सा'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -2074,12 +2196,27 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const share = d.recipientShares.find(s => s.id === recipient.id);
                     return sum + (share ? share.shareAmount : 0);
                   }, 0);
+                  const staffList = parseStaffNames(recipient.staffName);
+                  const perPersonAmount = staffList.length > 1 ? totalForRecipient / staffList.length : totalForRecipient;
+
                   return (
-                    <div key={recipient.id} className="flex-1 min-w-[140px] bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
-                      <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">{recipient.nameNe} हिस्सा ({toNepaliDigits(recipient.sharePercent)}%)</span>
+                    <div key={recipient.id} className="flex-1 min-w-[150px] bg-sky-50/50 border border-sky-200 p-3 rounded-xl text-center">
+                      <span className="block text-[10px] text-sky-800 font-bold tracking-wide uppercase font-nepali">
+                        {recipient.nameNe} हिस्सा ({toNepaliDigits(recipient.sharePercent)}%)
+                      </span>
+                      {staffList.length > 0 && (
+                        <span className="block text-[11px] font-bold text-slate-800 font-nepali truncate" title={staffList.join(', ')}>
+                          ({staffList.join(', ')}) {staffList.length > 1 ? `[${toNepaliDigits(staffList.length)} जना]` : ''}
+                        </span>
+                      )}
                       <span className="block text-sm font-black text-sky-700 font-mono mt-0.5">
                         रू. {toNepaliDigits(totalForRecipient.toFixed(2))}
                       </span>
+                      {staffList.length > 1 && (
+                        <span className="block text-[10px] text-emerald-700 font-bold font-nepali mt-0.5">
+                          (प्रतिव्यक्ति रू. {toNepaliDigits(perPersonAmount.toFixed(2))})
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -2231,14 +2368,112 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 </table>
               </div>
 
-              {/* 2. Detailed Incentive Calculation Log */}
+              {/* 2. Recipient-wise Incentive Payout Summary */}
+              <div className="mb-6">
+                <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali mb-2">
+                  २. प्राप्तकर्ता अनुसार प्रोत्साहन बाँडफाँड सारांश (Recipient-wise Incentive Payout Summary)
+                </h3>
+                <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-900">
+                  <thead>
+                    {renderPrintPageHeaderRow(5, '२. प्राप्तकर्ता अनुसार प्रोत्साहन बाँडफाँड सारांश')}
+                    <tr className="bg-slate-100">
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
+                      <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">प्राप्तकर्ताको शीर्षक/पद (Recipient Title)</th>
+                      <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali">कर्मचारी / व्यक्तिको नाम (Staff / Person Name)</th>
+                      <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide font-nepali w-32">हिस्सा प्रतिशत (Share %)</th>
+                      <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-44">जम्मा प्राप्त रकम (Total Amount)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {protsahanRecipients.map((recipient, idx) => {
+                      const totalForRecipient = protsahanReportData.reduce((sum, d) => {
+                        const share = d.recipientShares.find(s => s.id === recipient.id);
+                        return sum + (share ? share.shareAmount : 0);
+                      }, 0);
+                      const staffList = parseStaffNames(recipient.staffName);
+                      const hasMultipleStaff = staffList.length > 1;
+                      const perPersonAmount = hasMultipleStaff ? totalForRecipient / staffList.length : totalForRecipient;
+                      const perPersonPercent = hasMultipleStaff ? recipient.sharePercent / staffList.length : recipient.sharePercent;
+
+                      const displayName = recipient.isSystemReferrer 
+                        ? 'विभिन्न सिफारिसकर्ताहरू (सम्बन्धित बिल अनुसार)' 
+                        : (staffList.length > 0 ? staffList.join(', ') : '-');
+
+                      return (
+                        <React.Fragment key={recipient.id}>
+                          <tr className="hover:bg-slate-50/60 font-semibold">
+                            <td className="border border-slate-950 p-2 text-center font-bold">{toNepaliDigits(idx + 1)}</td>
+                            <td className="border border-slate-950 p-2 font-bold text-slate-900 font-nepali">
+                              {recipient.nameNe} {recipient.nameEn ? <span className="text-xs font-normal text-slate-500">({recipient.nameEn})</span> : ''}
+                              {hasMultipleStaff && (
+                                <span className="block text-[11px] text-sky-700 font-normal mt-0.5">
+                                  [कुल {toNepaliDigits(staffList.length)} जना कर्मचारी - बराबरी बाँडफाँड]
+                                </span>
+                              )}
+                            </td>
+                            <td className="border border-slate-950 p-2 text-slate-800 font-nepali">
+                              {displayName}
+                            </td>
+                            <td className="border border-slate-950 p-2 text-center font-mono font-bold text-slate-800">
+                              {toNepaliDigits(recipient.sharePercent)}%
+                              {hasMultipleStaff && (
+                                <div className="text-[10px] text-slate-600 font-normal">
+                                  (प्रतिव्यक्ति {toNepaliDigits(perPersonPercent.toFixed(2))}%)
+                                </div>
+                              )}
+                            </td>
+                            <td className="border border-slate-950 p-2 text-right font-mono font-black text-emerald-800">
+                              रू. {toNepaliDigits(totalForRecipient.toFixed(2))}
+                              {hasMultipleStaff && (
+                                <div className="text-[10px] text-emerald-700 font-semibold">
+                                  (प्रतिव्यक्ति रू. {toNepaliDigits(perPersonAmount.toFixed(2))})
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          {hasMultipleStaff && staffList.map((stName, sIdx) => (
+                            <tr key={`${recipient.id}_staff_${sIdx}`} className="bg-sky-50/30 text-xs hover:bg-sky-50/50">
+                              <td className="border border-slate-950 p-1.5 text-center text-slate-400 font-mono">↳</td>
+                              <td className="border border-slate-950 p-1.5 pl-6 font-medium text-slate-700 font-nepali">
+                                {recipient.nameNe} (व्यक्तिगत हिस्सा)
+                              </td>
+                              <td className="border border-slate-950 p-1.5 font-bold text-slate-900 font-nepali">
+                                {stName} <span className="text-[10px] font-normal text-slate-500 font-nepali">(१/{toNepaliDigits(staffList.length)} हिस्सा)</span>
+                              </td>
+                              <td className="border border-slate-950 p-1.5 text-center font-mono font-semibold text-slate-700">
+                                {toNepaliDigits(perPersonPercent.toFixed(2))}%
+                              </td>
+                              <td className="border border-slate-950 p-1.5 text-right font-mono font-bold text-emerald-700">
+                                रू. {toNepaliDigits(perPersonAmount.toFixed(2))}
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      );
+                    })}
+                    <tr className="bg-slate-50 font-bold">
+                      <td colSpan={3} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                        कुल प्रोत्साहन जम्मा (Grand Total Incentive):
+                      </td>
+                      <td className="border-2 border-slate-950 p-2.5 text-center font-black font-mono">
+                        {toNepaliDigits(protsahanRecipients.reduce((s, r) => s + r.sharePercent, 0))}%
+                      </td>
+                      <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono text-emerald-900">
+                        रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 3. Detailed Incentive Calculation Log */}
               <div>
                 <h3 className="text-xs md:text-sm font-black text-slate-900 font-nepali mb-2">
-                  २. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण (Detailed Incentive Calculation Log)
+                  ३. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण (Detailed Incentive Calculation Log)
                 </h3>
                 <table className="w-full border-collapse border-2 border-slate-950 text-xs text-slate-900">
                   <thead>
-                    {renderPrintPageHeaderRow(7 + protsahanRecipients.length, '२. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण')}
+                    {renderPrintPageHeaderRow(7 + protsahanRecipients.length, '३. प्रत्येक बिलको प्रोत्साहन बाँडफाँडको विस्तृत विवरण')}
                     <tr className="bg-slate-100">
                       <th className="border-2 border-slate-950 p-2 text-center font-bold tracking-wide w-12 font-nepali">सि.न.</th>
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[120px]">बिरामीको नाम</th>
@@ -2247,11 +2482,25 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">ल्याब खुद रकम</th>
                       <th className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali w-24">कुल प्रोत्साहन ({toNepaliDigits(labIncentivePercent)}%)</th>
                       <th className="border-2 border-slate-950 p-2 text-left font-bold tracking-wide font-nepali min-w-[110px]">सिफारिसकर्ता</th>
-                      {protsahanRecipients.map(recipient => (
-                        <th key={recipient.id} className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali min-w-[80px]">
-                          {recipient.nameNe} ({toNepaliDigits(recipient.sharePercent)}%)
-                        </th>
-                      ))}
+                      {protsahanRecipients.map(recipient => {
+                        const staffList = parseStaffNames(recipient.staffName);
+                        return (
+                          <th key={recipient.id} className="border-2 border-slate-950 p-2 text-right font-bold tracking-wide font-nepali min-w-[90px]">
+                            <div>{recipient.nameNe}</div>
+                            {staffList.length > 0 && (
+                              <div className="text-[10px] font-semibold text-slate-700">
+                                ({staffList.join(', ')})
+                                {staffList.length > 1 && (
+                                  <span className="block text-[9px] text-sky-700">
+                                    ({toNepaliDigits(staffList.length)} जना - प्रतिव्यक्ति {toNepaliDigits((recipient.sharePercent / staffList.length).toFixed(1))}%)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-slate-600 font-mono">({toNepaliDigits(recipient.sharePercent)}%)</div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -2820,6 +3069,21 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         </div>
 
       </div>
+
+      {/* Lab Protsahan Bharpai Modal */}
+      <LabProtsahanBharpaiModal
+        isOpen={showBharpaiModal}
+        onClose={() => setShowBharpaiModal(false)}
+        selectedFiscalYear={selectedFiscalYear}
+        selectedMonth={selectedMonth}
+        protsahanByReferrer={protsahanByReferrer}
+        protsahanRecipients={protsahanRecipients}
+        protsahanReportData={protsahanReportData}
+        useNepaliNumerals={useNepaliNumerals}
+        toNepaliDigits={toNepaliDigits}
+        generalSettings={generalSettings}
+        currentUser={currentUser}
+      />
     </div>
   );
 };
