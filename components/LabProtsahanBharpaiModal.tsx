@@ -413,35 +413,60 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
 
   return (
     <>
-      {/* Isolation Print Style so ONLY the Bharpai sheet prints */}
+      {/* Clean Print Style so Bharpai renders fully and clearly in print/PDF preview */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
             @media print {
-              body > *:not(#root) {
+              @page {
+                size: landscape;
+                margin: 8mm;
+              }
+              body {
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .print\\:hidden {
                 display: none !important;
               }
-              .print-bharpai-only {
-                display: block !important;
-                position: fixed !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100vw !important;
-                min-height: 100vh !important;
-                background: white !important;
+              .bharpai-modal-overlay {
+                position: static !important;
+                background: transparent !important;
+                padding: 0 !important;
                 margin: 0 !important;
-                padding: 1.5cm !important;
-                z-index: 999999 !important;
+                overflow: visible !important;
+                display: block !important;
+                inset: auto !important;
+                z-index: auto !important;
+              }
+              .bharpai-modal-container {
+                position: static !important;
+                max-height: none !important;
+                max-width: 100% !important;
+                width: 100% !important;
                 box-shadow: none !important;
                 border: none !important;
+                border-radius: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              .bharpai-print-sheet {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                display: block !important;
+                overflow: visible !important;
               }
             }
           `
         }}
       />
 
-      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:m-0 print:static print:bg-transparent print:backdrop-blur-none print:overflow-visible">
-        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[96vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto print:fixed print:inset-0 print:m-0 print:p-0 print:border-none print:rounded-none print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:w-full print:h-auto">
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto bharpai-modal-overlay">
+        <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[96vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto bharpai-modal-container">
           
           {/* Top Control Bar - Hide on print */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-4 px-6 border-b border-slate-200 bg-slate-50 print:hidden">
@@ -594,7 +619,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
           )}
 
           {/* Bharpai Document Print Sheet */}
-          <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-white print:p-0 print:overflow-visible print-bharpai-only">
+          <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-white print:p-0 print:overflow-visible bharpai-print-sheet">
             <div className="max-w-5xl mx-auto space-y-4 print:w-full print:max-w-none">
               
               {/* Top Bharpai Official Header (Exact text matching screenshot) */}

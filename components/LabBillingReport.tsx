@@ -1428,8 +1428,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   }
 
   return (
-    <div className={`w-full space-y-6 ${showBharpaiModal ? 'print:hidden' : ''}`}>
-      {/* Title Panel - Hide on print */}
+    <>
+      <div className={`w-full space-y-6 ${showBharpaiModal ? 'print:hidden' : ''}`}>
+        {/* Title Panel - Hide on print */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs print:hidden">
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -3069,6 +3070,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         </div>
 
       </div>
+      </div>
 
       {/* Lab Protsahan Bharpai Modal */}
       <LabProtsahanBharpaiModal
@@ -3086,6 +3088,6 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         generalSettings={generalSettings}
         currentUser={currentUser}
       />
-    </div>
+    </>
   );
 };
