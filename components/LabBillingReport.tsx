@@ -6,6 +6,7 @@ import { FISCAL_YEARS } from '../constants';
 import NepaliDate from 'nepali-date-converter';
 import { LogoDisplay } from './LogoDisplay';
 import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
+import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
 
 const COMMON_LAB_KWS = new Set([
   'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain'
@@ -196,6 +197,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [tempIncentivePercent, setTempIncentivePercent] = useState<number>(10);
   const [tempRecipients, setTempRecipients] = useState<ProtsahanRecipient[]>([]);
   const [showBharpaiModal, setShowBharpaiModal] = useState<boolean>(false);
+  const [showAmbulanceBharpaiModal, setShowAmbulanceBharpaiModal] = useState<boolean>(false);
 
   // Drag and drop ordering for Referrer Summary table
   const [customReferrerOrder, setCustomReferrerOrder] = useState<string[]>(() => {
@@ -1429,7 +1431,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   return (
     <>
-      <div className={`w-full space-y-6 ${showBharpaiModal ? 'print:hidden' : ''}`}>
+      <div className={`w-full space-y-6 ${showBharpaiModal || showAmbulanceBharpaiModal ? 'print:hidden' : ''}`}>
         {/* Title Panel - Hide on print */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs print:hidden">
         <div>
@@ -1471,6 +1473,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               type="button"
               onClick={() => setShowBharpaiModal(true)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+            >
+              <FileText size={15} />
+              भरपाई (Bharpai)
+            </button>
+          )}
+
+          {/* Bharpai Button (For Ambulance Driver Protsahan) */}
+          {reportSource === 'AmbulanceProtsahan' && (
+            <button
+              type="button"
+              onClick={() => setShowAmbulanceBharpaiModal(true)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
             >
               <FileText size={15} />
               भरपाई (Bharpai)
@@ -3083,6 +3097,21 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         labIncentivePercent={labIncentivePercent}
         users={users}
         getServiceCategory={getServiceCategory}
+        useNepaliNumerals={useNepaliNumerals}
+        toNepaliDigits={toNepaliDigits}
+        generalSettings={generalSettings}
+        currentUser={currentUser}
+      />
+
+      {/* Ambulance Driver Protsahan Bharpai Modal */}
+      <AmbulanceProtsahanBharpaiModal
+        isOpen={showAmbulanceBharpaiModal}
+        onClose={() => setShowAmbulanceBharpaiModal(false)}
+        ambulanceRecords={ambulanceRecords}
+        initialFiscalYear={selectedFiscalYear}
+        initialMonth={selectedMonth}
+        initialDriver={selectedAmbulanceDriver}
+        ambulanceDriverIncentivePercent={ambulanceDriverIncentivePercent}
         useNepaliNumerals={useNepaliNumerals}
         toNepaliDigits={toNepaliDigits}
         generalSettings={generalSettings}
