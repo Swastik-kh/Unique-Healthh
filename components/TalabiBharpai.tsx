@@ -614,6 +614,38 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     }
   };
 
+  // Post as Expense to Lekha Prashasan
+  const handlePostToLekhaPrashasan = async () => {
+    if (employeesList.length === 0) {
+      alert("पोस्ट गर्नको लागि कुनै कर्मचारीको विवरण छैन।");
+      return;
+    }
+
+    const monthObj = NEPALI_MONTHS.find(m => m.code === selectedMonthCode);
+    const txId = `sal_exp_${selectedFiscalYear.replace(/[^0-9]/g, '')}_${selectedMonthCode}`;
+    const transaction = {
+      id: txId,
+      dateBs: currentReceiptDate,
+      dateAd: new Date().toISOString().split('T')[0],
+      category: 'General',
+      type: 'Expense',
+      amount: grandTotals.totalNetPayable,
+      remarks: `${monthObj?.name || selectedMonthCode} महिनाको कर्मचारी तलबी भरपाई निकासा खर्च`,
+      fiscalYear: selectedFiscalYear,
+      paymentMethod,
+      checkNo: chequeOrVoucherNo || '',
+      referenceNo: receiptNumber || `PAY-${selectedMonthCode}`
+    };
+
+    try {
+      const txRef = ref(db, `orgData/${safeOrgName}/financialTransactions/${txId}`);
+      await set(txRef, transaction);
+      alert(`सफलतापूर्वक ${monthObj?.name} महिनाको तलबी भरपाई रकम लेखा प्रशासनमा खर्चको रूपमा पोस्ट गरियो!`);
+    } catch (err: any) {
+      alert("खर्च पोस्ट गर्दा त्रुटि भयो: " + (err.message || 'Error'));
+    }
+  };
+
   // Delete Receipt
   const handleDeleteReceipt = async () => {
     if (!currentMonthReceipt) return;
@@ -818,15 +850,14 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         </style>
       </head>
       <body>
-        <div class="header-container">
-          <img src="${logoUrl}" class="logo" />
+        <div class="header-container" style="justify-content: center; text-align: center; position: relative;">
+          <img src="${logoUrl}" class="logo" style="position: absolute; left: 10px; top: 0;" />
           <div class="header-text">
             <h1>${generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था व्यवस्थापन'}</h1>
             <h2>${generalSettings?.subTitleNepali || ''} ${generalSettings?.subTitleNepali2 ? ', ' + generalSettings.subTitleNepali2 : ''}</h2>
             <p>${generalSettings?.subTitleNepali3 || ''} ${generalSettings?.subTitleNepali4 || ''}</p>
             <h2 style="margin-top: 3px; text-decoration: underline; color: #0f172a;">मासिक कर्मचारी तलबी भरपाई तथा निकासा विवरण</h2>
           </div>
-          <img src="${provinceLogo}" class="logo" />
         </div>
 
         <div class="meta-grid">
@@ -835,8 +866,9 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
           <div><b>भरपाई/निकासा नं.:</b> ${toNepaliNumber(receiptNumber || '-')}</div>
           <div><b>मिति:</b> ${toNepaliNumber(currentReceiptDate)}</div>
           <div><b>बजेट शीर्षक:</b> ${budgetHeadName || '२११११ - कर्मचारी पारिश्रमिक'}</div>
-          <div><b>भुक्तानी माध्यम:</b> ${paymentMethod === 'Bank' ? 'बैंक खाता ट्रान्सफर' : paymentMethod}</div>
+          <div><b>भुक्तानी माध्यम:</b> ${paymentMethod === 'Bank' ? 'बैंक ट्रान्सफर' : paymentMethod === 'Cheque' ? 'चेक (Cheque)' : 'नगद'}</div>
           <div><b>बैंकको नाम:</b> ${bankName || '-'}</div>
+          ${paymentMethod === 'Cheque' ? `<div><b>चेक नं.:</b> ${toNepaliNumber(chequeOrVoucherNo || '-')}</div>` : ''}
           <div><b>जम्मा कर्मचारी:</b> ${toNepaliNumber(employeesList.length)} जना</div>
         </div>
 
@@ -1425,6 +1457,14 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 >
                   <Printer size={15} /> भरपाई प्रिन्ट (A4)
                 </button>
+                <button
+                  onClick={handlePostToLekhaPrashasan}
+                  disabled={employeesList.length === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  title="यो तलबी भरपाईको कुल खुद रकम लेखा प्रशासनमा खर्चको रूपमा पोस्ट गर्नुहोस्"
+                >
+                  <DollarSign size={15} /> लेखामा खर्च पोस्ट
+                </button>
               </div>
             </div>
 
@@ -1474,6 +1514,16 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                   />
                 </div>
               </div>
+              {paymentMethod === 'Cheque' && (
+                <div className="sm:col-span-2 md:col-span-1">
+                  <label className="block font-bold text-slate-700 mb-1">चेक नं. (Cheque No.):</label>
+                  <Input
+                    value={chequeOrVoucherNo}
+                    onChange={(e) => setChequeOrVoucherNo(e.target.value)}
+                    placeholder="चेक नं. प्रविष्ट गर्नुहोस्"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

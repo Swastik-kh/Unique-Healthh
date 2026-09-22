@@ -924,11 +924,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
     if (menuId === 'talabi_bharpai') {
       return (
         currentUser.role === 'SUPER_ADMIN' ||
-        currentUser.role === 'ADMIN' ||
-        currentUser.role === 'ACCOUNT' ||
-        currentUser.allowedMenus?.includes('talabi_bharpai') ||
-        currentUser.allowedMenus?.includes('lekha_prashasan') ||
-        currentUser.allowedMenus?.includes('administration')
+        currentUser.allowedMenus?.includes('talabi_bharpai')
       );
     }
     return currentUser.allowedMenus?.includes(menuId);
