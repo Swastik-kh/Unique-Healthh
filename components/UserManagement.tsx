@@ -103,6 +103,7 @@ const PERMISSION_STRUCTURE = [
                     { id: 'chalani', label: 'चलानी (Chalani)' },
                     { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता (Travel Order)' },
                     { id: 'lekha_prashasan', label: 'लेखा प्रशासन (Lekha Prashasan)' },
+                    { id: 'talabi_bharpai', label: 'तलबी भरपाई तथा प्रतिवेदन (Salary Bharpai)' },
                     { id: 'bida_abedan', label: 'बिदा आवेदन (Leave Application)' },
                     { id: 'sujhab_petika', label: 'सुझाव पेटिका (Sujhab Petika)' },
                 ]
