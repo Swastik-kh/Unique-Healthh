@@ -715,92 +715,6 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     ))}
                 </div>
             
-            {/* सेवा बिलिङ तथा छुट सिफारिसकर्ता सेटिङ */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
-                    <Coins size={18} className="text-emerald-600"/> सेवा बिलिङ छुट तथा सिफारिसकर्ता सेटिङ (Sewa Billing Discount Config)
-                </h3>
-                
-                <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">डिफल्ट सेवा बिलिङ अधिकतम छुट सीमा (Default Sewa Billing Max Discount %)</label>
-                    <p className="text-xs text-slate-400 mb-2">सिफारिसकर्ता नछानिएको अवस्थामा वा सामान्य अवस्थामा दिन मिल्ने अधिकतम छुट प्रतिशत सेट गर्नुहोस्।</p>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="number"
-                            max={100}
-                            min={0}
-                            className="w-36 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono"
-                            placeholder="उदा: 100"
-                            value={localSettings.maxSewaDiscountPercent !== undefined ? localSettings.maxSewaDiscountPercent : ''}
-                            onChange={(e) => handleChange('maxSewaDiscountPercent', e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                        <span className="text-xs font-bold text-slate-500">%</span>
-                    </div>
-                </div>
-
-                <div className="border-t pt-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-1">सेवा बिलिङ छुट सिफारिसकर्ताहरू र अधिकतम छुट सीमा (Sewa Discount Recommenders & Max Limits %)</label>
-                    <p className="text-xs text-slate-400 mb-3">यहाँ सेवा बिलिङ (प्रत्यक्ष र नियमित) मा छुट सिफारिस गर्न पाउने पदाधिकारी/सिफारिसकर्ताहरू र उनीहरूको लागि अधिकतम छुट प्रतिशत (%) सीमा सेट गर्नुहोस्।</p>
-                    <div className="flex gap-2 mb-3">
-                        <input
-                            type="text"
-                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                            placeholder="नयाँ सिफारिसकर्ताको पद/नाम (उदा: वडा अध्यक्ष, शाखा प्रमुख)"
-                            id="newSewaRoleInput"
-                        />
-                        <button
-                            type="button"
-                            className="px-3 py-2 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 font-medium"
-                            onClick={() => {
-                                const input = document.getElementById('newSewaRoleInput') as HTMLInputElement;
-                                if (input && input.value.trim()) {
-                                    const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
-                                    const currentRoles = localSettings.sewaDiscountRoles || defaultSewaRoles;
-                                    if (!currentRoles.includes(input.value.trim())) {
-                                        const newRoles = [...currentRoles, input.value.trim()];
-                                        handleChange('sewaDiscountRoles', newRoles);
-                                    }
-                                    input.value = '';
-                                }
-                            }}
-                        >+ थप्नुहोस्</button>
-                    </div>
-                    <div className="space-y-2">
-                        {(localSettings.sewaDiscountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य']).map((role, idx) => (
-                            <div key={idx} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-150">
-                                <span className="text-xs font-semibold text-slate-700 w-52 truncate">{role}:</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    className="w-24 p-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono bg-white text-right"
-                                    value={localSettings.sewaDiscountLimits?.[role] !== undefined ? localSettings.sewaDiscountLimits[role] : (localSettings.discountLimits?.[role] || 0)}
-                                    onChange={(e) => {
-                                        const newLimits = { ...(localSettings.sewaDiscountLimits || {}) };
-                                        newLimits[role] = Number(e.target.value);
-                                        handleChange('sewaDiscountLimits', newLimits);
-                                    }}
-                                    placeholder="Max %"
-                                />
-                                <span className="text-xs font-bold text-slate-500">%</span>
-                                <button
-                                    type="button"
-                                    className="p-1 text-red-500 hover:text-red-700 ml-auto hover:bg-red-50 rounded"
-                                    onClick={() => {
-                                        const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
-                                        const newRoles = (localSettings.sewaDiscountRoles || defaultSewaRoles).filter((_, i) => i !== idx);
-                                        handleChange('sewaDiscountRoles', newRoles);
-                                    }}
-                                    title="हटाउनुहोस्"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            
             {/* एम्बुलेन्स सेवा र भाडा दर सेटिङ */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
@@ -818,6 +732,20 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                         value={localSettings.ambulanceDriverName || ''} 
                         onChange={(e) => handleChange('ambulanceDriverName', e.target.value)} 
                         placeholder="उदा: राम बहादुर"
+                    />
+                </div>
+                
+                <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2">सेवा बिलिङ अधिकतम छुट सीमा (Sewa Billing Max Discount %)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ सेवा बिलिङ (नियमित र प्रत्यक्ष) गर्दा दिन मिल्ने अधिकतम छुट प्रतिशत सेट गर्नुहोस्।</p>
+                    <input
+                        type="number"
+                        max={100}
+                        min={0}
+                        className="w-48 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                        placeholder="उदा: 100"
+                        value={localSettings.maxSewaDiscountPercent !== undefined ? localSettings.maxSewaDiscountPercent : ''}
+                        onChange={(e) => handleChange('maxSewaDiscountPercent', e.target.value ? Number(e.target.value) : undefined)}
                     />
                 </div>
 
