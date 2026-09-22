@@ -328,7 +328,12 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     let providentFund = Number(data.providentFund) || 0;
     const citDeduction = Number(data.citDeduction) || 0;
     const insuranceDeduction = Number(data.insuranceDeduction) || 0;
-    let taxDeduction = Number(data.taxDeduction) || 0;
+    
+    // Auto tax 1% social security / TDS by default if taxDeduction is not specified or 0
+    let taxDeduction = (data.taxDeduction !== undefined && data.taxDeduction !== null && data.taxDeduction !== 0) 
+      ? Number(data.taxDeduction) 
+      : Math.round(grossSalary * 0.01);
+
     const loanOrAdvanceDeduction = Number(data.loanOrAdvanceDeduction) || 0;
     const otherDeductions = Number(data.otherDeductions) || 0;
 
@@ -772,8 +777,9 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
           }
           th, td {
             border: 1px solid #475569;
-            padding: 3px 4px;
+            padding: 7px 6px;
             text-align: center;
+            line-height: 1.4;
           }
           th {
             background-color: #f1f5f9;
@@ -1372,31 +1378,31 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       level: '',
                       employeeCode: '',
                       bankAccountNumber: '',
-                      bankName: 'राष्ट्रिय वाणिज्य बैंक',
+                      bankName: '',
                       panNumber: '',
                       citNumber: '',
                       pfNumber: '',
                       serviceType: 'Permanent',
-                      basicScale: 32000,
+                      basicScale: 0,
                       gradeCount: 0,
-                      gradeRate: 1067,
+                      gradeRate: 0,
                       gradeAmount: 0,
-                      totalBasicSalary: 32000,
-                      dearnessAllowance: 2000,
+                      totalBasicSalary: 0,
+                      dearnessAllowance: 0,
                       incentiveAllowance: 0,
                       fieldAllowance: 0,
                       dressAllowance: 0,
                       medicalAllowance: 0,
                       otherAllowances: 0,
-                      grossSalary: 34000,
-                      providentFund: 3200,
+                      grossSalary: 0,
+                      providentFund: 0,
                       citDeduction: 0,
-                      insuranceDeduction: 400,
-                      taxDeduction: 340,
+                      insuranceDeduction: 0,
+                      taxDeduction: 0,
                       loanOrAdvanceDeduction: 0,
                       otherDeductions: 0,
-                      totalDeductions: 3940,
-                      netPayable: 30060,
+                      totalDeductions: 0,
+                      netPayable: 0,
                       remarks: ''
                     });
                     setIsAddEmployeeModalOpen(true);
