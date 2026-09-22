@@ -657,6 +657,57 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const discountAmount = parseFloat(discount) || 0;
   const grandTotal = Math.max(0, subTotal - discountAmount);
 
+  const sewaDiscountRolesList = useMemo(() => {
+    const defaultRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
+    return generalSettings?.sewaDiscountRoles && generalSettings.sewaDiscountRoles.length > 0 
+      ? generalSettings.sewaDiscountRoles 
+      : defaultRoles;
+  }, [generalSettings?.sewaDiscountRoles]);
+
+  const activeRecommender = isDirectBilling ? directReferredBy : referredBy;
+
+  const effectiveMaxDiscountPercent = useMemo(() => {
+    if (activeRecommender) {
+      if (generalSettings?.sewaDiscountLimits?.[activeRecommender] !== undefined) {
+        return generalSettings.sewaDiscountLimits[activeRecommender];
+      }
+      if (generalSettings?.discountLimits?.[activeRecommender] !== undefined) {
+        return generalSettings.discountLimits[activeRecommender];
+      }
+      // Check matching user designation or role
+      const matchedUser = users.find(u => u.username === activeRecommender || u.id === activeRecommender || u.fullName === activeRecommender);
+      if (matchedUser) {
+        const designation = matchedUser.designation;
+        const role = matchedUser.role;
+        if (designation && generalSettings?.sewaDiscountLimits?.[designation] !== undefined) {
+          return generalSettings.sewaDiscountLimits[designation];
+        }
+        if (role && generalSettings?.sewaDiscountLimits?.[role] !== undefined) {
+          return generalSettings.sewaDiscountLimits[role];
+        }
+      }
+    }
+    if (generalSettings?.maxSewaDiscountPercent !== undefined) {
+      return generalSettings.maxSewaDiscountPercent;
+    }
+    return undefined;
+  }, [activeRecommender, generalSettings?.sewaDiscountLimits, generalSettings?.discountLimits, generalSettings?.maxSewaDiscountPercent, users]);
+
+  const maxAllowedDiscountAmount = useMemo(() => {
+    if (effectiveMaxDiscountPercent !== undefined && subTotal > 0) {
+      return parseFloat(((subTotal * effectiveMaxDiscountPercent) / 100).toFixed(2));
+    }
+    return undefined;
+  }, [effectiveMaxDiscountPercent, subTotal]);
+
+  const isDiscountExceeded = useMemo(() => {
+    if (effectiveMaxDiscountPercent !== undefined && subTotal > 0 && discountAmount > 0) {
+      const currentPercent = (discountAmount / subTotal) * 100;
+      return currentPercent > (effectiveMaxDiscountPercent + 0.01);
+    }
+    return false;
+  }, [effectiveMaxDiscountPercent, subTotal, discountAmount]);
+
   const handleSearchHIBPatient = async () => {
     if (!insuranceNo.trim()) {
       alert("कृपया पहिले बीमा नम्बर (Insurance No) भर्नुहोस्।");
@@ -1031,11 +1082,36 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   };
 
   const handleSaveBill = async () => {
-    // Validate discount percentage against settings
-    if (generalSettings?.maxSewaDiscountPercent !== undefined && subTotal > 0) {
+    // Validate discount percentage against recommender-specific or general settings
+    const selectedRecommender = isDirectBilling ? (directReferredBy || referredBy) : (referredBy || directReferredBy);
+    let limitPercent: number | undefined = undefined;
+    if (selectedRecommender && generalSettings?.sewaDiscountLimits?.[selectedRecommender] !== undefined) {
+      limitPercent = generalSettings.sewaDiscountLimits[selectedRecommender];
+    } else if (selectedRecommender && generalSettings?.discountLimits?.[selectedRecommender] !== undefined) {
+      limitPercent = generalSettings.discountLimits[selectedRecommender];
+    } else {
+      // Check if recommender matches a user whose role or designation has a configured limit
+      const matchedUser = users.find(u => u.username === selectedRecommender || u.id === selectedRecommender || u.fullName === selectedRecommender);
+      if (matchedUser) {
+        const designation = matchedUser.designation;
+        const role = matchedUser.role;
+        if (designation && generalSettings?.sewaDiscountLimits?.[designation] !== undefined) {
+          limitPercent = generalSettings.sewaDiscountLimits[designation];
+        } else if (role && generalSettings?.sewaDiscountLimits?.[role] !== undefined) {
+          limitPercent = generalSettings.sewaDiscountLimits[role];
+        }
+      }
+    }
+    
+    if (limitPercent === undefined && generalSettings?.maxSewaDiscountPercent !== undefined) {
+      limitPercent = generalSettings.maxSewaDiscountPercent;
+    }
+
+    if (limitPercent !== undefined && subTotal > 0 && discountAmount > 0) {
       const actualDiscountPercent = (discountAmount / subTotal) * 100;
-      if (actualDiscountPercent > generalSettings.maxSewaDiscountPercent) {
-        alert(`माफ गर्नुहोला, तपाईंले ${generalSettings.maxSewaDiscountPercent}% भन्दा बढी छुट दिन मिल्दैन। (तपाईंले दिनुभएको छुट: ${actualDiscountPercent.toFixed(1)}%)`);
+      if (actualDiscountPercent > limitPercent + 0.01) {
+        const maxAllowedAmount = ((subTotal * limitPercent) / 100).toFixed(2);
+        alert(`माफ गर्नुहोला, ${selectedRecommender ? `'${selectedRecommender}' को सिफारिसमा` : ''} अधिकतम ${limitPercent}% (रु. ${maxAllowedAmount}) सम्म मात्र छुट दिन मिल्छ।\n(तपाईंले दिनुभएको छुट: ${actualDiscountPercent.toFixed(1)}% / रु. ${discountAmount.toFixed(2)})`);
         return;
       }
     }
@@ -1077,6 +1153,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           remarks: directRemarks || undefined,
           isDirectBilling: existingBill ? !!existingBill.isDirectBilling : true,
           referredBy: directReferredBy || undefined,
+          discountRecommendedBy: directReferredBy || undefined,
+          discountPercent: subTotal > 0 ? Number(((discountAmount / subTotal) * 100).toFixed(2)) : 0,
           insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
           claimCode: paymentMode === 'Bima' ? claimCode : undefined,
           claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
@@ -1156,6 +1234,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         paymentMode: paymentMode,
         createdBy: currentUser?.username || 'Unknown',
         referredBy: referredBy || undefined,
+        discountRecommendedBy: referredBy || undefined,
+        discountPercent: subTotal > 0 ? Number(((discountAmount / subTotal) * 100).toFixed(2)) : 0,
         insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
         claimCode: paymentMode === 'Bima' ? claimCode : undefined,
         claimStatus: paymentMode === 'Bima' ? claimStatus : undefined,
@@ -1371,20 +1451,43 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">सिफारिस गर्ने (Referred / Recommended By)</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-bold text-slate-600">
+                          सिफारिस गर्ने / छुट सिफारिसकर्ता (Referred / Discount Recommender)
+                        </label>
+                        {activeRecommender && effectiveMaxDiscountPercent !== undefined && (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            अधिकतम छुट: {effectiveMaxDiscountPercent}%
+                          </span>
+                        )}
+                      </div>
                       <select
                         value={directReferredBy}
                         onChange={(e) => setDirectReferredBy(e.target.value)}
                         className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 font-medium"
                       >
-                        <option value="">-- छान्नुहोस् (Select Recommending User) --</option>
-                        {users
-                          .filter((u) => u.organizationName === currentUser?.organizationName)
-                          .map((u) => (
-                            <option key={u.id} value={u.username}>
-                              {u.fullName} ({u.designation || u.role})
-                            </option>
-                          ))}
+                        <option value="">-- छान्नुहोस् (Select Recommender / Staff) --</option>
+                        <optgroup label="छुट सिफारिसकर्ता पदाधिकारीहरू (Discount Recommenders)">
+                          {sewaDiscountRolesList.map((role) => {
+                            const limit = generalSettings?.sewaDiscountLimits?.[role] !== undefined 
+                              ? generalSettings.sewaDiscountLimits[role] 
+                              : (generalSettings?.discountLimits?.[role] ?? generalSettings?.maxSewaDiscountPercent);
+                            return (
+                              <option key={role} value={role}>
+                                {role} {limit !== undefined ? `(अधिकतम छुट: ${limit}%)` : ''}
+                              </option>
+                            );
+                          })}
+                        </optgroup>
+                        <optgroup label="स्वास्थ्य संस्थाका कर्मचारीहरू (Staff / Users)">
+                          {users
+                            .filter((u) => u.organizationName === currentUser?.organizationName)
+                            .map((u) => (
+                              <option key={u.id} value={u.username}>
+                                {u.fullName} ({u.designation || u.role})
+                              </option>
+                            ))}
+                        </optgroup>
                       </select>
                     </div>
                     <div>
@@ -1824,20 +1927,43 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div className="w-full md:w-1/2 space-y-4">
                    <div>
-                     <label className="block text-sm font-medium text-slate-707 mb-2 font-nepali">सिफारिस गर्ने (Referred By)</label>
+                     <div className="flex justify-between items-center mb-2">
+                       <label className="block text-sm font-medium text-slate-700 font-nepali">
+                         सिफारिस गर्ने / छुट सिफारिसकर्ता (Referred / Discount Recommender)
+                       </label>
+                       {activeRecommender && effectiveMaxDiscountPercent !== undefined && (
+                         <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                           अधिकतम छुट: {effectiveMaxDiscountPercent}%
+                         </span>
+                       )}
+                     </div>
                      <select
                        value={referredBy}
                        onChange={(e) => setReferredBy(e.target.value)}
                        className="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none font-medium"
                      >
-                       <option value="">-- छान्नुहोस् (Select Recommending User) --</option>
-                       {users
-                         .filter((u) => u.organizationName === currentUser?.organizationName)
-                         .map((u) => (
-                           <option key={u.id} value={u.username}>
-                             {u.fullName} ({u.designation || u.role})
-                           </option>
-                         ))}
+                       <option value="">-- छान्नुहोस् (Select Recommender / Staff) --</option>
+                       <optgroup label="छुट सिफारिसकर्ता पदाधिकारीहरू (Discount Recommenders)">
+                         {sewaDiscountRolesList.map((role) => {
+                           const limit = generalSettings?.sewaDiscountLimits?.[role] !== undefined 
+                             ? generalSettings.sewaDiscountLimits[role] 
+                             : (generalSettings?.discountLimits?.[role] ?? generalSettings?.maxSewaDiscountPercent);
+                           return (
+                             <option key={role} value={role}>
+                               {role} {limit !== undefined ? `(अधिकतम छुट: ${limit}%)` : ''}
+                             </option>
+                           );
+                         })}
+                       </optgroup>
+                       <optgroup label="स्वास्थ्य संस्थाका कर्मचारीहरू (Staff / Users)">
+                         {users
+                           .filter((u) => u.organizationName === currentUser?.organizationName)
+                           .map((u) => (
+                             <option key={u.id} value={u.username}>
+                               {u.fullName} ({u.designation || u.role})
+                             </option>
+                           ))}
+                       </optgroup>
                      </select>
                    </div>
 
@@ -2177,24 +2303,71 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                     )}
                 </div>
 
-                <div className="w-full md:w-1/3 bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Sub Total:</span>
-                    <span className="font-bold">Rs. {subTotal.toFixed(2)}</span>
+                <div className="w-full md:w-1/3 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3.5 shadow-xs">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-600 font-medium">Sub Total:</span>
+                    <span className="font-bold text-slate-800 font-mono">Rs. {subTotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Discount:</span>
-                    <input 
-                      type="number" 
-                      value={discount} 
-                      onChange={(e) => setDiscount(e.target.value)}
-                      className="w-24 p-1 text-right border border-slate-300 rounded text-sm"
-                      placeholder="0.00"
-                    />
+
+                  <div className="space-y-1.5 border-t border-slate-200/80 pt-2.5">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-slate-600 text-sm font-medium">Discount (छुट):</span>
+                        {effectiveMaxDiscountPercent !== undefined && (
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200">
+                            Max: {effectiveMaxDiscountPercent}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400">Rs.</span>
+                        <input 
+                          type="number" 
+                          value={discount} 
+                          onChange={(e) => setDiscount(e.target.value)}
+                          className={`w-28 p-1.5 text-right border rounded-lg text-sm font-bold font-mono outline-none transition-all ${
+                            isDiscountExceeded 
+                              ? 'border-rose-500 text-rose-700 bg-rose-50 ring-2 ring-rose-400/30' 
+                              : 'border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
+                          }`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Exceeded alert */}
+                    {isDiscountExceeded && (
+                      <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-800 flex items-start gap-1.5 font-nepali">
+                        <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                        <div>
+                          <strong>छुट सीमा नाघ्यो:</strong> {activeRecommender ? `'${activeRecommender}' को लागि` : 'डिफल्ट'} अधिकतम {effectiveMaxDiscountPercent}% (रु. {maxAllowedDiscountAmount?.toFixed(2)}) सम्म मात्र छुट दिन मिल्छ।
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Limit info & Quick apply */}
+                    {effectiveMaxDiscountPercent !== undefined && subTotal > 0 && !isDiscountExceeded && (
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 font-nepali px-0.5">
+                        <span className="truncate max-w-[170px]" title={activeRecommender || 'डिफल्ट सीमा'}>
+                          {activeRecommender ? `${activeRecommender}: ` : 'सीमा: '}
+                          {effectiveMaxDiscountPercent}% (रु. {maxAllowedDiscountAmount?.toFixed(2)})
+                        </span>
+                        {discountAmount !== maxAllowedDiscountAmount && (
+                          <button
+                            type="button"
+                            onClick={() => setDiscount(String(maxAllowedDiscountAmount || 0))}
+                            className="text-emerald-700 hover:text-emerald-800 font-bold hover:underline shrink-0 text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                          >
+                            पूर्ण छुट लागू (Max)
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="border-t border-slate-300 pt-2 flex justify-between items-center text-lg font-bold text-primary-700">
+
+                  <div className="border-t border-slate-300 pt-2.5 flex justify-between items-center text-lg font-bold text-emerald-800">
                     <span>Grand Total:</span>
-                    <span>Rs. {grandTotal.toFixed(2)}</span>
+                    <span className="font-mono">Rs. {grandTotal.toFixed(2)}</span>
                   </div>
                   
                   <button 
@@ -2498,7 +2671,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 <span className="font-bold">Rs. {currentBill?.subTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Discount:</span>
+                <span>
+                  Discount
+                  {currentBill?.discountPercent ? ` (${currentBill.discountPercent}%)` : ''}
+                  {currentBill?.discountRecommendedBy ? ` [सिफारिस: ${users.find(u => u.id === currentBill.discountRecommendedBy || u.username === currentBill.discountRecommendedBy)?.fullName || currentBill.discountRecommendedBy}]` : ''}:
+                </span>
                 <span>Rs. {currentBill?.discount.toFixed(2)}</span>
               </div>
               {currentBill?.refundedAmount && currentBill.refundedAmount > 0 && (

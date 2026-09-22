@@ -197,6 +197,8 @@ export interface OrganizationSettings {
   discountLimits?: Record<string, number>; 
   discountRoles?: string[]; 
   maxSewaDiscountPercent?: number;
+  sewaDiscountRoles?: string[];
+  sewaDiscountLimits?: Record<string, number>;
   enableLoginRibbonMessage?: boolean; // Toggled by Super Admin to show/hide marquee ribbon on login page
   loginRibbonMessage?: string; // Kudos / Notice scrolling message displayed under Login button in red font
 }
@@ -595,6 +597,8 @@ export interface BillingRecord {
   claimStatus?: 'Draft' | 'Submitted' | 'Verified' | 'Error'; // Claim adjudication state
   isDirectBilling?: boolean; // Flag to identify direct billing records
   referredBy?: string; // Recommended/referred by user (ID or name)
+  discountRecommendedBy?: string; // Discount recommender person or role
+  discountPercent?: number; // Discount percentage applied
   age?: string;
   gender?: string;
   refundedAmount?: number;
