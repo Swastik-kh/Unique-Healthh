@@ -134,3 +134,111 @@ export interface JournalEntry {
   debit?: number;
   credit?: number;
 }
+
+export interface SalaryEmployeeItem {
+  id: string;
+  userId?: string;
+  employeeName: string;
+  designation: string;
+  level?: string;
+  employeeCode?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  panNumber?: string;
+  citNumber?: string;
+  pfNumber?: string;
+  serviceType?: 'Permanent' | 'Temporary' | 'Contract' | 'DailyWages' | string;
+
+  // Earnings
+  basicScale: number;
+  gradeCount: number;
+  gradeRate: number;
+  gradeAmount: number;
+  totalBasicSalary: number;
+  dearnessAllowance: number;
+  incentiveAllowance: number;
+  fieldAllowance: number;
+  dressAllowance: number;
+  medicalAllowance: number;
+  otherAllowances: number;
+  grossSalary: number;
+
+  // Deductions
+  providentFund: number;
+  citDeduction: number;
+  insuranceDeduction: number;
+  taxDeduction: number;
+  loanOrAdvanceDeduction: number;
+  otherDeductions: number;
+  totalDeductions: number;
+
+  // Net
+  netPayable: number;
+  remarks?: string;
+}
+
+export interface MonthlySalaryReceipt {
+  id: string;
+  fiscalYear: string;
+  month: string; // e.g. "04", "05", ... "03"
+  monthNameNepali: string; // e.g. "साउन", "भदौ", ...
+  receiptNumber?: string;
+  dateBs: string;
+  paymentMethod?: 'Bank' | 'Cash' | 'Cheque';
+  bankName?: string;
+  chequeOrVoucherNo?: string;
+  budgetHeadName?: string;
+  budgetCode?: string;
+  employees: SalaryEmployeeItem[];
+
+  // Aggregates
+  totalBasicSalary: number;
+  totalGradeAmount: number;
+  totalAllowances: number;
+  totalGrossSalary: number;
+  totalDeductions: number;
+  totalNetPayable: number;
+
+  // Signatures
+  preparedBy?: { name: string; designation: string; date?: string };
+  verifiedBy?: { name: string; designation: string; date?: string };
+  approvedBy?: { name: string; designation: string; date?: string };
+
+  status: 'Draft' | 'Approved' | 'Paid';
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  _orgName?: string;
+}
+
+export interface EmployeeSalaryProfile {
+  id: string;
+  userId?: string;
+  employeeName: string;
+  designation: string;
+  level?: string;
+  employeeCode?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
+  panNumber?: string;
+  citNumber?: string;
+  pfNumber?: string;
+  serviceType?: 'Permanent' | 'Temporary' | 'Contract' | 'DailyWages' | string;
+  basicScale: number;
+  gradeCount: number;
+  gradeRate: number;
+  dearnessAllowance: number;
+  incentiveAllowance: number;
+  fieldAllowance: number;
+  dressAllowance: number;
+  medicalAllowance: number;
+  otherAllowances: number;
+  providentFund: number;
+  citDeduction: number;
+  insuranceDeduction: number;
+  taxDeduction: number;
+  loanOrAdvanceDeduction: number;
+  otherDeductions: number;
+  _orgName?: string;
+}
+

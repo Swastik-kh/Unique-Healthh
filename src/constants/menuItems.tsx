@@ -55,6 +55,7 @@ export const ALL_MENU_ITEMS: MenuItem[] = [
           { id: 'chalani', label: 'चलानी', icon: <Send size={16} /> },
           { id: 'bharman_adesh', label: 'भ्रमण आदेश दर्ता', icon: <MapPin size={16} /> },
           { id: 'lekha_prashasan', label: 'लेखा प्रशासन', icon: <Calculator size={16} /> },
+          { id: 'talabi_bharpai', label: 'तलबी भरपाई तथा प्रतिवेदन', icon: <FileSpreadsheet size={16} /> },
           { id: 'bida_abedan', label: 'बिदा आवेदन', icon: <Calendar size={16} /> },
           { id: 'sujhab_petika', label: 'सुझाव पेटिका', icon: <MessageSquare size={16} /> },
         ]

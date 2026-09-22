@@ -98,6 +98,7 @@ import { AuditLogViewer } from './AuditLogViewer';
 import { ColdChainLog } from './ColdChainLog';
 import { ColdChainEquipmentManager } from './ColdChainEquipment';
 import { StoreTemperatureLog } from './StoreTemperatureLog';
+import { TalabiBharpai } from './TalabiBharpai';
 import { ALL_MENU_ITEMS, MenuItem } from '../src/constants/menuItems';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -920,6 +921,16 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
         currentUser.allowedMenus?.includes('report_billing_ambulance_driver')
       );
     }
+    if (menuId === 'talabi_bharpai') {
+      return (
+        currentUser.role === 'SUPER_ADMIN' ||
+        currentUser.role === 'ADMIN' ||
+        currentUser.role === 'ACCOUNT' ||
+        currentUser.allowedMenus?.includes('talabi_bharpai') ||
+        currentUser.allowedMenus?.includes('lekha_prashasan') ||
+        currentUser.allowedMenus?.includes('administration')
+      );
+    }
     return currentUser.allowedMenus?.includes(menuId);
   }, [currentUser]);
 
@@ -1565,6 +1576,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       case 'marmat_adesh': return <MarmatAdesh currentFiscalYear={currentFiscalYear} currentUser={currentUser} marmatEntries={marmatEntries} onSaveMarmatEntry={onSaveMarmatEntry} inventoryItems={inventoryItems} generalSettings={generalSettings} />;
       case 'dhuliyauna_faram': return <DhuliyaunaFaram currentFiscalYear={currentFiscalYear} currentUser={currentUser} generalSettings={generalSettings} inventoryItems={inventoryItems} dhuliyaunaEntries={dhuliyaunaEntries} onSaveDhuliyaunaEntry={onSaveDhuliyaunaEntry} stores={stores} />;
       case 'bharman_adesh': return <BharmanAdesh currentFiscalYear={currentFiscalYear} currentUser={currentUser} bharmanAdeshEntries={bharmanAdeshEntries} onSaveEntry={onSaveBharmanAdesh} onDeleteEntry={onDeleteBharmanAdesh} users={users} generalSettings={generalSettings} leaveBalances={leaveBalances} />;
+      case 'talabi_bharpai': return <TalabiBharpai currentFiscalYear={currentFiscalYear} currentUser={currentUser} allUsers={allUsers} users={users} generalSettings={generalSettings} activeOrgName={activeOrgName} />;
       case 'chalani': {
         const entriesForYear = chalaniEntries.filter(c => c.fiscalYear === currentFiscalYear);
         
