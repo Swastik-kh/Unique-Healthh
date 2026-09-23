@@ -215,11 +215,14 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   const effectiveOrgName = activeOrgName || currentUser?.organizationName || 'DefaultOrg';
   const safeOrgName = effectiveOrgName.trim().replace(/[.#$[\]]/g, "_");
 
+  const [ambulanceRecords, setAmbulanceRecords] = useState<any[]>([]);
+
   // Sync with Firebase Realtime Database
   useEffect(() => {
     setIsDbLoading(true);
     const receiptsRef = ref(db, `orgData/${safeOrgName}/salaryReceipts`);
     const profilesRef = ref(db, `orgData/${safeOrgName}/employeeSalaryProfiles`);
+    const ambulanceRef = ref(db, `orgData/${safeOrgName}/ambulanceRecords`);
 
     const unsubReceipts = onValue(receiptsRef, (snapshot) => {
       const data = snapshot.val();
@@ -242,9 +245,20 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       }
     });
 
+    const unsubAmbulance = onValue(ambulanceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(k => ({ ...data[k], id: k }));
+        setAmbulanceRecords(list);
+      } else {
+        setAmbulanceRecords([]);
+      }
+    });
+
     return () => {
       unsubReceipts();
       unsubProfiles();
+      unsubAmbulance();
     };
   }, [safeOrgName]);
 
@@ -315,11 +329,28 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const totalBasicSalary = basicScale + gradeAmount;
 
     const dearnessAllowance = Number(data.dearnessAllowance) || 0;
-    const incentiveAllowance = Number(data.incentiveAllowance) || 0;
+    let incentiveAllowance = Number(data.incentiveAllowance) || 0;
     const fieldAllowance = Number(data.fieldAllowance) || 0;
     const dressAllowance = Number(data.dressAllowance) || 0;
     const medicalAllowance = Number(data.medicalAllowance) || 0;
     const otherAllowances = Number(data.otherAllowances) || 0;
+
+    // Check if ambulance driver and auto-populate incentive if needed
+    const empName = data.employeeName || '';
+    const designation = data.designation || '';
+    const isAmbuDriver = designation.includes('चालक') || designation.toLowerCase().includes('driver') || designation.includes('एम्बुलेन्स') || empName.includes('चालक');
+
+    if (isAmbuDriver && ambulanceRecords.length > 0) {
+      const driverTrips = ambulanceRecords.filter(r => 
+        r.fiscalYear?.trim() === selectedFiscalYear.trim() &&
+        (r.driverName?.trim().toLowerCase() === empName.trim().toLowerCase() || r.driverName?.trim().toLowerCase().includes(empName.trim().toLowerCase()) || empName.trim().toLowerCase().includes(r.driverName?.trim().toLowerCase())) &&
+        r.dateBs && r.dateBs.split(/[-/]/)[1] === selectedMonthCode
+      );
+      const totalAmbuIncentive = driverTrips.reduce((sum, t) => sum + ((Number(t.receivedAmount) || 0) * 0.15), 0);
+      if (totalAmbuIncentive > 0) {
+        incentiveAllowance = totalAmbuIncentive;
+      }
+    }
 
     const totalAllowances = dearnessAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
     const grossSalary = totalBasicSalary + totalAllowances;
@@ -329,17 +360,20 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const citDeduction = Number(data.citDeduction) || 0;
     const insuranceDeduction = Number(data.insuranceDeduction) || 0;
     
-    // Auto tax 1% social security / TDS by default if taxDeduction is not specified or 0
+    // Tax calculation: 1% on regular taxable remuneration (totalBasicSalary + dearness + allowances excluding incentive) and 15% on incentive
+    const taxableRemuneration = totalBasicSalary + dearnessAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+    const taxRemuneration = Math.round(taxableRemuneration * 0.01);
+    const taxIncentive = Math.round(incentiveAllowance * 0.15);
+    
     let taxDeduction = (data.taxDeduction !== undefined && data.taxDeduction !== null && data.taxDeduction !== 0) 
       ? Number(data.taxDeduction) 
-      : Math.round(grossSalary * 0.01);
+      : (taxRemuneration + taxIncentive);
 
     const loanOrAdvanceDeduction = Number(data.loanOrAdvanceDeduction) || 0;
     const otherDeductions = Number(data.otherDeductions) || 0;
 
-    // Auto tax 1% social security for contract or taxable if 0
     if (taxDeduction === 0 && grossSalary > 0) {
-      taxDeduction = Math.round(grossSalary * 0.01);
+      taxDeduction = taxRemuneration + taxIncentive;
     }
 
     const totalDeductions = providentFund + citDeduction + insuranceDeduction + taxDeduction + loanOrAdvanceDeduction + otherDeductions;
@@ -637,9 +671,44 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       referenceNo: receiptNumber || `PAY-${selectedMonthCode}`
     };
 
+    const voucherId = `GV-SAL-${selectedFiscalYear.replace(/[^0-9]/g, '')}-${selectedMonthCode}`;
+    const voucher = {
+      id: voucherId,
+      dateBs: currentReceiptDate,
+      dateAd: new Date().toISOString().split('T')[0],
+      fiscalYear: selectedFiscalYear,
+      remarks: `${monthObj?.name || selectedMonthCode} महिनाको कर्मचारी तलबी भरपाई निकासा खर्च`,
+      totalAmount: grandTotals.totalNetPayable,
+      entries: [
+        {
+          activityName: budgetHeadName,
+          accountName: 'कर्मचारी पारिश्रमिक तथा भत्ता खर्च',
+          debit: grandTotals.totalGross,
+          credit: 0
+        },
+        {
+          activityName: 'कट्टी',
+          accountName: 'कर्मचारी सञ्चय कोष / कर कट्टी',
+          debit: 0,
+          credit: grandTotals.totalDeductions
+        },
+        {
+          activityName: 'भुक्तानी',
+          accountName: paymentMethod === 'Bank' ? 'बैंक खाता' : paymentMethod === 'Cheque' ? 'चेक खाता' : 'नगद खाता',
+          debit: 0,
+          credit: grandTotals.totalNetPayable
+        }
+      ]
+    };
+
     try {
       const txRef = ref(db, `orgData/${safeOrgName}/financialTransactions/${txId}`);
       await set(txRef, transaction);
+      const voucherRef = ref(db, `orgData/${safeOrgName}/goswaraVouchers/${voucherId}`);
+      await set(voucherRef, voucher);
+
+      setSaveSuccessMessage(`सफलतापूर्वक ${monthObj?.name} महिनाको तलबी भरपाई लेखा प्रशासनमा खर्च तथा गोश्वारा भौचरको रूपमा पोस्ट गरियो!`);
+      setTimeout(() => setSaveSuccessMessage(null), 4000);
       alert(`सफलतापूर्वक ${monthObj?.name} महिनाको तलबी भरपाई रकम लेखा प्रशासनमा खर्चको रूपमा पोस्ट गरियो!`);
     } catch (err: any) {
       alert("खर्च पोस्ट गर्दा त्रुटि भयो: " + (err.message || 'Error'));
@@ -673,9 +742,12 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const calculated = calculateEmployeeNumbers(empForm);
     if (editingEmployeeItem) {
       setEmployeesList(prev => prev.map(item => item.id === editingEmployeeItem.id ? calculated : item));
+      setSaveSuccessMessage("कर्मचारीको विवरण सफलतापूर्वक सम्पादन गरी सुरक्षित गरियो!");
     } else {
       setEmployeesList(prev => [...prev, calculated]);
+      setSaveSuccessMessage("नयाँ कर्मचारी सफलतापूर्वक थपियो!");
     }
+    setTimeout(() => setSaveSuccessMessage(null), 3500);
     setIsAddEmployeeModalOpen(false);
     setEditingEmployeeItem(null);
   };
