@@ -1986,9 +1986,45 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
             <div className="space-y-4 text-xs">
               {/* Basic Info */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-700 uppercase tracking-wider block text-[11px]">
-                  कर्मचारी विवरण (Personal & Official Info)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 uppercase tracking-wider block text-[11px]">
+                    कर्मचारी विवरण (Personal & Official Info)
+                  </span>
+                  {relevantOfficeUsers.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-500 font-semibold">युजरबाट छान्नुहोस्:</span>
+                      <select
+                        onChange={(e) => {
+                          const selectedUser = relevantOfficeUsers.find(u => (u.id || u.fullName) === e.target.value);
+                          if (selectedUser) {
+                            setEmpForm(prev => ({
+                              ...prev,
+                              userId: selectedUser.id || '',
+                              employeeName: selectedUser.fullName || '',
+                              designation: selectedUser.designation || '',
+                              level: selectedUser.level || '',
+                              employeeCode: selectedUser.employeeCode || selectedUser.employeeId || '',
+                              bankAccountNumber: selectedUser.bankAccountNumber || '',
+                              bankName: selectedUser.bankName || '',
+                              panNumber: selectedUser.panNumber || '',
+                              citNumber: selectedUser.citNumber || '',
+                              pfNumber: selectedUser.pfNumber || ''
+                            }));
+                          }
+                        }}
+                        defaultValue=""
+                        className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none"
+                      >
+                        <option value="" disabled>-- कार्यालयका कर्मचारी छान्नुहोस् --</option>
+                        {relevantOfficeUsers.map(u => (
+                          <option key={u.id || u.fullName} value={u.id || u.fullName}>
+                            {u.fullName} ({u.designation || 'पद नखुलेको'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">कर्मचारीको नाम *:</label>
