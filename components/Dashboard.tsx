@@ -2872,7 +2872,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
         onClearData={onClearData} 
         onUploadData={onUploadData} 
       />;
-      case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} onUpdateGlobalDhis2Mappings={props.onUpdateGlobalDhis2Mappings} users={allUsers} activeOrgName={activeOrgName} />;
+      case 'general_setting': return <GeneralSetting currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} onUpdateGlobalDhis2Mappings={props.onUpdateGlobalDhis2Mappings} users={allUsers} activeOrgName={activeOrgName} onUpdateUser={onUpdateUser} />;
       case 'hib_settings': return <HIBSettings currentUser={currentUser} settings={generalSettings} onUpdateSettings={onUpdateGeneralSettings} />;
       case 'service_settings': return <ServiceSettings 
         serviceItems={serviceItems}

@@ -150,19 +150,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
 
       let currentParentId = foundUser.parentId;
       let depth = 0;
+      let isAncestorFrozen = false;
       while (currentParentId && depth < 20) {
         const ancestor = users.find(u => u.id === currentParentId);
         if (ancestor) {
           if (ancestor.isFrozen) {
-            setErrors({ form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' });
-            setIsLoading(false);
-            return;
+            isAncestorFrozen = true;
+            break;
           }
           currentParentId = ancestor.parentId;
           depth++;
         } else {
           break;
         }
+      }
+
+      if (!isAncestorFrozen && foundUser.role !== 'SUPER_ADMIN') {
+        const orgAdmin = users.find(u => u.organizationName === foundUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== foundUser.id);
+        if (orgAdmin && orgAdmin.isFrozen) {
+          isAncestorFrozen = true;
+        }
+      }
+
+      if (isAncestorFrozen) {
+        setErrors({ form: 'तपाईंको मुख्य प्रशासक वा संस्थाको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' });
+        setIsLoading(false);
+        return;
       }
 
       const orgSettingsSnap = await get(ref(db, 'organizationSettings/config'));
@@ -394,19 +407,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
           // Check if any ancestor is frozen
           let currentParentId = foundUser.parentId;
           let depth = 0;
+          let isAncestorFrozen = false;
           while (currentParentId && depth < 20) {
               const ancestor = users.find(u => u.id === currentParentId);
               if (ancestor) {
                   if (ancestor.isFrozen) {
-                      setErrors(prev => ({ ...prev, form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
-                      setIsLoading(false);
-                      return;
+                      isAncestorFrozen = true;
+                      break;
                   }
                   currentParentId = ancestor.parentId;
                   depth++;
               } else {
                   break;
               }
+          }
+
+          if (!isAncestorFrozen && foundUser.role !== 'SUPER_ADMIN') {
+              const orgAdmin = users.find(u => u.organizationName === foundUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== foundUser.id);
+              if (orgAdmin && orgAdmin.isFrozen) {
+                  isAncestorFrozen = true;
+              }
+          }
+
+          if (isAncestorFrozen) {
+              setErrors(prev => ({ ...prev, form: 'तपाईंको मुख्य प्रशासक वा संस्थाको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
+              setIsLoading(false);
+              return;
           }
 
           // Auto-migrate legacy plain text passwords in the cloud database to secure hashed values

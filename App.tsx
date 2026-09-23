@@ -523,7 +523,49 @@ const App: React.FC = () => {
   }, [isAuthReady, currentUser, activeOrgName]);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
+      const updatedUser = allUsers.find(u => u.id === currentUser.id);
+      if (updatedUser) {
+        let isUserFrozen = !!updatedUser.isFrozen;
+        
+        // Also check if any ancestor is frozen
+        if (!isUserFrozen) {
+          let currentParentId = updatedUser.parentId;
+          let depth = 0;
+          while (currentParentId && depth < 20) {
+            const ancestor = allUsers.find(u => u.id === currentParentId);
+            if (ancestor) {
+              if (ancestor.isFrozen) {
+                isUserFrozen = true;
+                break;
+              }
+              currentParentId = ancestor.parentId;
+              depth++;
+            } else {
+              break;
+            }
+          }
+        }
+
+        // Also check if organization admin is frozen
+        if (!isUserFrozen) {
+          const orgAdmin = allUsers.find(u => u.organizationName === updatedUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== updatedUser.id);
+          if (orgAdmin && orgAdmin.isFrozen) {
+            isUserFrozen = true;
+          }
+        }
+
+        if (isUserFrozen) {
+          handleLogout();
+          alert("तपाईंको खाता वा संस्थाको प्रशासक खाता फ्रिज गरिएको छ। तपाईंको सत्र समाप्त गरिएको छ।");
+          return;
+        }
+
+        if (JSON.stringify(updatedUser) !== JSON.stringify(currentUser)) {
+          setCurrentUser(updatedUser);
+        }
+      }
+    } else if (currentUser) {
       const updatedUser = allUsers.find(u => u.id === currentUser.id);
       if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(currentUser)) {
         setCurrentUser(updatedUser);

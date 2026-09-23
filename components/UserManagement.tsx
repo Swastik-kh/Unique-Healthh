@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react'; 
 import { User, UserRole, Option, isSystemManagerUser } from '../types/coreTypes'; 
 import { UserManagementProps } from '../types/dashboardTypes'; 
-import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail } from 'lucide-react';
+import { Plus, Trash2, Shield, User as UserIcon, Building2, Save, X, Phone, Briefcase, IdCard, Users, Pencil, CheckSquare, Square, ChevronDown, ChevronRight, CornerDownRight, Loader2, AlertCircle, ShieldAlert, Sliders, MessageSquare, RotateCcw, Lock, Unlock, Mail, CheckCircle2 } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { SearchableSelect } from './SearchableSelect';
@@ -10,6 +10,60 @@ import { db } from '../firebase';
 import { ref, get } from 'firebase/database';
 import { hashPassword } from '../lib/crypto';
 import axios from 'axios';
+
+/**
+ * Finds all subordinate users under a given target user:
+ * 1. Recursive descendants via parentId
+ * 2. Organization members for ADMIN / HEALTH_SECTION
+ */
+export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] => {
+  if (!targetUser || !allUsers || allUsers.length === 0) return [];
+  const result: User[] = [];
+  const visitedIds = new Set<string>([targetUser.id]);
+  
+  // 1. Traverse parentId chain (direct and indirect descendants)
+  const queue = [targetUser.id];
+  while (queue.length > 0) {
+    const currentParentId = queue.shift()!;
+    const directChildren = allUsers.filter(u => u.parentId === currentParentId && !visitedIds.has(u.id));
+    for (const child of directChildren) {
+      if (!isSystemManagerUser(child)) {
+        visitedIds.add(child.id);
+        result.push(child);
+        queue.push(child.id);
+      }
+    }
+  }
+
+  // 2. For ADMIN or HEALTH_SECTION users, also include users in the same organization
+  if (targetUser.role === 'ADMIN' || targetUser.role === 'HEALTH_SECTION') {
+    const orgUsers = allUsers.filter(u => 
+      u.organizationName === targetUser.organizationName && 
+      !visitedIds.has(u.id) && 
+      !isSystemManagerUser(u) &&
+      u.role !== 'SUPER_ADMIN'
+    );
+    for (const orgUser of orgUsers) {
+      visitedIds.add(orgUser.id);
+      result.push(orgUser);
+      // and any children of this orgUser
+      const subQueue = [orgUser.id];
+      while (subQueue.length > 0) {
+        const subPid = subQueue.shift()!;
+        const subChildren = allUsers.filter(u => u.parentId === subPid && !visitedIds.has(u.id));
+        for (const child of subChildren) {
+          if (!isSystemManagerUser(child)) {
+            visitedIds.add(child.id);
+            result.push(child);
+            subQueue.push(child.id);
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+};
 
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
@@ -809,6 +863,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : 5) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
         mustChangePassword: !editingId ? true : (users.find(u => u.id === editingId)?.mustChangePassword ?? false),
         parentId: formData.parentId || currentUser.id,
+        isFrozen: editingId ? (users.find(u => u.id === editingId)?.isFrozen ?? false) : false,
         createdFromApp: "SmartHealthOfficialApp",
         updatedFromApp: "SmartHealthOfficialApp",
         appSignature: "DIGITAL_HEALTH_SYS_AUTHORIZED_APP_2026",
@@ -1385,110 +1440,155 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 {managedUsers.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">कुनै प्रयोगकर्ता भेटिएन।</td></tr>
                 ) : (
-                    managedUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4">
-                            <div>
-                                <p className="font-bold text-slate-800">{user.fullName}</p>
-                                <p className="text-xs text-slate-400">@{user.username}</p>
-                                {user.role === 'ADMIN' && (
-                                    <div className="mt-1 flex items-center gap-1.5">
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="यो Admin ले सिर्जना गरेका सब-प्रयोगकर्ता र कुल सीमा">
-                                            <Users size={10} />
-                                            प्रयोगकर्ता: {users.filter(u => u.parentId === user.id).length}/{user.maxUsersAllowed ?? 5}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </td>
-                        <td className="px-6 py-4">
-                            <div className="space-y-1">
-                                {user.email && <p className="text-xs text-blue-600 font-medium flex items-center gap-1"><Mail size={10} /> {user.email}</p>}
-                                <p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={10} /> {user.phoneNumber}</p>
-                            </div>
-                        </td>
-                        <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">{user.role}</span></td>
-                        <td className="px-6 py-4 text-xs font-medium text-slate-600">{user.organizationName}</td>
-                        <td className="px-6 py-4 text-xs font-nepali">
-                            {user.role === 'SUPER_ADMIN' ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-50 text-purple-700 border border-purple-200">
-                                    असीमित (Unlimited)
-                                </span>
-                            ) : user.allowSmsAccess ? (
-                                <div className="inline-flex flex-col gap-1">
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 w-fit">
-                                        <MessageSquare size={10} /> अनुमति प्राप्त
-                                    </span>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[11px] font-mono font-bold text-slate-700">
-                                            बाँकी: {Math.max(0, (user.smsQuota || 0) - (user.smsUsedCount || 0))} / {user.smsQuota || 0}
-                                        </span>
-                                        {currentUser?.role === 'SUPER_ADMIN' && (
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    if (window.confirm(`${user.fullName} को प्रयोग भएको SMS (खर्च) रिसेट गरी ० बनाउन चाहनुहुन्छ?`)) {
-                                                        await onUpdateUser({ ...user, smsUsedCount: 0 });
-                                                    }
-                                                }}
-                                                className="px-1.5 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors cursor-pointer flex items-center gap-0.5"
-                                                title="खर्च भएको SMS संख्या ० मा रिसेट गर्नुहोस्"
-                                            >
-                                                <RotateCcw size={10} /> रिसेट
-                                            </button>
+                    managedUsers.map((user) => {
+                        const subordinates = getSubordinateUsers(user, users);
+                        const canFreezeUser = (currentUser.role === 'SUPER_ADMIN' && user.role !== 'SUPER_ADMIN') || 
+                                              (currentUser.role === 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN' && user.organizationName === currentUser.organizationName) || 
+                                              (currentUser.role === 'HEALTH_SECTION' && user.parentId === currentUser.id);
+                        const isSysManager = isSystemManagerUser(user);
+
+                        return (
+                            <tr key={user.id} className={`hover:bg-slate-50 ${user.isFrozen ? 'bg-red-50/20' : ''}`}>
+                                <td className="px-6 py-4">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-slate-800">{user.fullName}</p>
+                                            {user.isFrozen ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200">
+                                                    <Lock size={10} /> खाता फ्रिज
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <CheckCircle2 size={10} /> सक्रिय
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-400">@{user.username}</p>
+                                        {(user.role === 'ADMIN' || user.role === 'HEALTH_SECTION' || subordinates.length > 0) && (
+                                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="यो खाता मातहत रहेका सबै प्रयोगकर्ताहरू">
+                                                    <Users size={10} />
+                                                    मातहत प्रयोगकर्ता: {subordinates.length}{user.maxUsersAllowed !== undefined && user.role === 'ADMIN' ? ` / सीमा: ${user.maxUsersAllowed}` : ''}
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
-                                    <span className="text-[10px] text-slate-500 font-medium">(खर्च: {user.smsUsedCount || 0} SMS)</span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="space-y-1">
+                                        {user.email && <p className="text-xs text-blue-600 font-medium flex items-center gap-1"><Mail size={10} /> {user.email}</p>}
+                                        <p className="text-xs text-slate-500 flex items-center gap-1"><Phone size={10} /> {user.phoneNumber}</p>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4"><span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">{user.role}</span></td>
+                                <td className="px-6 py-4 text-xs font-medium text-slate-600">{user.organizationName}</td>
+                                <td className="px-6 py-4 text-xs font-nepali">
+                                    {user.role === 'SUPER_ADMIN' ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-50 text-purple-700 border border-purple-200">
+                                            असीमित (Unlimited)
+                                        </span>
+                                    ) : user.allowSmsAccess ? (
+                                        <div className="inline-flex flex-col gap-1">
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 w-fit">
+                                                <MessageSquare size={10} /> अनुमति प्राप्त
+                                            </span>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[11px] font-mono font-bold text-slate-700">
+                                                    बाँकी: {Math.max(0, (user.smsQuota || 0) - (user.smsUsedCount || 0))} / {user.smsQuota || 0}
+                                                </span>
+                                                {currentUser?.role === 'SUPER_ADMIN' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (window.confirm(`${user.fullName} को प्रयोग भएको SMS (खर्च) रिसेट गरी ० बनाउन चाहनुहुन्छ?`)) {
+                                                                await onUpdateUser({ ...user, smsUsedCount: 0 });
+                                                            }
+                                                        }}
+                                                        className="px-1.5 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors cursor-pointer flex items-center gap-0.5"
+                                                        title="खर्च भएको SMS संख्या ० मा रिसेट गर्नुहोस्"
+                                                    >
+                                                        <RotateCcw size={10} /> रिसेट
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] text-slate-500 font-medium">(खर्च: {user.smsUsedCount || 0} SMS)</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-slate-400 text-xs italic">अनुमति नभएको</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                <div className="flex justify-end gap-2 items-center">
+                                    {canFreezeUser && !isSysManager && (
+                                        <button 
+                                            type="button"
+                                            onClick={async () => {
+                                                const willFreeze = !user.isFrozen;
+                                                const action = willFreeze ? 'फ्रिज' : 'अनफ्रिज';
+                                                
+                                                let confirmMsg = '';
+                                                if (willFreeze) {
+                                                    if (subordinates.length > 0) {
+                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यी कुनै पनि प्रयोगकर्ता प्रणालीमा लगइन गर्न सक्ने छैनन्।`;
+                                                    } else {
+                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यो खाताबाट लगइन गर्न मिल्ने छैन।`;
+                                                    }
+                                                } else {
+                                                    if (subordinates.length > 0) {
+                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई अनफ्रिज गर्न चाहनुहुन्छ?`;
+                                                    } else {
+                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई अनफ्रिज गर्न चाहनुहुन्छ?`;
+                                                    }
+                                                }
+                                                
+                                                if (window.confirm(confirmMsg)) {
+                                                    try {
+                                                        // 1. Update the target user
+                                                        await onUpdateUser({ ...user, isFrozen: willFreeze });
+                                                        
+                                                        // 2. Cascade update to all subordinates
+                                                        if (subordinates.length > 0) {
+                                                            await Promise.all(
+                                                                subordinates.map(sub => onUpdateUser({ ...sub, isFrozen: willFreeze }))
+                                                            );
+                                                        }
+                                                        
+                                                        alert(`प्रयोगकर्ता "${user.fullName}" ${subordinates.length > 0 ? `र मातहतका ${subordinates.length} जना प्रयोगकर्ताहरू` : ''} सफलतापूर्वक ${action} गरियो।`);
+                                                    } catch (err: any) {
+                                                        alert(`त्रुटि: ${action} गर्न सकिएन। (${err.message || 'त्रुटि'})`);
+                                                    }
+                                                }
+                                            }} 
+                                            className={`${user.isFrozen ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 bg-emerald-50/50' : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50 bg-amber-50/50'} p-1.5 rounded-full border ${user.isFrozen ? 'border-emerald-200' : 'border-amber-200'} transition-colors`}
+                                            title={user.isFrozen ? 'अनफ्रिज गर्नुहोस् (मातहतका सबै प्रयोगकर्ता सहित)' : 'फ्रिज गर्नुहोस् (मातहतका सबै प्रयोगकर्ता सहित)'}
+                                        >
+                                            {user.isFrozen ? <Unlock size={17}/> : <Lock size={17}/>}
+                                        </button>
+                                    )}
+                                    <button onClick={() => handleEditClick(user)} className="text-primary-400 hover:text-primary-600 p-1.5 hover:bg-primary-50 rounded-full transition-colors"><Pencil size={18}/></button>
+                                    {(() => {
+                                        return (
+                                            <button 
+                                                onClick={() => { 
+                                                    if (isSysManager) {
+                                                        alert('सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता खाता कुनै पनि हालतमा हटाउन मिल्दैन।');
+                                                        return;
+                                                    }
+                                                    if(window.confirm('के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?')) onDeleteUser(user.id); 
+                                                }} 
+                                                disabled={isSysManager}
+                                                className={`${isSysManager ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-red-400 hover:text-red-600 hover:bg-red-50'} p-1.5 rounded-full transition-colors`}
+                                                title={isSysManager ? 'सुरक्षा कारणले सिस्टम म्यानेजर खाता हटाउन मिल्दैन' : 'प्रयोगकर्ता हटाउनुहोस्'}
+                                            >
+                                                <Trash2 size={18}/>
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
-                            ) : (
-                                <span className="text-slate-400 text-xs italic">अनुमति नभएको</span>
-                            )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                            {currentUser.role === 'SUPER_ADMIN' && user.role !== 'SUPER_ADMIN' && (
-                                <button 
-                                    onClick={async () => {
-                                        const action = user.isFrozen ? 'अनफ्रिज' : 'फ्रिज';
-                                        const msg = user.isFrozen 
-                                            ? `के तपाईं यो प्रयोगकर्तालाई अनफ्रिज गर्न चाहनुहुन्छ?` 
-                                            : `के तपाईं यो प्रयोगकर्ता र यसले बनाएका सबै प्रयोगकर्तालाई फ्रिज गर्न चाहनुहुन्छ? फ्रिज भएपछि तिनीहरू लगइन गर्न सक्नेछएनन्।`;
-                                        
-                                        if (window.confirm(msg)) {
-                                            await onUpdateUser({ ...user, isFrozen: !user.isFrozen });
-                                            alert(`प्रयोगकर्ता सफलतापूर्वक ${action} गरियो।`);
-                                        }
-                                    }} 
-                                    className={`${user.isFrozen ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 'text-amber-500 hover:text-amber-700 hover:bg-amber-50'} p-1.5 rounded-full transition-colors`}
-                                    title={user.isFrozen ? 'अनफ्रिज गर्नुहोस्' : 'फ्रिज गर्नुहोस्'}
-                                >
-                                    {user.isFrozen ? <Unlock size={18}/> : <Lock size={18}/>}
-                                </button>
-                            )}
-                            <button onClick={() => handleEditClick(user)} className="text-primary-400 hover:text-primary-600 p-1.5 hover:bg-primary-50 rounded-full transition-colors"><Pencil size={18}/></button>
-                            {(() => {
-                                const isSysManager = isSystemManagerUser(user);
-                                return (
-                                    <button 
-                                        onClick={() => { 
-                                            if (isSysManager) {
-                                                alert('सुरक्षा कारणले सिस्टम म्यानेजर (System Manager) प्रयोगकर्ता खाता कुनै पनि हालतमा हटाउन मिल्दैन।');
-                                                return;
-                                            }
-                                            if(window.confirm('के तपाईं यो प्रयोगकर्ता हटाउन चाहनुहुन्छ?')) onDeleteUser(user.id); 
-                                        }} 
-                                        disabled={isSysManager}
-                                        className={`${isSysManager ? 'text-slate-300 cursor-not-allowed opacity-50' : 'text-red-400 hover:text-red-600 hover:bg-red-50'} p-1.5 rounded-full transition-colors`}
-                                        title={isSysManager ? 'सुरक्षा कारणले सिस्टम म्यानेजर खाता हटाउन मिल्दैन' : 'प्रयोगकर्ता हटाउनुहोस्'}
-                                    >
-                                        <Trash2 size={18}/>
-                                    </button>
-                                );
-                            })()}
-                        </div>
-                        </td>
-                    </tr>
-                    ))
+                                </td>
+                            </tr>
+                        );
+                    })
                 )}
             </tbody>
             </table>
