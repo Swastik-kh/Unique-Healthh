@@ -3,10 +3,11 @@ import {
   FileSpreadsheet, Plus, Search, Printer, Trash2, Edit3, Save, 
   Users, DollarSign, CreditCard, Download, Eye, CheckCircle2, 
   AlertCircle, RefreshCw, ChevronRight, ArrowUpDown, Calendar,
-  Building2, UserCheck, ShieldCheck, Copy, FileText, ArrowRight, X
+  Building2, UserCheck, ShieldCheck, Copy, FileText, ArrowRight, X,
+  Briefcase, Settings2, Sparkles
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
-import { MonthlySalaryReceipt, SalaryEmployeeItem, EmployeeSalaryProfile } from '../types/financeTypes';
+import { MonthlySalaryReceipt, SalaryEmployeeItem, EmployeeSalaryProfile, DesignationSalaryScale } from '../types/financeTypes';
 import { OrganizationSettings, User } from '../types/coreTypes';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -129,7 +130,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   activeOrgName
 }) => {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(initialFiscalYear || '2081/082');
-  const [activeTab, setActiveTab] = useState<'monthly_bharpai' | 'annual_report' | 'employee_profiles'>('monthly_bharpai');
+  const [activeTab, setActiveTab] = useState<'monthly_bharpai' | 'annual_report' | 'salary_scales'>('monthly_bharpai');
   
   // Current Nepali Month default
   const defaultNepaliMonthCode = useMemo(() => {
@@ -228,6 +229,19 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   const safeOrgName = effectiveOrgName.trim().replace(/[.#$[\]]/g, "_");
 
   const [ambulanceRecords, setAmbulanceRecords] = useState<any[]>([]);
+  const [salaryScales, setSalaryScales] = useState<DesignationSalaryScale[]>([]);
+  const [isScaleModalOpen, setIsScaleModalOpen] = useState(false);
+  const [editingScale, setEditingScale] = useState<DesignationSalaryScale | null>(null);
+  const [scaleForm, setScaleForm] = useState<Partial<DesignationSalaryScale>>({
+    designation: '',
+    level: '',
+    basicScale: 0,
+    gradeRate: 0,
+    dearnessAllowance: 2000,
+    fieldAllowance: 0,
+    dressAllowance: 0,
+    remarks: ''
+  });
 
   // Sync with Firebase Realtime Database
   useEffect(() => {
@@ -235,6 +249,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const receiptsRef = ref(db, `orgData/${safeOrgName}/salaryReceipts`);
     const profilesRef = ref(db, `orgData/${safeOrgName}/employeeSalaryProfiles`);
     const ambulanceRef = ref(db, `orgData/${safeOrgName}/ambulanceRecords`);
+    const scalesRef = ref(db, `orgData/${safeOrgName}/designationSalaryScales`);
 
     const unsubReceipts = onValue(receiptsRef, (snapshot) => {
       const data = snapshot.val();
@@ -267,10 +282,21 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       }
     });
 
+    const unsubScales = onValue(scalesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list: DesignationSalaryScale[] = Object.keys(data).map(k => ({ ...data[k], id: k }));
+        setSalaryScales(list);
+      } else {
+        setSalaryScales([]);
+      }
+    });
+
     return () => {
       unsubReceipts();
       unsubProfiles();
       unsubAmbulance();
+      unsubScales();
     };
   }, [safeOrgName]);
 
@@ -483,15 +509,27 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       // Find if an employee profile already exists
       const profile = employeeProfiles.find(p => p.userId === user.id || p.employeeName === user.fullName);
       
-      const basicScale = profile?.basicScale || 32000;
+      // Match designation salary scale if exists in database
+      const matchedScale = salaryScales.find(s => 
+        s.designation && user.designation && s.designation.trim().toLowerCase() === user.designation.trim().toLowerCase()
+      ) || salaryScales.find(s =>
+        s.designation && user.designation && (
+          s.designation.toLowerCase().includes(user.designation.toLowerCase()) || 
+          user.designation.toLowerCase().includes(s.designation.toLowerCase())
+        )
+      );
+
+      const basicScale = profile?.basicScale || matchedScale?.basicScale || 32000;
       const gradeCount = profile?.gradeCount || 0;
-      const gradeRate = profile?.gradeRate || Math.round(basicScale / 30);
+      const gradeRate = profile?.gradeRate || matchedScale?.gradeRate || Math.round(basicScale / 30);
       const gradeAmount = gradeCount * gradeRate;
       const totalBasicSalary = basicScale + gradeAmount;
-      const dearnessAllowance = profile?.dearnessAllowance !== undefined ? profile.dearnessAllowance : 2000;
+      const dearnessAllowance = profile?.dearnessAllowance !== undefined 
+        ? profile.dearnessAllowance 
+        : (matchedScale?.dearnessAllowance !== undefined ? matchedScale.dearnessAllowance : 2000);
       const incentiveAllowance = profile?.incentiveAllowance || 0;
-      const fieldAllowance = profile?.fieldAllowance || 0;
-      const dressAllowance = profile?.dressAllowance || 0;
+      const fieldAllowance = profile?.fieldAllowance || matchedScale?.fieldAllowance || 0;
+      const dressAllowance = profile?.dressAllowance || matchedScale?.dressAllowance || 0;
       const medicalAllowance = profile?.medicalAllowance || 0;
       const otherAllowances = profile?.otherAllowances || 0;
       const grossSalary = totalBasicSalary + dearnessAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
@@ -511,7 +549,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         userId: user.id,
         employeeName: user.fullName || user.username,
         designation: user.designation || 'कर्मचारी',
-        level: profile?.level || 'पाँचौं तह',
+        level: profile?.level || matchedScale?.level || 'पाँचौं तह',
         employeeCode: profile?.employeeCode || '',
         bankAccountNumber: profile?.bankAccountNumber || '',
         bankName: profile?.bankName || 'राष्ट्रिय वाणिज्य बैंक',
@@ -771,6 +809,123 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     setTimeout(() => setSaveSuccessMessage(null), 3500);
     setIsAddEmployeeModalOpen(false);
     setEditingEmployeeItem(null);
+  };
+
+  // Designation Salary Scale Handlers
+  const handleSaveSalaryScale = async () => {
+    if (!scaleForm.designation || !scaleForm.designation.trim()) {
+      alert("कृपया पद (Designation) को नाम लेख्नुहोस्।");
+      return;
+    }
+    const cleanId = editingScale?.id || scaleForm.designation.trim().replace(/[.#$[\]/]/g, "_");
+    const payload: DesignationSalaryScale = {
+      id: cleanId,
+      designation: scaleForm.designation.trim(),
+      level: scaleForm.level?.trim() || '',
+      basicScale: Number(scaleForm.basicScale) || 0,
+      gradeRate: Number(scaleForm.gradeRate) || Math.round((Number(scaleForm.basicScale) || 0) / 30),
+      dearnessAllowance: scaleForm.dearnessAllowance !== undefined ? Number(scaleForm.dearnessAllowance) : 2000,
+      fieldAllowance: Number(scaleForm.fieldAllowance) || 0,
+      dressAllowance: Number(scaleForm.dressAllowance) || 0,
+      remarks: scaleForm.remarks || '',
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const scaleRef = ref(db, `orgData/${safeOrgName}/designationSalaryScales/${cleanId}`);
+      await set(scaleRef, payload);
+      setSaveSuccessMessage(`पद "${payload.designation}" को सुरु तलब स्केल सफलतापूर्वक सुरक्षित गरियो!`);
+      setTimeout(() => setSaveSuccessMessage(null), 3500);
+      setIsScaleModalOpen(false);
+      setEditingScale(null);
+    } catch (err: any) {
+      alert("तलब स्केल सुरक्षित गर्न सकिएन: " + (err.message || 'Error'));
+    }
+  };
+
+  const handleDeleteSalaryScale = async (scaleId: string, designation: string) => {
+    if (window.confirm(`के तपाईं पद "${designation}" को तलब स्केल मेटाउन निश्चित हुनुहुन्छ?`)) {
+      try {
+        await remove(ref(db, `orgData/${safeOrgName}/designationSalaryScales/${scaleId}`));
+        setSaveSuccessMessage(`पद "${designation}" को तलब स्केल मेटाइयो।`);
+        setTimeout(() => setSaveSuccessMessage(null), 3000);
+      } catch (err: any) {
+        alert("त्रुटि: " + (err.message || 'Error'));
+      }
+    }
+  };
+
+  // Seed standard Nepal civil/health service pay scales
+  const handleSeedStandardScales = async () => {
+    const standardScales: Array<Omit<DesignationSalaryScale, 'id'>> = [
+      { designation: 'अधिकृत आठौं तह', level: 'आठौं तह', basicScale: 48737, gradeRate: 1625, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'अधिकृत सातौं तह (मेडिकल अधिकृत)', level: 'सातौं तह', basicScale: 43689, gradeRate: 1456, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'हेल्थ असिस्टेन्ट (HA / छैटौं तह)', level: 'छैटौं तह', basicScale: 36490, gradeRate: 1216, dearnessAllowance: 2000, remarks: 'पाँचौंबाट स्तरोन्नति' },
+      { designation: 'हेल्थ असिस्टेन्ट (HA / पाँचौं तह)', level: 'पाँचौं तह', basicScale: 32902, gradeRate: 1097, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'स्टाफ नर्स (पाँचौं तह)', level: 'पाँचौं तह', basicScale: 32902, gradeRate: 1097, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'ल्याब टेक्निसियन (पाँचौं तह)', level: 'पाँचौं तह', basicScale: 32902, gradeRate: 1097, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'फार्मेसी सहायक (पाँचौं तह)', level: 'पाँचौं तह', basicScale: 32902, gradeRate: 1097, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'अ.हे.ब. (AHW / चौथो तह)', level: 'चौथो तह', basicScale: 28610, gradeRate: 954, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'अ.न.मी. (ANM / चौथो तह)', level: 'चौथो तह', basicScale: 28610, gradeRate: 954, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'ल्याब असिस्टेन्ट (चौथो तह)', level: 'चौथो तह', basicScale: 28610, gradeRate: 954, dearnessAllowance: 2000, remarks: 'नेपाल स्वास्थ्य सेवा' },
+      { designation: 'एम्बुलेन्स चालक (Ambulance Driver)', level: 'श्रेणी विहीन', basicScale: 26082, gradeRate: 869, dearnessAllowance: 2000, remarks: 'सवारी चालक' },
+      { designation: 'कार्यालय सहयोगी / स्वीपर', level: 'श्रेणी विहीन', basicScale: 24702, gradeRate: 823, dearnessAllowance: 2000, remarks: 'श्रेणी विहीन प्रथम स्तर' }
+    ];
+
+    if (!window.confirm("नेपाल स्वास्थ्य तथा निजामती सेवाको मानक सुरु तलब स्केलहरू डाटाबेसमा सुरक्षित गर्न चाहनुहुन्छ?")) {
+      return;
+    }
+
+    try {
+      for (const item of standardScales) {
+        const cleanId = item.designation.trim().replace(/[.#$[\]/]/g, "_");
+        const scaleRef = ref(db, `orgData/${safeOrgName}/designationSalaryScales/${cleanId}`);
+        await set(scaleRef, {
+          id: cleanId,
+          ...item,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      setSaveSuccessMessage("मानक पद तथा सुरु तलब स्केलहरू सफलतापूर्वक डाटाबेसमा सुरक्षित गरियो!");
+      setTimeout(() => setSaveSuccessMessage(null), 4000);
+    } catch (e: any) {
+      alert("त्रुटि: " + e.message);
+    }
+  };
+
+  // Helper function to apply scale to empForm
+  const applyScaleToEmpForm = (desig: string) => {
+    if (!desig) return;
+    const cleanDesig = desig.trim().toLowerCase();
+    const matched = salaryScales.find(s => s.designation && s.designation.trim().toLowerCase() === cleanDesig)
+      || salaryScales.find(s => s.designation && (
+        cleanDesig.includes(s.designation.trim().toLowerCase()) ||
+        s.designation.trim().toLowerCase().includes(cleanDesig)
+      ));
+
+    if (matched) {
+      setEmpForm(prev => {
+        const basic = Number(matched.basicScale) || prev.basicScale || 0;
+        const gradeRt = Number(matched.gradeRate) || Math.round(basic / 30);
+        const count = prev.gradeCount || 0;
+        const gAmount = count * gradeRt;
+        const dearness = matched.dearnessAllowance !== undefined ? Number(matched.dearnessAllowance) : (prev.dearnessAllowance ?? 2000);
+        const field = matched.fieldAllowance !== undefined ? Number(matched.fieldAllowance) : (prev.fieldAllowance || 0);
+        const dress = matched.dressAllowance !== undefined ? Number(matched.dressAllowance) : (prev.dressAllowance || 0);
+
+        return {
+          ...prev,
+          designation: desig,
+          level: matched.level || prev.level || '',
+          basicScale: basic,
+          gradeRate: gradeRt,
+          gradeAmount: gAmount,
+          dearnessAllowance: dearness,
+          fieldAllowance: field,
+          dressAllowance: dress
+        };
+      });
+    }
   };
 
   // Remove Employee Row
@@ -1403,6 +1558,17 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
             >
               वार्षिक प्रतिवेदन
             </button>
+            <button
+              onClick={() => setActiveTab('salary_scales')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                activeTab === 'salary_scales'
+                  ? 'bg-white text-red-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Briefcase size={14} />
+              <span>पद / सुरु तलब स्केल ({toNepaliNumber(salaryScales.length)})</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1978,6 +2144,279 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         </div>
       )}
 
+      {/* Main Tab 3: Designation Salary Scales (पद तथा सुरु तलब स्केल) */}
+      {activeTab === 'salary_scales' && (
+        <div className="space-y-6">
+          {/* Top Banner and Quick Add */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-red-50 text-red-700 rounded-lg">
+                  <Briefcase size={20} />
+                </div>
+                <h2 className="text-lg font-black text-slate-800">
+                  पद अनुसार सुरु तलब स्केल (Designation Salary Scale Setup)
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                यहाँ प्रत्येक पद अनुसार सुरु तलब स्केल (Basic Scale), प्रति ग्रेड दर, महङ्गी भत्ता तथा अन्य सुविधाहरू सुरक्षित गर्नुहोस्। यो डाटाबेसमा रहनेछ र नयाँ कर्मचारी छान्दा स्वतः सुरु तलब आउनेछ।
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={handleSeedStandardScales}
+                className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-colors flex items-center gap-1.5"
+                title="स्वास्थ्य तथा निजामती सेवाको मानक स्केलहरू लोड गर्नुहोस्"
+              >
+                <Sparkles size={15} /> मानक तलब स्केल लोड गर्नुहोस्
+              </button>
+              <button
+                onClick={() => {
+                  setEditingScale(null);
+                  setScaleForm({
+                    designation: '',
+                    level: '',
+                    basicScale: 0,
+                    gradeRate: 0,
+                    dearnessAllowance: 2000,
+                    fieldAllowance: 0,
+                    dressAllowance: 0,
+                    remarks: ''
+                  });
+                  setIsScaleModalOpen(true);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                <Plus size={15} /> नयाँ पद / तलब स्केल थप्नुहोस्
+              </button>
+            </div>
+          </div>
+
+          {/* Salary Scales Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <span className="text-xs font-bold text-slate-700">
+                कुल सुरक्षित पदहरू: <b>{toNepaliNumber(salaryScales.length)}</b> वटा
+              </span>
+              <span className="text-[11px] text-slate-500">
+                💡 नयाँ कर्मचारी दर्ता गर्दा वा युजर छान्दा यो सुरु तलब स्वतः फारममा भरिन्छ।
+              </span>
+            </div>
+
+            {salaryScales.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <Briefcase size={40} className="mx-auto text-slate-300" />
+                <h4 className="text-sm font-bold text-slate-700">हाल कुनै पनि पदको तलब स्केल दर्ता गरिएको छैन।</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  तपाईं "मानक तलब स्केल लोड गर्नुहोस्" मा क्लिक गरेर स्वास्थ्य सेवाका मानक पदहरू एकैपटक सुरक्षित गर्न सक्नुहुन्छ वा नयाँ पद थप्न सक्नुहुन्छ।
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={handleSeedStandardScales}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <Sparkles size={15} /> मानक तलब स्केलहरू लोड गर्नुहोस्
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3 text-center">क्र.सं.</th>
+                      <th className="p-3">पद (Designation)</th>
+                      <th className="p-3">तह / श्रेणी (Level)</th>
+                      <th className="p-3 text-right">सुरु तलब स्केल (Basic Scale)</th>
+                      <th className="p-3 text-right">प्रति ग्रेड दर (Grade Rate)</th>
+                      <th className="p-3 text-right">महङ्गी भत्ता</th>
+                      <th className="p-3 text-right">फिल्ड / पोशाक</th>
+                      <th className="p-3">कैफियत</th>
+                      <th className="p-3 text-center">कार्य (Action)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {salaryScales.map((scale, idx) => (
+                      <tr key={scale.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="p-3 text-center font-bold text-slate-500">{toNepaliNumber(idx + 1)}</td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-800 text-sm">{scale.designation}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-semibold text-[11px]">
+                            {scale.level || '-'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-black text-slate-900 text-sm">
+                          रु. {toNepaliNumber((scale.basicScale || 0).toLocaleString())}
+                        </td>
+                        <td className="p-3 text-right font-semibold text-slate-600">
+                          रु. {toNepaliNumber((scale.gradeRate || Math.round((scale.basicScale || 0) / 30)).toLocaleString())}
+                        </td>
+                        <td className="p-3 text-right font-semibold text-slate-600">
+                          रु. {toNepaliNumber((scale.dearnessAllowance !== undefined ? scale.dearnessAllowance : 2000).toLocaleString())}
+                        </td>
+                        <td className="p-3 text-right text-slate-600">
+                          रु. {toNepaliNumber(((scale.fieldAllowance || 0) + (scale.dressAllowance || 0)).toLocaleString())}
+                        </td>
+                        <td className="p-3 text-slate-500 max-w-xs truncate">{scale.remarks || '-'}</td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setEditingScale(scale);
+                                setScaleForm(scale);
+                                setIsScaleModalOpen(true);
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="सम्पादन गर्नुहोस्"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSalaryScale(scale.id, scale.designation)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="मेटाउनुहोस्"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Salary Scale Modal */}
+      {isScaleModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 relative animate-in zoom-in-95">
+            <button
+              onClick={() => setIsScaleModalOpen(false)}
+              className="absolute right-5 top-5 p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-black text-slate-800 mb-1 flex items-center gap-2">
+              <Briefcase className="text-red-600" size={22} />
+              {editingScale ? 'पद तथा सुरु तलब स्केल सम्पादन' : 'नयाँ पद तथा सुरु तलब स्केल प्रविष्टि'}
+            </h3>
+            <p className="text-xs text-slate-500 mb-5">
+              पदको नाम र सुरु तलब स्केल सुरक्षित गर्नुहोस्, जुन डाटाबेसमा रहनेछ।
+            </p>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">पद (Designation) *:</label>
+                <Input
+                  value={scaleForm.designation || ''}
+                  onChange={(e) => setScaleForm(prev => ({ ...prev, designation: e.target.value }))}
+                  placeholder="जस्तै: हेल्थ असिस्टेन्ट / अ.न.मी. / एम्बुलेन्स चालक"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">तह / श्रेणी (Level):</label>
+                <Input
+                  value={scaleForm.level || ''}
+                  onChange={(e) => setScaleForm(prev => ({ ...prev, level: e.target.value }))}
+                  placeholder="जस्तै: पाँचौं तह / चौथो तह / श्रेणी विहीन"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">सुरु तलब स्केल (Basic Scale) *:</label>
+                  <Input
+                    type="number"
+                    value={scaleForm.basicScale || 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setScaleForm(prev => ({
+                        ...prev,
+                        basicScale: val,
+                        gradeRate: prev?.gradeRate || Math.round(val / 30)
+                      }));
+                    }}
+                    placeholder="जस्तै: 32902"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">प्रति ग्रेड दर (Grade Rate):</label>
+                  <Input
+                    type="number"
+                    value={scaleForm.gradeRate || 0}
+                    onChange={(e) => setScaleForm(prev => ({ ...prev, gradeRate: parseFloat(e.target.value) || 0 }))}
+                    placeholder="सुरु तलब / ३०"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">महङ्गी भत्ता:</label>
+                  <Input
+                    type="number"
+                    value={scaleForm.dearnessAllowance ?? 2000}
+                    onChange={(e) => setScaleForm(prev => ({ ...prev, dearnessAllowance: parseFloat(e.target.value) || 0 }))}
+                    placeholder="2000"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">फिल्ड भत्ता:</label>
+                  <Input
+                    type="number"
+                    value={scaleForm.fieldAllowance || 0}
+                    onChange={(e) => setScaleForm(prev => ({ ...prev, fieldAllowance: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">पोशाक भत्ता:</label>
+                  <Input
+                    type="number"
+                    value={scaleForm.dressAllowance || 0}
+                    onChange={(e) => setScaleForm(prev => ({ ...prev, dressAllowance: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">कैफियत (Remarks):</label>
+                <Input
+                  value={scaleForm.remarks || ''}
+                  onChange={(e) => setScaleForm(prev => ({ ...prev, remarks: e.target.value }))}
+                  placeholder="कुनै थप जानकारी भए..."
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setIsScaleModalOpen(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-xs font-semibold"
+              >
+                रद्द गर्नुहोस्
+              </button>
+              <button
+                onClick={handleSaveSalaryScale}
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              >
+                {editingScale ? 'परिवर्तन सुरक्षित गर्नुहोस्' : 'डाटाबेसमा सुरक्षित गर्नुहोस्'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Employee Modal */}
       {isAddEmployeeModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
@@ -2039,19 +2478,38 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                               setDriverIncentiveDebugInfo(null);
                             }
 
+                            // Check matched salary scale for designation
+                            const cleanDesig = uDesig.trim().toLowerCase();
+                            const matchedScale = salaryScales.find(s => s.designation && s.designation.trim().toLowerCase() === cleanDesig)
+                              || salaryScales.find(s => s.designation && (
+                                cleanDesig.includes(s.designation.trim().toLowerCase()) ||
+                                s.designation.trim().toLowerCase().includes(cleanDesig)
+                              ));
+
                             setEmpForm(prev => {
+                              const bScale = matchedScale ? Number(matchedScale.basicScale) : prev.basicScale;
+                              const gRate = matchedScale ? (Number(matchedScale.gradeRate) || Math.round((Number(matchedScale.basicScale) || 0) / 30)) : prev.gradeRate;
+                              const gCount = prev.gradeCount || 0;
+                              const gAmount = gCount * (gRate || 0);
+
                               const updated = {
                                 ...prev,
                                 userId: selectedUser.id || '',
                                 employeeName: uName,
                                 designation: uDesig,
-                                level: selectedUser.level || '',
+                                level: selectedUser.level || matchedScale?.level || prev.level || '',
                                 employeeCode: selectedUser.employeeCode || selectedUser.employeeId || '',
                                 bankAccountNumber: selectedUser.bankAccountNumber || '',
                                 bankName: selectedUser.bankName || '',
                                 panNumber: selectedUser.panNumber || '',
                                 citNumber: selectedUser.citNumber || '',
-                                pfNumber: selectedUser.pfNumber || ''
+                                pfNumber: selectedUser.pfNumber || '',
+                                basicScale: bScale,
+                                gradeRate: gRate,
+                                gradeAmount: gAmount,
+                                dearnessAllowance: matchedScale?.dearnessAllowance !== undefined ? Number(matchedScale.dearnessAllowance) : (prev.dearnessAllowance ?? 2000),
+                                fieldAllowance: matchedScale?.fieldAllowance !== undefined ? Number(matchedScale.fieldAllowance) : (prev.fieldAllowance || 0),
+                                dressAllowance: matchedScale?.dressAllowance !== undefined ? Number(matchedScale.dressAllowance) : (prev.dressAllowance || 0)
                               };
                               if (isDriver) {
                                 updated.incentiveAllowance = autoIncentive;
@@ -2083,12 +2541,55 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">पद (Designation) *:</label>
-                    <Input
-                      value={empForm.designation || ''}
-                      onChange={(e) => setEmpForm(prev => ({ ...prev, designation: e.target.value }))}
-                      placeholder="हे.अ. / अ.न.मी. / अधिकृत"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700">पद (Designation) *:</label>
+                      {salaryScales.length > 0 && (
+                        <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                          {toNepaliNumber(salaryScales.length)} पद सुरक्षित
+                        </span>
+                      )}
+                    </div>
+                    {salaryScales.length > 0 && (
+                      <div className="mb-1.5">
+                        <select
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              applyScaleToEmpForm(val);
+                            }
+                          }}
+                          defaultValue=""
+                          className="w-full px-2 py-1.5 bg-blue-50/70 border border-blue-200 text-blue-900 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">-- दर्ता भएका पदबाट छान्नुहोस् (स्वतः सुरु तलब भरिनेछ) --</option>
+                          {salaryScales.map(s => (
+                            <option key={s.id} value={s.designation}>
+                              {s.designation} {s.level ? `(${s.level})` : ''} - सुरु स्केल रु. {toNepaliNumber((s.basicScale || 0).toLocaleString())}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="relative">
+                      <Input
+                        list="designation-suggestions"
+                        value={empForm.designation || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEmpForm(prev => ({ ...prev, designation: val }));
+                          // Auto match as user types
+                          applyScaleToEmpForm(val);
+                        }}
+                        placeholder="हे.अ. / अ.न.मी. / अधिकृत / एम्बुलेन्स चालक"
+                      />
+                      <datalist id="designation-suggestions">
+                        {salaryScales.map(s => (
+                          <option key={s.id} value={s.designation}>
+                            {s.level ? `${s.level} - ` : ''}सुरु तलब रु. {toNepaliNumber((s.basicScale || 0).toLocaleString())}
+                          </option>
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">तह / श्रेणी (Level):</label>
@@ -2152,7 +2653,20 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">सुरु तलब स्केल (Basic Scale):</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700">सुरु तलब स्केल (Basic Scale):</label>
+                      {(() => {
+                        const matched = salaryScales.find(s => s.designation && empForm.designation && s.designation.trim().toLowerCase() === empForm.designation.trim().toLowerCase());
+                        if (matched) {
+                          return (
+                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                              <Sparkles size={11} /> दरबन्दी अनुसार
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                     <Input
                       type="number"
                       value={empForm.basicScale || 0}

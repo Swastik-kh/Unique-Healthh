@@ -242,3 +242,16 @@ export interface EmployeeSalaryProfile {
   _orgName?: string;
 }
 
+export interface DesignationSalaryScale {
+  id: string;
+  designation: string; // e.g. "हे.अ.", "अ.न.मी.", "एम्बुलेन्स चालक"
+  level?: string; // e.g. "पाँचौं तह", "श्रेणी विहीन"
+  basicScale: number; // सुरु तलब स्केल e.g. 32902
+  gradeRate?: number; // प्रति ग्रेड रकम (ऐच्छिक)
+  dearnessAllowance?: number; // महङ्गी भत्ता (e.g. 2000)
+  fieldAllowance?: number; // फिल्ड / अन्य भत्ता
+  dressAllowance?: number; // पोशाक भत्ता
+  remarks?: string;
+  updatedAt?: string;
+}
+
