@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Printer, Download, X, Settings2, FileText, Check, Calendar, Filter, User as UserIcon } from 'lucide-react';
 import { FISCAL_YEARS } from '../constants';
 import { AmbulanceRecord } from '../types';
+import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
 
 const NEPALI_MONTH_OPTIONS = [
   { value: '01', label: 'बैशाख (Baisakh)', name: 'बैशाख' },
@@ -81,6 +82,14 @@ export const AmbulanceProtsahanBharpaiModal: React.FC<AmbulanceProtsahanBharpaiM
   const [periodText, setPeriodText] = useState<string>('श्रावण र भाद्र');
   const [customRemarks, setCustomRemarks] = useState<Record<string, string>>({});
   const [isEditingSettings, setIsEditingSettings] = useState<boolean>(false);
+
+  // Effective incentive percent from Firebase settings or props
+  const effectiveIncentivePercent = useMemo(() => {
+    if (generalSettings?.ambulanceDriverIncentivePercent !== undefined) {
+      return Number(generalSettings.ambulanceDriverIncentivePercent);
+    }
+    return Number(ambulanceDriverIncentivePercent) || 15;
+  }, [generalSettings?.ambulanceDriverIncentivePercent, ambulanceDriverIncentivePercent]);
 
   // Sync initial values when modal opens
   useEffect(() => {
@@ -188,7 +197,7 @@ export const AmbulanceProtsahanBharpaiModal: React.FC<AmbulanceProtsahanBharpaiM
     filteredTrips.forEach(trip => {
       const driver = trip.driverName?.trim() || 'अज्ञात चालक';
       const fare = Number(trip.receivedAmount) || 0;
-      const inc = fare * (ambulanceDriverIncentivePercent / 100);
+      const inc = fare * (effectiveIncentivePercent / 100);
       const dist = Number(trip.distanceKm) || 0;
 
       const existing = map.get(driver) || {

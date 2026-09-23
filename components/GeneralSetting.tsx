@@ -619,6 +619,34 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 </div>
             </div>
 
+            {/* एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Percent size={18} className="text-red-600"/> एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ (Ambulance Incentive & TDS)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali">
+                    एम्बुलेन्स सेवाबाट संकलन भएको कुल रकममा चालक प्रोत्साहन प्रतिशत र प्रोत्साहन भत्तामा लाग्ने TDS प्रतिशत सेट गर्नुहोस्।
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <Input 
+                        label="चालक प्रोत्साहन प्रतिशत (% Incentive)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.ambulanceDriverIncentivePercent !== undefined ? localSettings.ambulanceDriverIncentivePercent : 15} 
+                        onChange={(e) => handleChange('ambulanceDriverIncentivePercent', parseFloat(e.target.value) || 15)} 
+                        placeholder="15"
+                    />
+                    <Input 
+                        label="प्रोत्साहन कर (TDS %) प्रतिशत" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.ambulanceProtsahanTdsPercent !== undefined ? localSettings.ambulanceProtsahanTdsPercent : 15} 
+                        onChange={(e) => handleChange('ambulanceProtsahanTdsPercent', parseFloat(e.target.value) || 15)} 
+                        placeholder="15"
+                    />
+                </div>
+            </div>
+
             {/* कोल्ड चेन (खोप फ्रिज) तापक्रम सेटिङ */}
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
                 <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">

@@ -148,6 +148,8 @@ export interface OrganizationSettings {
   ambulanceNo?: string;
   ambulanceDriverName?: string;
   ambulanceRoutes?: string[]; // stored as "From|To|Rate"
+  ambulanceDriverIncentivePercent?: number; // default 15
+  ambulanceProtsahanTdsPercent?: number; // default 15
   availableServices?: string[];
   allServiceOptions?: string[]; // Added for managing master list of services
   vaccinationSessions?: number[]; 

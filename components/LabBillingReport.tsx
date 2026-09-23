@@ -7,6 +7,9 @@ import NepaliDate from 'nepali-date-converter';
 import { LogoDisplay } from './LogoDisplay';
 import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
+import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
+import { db } from '../firebase';
+import { ref, set } from 'firebase/database';
 
 const COMMON_LAB_KWS = new Set([
   'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain'
@@ -124,11 +127,20 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [useNepaliNumerals, setUseNepaliNumerals] = useState<boolean>(true);
 
-  // Ambulance Driver Incentive percentage state
+  // Ambulance Driver Incentive percentage state - prioritized from generalSettings (Firebase)
   const [ambulanceDriverIncentivePercent, setAmbulanceDriverIncentivePercent] = useState<number>(() => {
+    if (generalSettings?.ambulanceDriverIncentivePercent !== undefined) {
+      return Number(generalSettings.ambulanceDriverIncentivePercent);
+    }
     const saved = localStorage.getItem('protsahan_ambulance_driver_percent');
     return saved ? Number(saved) : 15;
   });
+
+  useEffect(() => {
+    if (generalSettings?.ambulanceDriverIncentivePercent !== undefined) {
+      setAmbulanceDriverIncentivePercent(Number(generalSettings.ambulanceDriverIncentivePercent));
+    }
+  }, [generalSettings?.ambulanceDriverIncentivePercent]);
   const [isDriverSettingsEditing, setIsDriverSettingsEditing] = useState<boolean>(false);
   const [tempDriverIncentivePercent, setTempDriverIncentivePercent] = useState<number>(15);
 
@@ -1783,10 +1795,21 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
 
           {isDriverSettingsEditing ? (
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
-              setAmbulanceDriverIncentivePercent(tempDriverIncentivePercent);
-              localStorage.setItem('protsahan_ambulance_driver_percent', tempDriverIncentivePercent.toString());
+              const newPercent = Number(tempDriverIncentivePercent) || 15;
+              setAmbulanceDriverIncentivePercent(newPercent);
+              localStorage.setItem('protsahan_ambulance_driver_percent', newPercent.toString());
+              
+              // Persist to Firebase orgData/{org}/generalSettings/ambulanceDriverIncentivePercent
+              try {
+                const orgName = currentUser?.organizationName || generalSettings?.name || 'DefaultOrg';
+                const safeOrg = orgName.trim().replace(/[.#$[\]]/g, "_");
+                await set(ref(db, `orgData/${safeOrg}/generalSettings/ambulanceDriverIncentivePercent`), newPercent);
+              } catch (err) {
+                console.error("Failed to update generalSettings incentive percent:", err);
+              }
+              
               setIsDriverSettingsEditing(false);
             }} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
               <div className="max-w-xs">

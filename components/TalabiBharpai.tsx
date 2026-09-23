@@ -15,6 +15,7 @@ import { toNepaliNumber, parseNepaliNumber } from './nepaliUtils';
 import { FISCAL_YEARS } from '../constants';
 import { db } from '../firebase';
 import { ref, onValue, set, push, remove } from 'firebase/database';
+import { getDriverMonthlyIncentive, isAmbulanceDriver, DriverIncentiveResult } from '../lib/ambulanceIncentiveUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -212,6 +213,17 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     remarks: ''
   });
 
+  // Debug & Audit info for ambulance driver incentive calculation in the modal
+  const [driverIncentiveDebugInfo, setDriverIncentiveDebugInfo] = useState<{
+    isDriver: boolean;
+    tripCount: number;
+    totalFare: number;
+    incentiveAmount: number;
+    percent: number;
+    driverName: string;
+    checked: boolean;
+  } | null>(null);
+
   const effectiveOrgName = activeOrgName || currentUser?.organizationName || 'DefaultOrg';
   const safeOrgName = effectiveOrgName.trim().replace(/[.#$[\]]/g, "_");
 
@@ -335,20 +347,22 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const medicalAllowance = Number(data.medicalAllowance) || 0;
     const otherAllowances = Number(data.otherAllowances) || 0;
 
-    // Check if ambulance driver and auto-populate incentive if needed
+    // Check if ambulance driver and auto-populate incentive if needed using EXACT single-source-of-truth
     const empName = data.employeeName || '';
     const designation = data.designation || '';
-    const isAmbuDriver = designation.includes('चालक') || designation.toLowerCase().includes('driver') || designation.includes('एम्बुलेन्स') || empName.includes('चालक');
+    const isAmbuDriver = isAmbulanceDriver(designation, empName);
+    const driverIncentivePercent = Number(generalSettings?.ambulanceDriverIncentivePercent) || 15;
 
     if (isAmbuDriver && ambulanceRecords.length > 0) {
-      const driverTrips = ambulanceRecords.filter(r => 
-        r.fiscalYear?.trim() === selectedFiscalYear.trim() &&
-        (r.driverName?.trim().toLowerCase() === empName.trim().toLowerCase() || r.driverName?.trim().toLowerCase().includes(empName.trim().toLowerCase()) || empName.trim().toLowerCase().includes(r.driverName?.trim().toLowerCase())) &&
-        r.dateBs && r.dateBs.split(/[-/]/)[1] === selectedMonthCode
+      const incentiveResult = getDriverMonthlyIncentive(
+        ambulanceRecords,
+        empName,
+        selectedFiscalYear,
+        selectedMonthCode,
+        driverIncentivePercent
       );
-      const totalAmbuIncentive = driverTrips.reduce((sum, t) => sum + ((Number(t.receivedAmount) || 0) * 0.15), 0);
-      if (totalAmbuIncentive > 0) {
-        incentiveAllowance = totalAmbuIncentive;
+      if (incentiveResult.tripCount > 0 || data.incentiveAllowance === undefined || data.incentiveAllowance === null) {
+        incentiveAllowance = incentiveResult.incentiveAmount;
       }
     }
 
@@ -1997,19 +2011,53 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                         onChange={(e) => {
                           const selectedUser = relevantOfficeUsers.find(u => (u.id || u.fullName) === e.target.value);
                           if (selectedUser) {
-                            setEmpForm(prev => ({
-                              ...prev,
-                              userId: selectedUser.id || '',
-                              employeeName: selectedUser.fullName || '',
-                              designation: selectedUser.designation || '',
-                              level: selectedUser.level || '',
-                              employeeCode: selectedUser.employeeCode || selectedUser.employeeId || '',
-                              bankAccountNumber: selectedUser.bankAccountNumber || '',
-                              bankName: selectedUser.bankName || '',
-                              panNumber: selectedUser.panNumber || '',
-                              citNumber: selectedUser.citNumber || '',
-                              pfNumber: selectedUser.pfNumber || ''
-                            }));
+                            const uName = selectedUser.fullName || '';
+                            const uDesig = selectedUser.designation || '';
+                            const isDriver = isAmbulanceDriver(uDesig, uName);
+                            const driverIncentivePercent = Number(generalSettings?.ambulanceDriverIncentivePercent) || 15;
+
+                            let autoIncentive = 0;
+                            if (isDriver) {
+                              const incentiveRes = getDriverMonthlyIncentive(
+                                ambulanceRecords,
+                                uName,
+                                selectedFiscalYear,
+                                selectedMonthCode,
+                                driverIncentivePercent
+                              );
+                              autoIncentive = incentiveRes.incentiveAmount;
+                              setDriverIncentiveDebugInfo({
+                                isDriver: true,
+                                tripCount: incentiveRes.tripCount,
+                                totalFare: incentiveRes.totalFare,
+                                incentiveAmount: incentiveRes.incentiveAmount,
+                                percent: driverIncentivePercent,
+                                driverName: uName,
+                                checked: true
+                              });
+                            } else {
+                              setDriverIncentiveDebugInfo(null);
+                            }
+
+                            setEmpForm(prev => {
+                              const updated = {
+                                ...prev,
+                                userId: selectedUser.id || '',
+                                employeeName: uName,
+                                designation: uDesig,
+                                level: selectedUser.level || '',
+                                employeeCode: selectedUser.employeeCode || selectedUser.employeeId || '',
+                                bankAccountNumber: selectedUser.bankAccountNumber || '',
+                                bankName: selectedUser.bankName || '',
+                                panNumber: selectedUser.panNumber || '',
+                                citNumber: selectedUser.citNumber || '',
+                                pfNumber: selectedUser.pfNumber || ''
+                              };
+                              if (isDriver) {
+                                updated.incentiveAllowance = autoIncentive;
+                              }
+                              return updated;
+                            });
                           }
                         }}
                         defaultValue=""
@@ -2154,12 +2202,72 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">प्रोत्साहन भत्ता (Incentive):</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-700">प्रोत्साहन भत्ता (Incentive):</label>
+                      {isAmbulanceDriver(empForm.designation, empForm.employeeName) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const driverIncentivePercent = Number(generalSettings?.ambulanceDriverIncentivePercent) || 15;
+                            const res = getDriverMonthlyIncentive(
+                              ambulanceRecords,
+                              empForm.employeeName || '',
+                              selectedFiscalYear,
+                              selectedMonthCode,
+                              driverIncentivePercent
+                            );
+                            setEmpForm(prev => ({ ...prev, incentiveAllowance: res.incentiveAmount }));
+                            setDriverIncentiveDebugInfo({
+                              isDriver: true,
+                              tripCount: res.tripCount,
+                              totalFare: res.totalFare,
+                              incentiveAmount: res.incentiveAmount,
+                              percent: driverIncentivePercent,
+                              driverName: empForm.employeeName || '',
+                              checked: true
+                            });
+                          }}
+                          className="text-[10px] text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                          title="एम्बुलेन्स ट्रिप रेकर्डबाट पुनः गणना गर्नुहोस्"
+                        >
+                          <RefreshCw size={11} /> पुनः गणना
+                        </button>
+                      )}
+                    </div>
                     <Input
                       type="number"
                       value={empForm.incentiveAllowance || 0}
                       onChange={(e) => setEmpForm(prev => ({ ...prev, incentiveAllowance: parseFloat(e.target.value) || 0 }))}
                     />
+                    {isAmbulanceDriver(empForm.designation, empForm.employeeName) && (
+                      <div className="mt-1.5 text-[11px]">
+                        {(() => {
+                          const driverIncentivePercent = Number(generalSettings?.ambulanceDriverIncentivePercent) || 15;
+                          const currentRes = getDriverMonthlyIncentive(
+                            ambulanceRecords,
+                            empForm.employeeName || '',
+                            selectedFiscalYear,
+                            selectedMonthCode,
+                            driverIncentivePercent
+                          );
+                          const currentMonthName = NEPALI_MONTHS.find(m => m.code === selectedMonthCode)?.name || selectedMonthCode;
+
+                          if (currentRes.tripCount > 0) {
+                            return (
+                              <div className="p-2 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 font-medium">
+                                ✓ {currentRes.tripCount} वटा ट्रिप फेला पर्यो, जम्मा भाडा रु. {currentRes.totalFare.toLocaleString()}, दर {driverIncentivePercent}% = प्रोत्साहन रु. {currentRes.incentiveAmount.toLocaleString()}
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="p-2 bg-amber-50 text-amber-800 rounded-lg border border-amber-200">
+                                ⚠️ यस महिना ({currentMonthName}) र आ.व. ({selectedFiscalYear}) मा <b className="font-semibold">{empForm.employeeName || 'यो चालक'}</b> नामको कुनै एम्बुलेन्स ट्रिप रेकर्ड फेला परेन। नाम हिज्जे वा मिति जाँच्नुहोस्।
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">फिल्ड / अन्य भत्ता:</label>
@@ -2209,6 +2317,23 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       value={empForm.taxDeduction || 0}
                       onChange={(e) => setEmpForm(prev => ({ ...prev, taxDeduction: parseFloat(e.target.value) || 0 }))}
                     />
+                    <div className="mt-1 text-[10px] text-slate-500 font-medium">
+                      {(() => {
+                        const basic = Number(empForm.basicScale) || 0;
+                        const grade = Number(empForm.gradeAmount) || 0;
+                        const dearness = Number(empForm.dearnessAllowance) || 0;
+                        const other = Number(empForm.otherAllowances) || 0;
+                        const inc = Number(empForm.incentiveAllowance) || 0;
+                        const nonIncTaxable = basic + grade + dearness + other;
+                        const taxRem = Math.round(nonIncTaxable * 0.01);
+                        const taxInc = Math.round(inc * 0.15);
+                        return (
+                          <span>
+                            (नियमित: रु. {nonIncTaxable.toLocaleString()} × १% = रु. {taxRem} + प्रोत्साहन: रु. {inc.toLocaleString()} × १५% = रु. {taxInc} ➔ जम्मा रु. {(taxRem + taxInc).toLocaleString()})
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">पेश्की / ऋण कट्टी:</label>
