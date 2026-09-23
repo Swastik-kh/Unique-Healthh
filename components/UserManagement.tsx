@@ -12,8 +12,9 @@ import { hashPassword } from '../lib/crypto';
 import axios from 'axios';
 
 /**
- * Checks if a user is frozen directly or via their current active organization/admin hierarchy
- * (including users transferred from one organization to another or whose office admin is frozen).
+ * Checks if a user is frozen directly or via their current active organization/admin hierarchy.
+ * If an admin is frozen, only users belonging to that SAME office/organization are frozen.
+ * Users belonging to a DIFFERENT office/organization are NEVER frozen even if created by that admin.
  */
 export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean => {
   if (!user) return false;
@@ -24,7 +25,7 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
   if (user.isFrozen) return true;
 
   // 2. Check current office/organization's Admin / Health Section users
-  // If ANY admin in the same office is frozen, all other users in that office are automatically frozen
+  // If ANY admin in the SAME office is frozen, all other users in that SAME office are automatically frozen
   const orgAdmins = allUsers.filter(u => 
     u.organizationName === user.organizationName && 
     (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
@@ -34,7 +35,10 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
     return true;
   }
 
-  // 3. Traverse parent chain
+  // 3. Traverse parent chain:
+  // - If parent is SUPER_ADMIN and frozen -> freeze
+  // - If parent is non-superadmin: ONLY freeze if parent belongs to the SAME office/organization.
+  // - If parent belongs to a DIFFERENT office/organization, their freeze does NOT affect this user.
   let currentParentId = user.parentId;
   let depth = 0;
   const visited = new Set<string>([user.id]);
@@ -42,12 +46,12 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
     visited.add(currentParentId);
     const parent = allUsers.find(u => u.id === currentParentId);
     if (parent) {
-      if (parent.isFrozen) {
-        // If user transferred to a different org that has its own different admin, don't inherit old parent's freeze
-        if (orgAdmins.length > 0 && parent.organizationName !== user.organizationName) {
-          break;
+      if (parent.role === 'SUPER_ADMIN') {
+        if (parent.isFrozen) return true;
+      } else {
+        if (parent.organizationName === user.organizationName && parent.isFrozen) {
+          return true;
         }
-        return true;
       }
       currentParentId = parent.parentId;
       depth++;
@@ -60,61 +64,27 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
 };
 
 /**
- * Finds all subordinate users under a given target user based on current active hierarchy:
- * 1. For SUPER_ADMIN: All non-superadmin users
- * 2. For ADMIN / HEALTH_SECTION: All users currently belonging to this office/organization,
- *    plus any direct/indirect child users across the hierarchy.
+ * Finds all subordinate users under a given target user:
+ * 1. For SUPER_ADMIN: All non-superadmin users across all organizations.
+ * 2. For ADMIN / HEALTH_SECTION: ONLY users belonging to the SAME office/organization.
+ *    Users in different offices/organizations are NEVER included or affected.
  */
 export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] => {
   if (!targetUser || !allUsers || allUsers.length === 0) return [];
-  const result: User[] = [];
-  const visitedIds = new Set<string>([targetUser.id]);
   
   if (targetUser.role === 'SUPER_ADMIN') {
     return allUsers.filter(u => u.id !== targetUser.id && u.role !== 'SUPER_ADMIN' && !isSystemManagerUser(u));
   }
 
-  // 1. For ADMIN or HEALTH_SECTION users:
-  // ALL users belonging to this office/organization must be included as subordinates
-  if (targetUser.role === 'ADMIN' || targetUser.role === 'HEALTH_SECTION') {
-    const orgUsers = allUsers.filter(u => 
-      u.organizationName === targetUser.organizationName && 
-      u.id !== targetUser.id &&
-      !visitedIds.has(u.id) && 
-      !isSystemManagerUser(u) &&
-      u.role !== 'SUPER_ADMIN'
-    );
-    for (const orgUser of orgUsers) {
-      visitedIds.add(orgUser.id);
-      result.push(orgUser);
-    }
-  }
-
-  // 2. Traverse parentId chain (direct and indirect descendants)
-  const queue = [targetUser.id];
-  while (queue.length > 0) {
-    const currentParentId = queue.shift()!;
-    const directChildren = allUsers.filter(u => u.parentId === currentParentId && !visitedIds.has(u.id));
-    for (const child of directChildren) {
-      if (!isSystemManagerUser(child) && child.role !== 'SUPER_ADMIN') {
-        const hasOtherAdmin = allUsers.some(u => 
-          u.organizationName === child.organizationName && 
-          (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
-          u.id !== targetUser.id &&
-          u.organizationName !== targetUser.organizationName
-        );
-        
-        // If the user hasn't transferred to another admin's organization, include them in this hierarchy
-        if (!hasOtherAdmin || child.organizationName === targetUser.organizationName) {
-          visitedIds.add(child.id);
-          result.push(child);
-          queue.push(child.id);
-        }
-      }
-    }
-  }
-
-  return result;
+  // For ADMIN or HEALTH_SECTION:
+  // ONLY return users belonging to the SAME office/organization.
+  // Users in a different organization are strictly excluded.
+  return allUsers.filter(u => 
+    u.organizationName === targetUser.organizationName && 
+    u.id !== targetUser.id && 
+    u.role !== 'SUPER_ADMIN' && 
+    !isSystemManagerUser(u)
+  );
 };
 
 import { initializeApp, getApps } from 'firebase/app';
