@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert, Sparkles, Megaphone, Search, Truck, Syringe, BedDouble, Monitor, UserCheck, ShieldCheck, ChevronLeft, ChevronRight, Users, Clock, Check, AlertTriangle, ArrowRight, Unlock, CalendarDays, Zap } from 'lucide-react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert, Sparkles, Megaphone, Search, Truck, Syringe, BedDouble, Monitor, UserCheck, ShieldCheck, ChevronLeft, ChevronRight, Users, Clock, Check, AlertTriangle, ArrowRight, Unlock, CalendarDays, Zap, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown, ArrowUpDown } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
@@ -12,6 +12,7 @@ import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } 
 import { db as localDb } from '../firestore';
 import { db as rtdb } from '../firebase';
 import { ref, set } from 'firebase/database';
+import { sortUsersByHierarchy, getDefaultHierarchyOrder, getRoleRankWeight, getDesignationLevelWeight } from '../lib/userHierarchyUtils';
 
 const sujhabFirebaseConfig = {
   apiKey: "AIzaSyAtt4_yw8_76inlXJPgMNRV0h0vqPpvgt8",
@@ -285,6 +286,144 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       alert("त्रुटि: सदस्यता अपडेट गर्न सकिएन।");
     } finally {
       setSubApplying(false);
+    }
+  };
+
+  // ===== User Hierarchy Management State & Handlers =====
+  const [hierarchyOrg, setHierarchyOrg] = useState<string>(() => {
+    return (activeOrgName && activeOrgName !== 'All') ? activeOrgName : (currentUser?.organizationName || '');
+  });
+  const [hierarchySearch, setHierarchySearch] = useState<string>('');
+  const [hierarchyOrderList, setHierarchyOrderList] = useState<string[]>(() => {
+    return localSettings.userHierarchyOrder || [];
+  });
+  const [hierarchySuccessMsg, setHierarchySuccessMsg] = useState<string | null>(null);
+
+  // Sync hierarchy order when settings prop changes
+  useEffect(() => {
+    if (localSettings.userHierarchyOrder && Array.isArray(localSettings.userHierarchyOrder)) {
+      setHierarchyOrderList(localSettings.userHierarchyOrder);
+    }
+  }, [localSettings.userHierarchyOrder]);
+
+  // Target office users sorted by current hierarchyOrderList
+  const targetOfficeUsers = useMemo(() => {
+    const org = hierarchyOrg || currentUser?.organizationName || '';
+    const filtered = users.filter(u => !org || org === 'All' || u.organizationName === org);
+    return sortUsersByHierarchy(filtered, hierarchyOrderList);
+  }, [users, hierarchyOrg, currentUser?.organizationName, hierarchyOrderList]);
+
+  // Handler: Move User Up
+  const handleMoveUserUp = (userId: string) => {
+    const currentList = targetOfficeUsers.map(u => u.id);
+    const idx = currentList.indexOf(userId);
+    if (idx <= 0) return;
+    const updated = [...currentList];
+    const temp = updated[idx - 1];
+    updated[idx - 1] = updated[idx];
+    updated[idx] = temp;
+    setHierarchyOrderList(updated);
+    handleChange('userHierarchyOrder', updated);
+  };
+
+  // Handler: Move User Down
+  const handleMoveUserDown = (userId: string) => {
+    const currentList = targetOfficeUsers.map(u => u.id);
+    const idx = currentList.indexOf(userId);
+    if (idx === -1 || idx >= currentList.length - 1) return;
+    const updated = [...currentList];
+    const temp = updated[idx + 1];
+    updated[idx + 1] = updated[idx];
+    updated[idx] = temp;
+    setHierarchyOrderList(updated);
+    handleChange('userHierarchyOrder', updated);
+  };
+
+  // Handler: Move User to Top
+  const handleMoveUserToTop = (userId: string) => {
+    const currentList = targetOfficeUsers.map(u => u.id);
+    const idx = currentList.indexOf(userId);
+    if (idx <= 0) return;
+    const filtered = currentList.filter(id => id !== userId);
+    const updated = [userId, ...filtered];
+    setHierarchyOrderList(updated);
+    handleChange('userHierarchyOrder', updated);
+  };
+
+  // Handler: Move User to Bottom
+  const handleMoveUserToBottom = (userId: string) => {
+    const currentList = targetOfficeUsers.map(u => u.id);
+    const idx = currentList.indexOf(userId);
+    if (idx === -1 || idx >= currentList.length - 1) return;
+    const filtered = currentList.filter(id => id !== userId);
+    const updated = [...filtered, userId];
+    setHierarchyOrderList(updated);
+    handleChange('userHierarchyOrder', updated);
+  };
+
+  // Handler: Set direct rank (1-based)
+  const handleSetUserRank = (userId: string, newRank1Based: number) => {
+    const currentList = targetOfficeUsers.map(u => u.id);
+    const idx = currentList.indexOf(userId);
+    if (idx === -1) return;
+    const targetIdx = Math.max(0, Math.min(currentList.length - 1, newRank1Based - 1));
+    if (idx === targetIdx) return;
+    const updated = [...currentList];
+    const [removed] = updated.splice(idx, 1);
+    updated.splice(targetIdx, 0, removed);
+    setHierarchyOrderList(updated);
+    handleChange('userHierarchyOrder', updated);
+  };
+
+  // Handler: Auto Sort by Role Rank & Designation Level
+  const handleAutoSortHierarchy = () => {
+    const org = hierarchyOrg || currentUser?.organizationName || '';
+    const rawUsers = users.filter(u => !org || org === 'All' || u.organizationName === org);
+    const autoOrder = getDefaultHierarchyOrder(rawUsers);
+    setHierarchyOrderList(autoOrder);
+    handleChange('userHierarchyOrder', autoOrder);
+    setHierarchySuccessMsg("कर्मचारीहरूलाई पद तथा तह अनुसार स्वतः पदानुक्रम मिलाइयो!");
+    setTimeout(() => setHierarchySuccessMsg(null), 3500);
+  };
+
+  // Handler: Sort Alphabetically
+  const handleSortAlphabetical = () => {
+    const org = hierarchyOrg || currentUser?.organizationName || '';
+    const rawUsers = users.filter(u => !org || org === 'All' || u.organizationName === org);
+    const sorted = [...rawUsers].sort((a, b) => (a.fullName || a.username || '').localeCompare(b.fullName || b.username || '', 'ne'));
+    const order = sorted.map(u => u.id);
+    setHierarchyOrderList(order);
+    handleChange('userHierarchyOrder', order);
+    setHierarchySuccessMsg("कर्मचारीहरूलाई वर्णानुक्रम (A-Z) अनुसार मिलाइयो!");
+    setTimeout(() => setHierarchySuccessMsg(null), 3500);
+  };
+
+  // Handler: Reset Hierarchy Order
+  const handleResetHierarchy = () => {
+    if (window.confirm("के तपाईं पदानुक्रम रिसेट गर्न चाहनुहुन्छ?")) {
+      const org = hierarchyOrg || currentUser?.organizationName || '';
+      const rawUsers = users.filter(u => !org || org === 'All' || u.organizationName === org);
+      const defaultOrder = rawUsers.map(u => u.id);
+      setHierarchyOrderList(defaultOrder);
+      handleChange('userHierarchyOrder', defaultOrder);
+      setHierarchySuccessMsg("पदानुक्रम साविक क्रममा रिसेट गरियो!");
+      setTimeout(() => setHierarchySuccessMsg(null), 3500);
+    }
+  };
+
+  // Handler: Direct Save Hierarchy
+  const handleSaveHierarchyOrder = async () => {
+    try {
+      const updated = {
+        ...localSettings,
+        userHierarchyOrder: hierarchyOrderList
+      };
+      setLocalSettings(updated);
+      onUpdateSettings(updated);
+      setHierarchySuccessMsg("कर्मचारी पदानुक्रम (Hierarchy Order) सफलतापूर्वक सुरक्षित गरियो!");
+      setTimeout(() => setHierarchySuccessMsg(null), 4000);
+    } catch (err: any) {
+      alert("त्रुटि: " + (err.message || 'Error saving hierarchy'));
     }
   };
 
@@ -630,7 +769,7 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                   { id: 'integrations', label: '८. बाह्य प्रणाली', icon: Globe },
                   { id: 'ipd', label: '९. IPD वार्ड', icon: BedDouble },
                   { id: 'portal', label: '१०. पोर्टल/लगइन', icon: Monitor },
-                  { id: 'users', label: '११. प्रतिवेदन अधिकारी', icon: UserCheck },
+                  { id: 'users', label: '११. पदानुक्रम तथा प्रतिवेदन अधिकारी', icon: UserCheck },
                   { id: 'subscription', label: '१२. सदस्यता', icon: ShieldCheck },
                 ].map((cat) => {
                   const IconComponent = cat.icon;
@@ -1780,52 +1919,336 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
             </div>
           )}
 
-          {/* 11. User Assignments */}
-          {(!settingsSearchQuery.trim() ? generalSubTab === 'users' : ["प्रतिवेदन","अधिकारी","report","signer","certifier","preparer","तयार गर्ने","प्रमाणित","प्रयोगकर्ता"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+          {/* 11. User Hierarchy & Report Officers */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'users' : ["पदानुक्रम","hierarchy","पदानुक्रम मिलाउने","कर्मचारी","प्रतिवेदन","अधिकारी","report","signer","certifier","preparer","तयार गर्ने","प्रमाणित","प्रयोगकर्ता","order","staff"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
             <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><UserCheck size={18} className="text-primary-600"/>प्रतिवेदन प्रमाणित गर्ने र जिम्मेवार अधिकारी सेटिङ</h3>
-                <div className="grid md:grid-cols-2 gap-6 mt-6">
-                    {(() => {
-                        const orgUsers = users.filter(u => u.organizationName === currentUser.organizationName);
-                        const userOptions = orgUsers.map(u => ({ id: u.id, label: u.fullName, value: u.id }));
-                        return (
-                            <>
-                                <Select 
-                                    label="सेवा बिलिङ प्रतिवेदन तयार गर्ने" 
-                                    options={userOptions} 
-                                    value={localSettings.sewaBillingUserId || ''} 
-                                    onChange={(e) => handleChange('sewaBillingUserId', e.target.value)} 
-                                />
-                                <Select 
-                                    label="एम्बुलेन्स सेवा प्रतिवेदन तयार गर्ने" 
-                                    options={userOptions} 
-                                    value={localSettings.ambulanceSewaUserId || ''} 
-                                    onChange={(e) => handleChange('ambulanceSewaUserId', e.target.value)} 
-                                />
-                                <Select 
-                                    label="खोप अभियान प्रतिवेदन तयार गर्ने" 
-                                    options={userOptions} 
-                                    value={localSettings.khopReportPreparerUserId || ''} 
-                                    onChange={(e) => handleChange('khopReportPreparerUserId', e.target.value)} 
-                                />
-                                <Select 
-                                    label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन तयार गर्ने" 
-                                    options={userOptions} 
-                                    value={localSettings.vitaminAReportPreparerUserId || ''} 
-                                    onChange={(e) => handleChange('vitaminAReportPreparerUserId', e.target.value)} 
-                                />
-                                <Select 
-                                    label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन प्रमाणित गर्ने" 
-                                    options={userOptions} 
-                                    value={localSettings.vitaminAReportCertifierUserId || ''} 
-                                    onChange={(e) => handleChange('vitaminAReportCertifierUserId', e.target.value)} 
-                                />
-                            </>
-                        );
-                    })()}
+              {/* Success Notification Banner */}
+              {hierarchySuccessMsg && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-start gap-3 shadow-xs animate-in slide-in-from-top-2">
+                  <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 font-nepali text-sm font-semibold">
+                    {hierarchySuccessMsg}
+                  </div>
+                  <button type="button" onClick={() => setHierarchySuccessMsg(null)} className="text-emerald-500 hover:text-emerald-700 p-1">
+                    <X size={16} />
+                  </button>
                 </div>
-            </div>
+              )}
+
+              {/* 11.1 Office User Hierarchy Adjustment */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2 font-nepali">
+                      <Users size={20} className="text-primary-600" />
+                      कार्यालय कर्मचारी पदानुक्रम व्यवस्थापन (Office Staff Hierarchy & Sequence)
+                    </h3>
+                    <p className="text-xs text-slate-500 font-nepali mt-1">
+                      कर्मचारीहरूको प्राथमिकता क्रम (Hierarchy) तल-माथि सारेर वा सिधै क्रम नम्बर राखेर मिलाउनुहोस्। यो क्रम तलबी भरपाई, उपस्थिति, माग फाराम तथा सबै प्रतिवेदनहरूमा क्रमशः लागु हुनेछ।
+                    </p>
+                  </div>
+
+                  {currentUser?.role === 'SUPER_ADMIN' && (
+                    <div className="w-full sm:w-64">
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1 font-nepali">
+                        संस्था/कार्यालय छनोट:
+                      </label>
+                      <select
+                        value={hierarchyOrg}
+                        onChange={(e) => setHierarchyOrg(e.target.value)}
+                        className="w-full text-xs font-nepali p-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                      >
+                        {Array.from(new Set(users.map(u => u.organizationName).filter(Boolean))).map(orgName => (
+                          <option key={orgName} value={orgName}>{orgName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Explanatory Banner */}
+                <div className="p-4 bg-primary-50/60 border border-primary-100 rounded-2xl flex items-start gap-3">
+                  <Sparkles size={18} className="text-primary-600 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-700 font-nepali leading-relaxed">
+                    <strong className="text-primary-900 font-bold">💡 पदानुक्रम (Hierarchy Order) को महत्त्व: </strong>
+                    यहाँ मिलाइएको क्रम अनुसार <strong>तलबी भरपाई (Talabi Bharpai)</strong>, कर्मचारी विवरण, हाजिरी (Attendance), माग फाराम तथा विभिन्न प्रतिवेदनहरू र दस्तखत गर्ने अधिकारीहरूको सूचीमा कर्मचारीहरू पहिलो, दोस्रो हुँदै सोही क्रममा स्वतः प्रदर्शित हुनेछन्।
+                  </div>
+                </div>
+
+                {/* Hierarchy Toolbar */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="relative flex-1 max-w-xs">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={hierarchySearch}
+                        onChange={(e) => setHierarchySearch(e.target.value)}
+                        placeholder="कर्मचारी खोज्नुहोस्..."
+                        className="w-full pl-8 pr-3 py-1.5 text-xs font-nepali bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 font-nepali whitespace-nowrap bg-white px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+                      कुल कर्मचारी: {targetOfficeUsers.length} जना
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAutoSortHierarchy}
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-colors flex items-center gap-1 font-nepali cursor-pointer"
+                      title="पद, तह तथा भूमिका अनुसार स्वतः पदानुक्रम मिलाउनुहोस्"
+                    >
+                      <Zap size={14} /> पद/तह अनुसार मिलाउने
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSortAlphabetical}
+                      className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 transition-colors flex items-center gap-1 font-nepali cursor-pointer"
+                      title="नामको वर्णानुक्रम अनुसार मिलाउनुहोस्"
+                    >
+                      <ArrowUpDown size={14} /> वर्णानुक्रम (A-Z)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetHierarchy}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-colors flex items-center gap-1 font-nepali cursor-pointer"
+                      title="साविक क्रममा रिसेट गर्नुहोस्"
+                    >
+                      <RotateCcw size={14} /> रिसेट
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveHierarchyOrder}
+                      className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 font-nepali cursor-pointer"
+                    >
+                      <Save size={14} /> पदानुक्रम सुरक्षित गर्नुहोस्
+                    </button>
+                  </div>
+                </div>
+
+                {/* User Hierarchy Reorder List */}
+                <div className="space-y-2">
+                  {targetOfficeUsers.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400 font-nepali border border-dashed border-slate-200 rounded-2xl">
+                      यो कार्यालयमा कुनै प्रयोगकर्ता/कर्मचारी फेला परेन।
+                    </div>
+                  ) : (
+                    targetOfficeUsers
+                      .filter(u => !hierarchySearch.trim() || (u.fullName || '').toLowerCase().includes(hierarchySearch.toLowerCase()) || (u.username || '').toLowerCase().includes(hierarchySearch.toLowerCase()) || (u.designation || '').toLowerCase().includes(hierarchySearch.toLowerCase()))
+                      .map((user, idx) => {
+                        const trueIndex = targetOfficeUsers.findIndex(u => u.id === user.id);
+                        const isFirst = trueIndex === 0;
+                        const isLast = trueIndex === targetOfficeUsers.length - 1;
+                        const isFrozen = user.isFrozen;
+
+                        return (
+                          <div
+                            key={user.id}
+                            className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                              trueIndex === 0
+                                ? 'bg-amber-50/60 border-amber-200 shadow-2xs'
+                                : trueIndex === 1
+                                ? 'bg-slate-50 border-slate-300'
+                                : trueIndex === 2
+                                ? 'bg-orange-50/40 border-orange-200'
+                                : 'bg-white border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {/* Left: Rank & User Info */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {/* Priority Rank Badge */}
+                              <div className="flex flex-col items-center justify-center shrink-0">
+                                <span
+                                  className={`w-8 h-8 rounded-xl font-bold text-xs flex items-center justify-center font-nepali shadow-2xs ${
+                                    trueIndex === 0
+                                      ? 'bg-amber-500 text-white ring-2 ring-amber-300'
+                                      : trueIndex === 1
+                                      ? 'bg-slate-700 text-white'
+                                      : trueIndex === 2
+                                      ? 'bg-orange-600 text-white'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}
+                                  title={`पदानुक्रम क्रम नं. ${trueIndex + 1}`}
+                                >
+                                  #{trueIndex + 1}
+                                </span>
+                              </div>
+
+                              {/* Avatar & Names */}
+                              <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 font-bold flex items-center justify-center text-xs shrink-0 border border-primary-200 uppercase">
+                                {(user.fullName || user.username || 'U').charAt(0)}
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-slate-800 text-sm font-nepali">
+                                    {user.fullName || user.username}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 font-mono">
+                                    (@{user.username})
+                                  </span>
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                    user.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                                    user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                    user.role === 'HEALTH_SECTION' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
+                                    user.role === 'DOCTOR' ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                                    'bg-slate-100 text-slate-700 border border-slate-200'
+                                  }`}>
+                                    {user.role}
+                                  </span>
+                                  {isFrozen && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 font-nepali">
+                                      रोक्का (Frozen)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-500 font-nepali mt-0.5 flex items-center gap-2">
+                                  <span>पद: <strong>{user.designation || 'पद नतोकिएको'}</strong></span>
+                                  {user.phoneNumber && <span>| फोन: {user.phoneNumber}</span>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Sequence Movement Controls */}
+                            <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                              {/* Direct Rank Input */}
+                              <div className="flex items-center gap-1 mr-2">
+                                <span className="text-[11px] text-slate-400 font-nepali">क्रम:</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={targetOfficeUsers.length}
+                                  value={trueIndex + 1}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value, 10);
+                                    if (!isNaN(val)) {
+                                      handleSetUserRank(user.id, val);
+                                    }
+                                  }}
+                                  className="w-12 text-center text-xs font-bold py-1 px-1 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                  title="सिधै क्रम नम्बर राख्नुहोस्"
+                                />
+                              </div>
+
+                              {/* Move Top */}
+                              <button
+                                type="button"
+                                onClick={() => handleMoveUserToTop(user.id)}
+                                disabled={isFirst}
+                                className="p-1.5 rounded-lg border border-slate-200 hover:bg-primary-50 hover:text-primary-700 text-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                title="सबैभन्दा माथि पुर्‍याउनुहोस् (Top)"
+                              >
+                                <ChevronsUp size={15} />
+                              </button>
+
+                              {/* Move Up */}
+                              <button
+                                type="button"
+                                onClick={() => handleMoveUserUp(user.id)}
+                                disabled={isFirst}
+                                className="p-1.5 rounded-lg border border-slate-200 hover:bg-primary-50 hover:text-primary-700 text-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                title="एक तह माथि सार्नुहोस् (Move Up)"
+                              >
+                                <ArrowUp size={15} />
+                              </button>
+
+                              {/* Move Down */}
+                              <button
+                                type="button"
+                                onClick={() => handleMoveUserDown(user.id)}
+                                disabled={isLast}
+                                className="p-1.5 rounded-lg border border-slate-200 hover:bg-primary-50 hover:text-primary-700 text-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                title="एक तह तल सार्नुहोस् (Move Down)"
+                              >
+                                <ArrowDown size={15} />
+                              </button>
+
+                              {/* Move Bottom */}
+                              <button
+                                type="button"
+                                onClick={() => handleMoveUserToBottom(user.id)}
+                                disabled={isLast}
+                                className="p-1.5 rounded-lg border border-slate-200 hover:bg-primary-50 hover:text-primary-700 text-slate-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                                title="सबैभन्दा तल पुर्‍याउनुहोस् (Bottom)"
+                              >
+                                <ChevronsDown size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+
+                {targetOfficeUsers.length > 0 && (
+                  <div className="pt-2 border-t border-slate-100 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleSaveHierarchyOrder}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center gap-2 font-nepali cursor-pointer"
+                    >
+                      <Save size={16} /> पदानुक्रम परिवर्तन सुरक्षित गर्नुहोस्
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 11.2 Report Signing Officers */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2 border-b border-slate-100 pb-3 font-nepali">
+                  <UserCheck size={20} className="text-primary-600"/>
+                  प्रतिवेदन प्रमाणित गर्ने र जिम्मेवार अधिकारी सेटिङ (Report Signing Officers)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali mb-2">
+                  विभिन्न प्रतिवेदनहरूमा स्वतः तयार गर्ने तथा प्रमाणित गर्ने व्यक्तिको नाम छनोट गर्नुहोस्। छनोट सूची पदानुक्रम अनुसार क्रमबद्ध छ।
+                </p>
+                <div className="grid md:grid-cols-2 gap-6 mt-4">
+                  {(() => {
+                    const userOptions = targetOfficeUsers.map(u => ({
+                      id: u.id,
+                      label: `${u.fullName || u.username} (${u.designation || u.role})`,
+                      value: u.id
+                    }));
+
+                    return (
+                      <>
+                        <Select 
+                          label="सेवा बिलिङ प्रतिवेदन तयार गर्ने" 
+                          options={userOptions} 
+                          value={localSettings.sewaBillingUserId || ''} 
+                          onChange={(e) => handleChange('sewaBillingUserId', e.target.value)} 
+                        />
+                        <Select 
+                          label="एम्बुलेन्स सेवा प्रतिवेदन तयार गर्ने" 
+                          options={userOptions} 
+                          value={localSettings.ambulanceSewaUserId || ''} 
+                          onChange={(e) => handleChange('ambulanceSewaUserId', e.target.value)} 
+                        />
+                        <Select 
+                          label="खोप अभियान प्रतिवेदन तयार गर्ने" 
+                          options={userOptions} 
+                          value={localSettings.khopReportPreparerUserId || ''} 
+                          onChange={(e) => handleChange('khopReportPreparerUserId', e.target.value)} 
+                        />
+                        <Select 
+                          label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन तयार गर्ने" 
+                          options={userOptions} 
+                          value={localSettings.vitaminAReportPreparerUserId || ''} 
+                          onChange={(e) => handleChange('vitaminAReportPreparerUserId', e.target.value)} 
+                        />
+                        <Select 
+                          label="भिटामिन ए तथा जुकाको औषधि वितरण प्रतिवेदन प्रमाणित गर्ने" 
+                          options={userOptions} 
+                          value={localSettings.vitaminAReportCertifierUserId || ''} 
+                          onChange={(e) => handleChange('vitaminAReportCertifierUserId', e.target.value)} 
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           )}
 

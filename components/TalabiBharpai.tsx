@@ -17,6 +17,7 @@ import { FISCAL_YEARS } from '../constants';
 import { db } from '../firebase';
 import { ref, onValue, set, push, remove } from 'firebase/database';
 import { getDriverMonthlyIncentive, isAmbulanceDriver, DriverIncentiveResult } from '../lib/ambulanceIncentiveUtils';
+import { sortUsersByHierarchy } from '../lib/userHierarchyUtils';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 
@@ -346,7 +347,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     }
   }, [currentMonthReceipt, selectedFiscalYear, selectedMonthCode]);
 
-  // Relevant Office Users for Quick Import
+  // Relevant Office Users for Quick Import (Sorted by Office Hierarchy)
   const relevantOfficeUsers = useMemo(() => {
     const combined = [...users, ...allUsers];
     const unique = new Map<string, User>();
@@ -355,8 +356,9 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         unique.set(u.id || u.fullName, u);
       }
     });
-    return Array.from(unique.values());
-  }, [users, allUsers, activeOrgName]);
+    const rawList = Array.from(unique.values());
+    return sortUsersByHierarchy(rawList, generalSettings?.userHierarchyOrder);
+  }, [users, allUsers, activeOrgName, generalSettings?.userHierarchyOrder]);
 
   // Helper to Recalculate Employee Item
   const calculateEmployeeNumbers = (data: Partial<SalaryEmployeeItem>): SalaryEmployeeItem => {
@@ -582,7 +584,38 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     });
 
     setEmployeesList(loadedList);
-    setSaveSuccessMessage(`${loadedList.length} जना कर्मचारीको विवरण सफलतापूर्वक लोड गरियो!`);
+    setSaveSuccessMessage(`${loadedList.length} जना कर्मचारीको विवरण पदानुक्रम अनुसार सफलतापूर्वक लोड गरियो!`);
+    setTimeout(() => setSaveSuccessMessage(null), 3500);
+  };
+
+  // Re-sort current month employees according to Office User Hierarchy
+  const handleSortEmployeesByHierarchy = () => {
+    if (employeesList.length === 0) return;
+    const order = generalSettings?.userHierarchyOrder || [];
+    const orderMap = new Map<string, number>();
+    order.forEach((id, idx) => orderMap.set(id, idx));
+
+    const userByNameMap = new Map<string, string>();
+    relevantOfficeUsers.forEach(u => {
+      if (u.fullName) userByNameMap.set(u.fullName.trim().toLowerCase(), u.id);
+    });
+
+    const sorted = [...employeesList].sort((a, b) => {
+      const idA = a.userId || userByNameMap.get((a.employeeName || '').trim().toLowerCase()) || '';
+      const idB = b.userId || userByNameMap.get((b.employeeName || '').trim().toLowerCase()) || '';
+      const hasA = Boolean(idA && orderMap.has(idA));
+      const hasB = Boolean(idB && orderMap.has(idB));
+
+      if (hasA && hasB) {
+        return (orderMap.get(idA)!) - (orderMap.get(idB)!);
+      }
+      if (hasA) return -1;
+      if (hasB) return 1;
+      return (a.employeeName || '').localeCompare(b.employeeName || '', 'ne');
+    });
+
+    setEmployeesList(sorted);
+    setSaveSuccessMessage("कर्मचारीहरूलाई कार्यालय पदानुक्रम (Hierarchy) अनुसार क्रमबद्ध गरियो!");
     setTimeout(() => setSaveSuccessMessage(null), 3500);
   };
 
@@ -1649,10 +1682,19 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 <button
                   onClick={handleAutoLoadEmployees}
                   className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold border border-blue-200 transition-colors flex items-center gap-1.5"
-                  title="कार्यालयका सबै कर्मचारीहरू स्वतः लोड गर्नुहोस्"
+                  title="कार्यालयका सबै कर्मचारीहरू पदानुक्रम अनुसार स्वतः लोड गर्नुहोस्"
                 >
                   <Users size={15} /> कर्मचारी लोड
                 </button>
+                {employeesList.length > 1 && (
+                  <button
+                    onClick={handleSortEmployeesByHierarchy}
+                    className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-200 transition-colors flex items-center gap-1.5"
+                    title="कर्मचारीहरूलाई कार्यालय पदानुक्रम (Hierarchy Order) अनुसार पुन: क्रमबद्ध गर्नुहोस्"
+                  >
+                    <ArrowUpDown size={15} /> पदानुक्रम मिलाउनुहोस्
+                  </button>
+                )}
                 <button
                   onClick={handleCopyFromPreviousMonth}
                   className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold border border-purple-200 transition-colors flex items-center gap-1.5"

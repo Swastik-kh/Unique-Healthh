@@ -217,8 +217,10 @@ export interface OrganizationSettings {
   enableLoginRibbonMessage?: boolean;
   loginRibbonMessage?: string;
 
-  // ===== 11. 👤 जिम्मेवारी तोकिएका प्रयोगकर्ता (User Assignments & Medicine Mappings) =====
+  // ===== 11. 👤 जिम्मेवारी तोकिएका प्रयोगकर्ता तथा पदानुक्रम (User Assignments & Hierarchy) =====
   sewaBillingUserId?: string;
+  userHierarchyOrder?: string[]; // Ordered list of user IDs (highest rank first)
+  userHierarchy?: Array<{ userId: string; order: number; designation?: string }>;
   medicineMappings?: Record<string, string[]>;
   customStandardMedicineNames?: string[];
   menuConfig?: MenuConfigItem[];
