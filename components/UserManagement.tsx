@@ -13,7 +13,7 @@ import axios from 'axios';
 
 /**
  * Checks if a user is frozen directly or via their current active organization/admin hierarchy
- * (including users transferred from one organization to another).
+ * (including users transferred from one organization to another or whose office admin is frozen).
  */
 export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean => {
   if (!user) return false;
@@ -23,13 +23,14 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
   // 1. Direct freeze
   if (user.isFrozen) return true;
 
-  // 2. Check current organization's Admin / Health Section (transferred hierarchy)
-  const currentOrgAdmin = allUsers.find(u => 
+  // 2. Check current office/organization's Admin / Health Section users
+  // If ANY admin in the same office is frozen, all other users in that office are automatically frozen
+  const orgAdmins = allUsers.filter(u => 
     u.organizationName === user.organizationName && 
     (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
     u.id !== user.id
   );
-  if (currentOrgAdmin && currentOrgAdmin.isFrozen) {
+  if (orgAdmins.some(admin => admin.isFrozen)) {
     return true;
   }
 
@@ -43,7 +44,7 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
     if (parent) {
       if (parent.isFrozen) {
         // If user transferred to a different org that has its own different admin, don't inherit old parent's freeze
-        if (currentOrgAdmin && currentOrgAdmin.id !== parent.id && parent.organizationName !== user.organizationName) {
+        if (orgAdmins.length > 0 && parent.organizationName !== user.organizationName) {
           break;
         }
         return true;
@@ -61,8 +62,8 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
 /**
  * Finds all subordinate users under a given target user based on current active hierarchy:
  * 1. For SUPER_ADMIN: All non-superadmin users
- * 2. For ADMIN / HEALTH_SECTION: All users currently belonging to this organization (including transferred users),
- *    plus any direct/indirect child users who haven't transferred to a different admin's org.
+ * 2. For ADMIN / HEALTH_SECTION: All users currently belonging to this office/organization,
+ *    plus any direct/indirect child users across the hierarchy.
  */
 export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] => {
   if (!targetUser || !allUsers || allUsers.length === 0) return [];
@@ -74,7 +75,7 @@ export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] 
   }
 
   // 1. For ADMIN or HEALTH_SECTION users:
-  // All users currently belonging to targetUser's organization (transferred into or originally in this org)
+  // ALL users belonging to this office/organization must be included as subordinates
   if (targetUser.role === 'ADMIN' || targetUser.role === 'HEALTH_SECTION') {
     const orgUsers = allUsers.filter(u => 
       u.organizationName === targetUser.organizationName && 
@@ -90,7 +91,6 @@ export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] 
   }
 
   // 2. Traverse parentId chain (direct and indirect descendants)
-  // If a child was transferred to a different organization that has its own different admin, they follow that new admin
   const queue = [targetUser.id];
   while (queue.length > 0) {
     const currentParentId = queue.shift()!;
@@ -1507,9 +1507,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                               (currentUser.role === 'ADMIN' && user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN' && user.organizationName === currentUser.organizationName) || 
                                               (currentUser.role === 'HEALTH_SECTION' && user.parentId === currentUser.id);
                         const isSysManager = isSystemManagerUser(user);
+                        const isEffectiveFrozen = isUserFrozenInHierarchy(user, users);
 
                         return (
-                            <tr key={user.id} className={`hover:bg-slate-50 ${user.isFrozen ? 'bg-red-50/20' : ''}`}>
+                            <tr key={user.id} className={`hover:bg-slate-50 ${isEffectiveFrozen ? 'bg-red-50/30' : ''}`}>
                                 <td className="px-6 py-4">
                                     <div>
                                         <div className="flex items-center gap-2">
@@ -1517,6 +1518,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                             {user.isFrozen ? (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200">
                                                     <Lock size={10} /> खाता फ्रिज
+                                                </span>
+                                            ) : isEffectiveFrozen ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200" title="कार्यालयको एडमिन खाता फ्रिज भएकाले यो खाता पनि स्वतः रोक्का गरिएको छ">
+                                                    <Lock size={10} /> एडमिन फ्रिज (स्वतः रोक्का)
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -1527,7 +1532,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                         <p className="text-xs text-slate-400">@{user.username}</p>
                                         {(user.role === 'ADMIN' || user.role === 'HEALTH_SECTION' || subordinates.length > 0) && (
                                             <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="यो खाता मातहत रहेका सबै प्रयोगकर्ताहरू">
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200" title="यो कार्यालय/खाता मातहत रहेका सबै प्रयोगकर्ताहरू">
                                                     <Users size={10} />
                                                     मातहत प्रयोगकर्ता: {subordinates.length}{user.maxUsersAllowed !== undefined && user.role === 'ADMIN' ? ` / सीमा: ${user.maxUsersAllowed}` : ''}
                                                 </span>
@@ -1586,16 +1591,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                             onClick={async () => {
                                                 const willFreeze = !user.isFrozen;
                                                 const action = willFreeze ? 'फ्रिज' : 'अनफ्रिज';
+                                                const isAdminType = user.role === 'ADMIN' || user.role === 'HEALTH_SECTION';
                                                 
                                                 let confirmMsg = '';
                                                 if (willFreeze) {
-                                                    if (subordinates.length > 0) {
-                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यी कुनै पनि प्रयोगकर्ता प्रणालीमा लगइन गर्न सक्ने छैनन्।`;
+                                                    if (isAdminType && subordinates.length > 0) {
+                                                        confirmMsg = `के तपाईं कार्यालय "${user.organizationName}" का एडमिन "${user.fullName}" (@${user.username}) र यस कार्यालय मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nएडमिन फ्रिज भएपछि उक्त कार्यालय मातहतका सम्पूर्ण प्रयोगकर्ताहरू स्वतः फ्रिज हुनेछन् र कसैले पनि लगइन गर्न पाउने छैनन्।`;
+                                                    } else if (subordinates.length > 0) {
+                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यी सबै प्रयोगकर्ता प्रणालीमा लगइन गर्न सक्ने छैनन्।`;
                                                     } else {
                                                         confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यो खाताबाट लगइन गर्न मिल्ने छैन।`;
                                                     }
                                                 } else {
-                                                    if (subordinates.length > 0) {
+                                                    if (isAdminType && subordinates.length > 0) {
+                                                        confirmMsg = `के तपाईं कार्यालय "${user.organizationName}" का एडमिन "${user.fullName}" (@${user.username}) र यस कार्यालय मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई अनफ्रिज गर्न चाहनुहुन्छ?`;
+                                                    } else if (subordinates.length > 0) {
                                                         confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई अनफ्रिज गर्न चाहनुहुन्छ?`;
                                                     } else {
                                                         confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई अनफ्रिज गर्न चाहनुहुन्छ?`;
@@ -1607,21 +1617,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                                         // 1. Update the target user
                                                         await onUpdateUser({ ...user, isFrozen: willFreeze });
                                                         
-                                                        // 2. Cascade update to all subordinates
+                                                        // 2. Cascade update to all subordinates in the office
                                                         if (subordinates.length > 0) {
                                                             await Promise.all(
                                                                 subordinates.map(sub => onUpdateUser({ ...sub, isFrozen: willFreeze }))
                                                             );
                                                         }
                                                         
-                                                        alert(`प्रयोगकर्ता "${user.fullName}" ${subordinates.length > 0 ? `र मातहतका ${subordinates.length} जना प्रयोगकर्ताहरू` : ''} सफलतापूर्वक ${action} गरियो।`);
+                                                        alert(`प्रयोगकर्ता "${user.fullName}" ${subordinates.length > 0 ? `र यस कार्यालय/मातहतका ${subordinates.length} जना प्रयोगकर्ताहरू` : ''} सफलतापूर्वक ${action} गरियो।`);
                                                     } catch (err: any) {
                                                         alert(`त्रुटि: ${action} गर्न सकिएन। (${err.message || 'त्रुटि'})`);
                                                     }
                                                 }
                                             }} 
                                             className={`${user.isFrozen ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 bg-emerald-50/50' : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50 bg-amber-50/50'} p-1.5 rounded-full border ${user.isFrozen ? 'border-emerald-200' : 'border-amber-200'} transition-colors`}
-                                            title={user.isFrozen ? 'अनफ्रिज गर्नुहोस् (मातहतका सबै प्रयोगकर्ता सहित)' : 'फ्रिज गर्नुहोस् (मातहतका सबै प्रयोगकर्ता सहित)'}
+                                            title={user.isFrozen ? 'अनफ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)' : 'फ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)'}
                                         >
                                             {user.isFrozen ? <Unlock size={17}/> : <Lock size={17}/>}
                                         </button>
