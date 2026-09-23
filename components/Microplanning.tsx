@@ -560,6 +560,11 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
       if (r.vaccinationCenter) {
         recordCenters.add(r.vaccinationCenter);
       }
+      r.vaccines?.forEach((v: any) => {
+        if (v.vaccinationCenter) {
+          recordCenters.add(v.vaccinationCenter);
+        }
+      });
     });
     return Array.from(new Set([...settingsCenters, ...Array.from(recordCenters)]));
   }, [generalSettings, localBachhaRecords]);
@@ -588,21 +593,21 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     localBachhaRecords
       .filter(r => r.fiscalYear === selectedFiscalYear)
       .forEach(record => {
-        const cName = record.vaccinationCenter || centersList[0] || 'मुख्य अस्पताल';
-        if (!data[cName]) {
-          data[cName] = {
-            target_0_11: 0, target_12_23: 0, target_pregnant: 0,
-            bcg: 0, rota1: 0, rota2: 0, opv1: 0, opv2: 0, opv3: 0,
-            fipv1: 0, fipv2: 0, pcv1: 0, pcv2: 0, pcv3: 0,
-            dpt1: 0, dpt2: 0, dpt3: 0, mr1: 0, mr2: 0, typhoid: 0, je: 0,
-            class6_boys: 0, class6_out_girls: 0, class6_in_girls: 0,
-            td1: 0, td2: 0, td_booster: 0,
-          };
-        }
-
         const gender = (record.gender || '').toLowerCase();
         record.vaccines?.forEach((v: any) => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            const cName = v.vaccinationCenter || record.vaccinationCenter || centersList[0] || 'मुख्य अस्पताल';
+            if (!data[cName]) {
+              data[cName] = {
+                target_0_11: 0, target_12_23: 0, target_pregnant: 0,
+                bcg: 0, rota1: 0, rota2: 0, opv1: 0, opv2: 0, opv3: 0,
+                fipv1: 0, fipv2: 0, pcv1: 0, pcv2: 0, pcv3: 0,
+                dpt1: 0, dpt2: 0, dpt3: 0, mr1: 0, mr2: 0, typhoid: 0, je: 0,
+                class6_boys: 0, class6_out_girls: 0, class6_in_girls: 0,
+                td1: 0, td2: 0, td_booster: 0,
+              };
+            }
+
             const nameLower = (v.name || v.vaccineName || '').toLowerCase();
             if (nameLower.includes('bcg')) {
               data[cName].bcg++;

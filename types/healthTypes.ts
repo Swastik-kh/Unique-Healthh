@@ -143,6 +143,7 @@ export interface ChildImmunizationVaccine {
   givenDateAd?: string | null;
   status: 'Pending' | 'Given' | 'Missed';
   vaccinatedElsewhere?: boolean;
+  vaccinationCenter?: string; // खोप लगाइएको खोप केन्द्र
   givenBy?: string;
 }
 

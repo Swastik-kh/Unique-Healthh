@@ -104,13 +104,58 @@ export const ReportingStatusReport: React.FC<ReportingStatusReportProps> = ({
   const immClinicStats = useMemo(() => {
     // 1. Total service seekers
     const totalSeekers = filteredImmRecords.length;
+    const targetMonth = parseInt(selectedMonth, 10);
+    const parsedSelected = parseNepaliDateString(selectedDate);
+    const targetYear = parsedSelected ? parsedSelected.year : null;
 
     // 2. Operated clinics (unique date + center)
-    const operatedClinics = new Set();
-    filteredImmRecords.forEach(r => {
-        if (r.date && r.vaccinationCenter) {
+    const operatedClinics = new Set<string>();
+    (bachhaImmunizationRecords || []).forEach((r: any) => {
+      // Check each administered dose
+      if (Array.isArray(r.vaccines)) {
+        r.vaccines.forEach((v: any) => {
+          if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            const parsed = parseNepaliDateString(v.givenDateBs);
+            if (!parsed) return;
+            let matches = false;
+            if (reportType === 'FiscalYear') {
+              matches = r.fiscalYear === currentFiscalYear;
+            } else if (reportType === 'Monthly') {
+              matches = parsed.month === targetMonth && parsed.year === targetYear;
+            } else {
+              matches = !!parsedSelected && parsed.year === parsedSelected.year &&
+                        parsed.month === parsedSelected.month &&
+                        parsed.day === parsedSelected.day;
+            }
+            if (matches) {
+              const centerName = v.vaccinationCenter || r.vaccinationCenter;
+              if (centerName) {
+                operatedClinics.add(`${v.givenDateBs}_${centerName}`);
+              }
+            }
+          }
+        });
+      }
+
+      // Fallback for record registration date/center
+      if (r.date && r.vaccinationCenter) {
+        const parsed = parseNepaliDateString(r.date);
+        if (parsed) {
+          let matches = false;
+          if (reportType === 'FiscalYear') {
+            matches = r.fiscalYear === currentFiscalYear;
+          } else if (reportType === 'Monthly') {
+            matches = parsed.month === targetMonth && parsed.year === targetYear;
+          } else {
+            matches = !!parsedSelected && parsed.year === parsedSelected.year &&
+                      parsed.month === parsedSelected.month &&
+                      parsed.day === parsedSelected.day;
+          }
+          if (matches) {
             operatedClinics.add(`${r.date}_${r.vaccinationCenter}`);
+          }
         }
+      }
     });
 
     // 3. Planned clinics

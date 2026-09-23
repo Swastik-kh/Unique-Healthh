@@ -431,6 +431,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
   const [selectedChildForCard, setSelectedChildForCard] = useState<ChildImmunizationRecord | null>(null);
   const [modalGivenDateBs, setModalGivenDateBs] = useState('');
   const [modalVaccinatedElsewhere, setModalVaccinatedElsewhere] = useState(false);
+  const [modalVaccinationCenter, setModalVaccinationCenter] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const getTodayAd = () => toLocalISO(new Date());
@@ -782,12 +783,28 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
       if (currentVaccine) {
         setModalGivenDateBs(currentVaccine.givenDateBs || getTodayBs());
         setModalVaccinatedElsewhere(!!currentVaccine.vaccinatedElsewhere);
+
+        // Calculate default vaccination center:
+        // a. If this vaccine was already given with a specific center, use it
+        // b. Else if child had any previously given dose with a center, use the most recent
+        // c. Else use child's registration vaccinationCenter
+        // d. Else fallback to first center in settings or 'मुख्य अस्पताल'
+        let defaultCenter = currentVaccine.vaccinationCenter;
+        if (!defaultCenter) {
+          const prevGivenWithCenter = (record.vaccines || [])
+            .slice()
+            .reverse()
+            .find(v => v.status === 'Given' && v.vaccinationCenter && !v.vaccinatedElsewhere);
+          defaultCenter = prevGivenWithCenter?.vaccinationCenter || record.vaccinationCenter || (generalSettings.vaccinationCenters?.[0] || 'मुख्य अस्पताल');
+        }
+        setModalVaccinationCenter(defaultCenter || (generalSettings.vaccinationCenters?.[0] || 'मुख्य अस्पताल'));
       }
     } else {
       setModalGivenDateBs('');
       setModalVaccinatedElsewhere(false);
+      setModalVaccinationCenter('');
     }
-  }, [selectedVaccineForUpdate]);
+  }, [selectedVaccineForUpdate, generalSettings.vaccinationCenters]);
 
   const centerOptions: Option[] = (generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map(c => ({ id: c, value: c, label: c }));
 
@@ -944,7 +961,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 givenDateAd, 
                 givenDateBs, 
                 status: 'Given',
-                vaccinatedElsewhere: justGivenVaccine.vaccinatedElsewhere
+                vaccinatedElsewhere: justGivenVaccine.vaccinatedElsewhere,
+                vaccinationCenter: justGivenVaccine.vaccinationCenter
             });
         }
     }
@@ -1203,7 +1221,13 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     setSuccessMessage(null); // Clear success message on reset
   };
 
-  const handleFormVaccineChange = (vaccineName: string, status: 'Given' | 'Pending', givenDateBs: string, vaccinatedElsewhere?: boolean) => {
+  const handleFormVaccineChange = (
+    vaccineName: string, 
+    status: 'Given' | 'Pending', 
+    givenDateBs: string, 
+    vaccinatedElsewhere?: boolean,
+    vaccinationCenter?: string
+  ) => {
     let givenDateAd: string | null = null;
     if (status === 'Given' && givenDateBs) {
       try {
@@ -1215,17 +1239,21 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
     }
 
     const currentVaccines = formData.vaccines || [];
-    
     const userName = currentUser?.fullName || currentUser?.username || 'System';
+    const isElsewhere = vaccinatedElsewhere !== undefined ? vaccinatedElsewhere : false;
+    const defaultCenter = vaccinationCenter || formData.vaccinationCenter || (generalSettings.vaccinationCenters?.[0] || 'मुख्य अस्पताल');
+
     // Map existing vaccines to update status and vaccinatedElsewhere for the target vaccine
     const targetVaccines = currentVaccines.map(v => {
       if (v.name === vaccineName) {
+        const center = isElsewhere ? undefined : (vaccinationCenter || v.vaccinationCenter || defaultCenter);
         return {
           ...v,
           status,
           givenDateBs: status === 'Given' ? givenDateBs : null,
           givenDateAd: status === 'Given' ? givenDateAd : null,
           vaccinatedElsewhere: status === 'Given' ? (vaccinatedElsewhere !== undefined ? vaccinatedElsewhere : !!v.vaccinatedElsewhere) : undefined,
+          vaccinationCenter: status === 'Given' ? center : undefined,
           givenBy: status === 'Given' ? (v.givenBy || userName) : undefined
         };
       }
@@ -1251,7 +1279,8 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           status: 'Pending',
           givenDateAd: null,
           givenDateBs: null,
-          vaccinatedElsewhere: undefined
+          vaccinatedElsewhere: undefined,
+          vaccinationCenter: undefined
         };
       }
       // Recalculate without any newly marked dose
@@ -1289,6 +1318,11 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
         alert("कृपया खोप दिएको मिति भर्नुहोस्।");
         return;
     }
+
+    if (!modalVaccinatedElsewhere && !modalVaccinationCenter.trim()) {
+        alert("कृपया खोप केन्द्र छनोट गर्नुहोस् (Please select Vaccination Center)।");
+        return;
+    }
     
     const nd = new NepaliDate(modalGivenDateBs);
     const givenDateAd = toLocalISO(nd.toJsDate());
@@ -1319,6 +1353,7 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                 givenDateAd,
                 givenDateBs: modalGivenDateBs,
                 vaccinatedElsewhere: modalVaccinatedElsewhere,
+                vaccinationCenter: modalVaccinatedElsewhere ? undefined : modalVaccinationCenter.trim(),
                 givenBy: v.givenBy || userName
             };
         }
@@ -1354,9 +1389,10 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
           return {
             ...v,
             status: 'Pending' as const,
-            givenDateAd: undefined,
-            givenDateBs: undefined,
-            vaccinatedElsewhere: undefined
+            givenDateAd: null,
+            givenDateBs: null,
+            vaccinatedElsewhere: undefined,
+            vaccinationCenter: undefined
           };
         }
         return v;
@@ -1861,6 +1897,22 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                       अन्यत्र लगाएको (Vaccinated Elsewhere)
                                     </label>
                                   </div>
+
+                                  {!v.vaccinatedElsewhere && (
+                                    <div className="mt-2 flex flex-col gap-1">
+                                      <label className="text-[9px] font-bold text-slate-500 font-nepali">खोप केन्द्र (Vaccination Center):</label>
+                                      <select
+                                        value={v.vaccinationCenter || formData.vaccinationCenter || (generalSettings.vaccinationCenters?.[0] || "मुख्य अस्पताल")}
+                                        disabled={isAlreadySavedAsGiven}
+                                        onChange={(e) => handleFormVaccineChange(v.name, "Given", v.givenDateBs || "", v.vaccinatedElsewhere, e.target.value)}
+                                        className="w-full text-[11px] font-nepali p-1.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-60"
+                                      >
+                                        {(generalSettings.vaccinationCenters || ["मुख्य अस्पताल"]).map(c => (
+                                          <option key={c} value={c}>{c}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -2119,8 +2171,15 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                                             <div className="flex flex-col text-[7px] font-normal leading-tight">
                                                 <span className="flex items-center gap-0.5 opacity-70"><CalendarClock size={7}/> {getEffectiveVaccineScheduledBs(record, v)}</span>
                                                 {v.givenDateBs && (
-                                                  <span className={`flex items-center gap-0.5 font-bold ${isGivenToday ? 'text-emerald-900' : 'text-green-700'}`}>
-                                                    <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                  <span className={`flex flex-col gap-0.5 items-center font-bold ${isGivenToday ? 'text-emerald-900' : 'text-green-700'}`}>
+                                                    <span className="flex items-center gap-0.5">
+                                                      <CheckCircle2 size={7}/> {v.givenDateBs} {v.vaccinatedElsewhere && <span className="text-[6px] text-amber-800 bg-amber-50 px-0.5 rounded border border-amber-100 font-nepali">अन्यत्र</span>}
+                                                    </span>
+                                                    {v.vaccinationCenter && !v.vaccinatedElsewhere && (
+                                                      <span className="text-[6px] text-blue-700 bg-blue-50 px-1 rounded border border-blue-100 font-nepali font-semibold truncate max-w-[85px]" title={`खोप केन्द्र: ${v.vaccinationCenter}`}>
+                                                        {v.vaccinationCenter}
+                                                      </span>
+                                                    )}
                                                   </span>
                                                 )}
                                             </div>
@@ -2223,6 +2282,29 @@ export const ChildImmunizationRegistration: React.FC<ChildImmunizationRegistrati
                               अन्यत्र लगाएको (Vaccinated Elsewhere)
                             </label>
                         </div>
+
+                        {!modalVaccinatedElsewhere ? (
+                          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                            <label className="text-xs font-bold text-slate-700 font-nepali flex items-center justify-between">
+                              <span>खोप केन्द्र (Vaccination Center) <span className="text-red-500">*</span></span>
+                              <span className="text-[10px] text-slate-400 font-normal">(डिफल्ट: दर्ता केन्द्र)</span>
+                            </label>
+                            <select
+                              value={modalVaccinationCenter}
+                              onChange={(e) => setModalVaccinationCenter(e.target.value)}
+                              className="w-full text-xs font-nepali p-2.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-bold text-slate-800"
+                              required
+                            >
+                              {(generalSettings.vaccinationCenters || ['मुख्य अस्पताल']).map((center) => (
+                                <option key={center} value={center}>{center}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-nepali">
+                            अन्यत्र (बाहिरको संस्था) मा लगाइएको खोप हाम्रो खोप केन्द्रको रिपोर्ट डोज गणनामा समावेश हुँदैन।
+                          </div>
+                        )}
                     </div>
 
                     {/* Option to Reset to Unvaccinated / Pending if already Given */}

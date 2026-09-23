@@ -240,20 +240,22 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
   const childrenDetailsThisMonth = useMemo(() => {
     return bachhaRecords
-      .filter(r => matchesVaccinationCenter(r.vaccinationCenter, filterCenter, defaultCenter, r.remarks, r.address))
       .map((record) => {
         const vaccinesGiven: string[] = [];
         let hasVaccineThisMonth = false;
 
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            const matchesCenter = matchesVaccinationCenter(v.vaccinationCenter || record.vaccinationCenter, filterCenter, defaultCenter, record.remarks, record.address);
+            if (!matchesCenter) return;
+
             const m = getMonthFromBsDate(v.givenDateBs);
             const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
             if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
               if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
                 hasVaccineThisMonth = true;
-                vaccinesGiven.push(v.name);
+                vaccinesGiven.push(v.vaccinationCenter && v.vaccinationCenter !== record.vaccinationCenter ? `${v.name} (${v.vaccinationCenter})` : v.name);
               }
             }
           }
@@ -524,10 +526,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
       const vaxCounts: Record<string, number> = {};
 
       bachhaRecords.forEach(record => {
-        if (!matchesVaccinationCenter(record.vaccinationCenter, filterCenter, defaultCenter, record.remarks, record.address)) return;
-        
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            if (!matchesVaccinationCenter(v.vaccinationCenter || record.vaccinationCenter, filterCenter, defaultCenter, record.remarks, record.address)) return;
+
             const vm = getMonthFromBsDate(v.givenDateBs);
             const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             if (vm === m.id && matchesFY) {
@@ -608,7 +610,6 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
     };
 
     bachhaRecords
-      .filter(r => matchesVaccinationCenter(r.vaccinationCenter, filterCenter, defaultCenter, r.remarks, r.address)) // Filter by center
       .forEach(record => {
         let isFullyImmunized = false;
         let lastVaccineMonth = '';
@@ -725,6 +726,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
         record.vaccines.forEach(v => {
           if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
+            if (!matchesVaccinationCenter(v.vaccinationCenter || record.vaccinationCenter, filterCenter, defaultCenter, record.remarks, record.address)) return;
+
             const m = getMonthFromBsDate(v.givenDateBs);
             const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
