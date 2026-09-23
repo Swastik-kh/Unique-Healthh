@@ -109,6 +109,8 @@ export interface TBPatient {
   interFacilityRequests?: InterFacilityRequest[];
   intensivePhaseExtensionDays?: number;
   continuationPhaseExtensionDays?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface GarbhawatiPatient {

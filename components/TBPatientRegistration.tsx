@@ -4,7 +4,7 @@ import {
   Save, RotateCcw, Activity, UserPlus, List, Phone, MapPin, 
   Calendar, FileDigit, User as UserIcon, Stethoscope, Users, TrendingUp, 
   FlaskConical, AlertCircle, X, ChevronRight, Microscope, 
-  CheckCircle2, Eye, Search, ClipboardList, History, Clock, Trash2, Pencil, Scale, Pill, MoreVertical
+  CheckCircle2, Eye, Search, ClipboardList, History, Clock, Trash2, Pencil, Scale, Pill, MoreVertical, ExternalLink
 } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
@@ -15,6 +15,8 @@ import { InventoryItem } from '../types/inventoryTypes';
 import { calculatePatientRequirements, MedicineRequirement, checkDefaulter } from '../lib/medicineUtils';
 import { MedicineStatusReport } from './MedicineStatusReport';
 import { TBTreatmentCard } from './TBTreatmentCard';
+import { PatientMapView } from './PatientMapView';
+import { PatientLocationPickerModal } from './PatientLocationPickerModal';
 
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -102,6 +104,11 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   const [showMedicineStatusModal, setShowMedicineStatusModal] = useState(false);
   const [showTreatmentCardModal, setShowTreatmentCardModal] = useState(false);
   const [selectedPatientForTreatmentCard, setSelectedPatientForTreatmentCard] = useState<TBPatient | null>(null);
+
+  // Map and Location Picker State
+  const [showPatientMap, setShowPatientMap] = useState(false);
+  const [selectedPatientForLocationPicker, setSelectedPatientForLocationPicker] = useState<TBPatient | null>(null);
+  const [showPickerForFormData, setShowPickerForFormData] = useState(false);
 
   // Filter Palikas (Users with role ADMIN or SUPER_ADMIN)
   const palikaOptions = useMemo(() => {
@@ -946,9 +953,20 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
             </div>
         </div>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner">
-            <button onClick={() => setActiveTab('TB')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'TB' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}>क्षयरोग (TB)</button>
-            <button onClick={() => setActiveTab('Leprosy')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'Leprosy' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}>कुष्ठरोग (Leprosy)</button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowPatientMap(true)}
+            className="px-4 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-indigo-600 hover:from-red-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold font-nepali transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+          >
+            <MapPin size={18} />
+            <span>बिरामी नक्सा (Patient Map View)</span>
+          </button>
+
+          <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner">
+              <button onClick={() => setActiveTab('TB')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'TB' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}>क्षयरोग (TB)</button>
+              <button onClick={() => setActiveTab('Leprosy')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'Leprosy' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}>कुष्ठरोग (Leprosy)</button>
+          </div>
         </div>
       </div>
 
@@ -1130,6 +1148,60 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
             <Input label="ठेगाना" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} required icon={<MapPin size={18}/>} disabled={isLocked} />
 
+            {/* Latitude & Longitude location capture fields */}
+            <div className="md:col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-xs font-bold text-slate-800 font-nepali flex items-center gap-1.5">
+                  <MapPin size={16} className="text-red-500" />
+                  <span>बिरामीको घर/स्थान लोकेसन (GPS Coordinates)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPickerForFormData(true)}
+                  disabled={isLocked}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold font-nepali rounded-lg transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <MapPin size={14} />
+                  <span>नक्सामा रोज्नुहोस् (Pick on Map)</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="अक्षांश (Latitude)"
+                  type="number"
+                  step="any"
+                  placeholder="उदा: 27.7172"
+                  value={formData.latitude !== undefined && formData.latitude !== null ? formData.latitude.toString() : ''}
+                  onChange={e => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={isLocked}
+                />
+                <Input
+                  label="देशान्तर (Longitude)"
+                  type="number"
+                  step="any"
+                  placeholder="उदा: 85.3240"
+                  value={formData.longitude !== undefined && formData.longitude !== null ? formData.longitude.toString() : ''}
+                  onChange={e => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  disabled={isLocked}
+                />
+              </div>
+
+              {typeof formData.latitude === 'number' && typeof formData.longitude === 'number' && (
+                <div className="text-xs text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-nepali font-semibold flex flex-wrap items-center justify-between gap-2">
+                  <span>लोकेसन सुरक्षित हुन तयार: <b>Lat: {formData.latitude}, Lng: {formData.longitude}</b></span>
+                  <a
+                    href={`https://www.google.com/maps?q=${formData.latitude},${formData.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:underline flex items-center gap-1 text-[11px]"
+                  >
+                    <ExternalLink size={12} /> Google Maps मा हेर्नुहोस्
+                  </a>
+                </div>
+              )}
+            </div>
+
             <Select label="दर्ता प्रकार" options={regTypes} value={formData.regType} onChange={e => setFormData({...formData, regType: e.target.value})} required icon={<List size={18}/>} disabled={isLocked} />
 
             {activeTab === 'TB' ? (
@@ -1306,6 +1378,28 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                           <td className="px-6 py-4 cursor-pointer hover:bg-slate-100" onClick={() => setSelectedPatientForDetails(p)}>
                               <div className="font-bold text-slate-800">{p.name}</div>
                               <div className="text-[10px] text-slate-400">{p.age} Yrs | {p.address} | {p.phone}</div>
+                              {typeof p.latitude === 'number' && typeof p.longitude === 'number' ? (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 font-nepali">
+                                    <MapPin size={10} className="text-emerald-600" />
+                                    <span>Lat: {p.latitude}, Lng: {p.longitude}</span>
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPatientForLocationPicker(p);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 font-nepali transition-all"
+                                  >
+                                    <MapPin size={10} className="text-amber-600" />
+                                    <span>+ लोकेसन थप्नुहोस् (Set GPS)</span>
+                                  </button>
+                                </div>
+                              )}
                           </td>
                           <td className="px-6 py-4">
                               <span className="px-2 py-0.5 rounded text-[10px] font-black border bg-slate-50 text-slate-700 border-slate-200">
@@ -1395,6 +1489,12 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                                   </button>
                                                 </>
                                               )}
+                                              <button onClick={() => {
+                                                  setSelectedPatientForLocationPicker(p);
+                                                  setActiveMenuPatientId(null);
+                                              }} className="w-full text-left px-4 py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 flex items-center gap-2">
+                                                  <MapPin size={14}/> लोकेसन सेट/फेर्नुहोस्
+                                              </button>
                                               <div className="border-t my-1"></div>
                                               <button onClick={() => {
                                                   handleDeletePatient(p.id, p.name);
@@ -1692,6 +1792,44 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                       <p><strong>उमेर:</strong> {selectedPatientForDetails.age}</p>
                       <p><strong>ठेगाना:</strong> {selectedPatientForDetails.address}</p>
                       <p><strong>फोन नं:</strong> {selectedPatientForDetails.phone}</p>
+                      
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs font-nepali">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                            <MapPin size={15} className="text-red-500" />
+                            <span>घरको नक्सा लोकेसन (GPS Coordinates):</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedPatientForLocationPicker(selectedPatientForDetails);
+                              setSelectedPatientForDetails(null);
+                            }}
+                            className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-[11px] transition-all flex items-center gap-1"
+                          >
+                            <MapPin size={12} /> सम्पादन गर्नुहोस्
+                          </button>
+                        </div>
+                        {typeof selectedPatientForDetails.latitude === 'number' && typeof selectedPatientForDetails.longitude === 'number' ? (
+                          <div className="flex items-center justify-between gap-2 text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200 font-semibold">
+                            <span>Lat: <b>{selectedPatientForDetails.latitude}</b>, Lng: <b>{selectedPatientForDetails.longitude}</b></span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowPatientMap(true);
+                                setSelectedPatientForDetails(null);
+                              }}
+                              className="text-blue-600 hover:underline font-bold flex items-center gap-1 text-[11px]"
+                            >
+                              नक्सामा हेर्नुहोस्
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200 text-[11px]">
+                            स्थान सेट गरिएको छैन (Location not set)। "सम्पादन गर्नुहोस्" मा थिचेर सेट गर्नुहोस्।
+                          </div>
+                        )}
+                      </div>
                       <p><strong>दर्ता मिति:</strong> {selectedPatientForDetails.registrationDate}</p>
                       <p><strong>उपचार सुरु गरेको मिति:</strong> {selectedPatientForDetails.treatmentStartDate || '-'}</p>
                       <div className="flex items-center gap-2">
@@ -2044,6 +2182,60 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Patient Map View Modal */}
+      {showPatientMap && (
+        <PatientMapView
+          patients={patients}
+          initialServiceType={activeTab}
+          onSelectPatientDetails={(p) => {
+            setShowPatientMap(false);
+            setSelectedPatientForDetails(p);
+          }}
+          onEditPatientLocation={(p) => {
+            setSelectedPatientForLocationPicker(p);
+          }}
+          onClose={() => setShowPatientMap(false)}
+        />
+      )}
+
+      {/* Location Picker Modal for Patient List Selection */}
+      {selectedPatientForLocationPicker && (
+        <PatientLocationPickerModal
+          initialLat={selectedPatientForLocationPicker.latitude}
+          initialLng={selectedPatientForLocationPicker.longitude}
+          patientName={selectedPatientForLocationPicker.name}
+          onSave={(lat, lng) => {
+            const updatedPatient = JSON.parse(JSON.stringify({
+              ...selectedPatientForLocationPicker,
+              latitude: lat,
+              longitude: lng
+            }));
+            onUpdatePatient(updatedPatient);
+            setSelectedPatientForLocationPicker(null);
+            alert(`बिरामी ${selectedPatientForLocationPicker.name} को घरको लोकेसन सुरक्षित भयो!`);
+          }}
+          onClose={() => setSelectedPatientForLocationPicker(null)}
+        />
+      )}
+
+      {/* Location Picker Modal for Form Data */}
+      {showPickerForFormData && (
+        <PatientLocationPickerModal
+          initialLat={formData.latitude}
+          initialLng={formData.longitude}
+          patientName={formData.name || 'नयाँ बिरामी'}
+          onSave={(lat, lng) => {
+            setFormData(prev => ({
+              ...prev,
+              latitude: lat,
+              longitude: lng
+            }));
+            setShowPickerForFormData(false);
+          }}
+          onClose={() => setShowPickerForFormData(false)}
+        />
       )}
     </div>
   );
