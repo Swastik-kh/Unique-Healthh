@@ -127,6 +127,7 @@ export interface ConferenceMessage {
 }
 
 export interface OrganizationSettings {
+  // ===== 1. 🏢 संस्था आधारभूत जानकारी (Basic Organization Info) =====
   orgNameNepali: string;
   orgNameEnglish: string;
   subTitleNepali: string;
@@ -144,40 +145,55 @@ export interface OrganizationSettings {
   enableEnglishDate: string;
   logoUrl: string;
   provinceLogoUrl?: string;
-  ambulancePhone?: string; // Added field
+  availableServices?: string[];
+  allServiceOptions?: string[]; // Master list of services
+
+  // ===== 2. 🚑 एम्बुलेन्स सेवा सेटिङ (Ambulance Service & Fare) =====
+  ambulancePhone?: string;
   ambulanceNo?: string;
   ambulanceDriverName?: string;
-  ambulanceRoutes?: string[]; // stored as "From|To|Rate"
+  ambulanceRoutes?: string[]; // stored as "From|To|Rate" or "From|To|Rate|Distance"
+  ambulanceSewaUserId?: string;
   ambulanceDriverIncentivePercent?: number; // default 15
   ambulanceProtsahanTdsPercent?: number; // default 15
-  availableServices?: string[];
-  allServiceOptions?: string[]; // Added for managing master list of services
-  vaccinationSessions?: number[]; 
-  vaccinationCenters?: string[]; // Added for managing centers
-  vaccinationCenterDays?: Record<string, number[]>; // Added for managing days per center
-  vaccineInventory?: Record<string, number>; // Added for tracking received vaccine doses/stock
-  allowSmsAccess?: boolean; // Legacy/global toggle
-  smsApiProvider?: string; // Universal SMS API Provider (e.g. Sparrow SMS, Aakash SMS, SMSBit)
-  smsApiKey?: string; // Universal SMS API Token/Key
-  smsSenderId?: string; // Universal SMS Sender ID / Identity
-  smsApiUrl?: string; // Universal SMS API Endpoint URL
-  smsCampaignId?: string; // SMSBit / SMS Pasal Campaign ID
-  smsRouteId?: string; // SMSBit / SMS Pasal Route ID
-  emailApiProvider?: string; // default: "Resend"
-  emailApiKey?: string; // Resend बाट लिएको re_xxxx... key
-  emailSenderAddress?: string; // जस्तै: noreply@smartinventoryy.com
-  emailSenderName?: string; // जस्तै: "Unique Health"
-  downloadCenterUrl?: string; // Super Admin ले सामान्य सेटिङबाट सेट गर्ने डाउनलोड लिङ्क
-  ipdWards?: WardConfig[]; 
-  isSubscribed?: boolean;
-  subscriptionExpiryDate?: string;
-  medicineMappings?: Record<string, string[]>;
-  customStandardMedicineNames?: string[];
-  sewaBillingUserId?: string;
-  ambulanceSewaUserId?: string;
+
+  // ===== 3. 💰 डिस्काउन्ट/छुट नियमहरू (Discounts & Waivers) =====
+  maxSewaDiscountPercent?: number;
+  sewaDiscountRoles?: string[];
+  sewaDiscountLimits?: Record<string, number>;
+  discountRoles?: string[]; // Ambulance / General discount recommenders
+  discountLimits?: Record<string, number>; // Ambulance / General discount limits
+
+  // ===== 4. 💉 खोप तथा खोप केन्द्र व्यवस्थापन (Vaccination & Sessions) =====
+  vaccinationSessions?: number[];
+  vaccinationCenters?: string[]; // Centers list with optional '|days'
+  vaccinationCenterDays?: Record<string, number[]>;
+  vaccineInventory?: Record<string, number>;
   khopReportPreparerUserId?: string;
   vitaminAReportPreparerUserId?: string;
   vitaminAReportCertifierUserId?: string;
+
+  // ===== 5. ❄️ कोल्ड चेन सेटिङ (Cold Chain & Temperature Monitoring) =====
+  coldChainMinTempC?: number; // default 2
+  coldChainMaxTempC?: number; // default 8
+  coldChainAlertPhone?: string;
+
+  // ===== 6. 📩 SMS गेटवे सेटिङ (SMS Gateway Configuration) =====
+  allowSmsAccess?: boolean;
+  smsApiProvider?: string;
+  smsApiKey?: string;
+  smsSenderId?: string;
+  smsApiUrl?: string;
+  smsCampaignId?: string;
+  smsRouteId?: string;
+
+  // ===== 7. 📧 इमेल गेटवे सेटिङ (Email Gateway Configuration) =====
+  emailApiProvider?: string;
+  emailApiKey?: string;
+  emailSenderAddress?: string;
+  emailSenderName?: string;
+
+  // ===== 8. 🔗 बाह्य प्रणाली एकीकरण (Integrations: HIB & DHIS2) =====
   hibBaseUrl?: string;
   hibUsername?: string;
   hibPassword?: string;
@@ -190,19 +206,26 @@ export interface OrganizationSettings {
   dhis2DataSetId?: string;
   dhis2OrgUnitId?: string;
   dhis2OrgUnitName?: string;
-  coldChainMinTempC?: number; // default 2
-  coldChainMaxTempC?: number; // default 8
-  coldChainAlertPhone?: string; // in-charge's phone number to notify on breach
   dhis2DatasetMappings?: Record<string, string>;
   dhis2CellMappings?: DHIS2CellMapping[];
+
+  // ===== 9. 🛏️ IPD वडा व्यवस्थापन (IPD Wards) =====
+  ipdWards?: WardConfig[];
+
+  // ===== 10. 🖥️ पोर्टल/लगइन पृष्ठ सेटिङ (Portal & Login Page) =====
+  downloadCenterUrl?: string;
+  enableLoginRibbonMessage?: boolean;
+  loginRibbonMessage?: string;
+
+  // ===== 11. 👤 जिम्मेवारी तोकिएका प्रयोगकर्ता (User Assignments & Medicine Mappings) =====
+  sewaBillingUserId?: string;
+  medicineMappings?: Record<string, string[]>;
+  customStandardMedicineNames?: string[];
   menuConfig?: MenuConfigItem[];
-  discountLimits?: Record<string, number>; 
-  discountRoles?: string[]; 
-  maxSewaDiscountPercent?: number;
-  sewaDiscountRoles?: string[];
-  sewaDiscountLimits?: Record<string, number>;
-  enableLoginRibbonMessage?: boolean; // Toggled by Super Admin to show/hide marquee ribbon on login page
-  loginRibbonMessage?: string; // Kudos / Notice scrolling message displayed under Login button in red font
+
+  // ===== 12. 🔐 सदस्यता (Subscription - Super Admin Only) =====
+  isSubscribed?: boolean;
+  subscriptionExpiryDate?: string;
 }
 
 export interface DHIS2CellMapping {

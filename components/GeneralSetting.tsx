@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert, Sparkles, Megaphone } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Save, Building2, Globe, Phone, Mail, FileText, Percent, Calendar, RotateCcw, Image, CheckCircle2, Lock, ListChecks, Plus, Trash2, GripVertical, Sliders, UserCog, MapPinned, MessageSquare, Key, Server, Send, Eye, EyeOff, Coins, RefreshCw, AlertCircle, Wallet, ClipboardList, Edit2, X, QrCode, ExternalLink, Printer, Thermometer, ShieldAlert, Sparkles, Megaphone, Search, Truck, Syringe, BedDouble, Monitor, UserCheck, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Input } from './Input';
@@ -104,6 +104,32 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
   const [activeTab, setActiveTab] = useState<'general' | 'menu' | 'nagarik_badapatra'>(
     (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') ? 'general' : 'menu'
   );
+  const [generalSubTab, setGeneralSubTab] = useState<string>('basic');
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState<string>('');
+  const categoriesScrollRef = useRef<HTMLDivElement>(null);
+
+  // Allow horizontal scroll on mouse wheel over categories navigation
+  useEffect(() => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // If user is already scrolling horizontally (Shift key or trackpad horizontal delta), let native handle it
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        return;
+      }
+      // If user rotates vertical mouse wheel, scroll horizontally
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [activeTab]);
 
   const [citizenServices, setCitizenServices] = useState<CitizenService[]>([]);
   const [hiddenSharedServiceIds, setHiddenSharedServiceIds] = useState<string[]>([]);
@@ -389,8 +415,139 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
       </div>
 
       {activeTab === 'general' && (
-        <form onSubmit={handleSave} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 space-y-6">
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* Subcategory Navigation Header & Search Bar */}
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary-50 text-primary-600 rounded-xl">
+                  <Sliders size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm sm:text-base font-nepali">
+                    सामान्य सेटिङ श्रेणीकरण (Settings Categories)
+                  </h3>
+                  <p className="text-xs text-slate-400 font-nepali">
+                    विषयगत सेटिङहरू सहज रूपमा खोज्न वा व्यवस्थापन गर्न तलको श्रेणी छान्नुहोस्
+                  </p>
+                </div>
+              </div>
+
+              {/* Search Box */}
+              <div className="relative min-w-[260px] sm:min-w-[320px]">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="सेटिङहरू खोज्नुहोस् (उदा. खोप, VAT, SMS, छुट, एम्बुलेन्स)..."
+                  value={settingsSearchQuery}
+                  onChange={(e) => setSettingsSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-nepali"
+                />
+                {settingsSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 12 Subcategory Navigation Tabs with horizontal mouse wheel & scroll buttons */}
+            <div className="relative flex items-center group">
+              <button
+                type="button"
+                onClick={() => {
+                  if (categoriesScrollRef.current) {
+                    categoriesScrollRef.current.scrollBy({ left: -220, behavior: 'smooth' });
+                  }
+                }}
+                className="hidden md:flex absolute left-0 z-10 -translate-x-2 w-7 h-7 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                title="अगाडि स्क्रोल गर्नुहोस्"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div
+                ref={categoriesScrollRef}
+                className="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-1 scrollbar-thin scroll-smooth w-full select-none"
+              >
+                {[
+                  { id: 'basic', label: '१. आधारभूत विवरण', icon: Building2 },
+                  { id: 'ambulance', label: '२. एम्बुलेन्स सेवा', icon: Truck },
+                  { id: 'discounts', label: '३. छुट नियम', icon: Coins },
+                  { id: 'vaccination', label: '४. खोप केन्द्र', icon: Syringe },
+                  { id: 'coldchain', label: '५. कोल्ड चेन', icon: Thermometer },
+                  { id: 'sms', label: '६. SMS गेटवे', icon: MessageSquare },
+                  { id: 'email', label: '७. इमेल गेटवे', icon: Mail },
+                  { id: 'integrations', label: '८. बाह्य प्रणाली', icon: Globe },
+                  { id: 'ipd', label: '९. IPD वार्ड', icon: BedDouble },
+                  { id: 'portal', label: '१०. पोर्टल/लगइन', icon: Monitor },
+                  { id: 'users', label: '११. प्रतिवेदन अधिकारी', icon: UserCheck },
+                  { id: 'subscription', label: '१२. सदस्यता', icon: ShieldCheck },
+                ].map((cat) => {
+                  const IconComponent = cat.icon;
+                  const isSelected = (!settingsSearchQuery && generalSubTab === cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setGeneralSubTab(cat.id);
+                        setSettingsSearchQuery('');
+                      }}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer font-nepali ${
+                        isSelected
+                          ? 'bg-slate-800 text-white shadow-sm ring-2 ring-slate-800/10'
+                          : 'bg-slate-100/80 hover:bg-slate-200/80 text-slate-600 hover:text-slate-800'
+                      }`}
+                    >
+                      <IconComponent size={14} className={isSelected ? 'text-primary-400' : 'text-slate-500'} />
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (categoriesScrollRef.current) {
+                    categoriesScrollRef.current.scrollBy({ left: 220, behavior: 'smooth' });
+                  }
+                }}
+                className="hidden md:flex absolute right-0 z-10 translate-x-2 w-7 h-7 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                title="पछाडि स्क्रोल गर्नुहोस्"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Search Result Banner when search query is active */}
+          {settingsSearchQuery.trim() && (
+            <div className="bg-primary-50/70 border border-primary-200/80 p-3.5 rounded-2xl flex items-center justify-between text-xs font-nepali text-primary-900">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-primary-600 shrink-0" />
+                <span>
+                  <strong>"{settingsSearchQuery}"</strong> को लागि खोजी परिणामहरू देखाइँदैछ। (१२ वटै श्रेणीहरूबाट फिल्टर गरिएको)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSettingsSearchQuery('')}
+                className="underline hover:text-primary-700 font-bold ml-3 shrink-0 cursor-pointer"
+              >
+                फिल्टर हटाउनुहोस्
+              </button>
+            </div>
+          )}
+
+          {/* 1. Basic Info */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'basic' : ["आधारभूत","संस्था","नाम","office","ठेगाना","phone","email","pan","vat","fiscal","logo","लोगो","सेवा","services","basic","vat rate","आर्थिक वर्ष"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Building2 size={18} className="text-primary-600"/>संस्थाको विवरण</h3>
                 <div className="grid md:grid-cols-2 gap-4">
@@ -415,6 +572,749 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                 <div className="mt-4"><Input label="PAN/VAT No" value={localSettings.panNo} onChange={(e) => handleChange('panNo', e.target.value)} icon={<FileText size={16} />} /></div>
             </div>
 
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Image size={18} className="text-primary-600"/>लोगो सेटिङ</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('logo-upload')?.click()}>
+                        <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64String = reader.result as string;
+                                    const updatedSettings = { ...localSettings, logoUrl: base64String };
+                                    setLocalSettings(updatedSettings);
+                                    onUpdateSettings(updatedSettings);
+                                    alert('लोगो सफलतापूर्वक सेट भयो!');
+                                };
+                                reader.onerror = () => {
+                                    alert('लोगो लोड गर्न समस्या भयो');
+                                }
+                                reader.readAsDataURL(file);
+                            }
+                        }} />
+                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
+                            <img 
+                                key={localSettings.logoUrl}
+                                src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                alt="Logo" 
+                                className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
+                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                            </div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">नेपाल सरकारको लोगो</span>
+                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('province-logo-upload')?.click()}>
+                        <input type="file" id="province-logo-upload" className="hidden" accept="image/*" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64String = reader.result as string;
+                                    const updatedSettings = { ...localSettings, provinceLogoUrl: base64String };
+                                    setLocalSettings(updatedSettings);
+                                    onUpdateSettings(updatedSettings);
+                                    alert('प्रदेश लोगो सफलतापूर्वक सेट भयो!');
+                                };
+                                reader.onerror = () => {
+                                    alert('लोगो लोड गर्न समस्या भयो');
+                                }
+                                reader.readAsDataURL(file);
+                            }
+                        }} />
+                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
+                            <img 
+                                key={localSettings.provinceLogoUrl}
+                                src={localSettings.provinceLogoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
+                                alt="Province Logo" 
+                                className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
+                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
+                            </div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">प्रदेश लोगो</span>
+                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
+                    </div>
+                </div>
+            </div>
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="नयाँ सेवा थप्नुहोस्..." 
+                            value={newService}
+                            onChange={(e) => setNewService(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddService();
+                                }
+                            }}
+                            className="text-xs px-3 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                        <button 
+                            type="button"
+                            onClick={handleAddService}
+                            className="bg-primary-600 text-white p-1.5 rounded-lg hover:bg-primary-700 transition-colors"
+                            title="थप्नुहोस्"
+                        >
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                    {serviceOptions.map(service => (
+                        <div key={service} className="flex items-center justify-between group p-2 hover:bg-slate-50 rounded-lg transition-colors">
+                            <label className="flex items-center gap-2 cursor-pointer flex-1">
+                                <input 
+                                    type="checkbox" 
+                                    checked={localSettings.availableServices?.includes(service) || false}
+                                    onChange={(e) => {
+                                        const services = localSettings.availableServices || [];
+                                        const newServices = e.target.checked 
+                                            ? [...services, service] 
+                                            : services.filter(s => s !== service);
+                                        handleChange('availableServices', newServices);
+                                    }}
+                                    className="w-4 h-4 text-primary-600 rounded"
+                                />
+                                <span className="text-sm text-slate-700">{service}</span>
+                            </label>
+                            <button 
+                                type="button"
+                                onClick={() => handleRemoveService(service)}
+                                className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
+                                title="हटाउनुहोस्"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            
+            {/* सेवा बिलिङ तथा छुट सिफारिसकर्ता सेटिङ */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={18} className="text-primary-600"/>आर्थिक वर्ष तथा कर सेटिङ (Fiscal Year & VAT)</h3>
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Select label="सक्रिय आर्थिक वर्ष" options={FISCAL_YEARS} value={localSettings.activeFiscalYear} onChange={(e) => handleChange('activeFiscalYear', e.target.value)} icon={<Calendar size={16} />} />
+                    <Input label="डिफल्ट VAT दर (%)" type="number" value={localSettings.defaultVatRate} onChange={(e) => handleChange('defaultVatRate', e.target.value)} icon={<Percent size={16} />} />
+                </div>
+            </div>
+            </div>
+          )}
+
+          {/* 2. Ambulance */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'ambulance' : ["एम्बुलेन्स","ambulance","fare","भाडा","incentive","प्रोत्साहन","tds","कर","रुट","चालक","driver","मार्ग"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Percent size={18} className="text-red-600"/> एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ (Ambulance Incentive & TDS)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali">
+                    एम्बुलेन्स सेवाबाट संकलन भएको कुल रकममा चालक प्रोत्साहन प्रतिशत र प्रोत्साहन भत्तामा लाग्ने TDS प्रतिशत सेट गर्नुहोस्।
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <Input 
+                        label="चालक प्रोत्साहन प्रतिशत (% Incentive)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.ambulanceDriverIncentivePercent !== undefined ? localSettings.ambulanceDriverIncentivePercent : 15} 
+                        onChange={(e) => handleChange('ambulanceDriverIncentivePercent', parseFloat(e.target.value) || 15)} 
+                        placeholder="15"
+                    />
+                    <Input 
+                        label="प्रोत्साहन कर (TDS %) प्रतिशत" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.ambulanceProtsahanTdsPercent !== undefined ? localSettings.ambulanceProtsahanTdsPercent : 15} 
+                        onChange={(e) => handleChange('ambulanceProtsahanTdsPercent', parseFloat(e.target.value) || 15)} 
+                        placeholder="15"
+                    />
+                </div>
+            </div>
+
+            {/* कोल्ड चेन (खोप फ्रिज) तापक्रम सेटिङ */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Trash2 size={18} className="text-rose-600"/> एम्बुलेन्स सेवा र भाडा दर सेटिङ
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <Input 
+                        label="डिफल्ट एम्बुलेन्स नम्बर (Default Ambulance No.)" 
+                        value={localSettings.ambulanceNo || ''} 
+                        onChange={(e) => handleChange('ambulanceNo', e.target.value)} 
+                        placeholder="उदा: बा १ झ ९४८८"
+                    />
+                    <Input 
+                        label="डिफल्ट चालकको नाम (Default Driver Name)" 
+                        value={localSettings.ambulanceDriverName || ''} 
+                        onChange={(e) => handleChange('ambulanceDriverName', e.target.value)} 
+                        placeholder="उदा: राम बहादुर"
+                    />
+                </div>
+
+                <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट सिफारिसकर्ताहरू (Discount Recommenders Config)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ छुट दिन मिल्ने सिफारिसकर्ताहरूको सूची थप्नुहोस् वा हटाउनुहोस्।</p>
+                    <div className="flex gap-2 mb-3">
+                        <input
+                            type="text"
+                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                            placeholder="नयाँ सिफारिसकर्ताको नाम"
+                            id="newRoleInput"
+                        />
+                        <button
+                            className="px-3 py-2 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700"
+                            onClick={() => {
+                                const input = document.getElementById('newRoleInput') as HTMLInputElement;
+                                if (input.value) {
+                                    const newRoles = [...(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']), input.value];
+                                    handleChange('discountRoles', newRoles);
+                                    input.value = '';
+                                }
+                            }}
+                        >थप्नुहोस्</button>
+                    </div>
+                    <div className="space-y-2">
+                        {(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).map((role, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                                <span className="text-xs font-medium text-slate-500 w-48">{role}:</span>
+                                <input
+                                    type="number"
+                                    className="w-24 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
+                                    value={localSettings.discountLimits?.[role] || 0}
+                                    onChange={(e) => {
+                                        const newLimits = { ...(localSettings.discountLimits || {}) };
+                                        newLimits[role] = Number(e.target.value);
+                                        handleChange('discountLimits', newLimits);
+                                    }}
+                                    placeholder="Max %"
+                                />
+                                <span className="text-xs text-slate-400">%</span>
+                                <button
+                                    className="p-1 text-red-500 hover:text-red-700"
+                                    onClick={() => {
+                                        const newRoles = (localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).filter((_, i) => i !== idx);
+                                        handleChange('discountRoles', newRoles);
+                                    }}
+                                >×</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स मार्ग र निर्धारित भाडा दर (Routes & Fare Rates Config)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ नयाँ रुट तथा सो रुटको भाडा दर प्रविष्ट गर्नुहोस्। एम्बुलेन्स सेवा इन्ट्री गर्दा यी रुटहरू छान्न मिल्नेछ र भाडा दर स्वयम् भरिनेछ।</p>
+                    <div className="space-y-3">
+                        {(localSettings.ambulanceRoutes || []).map((route, index) => {
+                            const [fromLoc, toLoc, rate, distance = ''] = route.includes('|') ? route.split('|') : ['', '', '0', ''];
+                            return (
+                                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border border-slate-200 p-3 rounded-xl bg-slate-50 relative shadow-sm hover:border-slate-300 transition-all">
+                                    <Input 
+                                        label="कहाँबाट (From)" 
+                                        value={fromLoc} 
+                                        onChange={(e) => {
+                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
+                                            newRoutes[index] = `${e.target.value}|${toLoc}|${rate}|${distance}`;
+                                            handleChange('ambulanceRoutes', newRoutes);
+                                        }} 
+                                        placeholder="प्रस्थान स्थान"
+                                    />
+                                    <Input 
+                                        label="कहाँसम्म (To)" 
+                                        value={toLoc} 
+                                        onChange={(e) => {
+                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
+                                            newRoutes[index] = `${fromLoc}|${e.target.value}|${rate}|${distance}`;
+                                            handleChange('ambulanceRoutes', newRoutes);
+                                        }} 
+                                        placeholder="गन्तव्य स्थान"
+                                    />
+                                    <Input 
+                                        label="दुरी कि.मी. (Distance KM)" 
+                                        type="number"
+                                        step="0.1"
+                                        value={distance} 
+                                        onChange={(e) => {
+                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
+                                            newRoutes[index] = `${fromLoc}|${toLoc}|${rate}|${e.target.value}`;
+                                            handleChange('ambulanceRoutes', newRoutes);
+                                        }} 
+                                        placeholder="उदा: 12.5"
+                                    />
+                                    <div className="flex gap-2 items-center">
+                                        <div className="flex-1">
+                                            <Input 
+                                                label="भाडा दर रु. (Rate)" 
+                                                type="number"
+                                                value={rate} 
+                                                onChange={(e) => {
+                                                    const newRoutes = [...(localSettings.ambulanceRoutes || [])];
+                                                    newRoutes[index] = `${fromLoc}|${toLoc}|${e.target.value}|${distance}`;
+                                                    handleChange('ambulanceRoutes', newRoutes);
+                                                }} 
+                                                placeholder="भाडा रकम"
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const newRoutes = (localSettings.ambulanceRoutes || []).filter((_, i) => i !== index);
+                                                handleChange('ambulanceRoutes', newRoutes);
+                                            }} 
+                                            className="text-rose-500 hover:text-rose-700 p-2.5 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors mt-5 shadow-sm border border-rose-100"
+                                            title="हटाउनुहोस्"
+                                        >
+                                            <Trash2 size={16}/>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <button 
+                            type="button" 
+                            onClick={() => {
+                                handleChange('ambulanceRoutes', [...(localSettings.ambulanceRoutes || []), '||0|']);
+                            }} 
+                            className="flex items-center gap-2 text-rose-600 hover:text-rose-700 text-sm font-bold bg-rose-50 hover:bg-rose-100 p-2.5 rounded-xl transition-all shadow-sm border border-rose-100 border-dashed"
+                        >
+                            <Plus size={16}/> नयाँ मार्ग / भाडा दर थप्नुहोस् (Add New Route)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            </div>
+          )}
+
+          {/* 3. Discounts */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'discounts' : ["छुट","discount","सिफारिस","billing discount","sewa discount","recommender","सीमा","बिलिङ"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Coins size={18} className="text-emerald-600"/> सेवा बिलिङ छुट तथा सिफारिसकर्ता सेटिङ (Sewa Billing Discount Config)
+                </h3>
+                
+                <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">डिफल्ट सेवा बिलिङ अधिकतम छुट सीमा (Default Sewa Billing Max Discount %)</label>
+                    <p className="text-xs text-slate-400 mb-2">सिफारिसकर्ता नछानिएको अवस्थामा वा सामान्य अवस्थामा दिन मिल्ने अधिकतम छुट प्रतिशत सेट गर्नुहोस्।</p>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            max={100}
+                            min={0}
+                            className="w-36 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono"
+                            placeholder="उदा: 100"
+                            value={localSettings.maxSewaDiscountPercent !== undefined ? localSettings.maxSewaDiscountPercent : ''}
+                            onChange={(e) => handleChange('maxSewaDiscountPercent', e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                        <span className="text-xs font-bold text-slate-500">%</span>
+                    </div>
+                </div>
+
+                <div className="border-t pt-4">
+                    <label className="block text-xs font-bold text-slate-600 mb-1">सेवा बिलिङ छुट सिफारिसकर्ताहरू र अधिकतम छुट सीमा (Sewa Discount Recommenders & Max Limits %)</label>
+                    <p className="text-xs text-slate-400 mb-3">यहाँ सेवा बिलिङ (प्रत्यक्ष र नियमित) मा छुट सिफारिस गर्न पाउने पदाधिकारी/सिफारिसकर्ताहरू र उनीहरूको लागि अधिकतम छुट प्रतिशत (%) सीमा सेट गर्नुहोस्।</p>
+                    <div className="flex gap-2 mb-3">
+                        <input
+                            type="text"
+                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                            placeholder="नयाँ सिफारिसकर्ताको पद/नाम (उदा: वडा अध्यक्ष, शाखा प्रमुख)"
+                            id="newSewaRoleInput"
+                        />
+                        <button
+                            type="button"
+                            className="px-3 py-2 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 font-medium"
+                            onClick={() => {
+                                const input = document.getElementById('newSewaRoleInput') as HTMLInputElement;
+                                if (input && input.value.trim()) {
+                                    const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
+                                    const currentRoles = localSettings.sewaDiscountRoles || defaultSewaRoles;
+                                    if (!currentRoles.includes(input.value.trim())) {
+                                        const newRoles = [...currentRoles, input.value.trim()];
+                                        handleChange('sewaDiscountRoles', newRoles);
+                                    }
+                                    input.value = '';
+                                }
+                            }}
+                        >+ थप्नुहोस्</button>
+                    </div>
+                    <div className="space-y-2">
+                        {(localSettings.sewaDiscountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य']).map((role, idx) => (
+                            <div key={idx} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-150">
+                                <span className="text-xs font-semibold text-slate-700 w-52 truncate">{role}:</span>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    className="w-24 p-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono bg-white text-right"
+                                    value={localSettings.sewaDiscountLimits?.[role] !== undefined ? localSettings.sewaDiscountLimits[role] : (localSettings.discountLimits?.[role] || 0)}
+                                    onChange={(e) => {
+                                        const newLimits = { ...(localSettings.sewaDiscountLimits || {}) };
+                                        newLimits[role] = Number(e.target.value);
+                                        handleChange('sewaDiscountLimits', newLimits);
+                                    }}
+                                    placeholder="Max %"
+                                />
+                                <span className="text-xs font-bold text-slate-500">%</span>
+                                <button
+                                    type="button"
+                                    className="p-1 text-red-500 hover:text-red-700 ml-auto hover:bg-red-50 rounded"
+                                    onClick={() => {
+                                        const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
+                                        const newRoles = (localSettings.sewaDiscountRoles || defaultSewaRoles).filter((_, i) => i !== idx);
+                                        handleChange('sewaDiscountRoles', newRoles);
+                                    }}
+                                    title="हटाउनुहोस्"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            
+            {/* एम्बुलेन्स सेवा र भाडा दर सेटिङ */}
+            </div>
+          )}
+
+          {/* 4. Vaccination */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'vaccination' : ["खोप","vaccine","vaccination","center","केन्द्र","तालिका","मिति","khop"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={18} className="text-primary-600"/>खोप केन्द्र व्यवस्थापन</h3>
+                <p className="text-xs text-slate-500 mb-4">केन्द्रको नाम र खोप चल्ने मिति (e.g., 'मुख्य अस्पताल|आइत-बिही')</p>
+                <div className="space-y-2">
+                    {(localSettings.vaccinationCenters || []).map((center, index) => {
+                        const [name, dates] = center.includes('|') ? center.split('|') : [center, ''];
+                        return (
+                            <div key={index} className="flex gap-2">
+                                <Input label="नाम" value={name} onChange={(e) => {
+                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
+                                    newCenters[index] = `${e.target.value}|${dates}`;
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} />
+                                <Input label="मिति" value={dates} onChange={(e) => {
+                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
+                                    newCenters[index] = `${name}|${e.target.value}`;
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} />
+                                <button type="button" onClick={() => {
+                                    const newCenters = (localSettings.vaccinationCenters || []).filter((_, i) => i !== index);
+                                    handleChange('vaccinationCenters', newCenters);
+                                }} className="text-red-500 p-2"><Trash2 size={16}/></button>
+                            </div>
+                        );
+                    })}
+                    <button type="button" onClick={() => {
+                        handleChange('vaccinationCenters', [...(localSettings.vaccinationCenters || []), '|']);
+                    }} className="flex items-center gap-2 text-primary-600 text-sm font-bold"><Plus size={16}/> थप्नुहोस्</button>
+                </div>
+            </div>
+
+            {/* एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ */}
+            </div>
+          )}
+
+          {/* 5. Cold chain */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'coldchain' : ["कोल्ड चेन","cold chain","तापक्रम","temperature","fridge","फ्रिज","alert","अलर्ट","मोबाईल"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
+                    <Thermometer size={18} className="text-cyan-600"/> कोल्ड चेन (खोप फ्रिज) सेटिङ (Cold Chain EPI Settings)
+                </h3>
+                <p className="text-xs text-slate-500 font-nepali">
+                    नेपाल सरकार (EPI) मापदण्ड अनुसार खोप भण्डारणको सामान्य सुरक्षित दायरा २°C देखि ८°C हो। तापक्रम यो सीमा भन्दा बाहिर गएमा प्रणालीले तत्काल चेतावनी दिनेछ।
+                </p>
+                <div className="grid md:grid-cols-3 gap-4">
+                    <Input 
+                        label="न्यूनतम तापक्रम (°C Min Temp)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.coldChainMinTempC !== undefined ? localSettings.coldChainMinTempC : 2} 
+                        onChange={(e) => handleChange('coldChainMinTempC', parseFloat(e.target.value) || 0)} 
+                        placeholder="2"
+                    />
+                    <Input 
+                        label="अधिकतम तापक्रम (°C Max Temp)" 
+                        type="number"
+                        step="0.1"
+                        value={localSettings.coldChainMaxTempC !== undefined ? localSettings.coldChainMaxTempC : 8} 
+                        onChange={(e) => handleChange('coldChainMaxTempC', parseFloat(e.target.value) || 0)} 
+                        placeholder="8"
+                    />
+                    <Input 
+                        label="आपतकालीन अलर्ट मोबाइल (Alert Mobile No.)" 
+                        type="tel"
+                        value={localSettings.coldChainAlertPhone || ''} 
+                        onChange={(e) => handleChange('coldChainAlertPhone', e.target.value)} 
+                        placeholder="९८XXXXXXXX (Incharge Mobile)"
+                    />
+                </div>
+                <div className="flex items-start gap-2.5 p-3 bg-cyan-50/70 border border-cyan-100 rounded-xl text-xs text-cyan-900 font-nepali">
+                    <ShieldAlert size={16} className="text-cyan-600 shrink-0 mt-0.5" />
+                    <span>
+                        तापक्रम रेकर्ड गर्दा सीमा नाघेमा यो फोन नम्बरमा तुरुन्त SMS अलर्ट पठाउने सुविधा उपलब्ध हुनेछ।
+                    </span>
+                </div>
+            </div>
+
+            </div>
+          )}
+
+          {/* 6. SMS */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'sms' : ["sms","मैसेज","gateway","sparrow","aakash","smspasal","balance","ब्यालेन्स","क्रेडिट","api token","sender"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><MessageSquare size={18} className="text-blue-600"/>Universal SMS Gateway API सेटिङ</h3>
+                {currentUser?.role === 'SUPER_ADMIN' ? (
+                    <div>
+                        <h4 className="font-bold text-blue-900 mb-1 flex items-center gap-2 font-nepali text-sm">
+                            <MessageSquare size={18} className="text-blue-600"/>
+                            Universal SMS Gateway API सेटिङ (Super Admin Only)
+                        </h4>
+                        <p className="text-xs text-slate-500 font-nepali mb-4">
+                            यहाँ गेटवे (उदा. Sparrow SMS, Aakash SMS आदि) को API विवरणहरू सुरक्षित गरेपछि प्रयोगकर्ता व्यवस्थापनबाट अनुमति पाएका युजरहरूले खोप अनुगमन लगायतका ठाउँबाट SMS पठाउन पाउनेछन्।
+                        </p>
+                        <div className="grid md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                            <Select 
+                                label="SMS गेटवे प्रदायक (SMS Provider)" 
+                                options={[
+                                    { id: 'smspasal', value: 'SMS Pasal', label: 'SMSBit / SMS Pasal (sms.smspasal.com)' },
+                                    { id: 'sparrow', value: 'Sparrow SMS', label: 'Sparrow SMS (नेपाल)' },
+                                    { id: 'aakash', value: 'Aakash SMS', label: 'Aakash SMS (नेपाल)' },
+                                    { id: 'custom', value: 'Custom Gateway', label: 'अन्य / Custom Gateway API' }
+                                ]} 
+                                value={localSettings.smsApiProvider || 'SMS Pasal'} 
+                                onChange={(e) => {
+                                    const provider = e.target.value;
+                                    handleChange('smsApiProvider', provider);
+                                    if (provider === 'SMS Pasal') {
+                                        if (!localSettings.smsApiUrl) handleChange('smsApiUrl', 'https://sms.smspasal.com/smsapi/index.php');
+                                        if (!localSettings.smsApiKey) handleChange('smsApiKey', '56A71A88EC9CA9');
+                                        if (!localSettings.smsSenderId) handleChange('smsSenderId', 'SMSBit');
+                                        if (!localSettings.smsCampaignId) handleChange('smsCampaignId', '9674');
+                                        if (!localSettings.smsRouteId) handleChange('smsRouteId', '10259');
+                                    }
+                                }} 
+                                icon={<Server size={16} />} 
+                            />
+                            <Input 
+                                label="Sender ID / Header" 
+                                value={localSettings.smsSenderId || ''} 
+                                onChange={(e) => handleChange('smsSenderId', e.target.value)} 
+                                placeholder="उदा: SMSBit / Chaudandigadhi" 
+                                icon={<Send size={16} />} 
+                            />
+                            <Input 
+                                label="API Token / Key (गोप्य)" 
+                                type={showSmsApiKey ? "text" : "password"} 
+                                value={localSettings.smsApiKey || ''} 
+                                onChange={(e) => handleChange('smsApiKey', e.target.value)} 
+                                placeholder="56A71A88EC9CA9" 
+                                icon={<Key size={16} />} 
+                                suffix={
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowSmsApiKey(!showSmsApiKey)}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                    title={showSmsApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
+                                  >
+                                    {showSmsApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                  </button>
+                                }
+                            />
+                            <Input 
+                                label="API Endpoint URL" 
+                                value={localSettings.smsApiUrl || ''} 
+                                onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
+                                placeholder="https://sms.smspasal.com/smsapi/index.php" 
+                                icon={<Globe size={16} />} 
+                            />
+                            <Input 
+                                label="SMS Campaign ID (SMS Pasal Dashboard बाट)" 
+                                value={localSettings.smsCampaignId || ''} 
+                                onChange={(e) => handleChange('smsCampaignId', e.target.value)} 
+                                placeholder="उदा: 9674" 
+                                icon={<Server size={16} />} 
+                            />
+                            <Input 
+                                label="SMS Route ID (SMS Pasal Dashboard बाट)" 
+                                value={localSettings.smsRouteId || ''} 
+                                onChange={(e) => handleChange('smsRouteId', e.target.value)} 
+                                placeholder="उदा: 10259" 
+                                icon={<Server size={16} />} 
+                            />
+
+                            {/* SMS Pasal Credit Balance Card */}
+                            <div className="md:col-span-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-indigo-800/50 space-y-3 mt-2">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-800/60 pb-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-300 border border-indigo-500/30">
+                                            <Wallet size={20} />
+                                        </div>
+                                        <div>
+                                            <h5 className="font-bold text-sm text-white font-nepali flex items-center gap-2">
+                                                SMS गेटवे क्रेडिट ब्यालेन्स (SMS Pasal Credit Balance)
+                                            </h5>
+                                            <p className="text-[11px] text-indigo-200/80 font-mono flex items-center gap-1.5 mt-0.5">
+                                                <span>API Call:</span>
+                                                <code className="bg-black/40 px-2 py-0.5 rounded border border-indigo-800 text-amber-300 text-[10px]">
+                                                    https://sms.smspasal.com/miscapi/{localSettings.smsApiKey || '56A71A88EC9CA9'}/getBalance/true/
+                                                </code>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={fetchSmsBalance}
+                                        disabled={isFetchingBalance}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer font-nepali"
+                                    >
+                                        <RefreshCw size={14} className={isFetchingBalance ? "animate-spin" : ""} />
+                                        {isFetchingBalance ? "ब्यालेन्स चेक हुँदैछ..." : "ब्यालेन्स अपडेट (Check Balance)"}
+                                    </button>
+                                </div>
+
+                                {smsBalanceInfo?.error ? (
+                                    <div className="bg-rose-950/70 border border-rose-700/60 text-rose-200 p-3 rounded-xl text-xs flex items-center gap-2.5 font-nepali">
+                                        <AlertCircle size={18} className="text-rose-400 shrink-0" />
+                                        <div>
+                                            <div className="font-bold">ब्यालेन्स प्राप्त हुन सकेन:</div>
+                                            <div>{smsBalanceInfo.error}</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                                        <div className="flex items-baseline gap-3">
+                                            <span className="text-xs text-indigo-200 font-nepali font-semibold">उपलब्ध कूल SMS ब्यालेन्स (Credit):</span>
+                                            <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${smsBalanceInfo?.totalBalance && smsBalanceInfo.totalBalance > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {smsBalanceInfo?.totalBalance !== undefined ? smsBalanceInfo.totalBalance : '...'} <span className="text-sm font-normal text-slate-300">SMS</span>
+                                            </span>
+                                        </div>
+
+                                        {smsBalanceInfo?.totalBalance !== undefined && (
+                                            <div className="flex items-center gap-2">
+                                                {smsBalanceInfo.totalBalance > 0 ? (
+                                                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1 rounded-full">
+                                                        <CheckCircle2 size={14} className="text-emerald-400" />
+                                                        पर्याप्त ब्यालेन्स (Active Balance)
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                                                        <AlertCircle size={14} className="text-rose-400" />
+                                                        ब्यालेन्स समाप्त (Recharge Required)
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {smsBalanceInfo?.routes && smsBalanceInfo.routes.length > 0 && (
+                                    <div className="pt-2 border-t border-indigo-900/60">
+                                        <span className="text-[11px] text-indigo-200/90 font-bold block mb-1.5 font-nepali">रुट अनुसारको ब्यालेन्स (Route Details):</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {smsBalanceInfo.routes.map((rt, idx) => (
+                                                <div key={idx} className="bg-indigo-900/60 border border-indigo-700/60 px-3 py-1.5 rounded-xl text-xs font-mono flex items-center gap-2">
+                                                    <span className="text-indigo-200 font-semibold">{rt.routeName || 'Default Route'}</span>
+                                                    {rt.routeId && <span className="text-[10px] text-indigo-300/70">(ID: {rt.routeId})</span>}
+                                                    <span className="text-emerald-400 font-bold ml-1">{rt.balance} SMS</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {smsBalanceInfo?.lastChecked && (
+                                    <div className="text-[10px] text-indigo-300/70 italic text-right font-nepali">
+                                        अन्तिम पटक चेक गरिएको समय: {smsBalanceInfo.lastChecked}
+                                    </div>
+                                )}
+                            </div>
+                    </div>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-nepali border border-amber-200">यो सेटिङ सुपर एडमिन (Super Admin) ले मात्र परिवर्तन गर्न सक्नुहुन्छ।</div>
+                )}
+            </div>
+            </div>
+          )}
+
+          {/* 7. Email */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'email' : ["email","इमेल","ईमेल","resend","api key","sender address","डाँक"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2 border-b pb-2"><Mail size={18} className="text-indigo-600"/>Email API सेटिङ (Resend)</h3>
+                {currentUser?.role === 'SUPER_ADMIN' ? (
+                    <div>
+                                <h4 className="font-bold text-indigo-900 mb-1 flex items-center gap-2 font-nepali text-sm">
+                                    <Mail size={18} className="text-indigo-600"/>
+                                    Email API सेटिङ (Resend) - (Super Admin Only)
+                                </h4>
+                                <p className="text-xs text-slate-500 font-nepali mb-4">
+                                    Resend API प्रयोग गरेर प्रणालीबाट स्वचालित ईमेल पठाउनको लागि यहाँ विवरणहरू भर्नुहोस्।
+                                </p>
+                                <div className="grid md:grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                                    <Input 
+                                        label="Email API Provider" 
+                                        value={localSettings.emailApiProvider || 'Resend'} 
+                                        onChange={(e) => handleChange('emailApiProvider', e.target.value)} 
+                                        placeholder="Resend"
+                                        readOnly
+                                        icon={<Server size={16} />} 
+                                    />
+                                    <Input 
+                                        label="Resend API Key (गोप्य)" 
+                                        type={showEmailApiKey ? "text" : "password"}
+                                        value={localSettings.emailApiKey || ''} 
+                                        onChange={(e) => handleChange('emailApiKey', e.target.value)} 
+                                        placeholder="re_xxxx..." 
+                                        icon={<Key size={16} />}
+                                        suffix={
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowEmailApiKey(!showEmailApiKey)}
+                                            className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                                            title={showEmailApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
+                                          >
+                                            {showEmailApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                          </button>
+                                        }
+                                    />
+                                    <Input 
+                                        label="Email Sender Address" 
+                                        value={localSettings.emailSenderAddress || ''} 
+                                        onChange={(e) => handleChange('emailSenderAddress', e.target.value)} 
+                                        placeholder="noreply@smartinventoryy.com"
+                                        icon={<Mail size={16} />} 
+                                    />
+                                    <Input 
+                                        label="Email Sender Name" 
+                                        value={localSettings.emailSenderName || ''} 
+                                        onChange={(e) => handleChange('emailSenderName', e.target.value)} 
+                                        placeholder="Unique Health"
+                                        icon={<UserCog size={16} />} 
+                                    />
+                                </div>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-nepali border border-amber-200">यो सेटिङ सुपर एडमिन (Super Admin) ले मात्र परिवर्तन गर्न सक्नुहुन्छ।</div>
+                )}
+            </div>
+            </div>
+          )}
+
+          {/* 8. Integrations */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'integrations' : ["dhis2","hib","बीमा","एकीकरण","integration","dhis","dataset","orgunit","mapping"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Globe size={18} className="text-primary-600"/>DHIS2 API कन्फिगरेसन</h3>
                 <div className="grid grid-cols-1 gap-4">
@@ -589,625 +1489,50 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
             </div>
 
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Calendar size={18} className="text-primary-600"/>खोप केन्द्र व्यवस्थापन</h3>
-                <p className="text-xs text-slate-500 mb-4">केन्द्रको नाम र खोप चल्ने मिति (e.g., 'मुख्य अस्पताल|आइत-बिही')</p>
-                <div className="space-y-2">
-                    {(localSettings.vaccinationCenters || []).map((center, index) => {
-                        const [name, dates] = center.includes('|') ? center.split('|') : [center, ''];
-                        return (
-                            <div key={index} className="flex gap-2">
-                                <Input label="नाम" value={name} onChange={(e) => {
-                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
-                                    newCenters[index] = `${e.target.value}|${dates}`;
-                                    handleChange('vaccinationCenters', newCenters);
-                                }} />
-                                <Input label="मिति" value={dates} onChange={(e) => {
-                                    const newCenters = [...(localSettings.vaccinationCenters || [])];
-                                    newCenters[index] = `${name}|${e.target.value}`;
-                                    handleChange('vaccinationCenters', newCenters);
-                                }} />
-                                <button type="button" onClick={() => {
-                                    const newCenters = (localSettings.vaccinationCenters || []).filter((_, i) => i !== index);
-                                    handleChange('vaccinationCenters', newCenters);
-                                }} className="text-red-500 p-2"><Trash2 size={16}/></button>
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><ShieldCheck size={18} className="text-emerald-600"/>स्वास्थ्य बीमा बोर्ड (HIB) API एकीकरण</h3>
+                <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h4 className="font-bold text-slate-800 font-nepali text-sm">स्वास्थ्य बीमा बोर्ड (HIB) दाबी तथा API व्यवस्थापन</h4>
+                        <p className="text-xs text-slate-500 font-nepali mt-1">स्वास्थ्य बीमा दाबी, टोकन, सर्भर IP र HIB API कन्फिगरेसन बायाँ मेनुको समर्पित 'HIB सेटिङ' स्क्रिनबाट व्यवस्थापन गरिन्छ।</p>
+                    </div>
+                    <div className="text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold shrink-0 font-nepali">HIB Settings मेनु उपलब्ध</div>
+                </div>
+            </div>
+            </div>
+          )}
+
+          {/* 9. IPD */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'ipd' : ["ipd","वार्ड","शय्या","bed","ward","अन्तरङ्ग","भर्ना"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><BedDouble size={18} className="text-indigo-600"/>IPD वार्ड तथा शय्या (Beds) व्यवस्थापन</h3>
+                <p className="text-xs text-slate-500 font-nepali mb-3">अन्तरङ्ग विभाग (IPD) का वार्डहरू र शय्या संख्या कन्फिगरेसन IPD सेवा मोड्युलमा प्रत्यक्ष रूपमा उपलब्ध छ।</p>
+                <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {(localSettings.ipdWards && localSettings.ipdWards.length > 0) ? (
+                        localSettings.ipdWards.map((w, idx) => (
+                            <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                                <div>
+                                    <div className="font-bold text-sm text-slate-800 font-nepali">{w.name}</div>
+                                    <div className="text-xs text-slate-500">कुल शय्या: {w.bedCount || 0}</div>
+                                </div>
+                                <BedDouble size={20} className="text-indigo-500" />
                             </div>
-                        );
-                    })}
-                    <button type="button" onClick={() => {
-                        handleChange('vaccinationCenters', [...(localSettings.vaccinationCenters || []), '|']);
-                    }} className="flex items-center gap-2 text-primary-600 text-sm font-bold"><Plus size={16}/> थप्नुहोस्</button>
+                        ))
+                    ) : (
+                        <div className="col-span-full p-4 bg-slate-50 text-slate-500 rounded-xl text-xs font-nepali text-center border border-dashed border-slate-200">हालसम्म कुनै पनि IPD वार्ड कन्फिगर गरिएको छैन। IPD सेवा स्क्रिनबाट नयाँ वार्ड र बेड थप्न सकिन्छ।</div>
+                    )}
                 </div>
             </div>
-
-            {/* एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
-                    <Percent size={18} className="text-red-600"/> एम्बुलेन्स चालक प्रोत्साहन तथा कर सेटिङ (Ambulance Incentive & TDS)
-                </h3>
-                <p className="text-xs text-slate-500 font-nepali">
-                    एम्बुलेन्स सेवाबाट संकलन भएको कुल रकममा चालक प्रोत्साहन प्रतिशत र प्रोत्साहन भत्तामा लाग्ने TDS प्रतिशत सेट गर्नुहोस्।
-                </p>
-                <div className="grid md:grid-cols-2 gap-4">
-                    <Input 
-                        label="चालक प्रोत्साहन प्रतिशत (% Incentive)" 
-                        type="number"
-                        step="0.1"
-                        value={localSettings.ambulanceDriverIncentivePercent !== undefined ? localSettings.ambulanceDriverIncentivePercent : 15} 
-                        onChange={(e) => handleChange('ambulanceDriverIncentivePercent', parseFloat(e.target.value) || 15)} 
-                        placeholder="15"
-                    />
-                    <Input 
-                        label="प्रोत्साहन कर (TDS %) प्रतिशत" 
-                        type="number"
-                        step="0.1"
-                        value={localSettings.ambulanceProtsahanTdsPercent !== undefined ? localSettings.ambulanceProtsahanTdsPercent : 15} 
-                        onChange={(e) => handleChange('ambulanceProtsahanTdsPercent', parseFloat(e.target.value) || 15)} 
-                        placeholder="15"
-                    />
-                </div>
             </div>
+          )}
 
-            {/* कोल्ड चेन (खोप फ्रिज) तापक्रम सेटिङ */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
-                    <Thermometer size={18} className="text-cyan-600"/> कोल्ड चेन (खोप फ्रिज) सेटिङ (Cold Chain EPI Settings)
-                </h3>
-                <p className="text-xs text-slate-500 font-nepali">
-                    नेपाल सरकार (EPI) मापदण्ड अनुसार खोप भण्डारणको सामान्य सुरक्षित दायरा २°C देखि ८°C हो। तापक्रम यो सीमा भन्दा बाहिर गएमा प्रणालीले तत्काल चेतावनी दिनेछ।
-                </p>
-                <div className="grid md:grid-cols-3 gap-4">
-                    <Input 
-                        label="न्यूनतम तापक्रम (°C Min Temp)" 
-                        type="number"
-                        step="0.1"
-                        value={localSettings.coldChainMinTempC !== undefined ? localSettings.coldChainMinTempC : 2} 
-                        onChange={(e) => handleChange('coldChainMinTempC', parseFloat(e.target.value) || 0)} 
-                        placeholder="2"
-                    />
-                    <Input 
-                        label="अधिकतम तापक्रम (°C Max Temp)" 
-                        type="number"
-                        step="0.1"
-                        value={localSettings.coldChainMaxTempC !== undefined ? localSettings.coldChainMaxTempC : 8} 
-                        onChange={(e) => handleChange('coldChainMaxTempC', parseFloat(e.target.value) || 0)} 
-                        placeholder="8"
-                    />
-                    <Input 
-                        label="आपतकालीन अलर्ट मोबाइल (Alert Mobile No.)" 
-                        type="tel"
-                        value={localSettings.coldChainAlertPhone || ''} 
-                        onChange={(e) => handleChange('coldChainAlertPhone', e.target.value)} 
-                        placeholder="९८XXXXXXXX (Incharge Mobile)"
-                    />
-                </div>
-                <div className="flex items-start gap-2.5 p-3 bg-cyan-50/70 border border-cyan-100 rounded-xl text-xs text-cyan-900 font-nepali">
-                    <ShieldAlert size={16} className="text-cyan-600 shrink-0 mt-0.5" />
-                    <span>
-                        तापक्रम रेकर्ड गर्दा सीमा नाघेमा यो फोन नम्बरमा तुरुन्त SMS अलर्ट पठाउने सुविधा उपलब्ध हुनेछ।
-                    </span>
-                </div>
-            </div>
-
+          {/* 10. Portal & Login */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'portal' : ["portal","डाउनलोड","download","ribbon","रिबन","कुडोस","login","लगइन","सूचना"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <input 
-                            type="text" 
-                            placeholder="नयाँ सेवा थप्नुहोस्..." 
-                            value={newService}
-                            onChange={(e) => setNewService(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddService();
-                                }
-                            }}
-                            className="text-xs px-3 py-1.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                        <button 
-                            type="button"
-                            onClick={handleAddService}
-                            className="bg-primary-600 text-white p-1.5 rounded-lg hover:bg-primary-700 transition-colors"
-                            title="थप्नुहोस्"
-                        >
-                            <Plus size={16} />
-                        </button>
-                    </div>
-                </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                    {serviceOptions.map(service => (
-                        <div key={service} className="flex items-center justify-between group p-2 hover:bg-slate-50 rounded-lg transition-colors">
-                            <label className="flex items-center gap-2 cursor-pointer flex-1">
-                                <input 
-                                    type="checkbox" 
-                                    checked={localSettings.availableServices?.includes(service) || false}
-                                    onChange={(e) => {
-                                        const services = localSettings.availableServices || [];
-                                        const newServices = e.target.checked 
-                                            ? [...services, service] 
-                                            : services.filter(s => s !== service);
-                                        handleChange('availableServices', newServices);
-                                    }}
-                                    className="w-4 h-4 text-primary-600 rounded"
-                                />
-                                <span className="text-sm text-slate-700">{service}</span>
-                            </label>
-                            <button 
-                                type="button"
-                                onClick={() => handleRemoveService(service)}
-                                className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
-                                title="हटाउनुहोस्"
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            
-            {/* सेवा बिलिङ तथा छुट सिफारिसकर्ता सेटिङ */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
-                    <Coins size={18} className="text-emerald-600"/> सेवा बिलिङ छुट तथा सिफारिसकर्ता सेटिङ (Sewa Billing Discount Config)
-                </h3>
-                
-                <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">डिफल्ट सेवा बिलिङ अधिकतम छुट सीमा (Default Sewa Billing Max Discount %)</label>
-                    <p className="text-xs text-slate-400 mb-2">सिफारिसकर्ता नछानिएको अवस्थामा वा सामान्य अवस्थामा दिन मिल्ने अधिकतम छुट प्रतिशत सेट गर्नुहोस्।</p>
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="number"
-                            max={100}
-                            min={0}
-                            className="w-36 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono"
-                            placeholder="उदा: 100"
-                            value={localSettings.maxSewaDiscountPercent !== undefined ? localSettings.maxSewaDiscountPercent : ''}
-                            onChange={(e) => handleChange('maxSewaDiscountPercent', e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                        <span className="text-xs font-bold text-slate-500">%</span>
-                    </div>
-                </div>
-
-                <div className="border-t pt-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-1">सेवा बिलिङ छुट सिफारिसकर्ताहरू र अधिकतम छुट सीमा (Sewa Discount Recommenders & Max Limits %)</label>
-                    <p className="text-xs text-slate-400 mb-3">यहाँ सेवा बिलिङ (प्रत्यक्ष र नियमित) मा छुट सिफारिस गर्न पाउने पदाधिकारी/सिफारिसकर्ताहरू र उनीहरूको लागि अधिकतम छुट प्रतिशत (%) सीमा सेट गर्नुहोस्।</p>
-                    <div className="flex gap-2 mb-3">
-                        <input
-                            type="text"
-                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                            placeholder="नयाँ सिफारिसकर्ताको पद/नाम (उदा: वडा अध्यक्ष, शाखा प्रमुख)"
-                            id="newSewaRoleInput"
-                        />
-                        <button
-                            type="button"
-                            className="px-3 py-2 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 font-medium"
-                            onClick={() => {
-                                const input = document.getElementById('newSewaRoleInput') as HTMLInputElement;
-                                if (input && input.value.trim()) {
-                                    const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
-                                    const currentRoles = localSettings.sewaDiscountRoles || defaultSewaRoles;
-                                    if (!currentRoles.includes(input.value.trim())) {
-                                        const newRoles = [...currentRoles, input.value.trim()];
-                                        handleChange('sewaDiscountRoles', newRoles);
-                                    }
-                                    input.value = '';
-                                }
-                            }}
-                        >+ थप्नुहोस्</button>
-                    </div>
-                    <div className="space-y-2">
-                        {(localSettings.sewaDiscountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य']).map((role, idx) => (
-                            <div key={idx} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-150">
-                                <span className="text-xs font-semibold text-slate-700 w-52 truncate">{role}:</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    className="w-24 p-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold font-mono bg-white text-right"
-                                    value={localSettings.sewaDiscountLimits?.[role] !== undefined ? localSettings.sewaDiscountLimits[role] : (localSettings.discountLimits?.[role] || 0)}
-                                    onChange={(e) => {
-                                        const newLimits = { ...(localSettings.sewaDiscountLimits || {}) };
-                                        newLimits[role] = Number(e.target.value);
-                                        handleChange('sewaDiscountLimits', newLimits);
-                                    }}
-                                    placeholder="Max %"
-                                />
-                                <span className="text-xs font-bold text-slate-500">%</span>
-                                <button
-                                    type="button"
-                                    className="p-1 text-red-500 hover:text-red-700 ml-auto hover:bg-red-50 rounded"
-                                    onClick={() => {
-                                        const defaultSewaRoles = ['नगर प्रमुख', 'नगर उपप्रमुख', 'वडा अध्यक्ष', 'स्वास्थ्य शाखा प्रमुख', 'स्वास्थ्य चौकी प्रमुख', 'कर्मचारी स्वयम', 'अन्य'];
-                                        const newRoles = (localSettings.sewaDiscountRoles || defaultSewaRoles).filter((_, i) => i !== idx);
-                                        handleChange('sewaDiscountRoles', newRoles);
-                                    }}
-                                    title="हटाउनुहोस्"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            
-            {/* एम्बुलेन्स सेवा र भाडा दर सेटिङ */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-700 mb-2 flex items-center gap-2 border-b pb-2">
-                    <Trash2 size={18} className="text-rose-600"/> एम्बुलेन्स सेवा र भाडा दर सेटिङ
-                </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                    <Input 
-                        label="डिफल्ट एम्बुलेन्स नम्बर (Default Ambulance No.)" 
-                        value={localSettings.ambulanceNo || ''} 
-                        onChange={(e) => handleChange('ambulanceNo', e.target.value)} 
-                        placeholder="उदा: बा १ झ ९४८८"
-                    />
-                    <Input 
-                        label="डिफल्ट चालकको नाम (Default Driver Name)" 
-                        value={localSettings.ambulanceDriverName || ''} 
-                        onChange={(e) => handleChange('ambulanceDriverName', e.target.value)} 
-                        placeholder="उदा: राम बहादुर"
-                    />
-                </div>
-
-                <div className="border-t pt-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स छुट सिफारिसकर्ताहरू (Discount Recommenders Config)</label>
-                    <p className="text-xs text-slate-400 mb-3">यहाँ छुट दिन मिल्ने सिफारिसकर्ताहरूको सूची थप्नुहोस् वा हटाउनुहोस्।</p>
-                    <div className="flex gap-2 mb-3">
-                        <input
-                            type="text"
-                            className="flex-1 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
-                            placeholder="नयाँ सिफारिसकर्ताको नाम"
-                            id="newRoleInput"
-                        />
-                        <button
-                            className="px-3 py-2 bg-rose-600 text-white text-xs rounded-lg hover:bg-rose-700"
-                            onClick={() => {
-                                const input = document.getElementById('newRoleInput') as HTMLInputElement;
-                                if (input.value) {
-                                    const newRoles = [...(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']), input.value];
-                                    handleChange('discountRoles', newRoles);
-                                    input.value = '';
-                                }
-                            }}
-                        >थप्नुहोस्</button>
-                    </div>
-                    <div className="space-y-2">
-                        {(localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).map((role, idx) => (
-                            <div key={idx} className="flex gap-2 items-center">
-                                <span className="text-xs font-medium text-slate-500 w-48">{role}:</span>
-                                <input
-                                    type="number"
-                                    className="w-24 p-2 text-xs border rounded-lg focus:ring-2 focus:ring-rose-500"
-                                    value={localSettings.discountLimits?.[role] || 0}
-                                    onChange={(e) => {
-                                        const newLimits = { ...(localSettings.discountLimits || {}) };
-                                        newLimits[role] = Number(e.target.value);
-                                        handleChange('discountLimits', newLimits);
-                                    }}
-                                    placeholder="Max %"
-                                />
-                                <span className="text-xs text-slate-400">%</span>
-                                <button
-                                    className="p-1 text-red-500 hover:text-red-700"
-                                    onClick={() => {
-                                        const newRoles = (localSettings.discountRoles || ['नगर प्रमुख', 'नगर उपप्रमुख', 'अध्यक्ष', 'स्वास्थ्य चौकी प्रमुख', 'एम्बुलेन्स चालक स्वयमको निर्णय', 'अन्य']).filter((_, i) => i !== idx);
-                                        handleChange('discountRoles', newRoles);
-                                    }}
-                                >×</button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                
-                <div className="border-t pt-4">
-                    <label className="block text-xs font-bold text-slate-600 mb-2">एम्बुलेन्स मार्ग र निर्धारित भाडा दर (Routes & Fare Rates Config)</label>
-                    <p className="text-xs text-slate-400 mb-3">यहाँ नयाँ रुट तथा सो रुटको भाडा दर प्रविष्ट गर्नुहोस्। एम्बुलेन्स सेवा इन्ट्री गर्दा यी रुटहरू छान्न मिल्नेछ र भाडा दर स्वयम् भरिनेछ।</p>
-                    <div className="space-y-3">
-                        {(localSettings.ambulanceRoutes || []).map((route, index) => {
-                            const [fromLoc, toLoc, rate, distance = ''] = route.includes('|') ? route.split('|') : ['', '', '0', ''];
-                            return (
-                                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end border border-slate-200 p-3 rounded-xl bg-slate-50 relative shadow-sm hover:border-slate-300 transition-all">
-                                    <Input 
-                                        label="कहाँबाट (From)" 
-                                        value={fromLoc} 
-                                        onChange={(e) => {
-                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                            newRoutes[index] = `${e.target.value}|${toLoc}|${rate}|${distance}`;
-                                            handleChange('ambulanceRoutes', newRoutes);
-                                        }} 
-                                        placeholder="प्रस्थान स्थान"
-                                    />
-                                    <Input 
-                                        label="कहाँसम्म (To)" 
-                                        value={toLoc} 
-                                        onChange={(e) => {
-                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                            newRoutes[index] = `${fromLoc}|${e.target.value}|${rate}|${distance}`;
-                                            handleChange('ambulanceRoutes', newRoutes);
-                                        }} 
-                                        placeholder="गन्तव्य स्थान"
-                                    />
-                                    <Input 
-                                        label="दुरी कि.मी. (Distance KM)" 
-                                        type="number"
-                                        step="0.1"
-                                        value={distance} 
-                                        onChange={(e) => {
-                                            const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                            newRoutes[index] = `${fromLoc}|${toLoc}|${rate}|${e.target.value}`;
-                                            handleChange('ambulanceRoutes', newRoutes);
-                                        }} 
-                                        placeholder="उदा: 12.5"
-                                    />
-                                    <div className="flex gap-2 items-center">
-                                        <div className="flex-1">
-                                            <Input 
-                                                label="भाडा दर रु. (Rate)" 
-                                                type="number"
-                                                value={rate} 
-                                                onChange={(e) => {
-                                                    const newRoutes = [...(localSettings.ambulanceRoutes || [])];
-                                                    newRoutes[index] = `${fromLoc}|${toLoc}|${e.target.value}|${distance}`;
-                                                    handleChange('ambulanceRoutes', newRoutes);
-                                                }} 
-                                                placeholder="भाडा रकम"
-                                            />
-                                        </div>
-                                        <button 
-                                            type="button" 
-                                            onClick={() => {
-                                                const newRoutes = (localSettings.ambulanceRoutes || []).filter((_, i) => i !== index);
-                                                handleChange('ambulanceRoutes', newRoutes);
-                                            }} 
-                                            className="text-rose-500 hover:text-rose-700 p-2.5 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors mt-5 shadow-sm border border-rose-100"
-                                            title="हटाउनुहोस्"
-                                        >
-                                            <Trash2 size={16}/>
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        <button 
-                            type="button" 
-                            onClick={() => {
-                                handleChange('ambulanceRoutes', [...(localSettings.ambulanceRoutes || []), '||0|']);
-                            }} 
-                            className="flex items-center gap-2 text-rose-600 hover:text-rose-700 text-sm font-bold bg-rose-50 hover:bg-rose-100 p-2.5 rounded-xl transition-all shadow-sm border border-rose-100 border-dashed"
-                        >
-                            <Plus size={16}/> नयाँ मार्ग / भाडा दर थप्नुहोस् (Add New Route)
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><Globe size={18} className="text-primary-600"/>प्रणाली कन्फिगरेसन</h3>
-                <div className="grid md:grid-cols-2 gap-6">
-                    <Select label="सक्रिय आर्थिक वर्ष" options={FISCAL_YEARS} value={localSettings.activeFiscalYear} onChange={(e) => handleChange('activeFiscalYear', e.target.value)} icon={<Calendar size={16} />} />
-                    <Input label="डिफल्ट VAT दर (%)" type="number" value={localSettings.defaultVatRate} onChange={(e) => handleChange('defaultVatRate', e.target.value)} icon={<Percent size={16} />} />
-                </div>
-                {currentUser?.role === 'SUPER_ADMIN' && (
-                    <div className="mt-6 border-t pt-5">
-                        <h4 className="font-bold text-blue-900 mb-1 flex items-center gap-2 font-nepali text-sm">
-                            <MessageSquare size={18} className="text-blue-600"/>
-                            Universal SMS Gateway API सेटिङ (Super Admin Only)
-                        </h4>
-                        <p className="text-xs text-slate-500 font-nepali mb-4">
-                            यहाँ गेटवे (उदा. Sparrow SMS, Aakash SMS आदि) को API विवरणहरू सुरक्षित गरेपछि प्रयोगकर्ता व्यवस्थापनबाट अनुमति पाएका युजरहरूले खोप अनुगमन लगायतका ठाउँबाट SMS पठाउन पाउनेछन्।
-                        </p>
-                        <div className="grid md:grid-cols-2 gap-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
-                            <Select 
-                                label="SMS गेटवे प्रदायक (SMS Provider)" 
-                                options={[
-                                    { id: 'smspasal', value: 'SMS Pasal', label: 'SMSBit / SMS Pasal (sms.smspasal.com)' },
-                                    { id: 'sparrow', value: 'Sparrow SMS', label: 'Sparrow SMS (नेपाल)' },
-                                    { id: 'aakash', value: 'Aakash SMS', label: 'Aakash SMS (नेपाल)' },
-                                    { id: 'custom', value: 'Custom Gateway', label: 'अन्य / Custom Gateway API' }
-                                ]} 
-                                value={localSettings.smsApiProvider || 'SMS Pasal'} 
-                                onChange={(e) => {
-                                    const provider = e.target.value;
-                                    handleChange('smsApiProvider', provider);
-                                    if (provider === 'SMS Pasal') {
-                                        if (!localSettings.smsApiUrl) handleChange('smsApiUrl', 'https://sms.smspasal.com/smsapi/index.php');
-                                        if (!localSettings.smsApiKey) handleChange('smsApiKey', '56A71A88EC9CA9');
-                                        if (!localSettings.smsSenderId) handleChange('smsSenderId', 'SMSBit');
-                                        if (!localSettings.smsCampaignId) handleChange('smsCampaignId', '9674');
-                                        if (!localSettings.smsRouteId) handleChange('smsRouteId', '10259');
-                                    }
-                                }} 
-                                icon={<Server size={16} />} 
-                            />
-                            <Input 
-                                label="Sender ID / Header" 
-                                value={localSettings.smsSenderId || ''} 
-                                onChange={(e) => handleChange('smsSenderId', e.target.value)} 
-                                placeholder="उदा: SMSBit / Chaudandigadhi" 
-                                icon={<Send size={16} />} 
-                            />
-                            <Input 
-                                label="API Token / Key (गोप्य)" 
-                                type={showSmsApiKey ? "text" : "password"} 
-                                value={localSettings.smsApiKey || ''} 
-                                onChange={(e) => handleChange('smsApiKey', e.target.value)} 
-                                placeholder="56A71A88EC9CA9" 
-                                icon={<Key size={16} />} 
-                                suffix={
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowSmsApiKey(!showSmsApiKey)}
-                                    className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
-                                    title={showSmsApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
-                                  >
-                                    {showSmsApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                  </button>
-                                }
-                            />
-                            <Input 
-                                label="API Endpoint URL" 
-                                value={localSettings.smsApiUrl || ''} 
-                                onChange={(e) => handleChange('smsApiUrl', e.target.value)} 
-                                placeholder="https://sms.smspasal.com/smsapi/index.php" 
-                                icon={<Globe size={16} />} 
-                            />
-                            <Input 
-                                label="SMS Campaign ID (SMS Pasal Dashboard बाट)" 
-                                value={localSettings.smsCampaignId || ''} 
-                                onChange={(e) => handleChange('smsCampaignId', e.target.value)} 
-                                placeholder="उदा: 9674" 
-                                icon={<Server size={16} />} 
-                            />
-                            <Input 
-                                label="SMS Route ID (SMS Pasal Dashboard बाट)" 
-                                value={localSettings.smsRouteId || ''} 
-                                onChange={(e) => handleChange('smsRouteId', e.target.value)} 
-                                placeholder="उदा: 10259" 
-                                icon={<Server size={16} />} 
-                            />
-
-                            {/* SMS Pasal Credit Balance Card */}
-                            <div className="md:col-span-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-md border border-indigo-800/50 space-y-3 mt-2">
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-800/60 pb-3">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="p-2.5 bg-indigo-500/20 rounded-xl text-indigo-300 border border-indigo-500/30">
-                                            <Wallet size={20} />
-                                        </div>
-                                        <div>
-                                            <h5 className="font-bold text-sm text-white font-nepali flex items-center gap-2">
-                                                SMS गेटवे क्रेडिट ब्यालेन्स (SMS Pasal Credit Balance)
-                                            </h5>
-                                            <p className="text-[11px] text-indigo-200/80 font-mono flex items-center gap-1.5 mt-0.5">
-                                                <span>API Call:</span>
-                                                <code className="bg-black/40 px-2 py-0.5 rounded border border-indigo-800 text-amber-300 text-[10px]">
-                                                    https://sms.smspasal.com/miscapi/{localSettings.smsApiKey || '56A71A88EC9CA9'}/getBalance/true/
-                                                </code>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={fetchSmsBalance}
-                                        disabled={isFetchingBalance}
-                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer font-nepali"
-                                    >
-                                        <RefreshCw size={14} className={isFetchingBalance ? "animate-spin" : ""} />
-                                        {isFetchingBalance ? "ब्यालेन्स चेक हुँदैछ..." : "ब्यालेन्स अपडेट (Check Balance)"}
-                                    </button>
-                                </div>
-
-                                {smsBalanceInfo?.error ? (
-                                    <div className="bg-rose-950/70 border border-rose-700/60 text-rose-200 p-3 rounded-xl text-xs flex items-center gap-2.5 font-nepali">
-                                        <AlertCircle size={18} className="text-rose-400 shrink-0" />
-                                        <div>
-                                            <div className="font-bold">ब्यालेन्स प्राप्त हुन सकेन:</div>
-                                            <div>{smsBalanceInfo.error}</div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-                                        <div className="flex items-baseline gap-3">
-                                            <span className="text-xs text-indigo-200 font-nepali font-semibold">उपलब्ध कूल SMS ब्यालेन्स (Credit):</span>
-                                            <span className={`text-2xl sm:text-3xl font-black font-mono tracking-tight ${smsBalanceInfo?.totalBalance && smsBalanceInfo.totalBalance > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                {smsBalanceInfo?.totalBalance !== undefined ? smsBalanceInfo.totalBalance : '...'} <span className="text-sm font-normal text-slate-300">SMS</span>
-                                            </span>
-                                        </div>
-
-                                        {smsBalanceInfo?.totalBalance !== undefined && (
-                                            <div className="flex items-center gap-2">
-                                                {smsBalanceInfo.totalBalance > 0 ? (
-                                                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1 rounded-full">
-                                                        <CheckCircle2 size={14} className="text-emerald-400" />
-                                                        पर्याप्त ब्यालेन्स (Active Balance)
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                                                        <AlertCircle size={14} className="text-rose-400" />
-                                                        ब्यालेन्स समाप्त (Recharge Required)
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {smsBalanceInfo?.routes && smsBalanceInfo.routes.length > 0 && (
-                                    <div className="pt-2 border-t border-indigo-900/60">
-                                        <span className="text-[11px] text-indigo-200/90 font-bold block mb-1.5 font-nepali">रुट अनुसारको ब्यालेन्स (Route Details):</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {smsBalanceInfo.routes.map((rt, idx) => (
-                                                <div key={idx} className="bg-indigo-900/60 border border-indigo-700/60 px-3 py-1.5 rounded-xl text-xs font-mono flex items-center gap-2">
-                                                    <span className="text-indigo-200 font-semibold">{rt.routeName || 'Default Route'}</span>
-                                                    {rt.routeId && <span className="text-[10px] text-indigo-300/70">(ID: {rt.routeId})</span>}
-                                                    <span className="text-emerald-400 font-bold ml-1">{rt.balance} SMS</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {smsBalanceInfo?.lastChecked && (
-                                    <div className="text-[10px] text-indigo-300/70 italic text-right font-nepali">
-                                        अन्तिम पटक चेक गरिएको समय: {smsBalanceInfo.lastChecked}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Email API Settings (Resend) - Added for SUPER_ADMIN */}
-                            <div className="mt-8 border-t pt-6">
-                                <h4 className="font-bold text-indigo-900 mb-1 flex items-center gap-2 font-nepali text-sm">
-                                    <Mail size={18} className="text-indigo-600"/>
-                                    Email API सेटिङ (Resend) - (Super Admin Only)
-                                </h4>
-                                <p className="text-xs text-slate-500 font-nepali mb-4">
-                                    Resend API प्रयोग गरेर प्रणालीबाट स्वचालित ईमेल पठाउनको लागि यहाँ विवरणहरू भर्नुहोस्।
-                                </p>
-                                <div className="grid md:grid-cols-2 gap-4 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                                    <Input 
-                                        label="Email API Provider" 
-                                        value={localSettings.emailApiProvider || 'Resend'} 
-                                        onChange={(e) => handleChange('emailApiProvider', e.target.value)} 
-                                        placeholder="Resend"
-                                        readOnly
-                                        icon={<Server size={16} />} 
-                                    />
-                                    <Input 
-                                        label="Resend API Key (गोप्य)" 
-                                        type={showEmailApiKey ? "text" : "password"}
-                                        value={localSettings.emailApiKey || ''} 
-                                        onChange={(e) => handleChange('emailApiKey', e.target.value)} 
-                                        placeholder="re_xxxx..." 
-                                        icon={<Key size={16} />}
-                                        suffix={
-                                          <button
-                                            type="button"
-                                            onClick={() => setShowEmailApiKey(!showEmailApiKey)}
-                                            className="p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none"
-                                            title={showEmailApiKey ? "Key लुकाउनुहोस्" : "Key देख्नुहोस्"}
-                                          >
-                                            {showEmailApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                                          </button>
-                                        }
-                                    />
-                                    <Input 
-                                        label="Email Sender Address" 
-                                        value={localSettings.emailSenderAddress || ''} 
-                                        onChange={(e) => handleChange('emailSenderAddress', e.target.value)} 
-                                        placeholder="noreply@smartinventoryy.com"
-                                        icon={<Mail size={16} />} 
-                                    />
-                                    <Input 
-                                        label="Email Sender Name" 
-                                        value={localSettings.emailSenderName || ''} 
-                                        onChange={(e) => handleChange('emailSenderName', e.target.value)} 
-                                        placeholder="Unique Health"
-                                        icon={<UserCog size={16} />} 
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Download Center Link Setting - Added for SUPER_ADMIN */}
-                            <div className="mt-8 border-t pt-6">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><ExternalLink size={18} className="text-emerald-600"/>पोर्टल तथा लगइन पृष्ठ सेटिङ</h3>
+                {currentUser?.role === 'SUPER_ADMIN' ? (
+                    <div className="space-y-6">
                                 <h4 className="font-bold text-emerald-900 mb-1 flex items-center gap-2 font-nepali text-sm">
                                     <ExternalLink size={18} className="text-emerald-600"/>
                                     डाउनलोड सेन्टर लिङ्क सेटिङ (Super Admin Only)
@@ -1224,10 +1549,6 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         icon={<ExternalLink size={16} />} 
                                     />
                                 </div>
-                            </div>
-
-                            {/* Login Page Ribbon / Kudos Message Setting - Added for SUPER_ADMIN */}
-                            <div className="mt-8 border-t pt-6">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                                     <h4 className="font-bold text-rose-950 flex items-center gap-2 font-nepali text-sm">
                                         <Megaphone size={18} className="text-rose-600"/>
@@ -1306,10 +1627,19 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
                     </div>
+                ) : (
+                    <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-nepali border border-amber-200">यो सेटिङ सुपर एडमिन (Super Admin) ले मात्र परिवर्तन गर्न सक्नुहुन्छ।</div>
                 )}
+            </div>
+            </div>
+          )}
+
+          {/* 11. User Assignments */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'users' : ["प्रतिवेदन","अधिकारी","report","signer","certifier","preparer","तयार गर्ने","प्रमाणित","प्रयोगकर्ता"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><UserCheck size={18} className="text-primary-600"/>प्रतिवेदन प्रमाणित गर्ने र जिम्मेवार अधिकारी सेटिङ</h3>
                 <div className="grid md:grid-cols-2 gap-6 mt-6">
                     {(() => {
                         const orgUsers = users.filter(u => u.organizationName === currentUser.organizationName);
@@ -1351,86 +1681,62 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                     })()}
                 </div>
             </div>
-        </div>
+            </div>
+          )}
 
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Image size={18} className="text-primary-600"/>लोगो सेटिङ</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('logo-upload')?.click()}>
-                        <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                    const base64String = reader.result as string;
-                                    const updatedSettings = { ...localSettings, logoUrl: base64String };
-                                    setLocalSettings(updatedSettings);
-                                    onUpdateSettings(updatedSettings);
-                                    alert('लोगो सफलतापूर्वक सेट भयो!');
-                                };
-                                reader.onerror = () => {
-                                    alert('लोगो लोड गर्न समस्या भयो');
-                                }
-                                reader.readAsDataURL(file);
-                            }
-                        }} />
-                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
-                            <img 
-                                key={localSettings.logoUrl}
-                                src={localSettings.logoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
-                                alt="Logo" 
-                                className="w-full h-full object-cover" 
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
-                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
-                            </div>
+          {/* 12. Subscription */}
+          {(!settingsSearchQuery.trim() ? generalSubTab === 'subscription' : ["subscription","सदस्यता","expiry","नवीकरण","सक्रिय"].some(t => t.toLowerCase().includes(settingsSearchQuery.toLowerCase().trim()) || settingsSearchQuery.toLowerCase().trim().includes(t.toLowerCase()))) && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 border-b pb-2"><ShieldCheck size={18} className="text-amber-600"/>सदस्यता स्थिति (Subscription Status)</h3>
+                <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-nepali ${localSettings.isSubscribed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                {localSettings.isSubscribed ? 'सक्रिय सदस्यता (Subscribed)' : 'परीक्षण / नवीकरण आवश्यक'}
+                            </span>
                         </div>
-                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">नेपाल सरकारको लोगो</span>
-                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
+                        <p className="text-xs text-slate-600 mt-2 font-nepali">समाप्त हुने मिति: <strong>{localSettings.subscriptionExpiryDate ? new Date(localSettings.subscriptionExpiryDate).toLocaleDateString() : 'नतोकिएको'}</strong></p>
                     </div>
-
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 hover:bg-slate-50 cursor-pointer group" onClick={() => document.getElementById('province-logo-upload')?.click()}>
-                        <input type="file" id="province-logo-upload" className="hidden" accept="image/*" onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                    const base64String = reader.result as string;
-                                    const updatedSettings = { ...localSettings, provinceLogoUrl: base64String };
-                                    setLocalSettings(updatedSettings);
-                                    onUpdateSettings(updatedSettings);
-                                    alert('प्रदेश लोगो सफलतापूर्वक सेट भयो!');
-                                };
-                                reader.onerror = () => {
-                                    alert('लोगो लोड गर्न समस्या भयो');
-                                }
-                                reader.readAsDataURL(file);
-                            }
-                        }} />
-                        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-105 transition-transform overflow-hidden relative border shadow-sm">
-                            <img 
-                                key={localSettings.provinceLogoUrl}
-                                src={localSettings.provinceLogoUrl || "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png"} 
-                                alt="Province Logo" 
-                                className="w-full h-full object-cover" 
-                            />
-                            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] text-center p-1">
-                                लोगो परिवर्तन गर्न क्लिक गर्नुहोस्
-                            </div>
+                    {currentUser?.role === 'SUPER_ADMIN' && (
+                        <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-xl border border-amber-200 shadow-xs">
+                                <input type="checkbox" checked={!!localSettings.isSubscribed} onChange={(e) => handleChange('isSubscribed', e.target.checked)} className="w-4 h-4 text-amber-600 rounded" />
+                                <span className="text-xs font-bold text-slate-700 font-nepali">सक्रिय गर्नुहोस् (Active)</span>
+                            </label>
                         </div>
-                        <span className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">प्रदेश लोगो</span>
-                        <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
-                    </div>
+                    )}
                 </div>
             </div>
-            <div className="bg-slate-50 p-6 rounded-xl border shadow-inner"><div className="flex flex-col gap-3">
-              {currentUser?.hasSaveAccess !== false && (
-                <button type="submit" className="w-full flex items-center justify-center gap-2 bg-slate-800 text-white py-3 rounded-lg font-medium hover:bg-slate-900">{isSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}{isSaved ? 'सुरक्षित भयो' : 'सेटिङ सुरक्षित गर्नुहोस्'}</button>
-              )}
-              <button type="button" onClick={handleReset} className="w-full flex items-center justify-center gap-2 bg-white text-red-600 border border-red-200 py-3 rounded-lg font-medium hover:bg-red-50"><RotateCcw size={18} />रिसेट (Reset)</button></div><p className="text-xs text-center text-slate-400 mt-4">Last updated: {new Date().toLocaleDateString()}</p></div>
-        </div>
-      </form>
+            </div>
+          )}
+
+            {/* Save & Reset Action Bar */}
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-700 font-nepali">सेटिङ सुरक्षित गर्नुहोस्</p>
+                <p className="text-[11px] text-slate-400 font-nepali">तपाईंले गरेका सम्पूर्ण परिवर्तनहरू डाटाबेसमा तत्काल सुरक्षित हुनेछन्।</p>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-50 transition-all cursor-pointer font-nepali shadow-xs"
+                >
+                  <RotateCcw size={15} /> रिसेट (Reset)
+                </button>
+                {currentUser?.hasSaveAccess !== false && (
+                  <button
+                    type="submit"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-all cursor-pointer font-nepali shadow-sm"
+                  >
+                    {isSaved ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Save size={16} />}
+                    {isSaved ? 'सुरक्षित भयो' : 'सेटिङ सुरक्षित गर्नुहोस्'}
+                  </button>
+                )}
+              </div>
+            </div>
+        </form>
       )}
 
       {activeTab === 'menu' && (
