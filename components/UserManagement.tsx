@@ -12,33 +12,73 @@ import { hashPassword } from '../lib/crypto';
 import axios from 'axios';
 
 /**
- * Finds all subordinate users under a given target user:
- * 1. Recursive descendants via parentId
- * 2. Organization members for ADMIN / HEALTH_SECTION
+ * Checks if a user is frozen directly or via their current active organization/admin hierarchy
+ * (including users transferred from one organization to another).
+ */
+export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean => {
+  if (!user) return false;
+  if (user.role === 'SUPER_ADMIN') return false;
+  if (isSystemManagerUser(user)) return false;
+  
+  // 1. Direct freeze
+  if (user.isFrozen) return true;
+
+  // 2. Check current organization's Admin / Health Section (transferred hierarchy)
+  const currentOrgAdmin = allUsers.find(u => 
+    u.organizationName === user.organizationName && 
+    (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
+    u.id !== user.id
+  );
+  if (currentOrgAdmin && currentOrgAdmin.isFrozen) {
+    return true;
+  }
+
+  // 3. Traverse parent chain
+  let currentParentId = user.parentId;
+  let depth = 0;
+  const visited = new Set<string>([user.id]);
+  while (currentParentId && depth < 20 && !visited.has(currentParentId)) {
+    visited.add(currentParentId);
+    const parent = allUsers.find(u => u.id === currentParentId);
+    if (parent) {
+      if (parent.isFrozen) {
+        // If user transferred to a different org that has its own different admin, don't inherit old parent's freeze
+        if (currentOrgAdmin && currentOrgAdmin.id !== parent.id && parent.organizationName !== user.organizationName) {
+          break;
+        }
+        return true;
+      }
+      currentParentId = parent.parentId;
+      depth++;
+    } else {
+      break;
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Finds all subordinate users under a given target user based on current active hierarchy:
+ * 1. For SUPER_ADMIN: All non-superadmin users
+ * 2. For ADMIN / HEALTH_SECTION: All users currently belonging to this organization (including transferred users),
+ *    plus any direct/indirect child users who haven't transferred to a different admin's org.
  */
 export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] => {
   if (!targetUser || !allUsers || allUsers.length === 0) return [];
   const result: User[] = [];
   const visitedIds = new Set<string>([targetUser.id]);
   
-  // 1. Traverse parentId chain (direct and indirect descendants)
-  const queue = [targetUser.id];
-  while (queue.length > 0) {
-    const currentParentId = queue.shift()!;
-    const directChildren = allUsers.filter(u => u.parentId === currentParentId && !visitedIds.has(u.id));
-    for (const child of directChildren) {
-      if (!isSystemManagerUser(child)) {
-        visitedIds.add(child.id);
-        result.push(child);
-        queue.push(child.id);
-      }
-    }
+  if (targetUser.role === 'SUPER_ADMIN') {
+    return allUsers.filter(u => u.id !== targetUser.id && u.role !== 'SUPER_ADMIN' && !isSystemManagerUser(u));
   }
 
-  // 2. For ADMIN or HEALTH_SECTION users, also include users in the same organization
+  // 1. For ADMIN or HEALTH_SECTION users:
+  // All users currently belonging to targetUser's organization (transferred into or originally in this org)
   if (targetUser.role === 'ADMIN' || targetUser.role === 'HEALTH_SECTION') {
     const orgUsers = allUsers.filter(u => 
       u.organizationName === targetUser.organizationName && 
+      u.id !== targetUser.id &&
       !visitedIds.has(u.id) && 
       !isSystemManagerUser(u) &&
       u.role !== 'SUPER_ADMIN'
@@ -46,17 +86,29 @@ export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] 
     for (const orgUser of orgUsers) {
       visitedIds.add(orgUser.id);
       result.push(orgUser);
-      // and any children of this orgUser
-      const subQueue = [orgUser.id];
-      while (subQueue.length > 0) {
-        const subPid = subQueue.shift()!;
-        const subChildren = allUsers.filter(u => u.parentId === subPid && !visitedIds.has(u.id));
-        for (const child of subChildren) {
-          if (!isSystemManagerUser(child)) {
-            visitedIds.add(child.id);
-            result.push(child);
-            subQueue.push(child.id);
-          }
+    }
+  }
+
+  // 2. Traverse parentId chain (direct and indirect descendants)
+  // If a child was transferred to a different organization that has its own different admin, they follow that new admin
+  const queue = [targetUser.id];
+  while (queue.length > 0) {
+    const currentParentId = queue.shift()!;
+    const directChildren = allUsers.filter(u => u.parentId === currentParentId && !visitedIds.has(u.id));
+    for (const child of directChildren) {
+      if (!isSystemManagerUser(child) && child.role !== 'SUPER_ADMIN') {
+        const hasOtherAdmin = allUsers.some(u => 
+          u.organizationName === child.organizationName && 
+          (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
+          u.id !== targetUser.id &&
+          u.organizationName !== targetUser.organizationName
+        );
+        
+        // If the user hasn't transferred to another admin's organization, include them in this hierarchy
+        if (!hasOtherAdmin || child.organizationName === targetUser.organizationName) {
+          visitedIds.add(child.id);
+          result.push(child);
+          queue.push(child.id);
         }
       }
     }
@@ -838,6 +890,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         finalEditMenus.push('change_password');
     }
 
+    const targetOrgName = formData.organizationName.trim();
+    let resolvedParentId = formData.parentId || currentUser.id;
+    if (formData.role !== 'SUPER_ADMIN' && formData.role !== 'ADMIN' && formData.role !== 'HEALTH_SECTION') {
+      const orgAdmin = users.find(u => u.organizationName === targetOrgName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== newId);
+      if (orgAdmin) {
+        resolvedParentId = orgAdmin.id;
+      }
+    }
+
     const userToSave: User = {
         id: newId,
         username: formData.username.trim(), 
@@ -847,7 +908,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         designation: formData.designation.trim(),
         phoneNumber: formData.phoneNumber.trim(), 
         email: emailTrimmed,
-        organizationName: formData.organizationName.trim(),
+        organizationName: targetOrgName,
         allowedMenus: isEditingSelf ? (currentUser.allowedMenus || []) : finalMenus,
         editAccessMenus: isEditingSelf ? (currentUser.editAccessMenus || []) : finalEditMenus,
         deleteAccessMenus: isEditingSelf ? (currentUser.deleteAccessMenus || []) : finalDeleteMenus,
@@ -862,7 +923,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         smsUsedCount: isSuperAdmin ? formData.smsUsedCount : (isEditingSelf ? (currentUser.smsUsedCount ?? 0) : 0),
         maxUsersAllowed: isSuperAdmin ? (formData.role === 'ADMIN' ? (formData.maxUsersAllowed !== undefined ? Number(formData.maxUsersAllowed) : 5) : 5) : (isEditingSelf ? (currentUser.maxUsersAllowed ?? 5) : (users.find(u => u.id === editingId)?.maxUsersAllowed ?? 5)),
         mustChangePassword: !editingId ? true : (users.find(u => u.id === editingId)?.mustChangePassword ?? false),
-        parentId: formData.parentId || currentUser.id,
+        parentId: resolvedParentId,
         isFrozen: editingId ? (users.find(u => u.id === editingId)?.isFrozen ?? false) : false,
         createdFromApp: "SmartHealthOfficialApp",
         updatedFromApp: "SmartHealthOfficialApp",

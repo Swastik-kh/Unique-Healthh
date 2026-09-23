@@ -10,6 +10,7 @@ import { logUserActivity } from '../lib/logger';
 import { db } from '../firebase';
 import { ref, update, get, set, remove, child, onValue } from 'firebase/database';
 import { hashPassword } from '../lib/crypto';
+import { isUserFrozenInHierarchy } from './UserManagement';
 import axios from 'axios';
 
 interface LoginFormProps {
@@ -141,39 +142,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
         return;
       }
 
-      // Check if frozen (reusing logic from handleSubmit)
-      if (foundUser.isFrozen && foundUser.role !== 'SUPER_ADMIN') {
-        setErrors({ form: 'तपाईंको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' });
-        setIsLoading(false);
-        return;
-      }
-
-      let currentParentId = foundUser.parentId;
-      let depth = 0;
-      let isAncestorFrozen = false;
-      while (currentParentId && depth < 20) {
-        const ancestor = users.find(u => u.id === currentParentId);
-        if (ancestor) {
-          if (ancestor.isFrozen) {
-            isAncestorFrozen = true;
-            break;
-          }
-          currentParentId = ancestor.parentId;
-          depth++;
-        } else {
-          break;
-        }
-      }
-
-      if (!isAncestorFrozen && foundUser.role !== 'SUPER_ADMIN') {
-        const orgAdmin = users.find(u => u.organizationName === foundUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== foundUser.id);
-        if (orgAdmin && orgAdmin.isFrozen) {
-          isAncestorFrozen = true;
-        }
-      }
-
-      if (isAncestorFrozen) {
-        setErrors({ form: 'तपाईंको मुख्य प्रशासक वा संस्थाको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' });
+      // Check if frozen directly or via hierarchy (including transferred hierarchy)
+      if (isUserFrozenInHierarchy(foundUser, users)) {
+        setErrors({ form: 'तपाईंको खाता वा संस्थाको मुख्य प्रशासक खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' });
         setIsLoading(false);
         return;
       }
@@ -404,33 +375,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ users, onLoginSuccess, ini
               return;
           }
 
-          // Check if any ancestor is frozen
-          let currentParentId = foundUser.parentId;
-          let depth = 0;
-          let isAncestorFrozen = false;
-          while (currentParentId && depth < 20) {
-              const ancestor = users.find(u => u.id === currentParentId);
-              if (ancestor) {
-                  if (ancestor.isFrozen) {
-                      isAncestorFrozen = true;
-                      break;
-                  }
-                  currentParentId = ancestor.parentId;
-                  depth++;
-              } else {
-                  break;
-              }
-          }
-
-          if (!isAncestorFrozen && foundUser.role !== 'SUPER_ADMIN') {
-              const orgAdmin = users.find(u => u.organizationName === foundUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== foundUser.id);
-              if (orgAdmin && orgAdmin.isFrozen) {
-                  isAncestorFrozen = true;
-              }
-          }
-
-          if (isAncestorFrozen) {
-              setErrors(prev => ({ ...prev, form: 'तपाईंको मुख्य प्रशासक वा संस्थाको खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
+          // Check if user is frozen directly or via hierarchy (including transferred hierarchy)
+          if (isUserFrozenInHierarchy(foundUser, users)) {
+              setErrors(prev => ({ ...prev, form: 'तपाईंको खाता वा संस्थाको मुख्य प्रशासक खाता फ्रिज गरिएको छ। कृपया सुपर एडमिनलाई सम्पर्क गर्नुहोस्।' }));
               setIsLoading(false);
               return;
           }

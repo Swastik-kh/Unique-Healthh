@@ -6,6 +6,7 @@ import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
 import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw } from 'lucide-react';
 import { ChangePassword } from './components/ChangePassword';
+import { isUserFrozenInHierarchy } from './components/UserManagement';
 import { 
   User, OrganizationSettings, MagFormEntry, RabiesPatient, PurchaseOrderEntry, 
   IssueReportEntry, FirmEntry, QuotationEntry, InventoryItem, Store, StockEntryRequest, 
@@ -526,34 +527,7 @@ const App: React.FC = () => {
     if (currentUser && currentUser.role !== 'SUPER_ADMIN') {
       const updatedUser = allUsers.find(u => u.id === currentUser.id);
       if (updatedUser) {
-        let isUserFrozen = !!updatedUser.isFrozen;
-        
-        // Also check if any ancestor is frozen
-        if (!isUserFrozen) {
-          let currentParentId = updatedUser.parentId;
-          let depth = 0;
-          while (currentParentId && depth < 20) {
-            const ancestor = allUsers.find(u => u.id === currentParentId);
-            if (ancestor) {
-              if (ancestor.isFrozen) {
-                isUserFrozen = true;
-                break;
-              }
-              currentParentId = ancestor.parentId;
-              depth++;
-            } else {
-              break;
-            }
-          }
-        }
-
-        // Also check if organization admin is frozen
-        if (!isUserFrozen) {
-          const orgAdmin = allUsers.find(u => u.organizationName === updatedUser.organizationName && (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && u.id !== updatedUser.id);
-          if (orgAdmin && orgAdmin.isFrozen) {
-            isUserFrozen = true;
-          }
-        }
+        const isUserFrozen = isUserFrozenInHierarchy(updatedUser, allUsers);
 
         if (isUserFrozen) {
           handleLogout();
