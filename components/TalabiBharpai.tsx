@@ -723,9 +723,16 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         if (onDeleteSalaryReceipt) {
           onDeleteSalaryReceipt(currentMonthReceipt.id);
         }
+        const cleanFy = selectedFiscalYear.replace(/[^0-9]/g, '');
+        const txId = `sal_exp_${cleanFy}_${selectedMonthCode}`;
+        const voucherId = `GV-SAL-${cleanFy}_${selectedMonthCode}`;
+
         await remove(ref(db, `orgData/${safeOrgName}/salaryReceipts/${currentMonthReceipt.id}`));
+        await remove(ref(db, `orgData/${safeOrgName}/financialTransactions/${txId}`));
+        await remove(ref(db, `orgData/${safeOrgName}/goswaraVouchers/${voucherId}`));
+
         setEmployeesList([]);
-        alert("तलबी भरपाई सफलतापूर्वक हटाइयो।");
+        alert("तलबी भरपाई तथा सम्बन्धित लेखाका रेकर्डहरू सफलतापूर्वक database बाट हटाइयो।");
       } catch (e: any) {
         alert("त्रुटि: " + e.message);
       }
