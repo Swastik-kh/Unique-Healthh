@@ -4,7 +4,7 @@ import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
 import { APP_NAME, ORG_NAME, AVAILABLE_SERVICES } from './constants';
-import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw } from 'lucide-react';
+import { Landmark, ShieldCheck, AlertCircle, Database, ShieldAlert, Lock, Unlock, KeyRound, LogOut, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { ChangePassword } from './components/ChangePassword';
 import { isUserFrozenInHierarchy } from './components/UserManagement';
 import { 
