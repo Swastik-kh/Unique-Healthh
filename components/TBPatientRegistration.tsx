@@ -433,9 +433,10 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
   const patientsOnQueue = useMemo(() => {
     return (serviceSeekerRecords || []).filter(patient => {
+      const isFiscalYearMatch = !patient.fiscalYear || patient.fiscalYear === currentFiscalYear;
       const isToday = patient.date === todayNepaliDate;
       const isDepartmentMatch = patient.serviceType === activeTab;
-      if (!isToday || !isDepartmentMatch) return false;
+      if (!isToday || !isDepartmentMatch || !isFiscalYearMatch) return false;
       
       const isAlreadyRegistered = (patients || []).some(p => 
         p.serviceType === activeTab && (
@@ -448,7 +449,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       
       return !isAlreadyRegistered && patient.status !== 'Completed';
     });
-  }, [serviceSeekerRecords, patients, todayNepaliDate, activeTab]);
+  }, [serviceSeekerRecords, patients, todayNepaliDate, activeTab, currentFiscalYear]);
 
   const selectPatientFromQueue = (patient: ServiceSeekerRecord) => {
     handleReset();
@@ -564,12 +565,26 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       setSearchId('');
       alert(`दर्ता नं. ${searchId.trim()} भएको बिरामी पहिले नै दर्ता भइसकेको छ। विवरण लक गरिएको छ।`);
     } else {
-      // Check in Muldarta (Service Seeker Records)
-      const muldartaRecord = (serviceSeekerRecords || []).find(r => 
-        r.mulDartaNo === searchId.trim() || 
-        r.registrationNumber === searchId.trim() ||
-        r.uniquePatientId === searchId.trim()
+      // Check in Muldarta (Service Seeker Records) prioritizing current login fiscal year
+      const searchKey = searchId.trim();
+      
+      let muldartaRecord = (serviceSeekerRecords || []).find(r => 
+        (r.fiscalYear === currentFiscalYear) &&
+        (r.mulDartaNo === searchKey || 
+         r.registrationNumber === searchKey ||
+         r.uniquePatientId === searchKey ||
+         r.id === searchKey)
       );
+
+      // Fallback to searching all fiscal years if not found in current fiscal year
+      if (!muldartaRecord) {
+        muldartaRecord = (serviceSeekerRecords || []).find(r => 
+          r.mulDartaNo === searchKey || 
+          r.registrationNumber === searchKey ||
+          r.uniquePatientId === searchKey ||
+          r.id === searchKey
+        );
+      }
 
       if (muldartaRecord) {
         handleReset();
@@ -586,10 +601,10 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
         }));
         setShowRegistrationForm(true);
         setSearchId('');
-        alert(`मूल दर्ता नं. ${searchId.trim()} बाट विवरण प्राप्त भयो।`);
+        alert(`आ.व. ${muldartaRecord.fiscalYear || currentFiscalYear} को मूल दर्ता नं. ${searchKey} बाट विवरण प्राप्त भयो।`);
       } else {
         handleReset();
-        setFormData(prev => ({ ...prev, patientId: searchId.trim() }));
+        setFormData(prev => ({ ...prev, patientId: searchKey }));
         setShowRegistrationForm(true);
         setSearchId('');
       }

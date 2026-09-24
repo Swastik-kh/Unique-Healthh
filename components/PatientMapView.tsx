@@ -25,6 +25,7 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedPatientCard, setSelectedPatientCard] = useState<TBPatient | null>(null);
+  const [showPatientName, setShowPatientName] = useState<boolean>(true);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -135,6 +136,23 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
       const strokeColor = isDefaulter ? '#dc2626' : (isCompleted ? '#10b981' : '#ffffff');
       const badgeIconText = isTb ? 'TB' : 'LP';
 
+      const nameLabelHtml = showPatientName ? `
+        <div style="
+          background: rgba(15, 23, 42, 0.9); 
+          color: white; 
+          font-size: 10px; 
+          font-weight: 700; 
+          padding: 2px 6px; 
+          border-radius: 6px; 
+          margin-top: 2px; 
+          white-space: nowrap; 
+          box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+          font-family: 'Mukta', sans-serif;
+        ">
+          ${p.name || p.patientId}
+        </div>
+      ` : '';
+
       const customMarkerIcon = L.divIcon({
         className: 'patient-map-marker',
         html: `
@@ -156,24 +174,11 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
             ">
               ${badgeIconText}
             </div>
-            <div style="
-              background: rgba(15, 23, 42, 0.9); 
-              color: white; 
-              font-size: 10px; 
-              font-weight: 700; 
-              padding: 2px 6px; 
-              border-radius: 6px; 
-              margin-top: 2px; 
-              white-space: nowrap; 
-              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-              font-family: 'Mukta', sans-serif;
-            ">
-              ${p.name || p.patientId}
-            </div>
+            ${nameLabelHtml}
           </div>
         `,
-        iconSize: [40, 50],
-        iconAnchor: [20, 25]
+        iconSize: showPatientName ? [40, 50] : [32, 32],
+        iconAnchor: showPatientName ? [20, 25] : [16, 16]
       });
 
       const marker = L.marker([p.latitude!, p.longitude!], { icon: customMarkerIcon });
@@ -191,7 +196,7 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
     if (mappedPatients.length > 0 && map) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
-  }, [mappedPatients]);
+  }, [mappedPatients, showPatientName]);
 
   const handleZoomToPatient = (p: TBPatient) => {
     setSelectedPatientCard(p);
@@ -300,6 +305,17 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
           </select>
         </div>
 
+        {/* Toggle Show Patient Name Checkbox */}
+        <label className="flex items-center gap-2 cursor-pointer bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl border border-slate-700 font-nepali text-xs transition-colors select-none">
+          <input
+            type="checkbox"
+            checked={showPatientName}
+            onChange={e => setShowPatientName(e.target.checked)}
+            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-slate-600 cursor-pointer"
+          />
+          <span>बिरामीको नाम देखाउनुहोस् (Show Name)</span>
+        </label>
+
         {/* Search input */}
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -346,6 +362,17 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
             <div className="flex items-center gap-2 text-[11px] text-slate-400">
               <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
               <span>डिफल्टर (Loss / Defaulter)</span>
+            </div>
+            <div className="pt-2 border-t border-slate-800">
+              <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-200 hover:text-white select-none">
+                <input
+                  type="checkbox"
+                  checked={showPatientName}
+                  onChange={e => setShowPatientName(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded text-indigo-500 focus:ring-indigo-400 bg-slate-800 border-slate-600 cursor-pointer"
+                />
+                <span>बिरामीको नाम देखाउनुहोस्</span>
+              </label>
             </div>
           </div>
 
