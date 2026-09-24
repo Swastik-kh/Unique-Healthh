@@ -11,7 +11,7 @@ import {
   UserPlus, FlaskConical, Pill, Accessibility, Scan, Waves, Siren, MessageSquare, Truck, MoreVertical, Thermometer
 } from 'lucide-react';
 import { APP_NAME, FISCAL_YEARS } from '../constants';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { ref, onValue, get } from 'firebase/database';
 import { DashboardProps } from '../types/dashboardTypes'; 
 import { PurchaseOrderEntry, InventoryItem, MagFormEntry, StockEntryRequest, DakhilaPratibedanEntry } from '../types/inventoryTypes';
@@ -1543,7 +1543,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       case 'report_cbimnci': return <CBIMNCIReport cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} currentUser={currentUser} />;
       case 'report_reporting_status': return <ReportingStatusReport serviceSeekerRecords={serviceSeekerRecords} bachhaImmunizationRecords={bachhaImmunizationRecords} currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} currentUser={currentUser} />;
       case 'report_pariwar_niyojan': return <FamilyPlanningReport records={pariwarSewaRecords} settings={generalSettings} fiscalYear={currentFiscalYear} currentUser={currentUser} />;
-      case 'report_fchv': return <FCHVCompilationReport safeOrgName={activeOrgName.trim().replace(/[.#$[\\]]/g, "_")} currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} currentUser={currentUser} />;
+      case 'report_fchv': return <FCHVCompilationReport safeOrgName={sanitizeOrgName(activeOrgName)} currentFiscalYear={currentFiscalYear} generalSettings={generalSettings} currentUser={currentUser} />;
       case 'report_gesi': return <GESIReport currentFiscalYear={currentFiscalYear} bachhaRecords={bachhaImmunizationRecords} cbimnciRecords={cbimnciRecords} serviceSeekerRecords={serviceSeekerRecords} prasutiRecords={prasutiRecords} tbPatients={tbPatients} opdRecords={opdRecords} ipdRecords={ipdRecords} generalSettings={generalSettings} currentUser={currentUser} />;
       case 'report_mch': return <MCHReport currentFiscalYear={currentFiscalYear} garbhawotiRecords={garbhawotiRecords} prasutiRecords={prasutiRecords} generalSettings={generalSettings} currentUser={currentUser} />;
       case 'mag_faram': return <MagFaram currentFiscalYear={currentFiscalYear} currentUser={currentUser} existingForms={magForms} onSave={onSaveMagForm} onDelete={onDeleteMagForm} inventoryItems={inventoryItems} stores={stores} generalSettings={generalSettings} itemList={itemList} />;
@@ -1667,7 +1667,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
                                 <p class="org-sub">${generalSettings.subTitleNepali3 || ''}</p>
                                 <p class="org-sub">${generalSettings.subTitleNepali4 || ''}</p>
                             </div>
-                            <img class="logo" src="${generalSettings.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png'}" />
+                            ${(!generalSettings.disableProvinceLogo && !generalSettings.hideProvinceLogo && generalSettings.provinceLogoUrl) ? `<img class="logo" src="${generalSettings.provinceLogoUrl}" />` : '<div class="logo"></div>'}
                         </div>
                         <div class="meta-row" style="margin-bottom: 0;">
                             <div style="display: flex; flex-direction: column;">
@@ -2106,7 +2106,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
             let senderSettings = receivedLetter.senderSettings;
             if (!senderSettings) {
                 try {
-                    const senderSafeName = (receivedLetter.senderOrgName || '').trim().replace(/[.#$[\]]/g, "_");
+                    const senderSafeName = sanitizeOrgName(receivedLetter.senderOrgName || '');
                     const snap = await get(ref(db, `orgData/${senderSafeName}/settings`));
                     if (snap.exists()) {
                         senderSettings = snap.val();
@@ -2127,7 +2127,8 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
             const subTitle3 = senderSettings?.subTitleNepali3 || '';
             const subTitle4 = senderSettings?.subTitleNepali4 || '';
             const logo = senderSettings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
-            const provinceLogo = senderSettings?.provinceLogoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
+            const showProvinceLogo = !senderSettings?.disableProvinceLogo && !senderSettings?.hideProvinceLogo && senderSettings?.provinceLogoUrl;
+            const provinceLogo = senderSettings?.provinceLogoUrl || '';
             
             const phoneVal = senderSettings?.phone || '';
             const emailVal = senderSettings?.email || '';
@@ -2192,7 +2193,7 @@ ${chalani.letterContent || 'विषयसम्बन्धमा जानक
                                 ${subTitle3 ? `<p class="org-sub">${subTitle3}</p>` : ''}
                                 ${subTitle4 ? `<p class="org-sub">${subTitle4}</p>` : ''}
                             </div>
-                            <img class="logo" src="${provinceLogo}" />
+                            ${showProvinceLogo ? `<img class="logo" src="${provinceLogo}" />` : '<div class="logo"></div>'}
                         </div>
                         <div class="meta-row" style="margin-bottom: 0;">
                             <span>चलानी नम्बर: ${toNepaliDigits(receivedLetter.dispatchNumber)}</span>

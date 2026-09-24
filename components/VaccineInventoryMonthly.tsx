@@ -17,7 +17,7 @@ import {
   Printer,
   ArrowDownToLine
 } from 'lucide-react';
-import { db, safeEncodeKey } from '../firebase';
+import { db, safeEncodeKey, sanitizeOrgName } from '../firebase';
 import { ref, onValue, set, remove } from 'firebase/database';
 import { ChildImmunizationRecord, GarbhawatiPatient } from '../types/healthTypes';
 import { OrganizationSettings } from '../types/coreTypes';
@@ -104,7 +104,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
   useEffect(() => {
     if (!activeOrgName) return;
     setIsLoading(true);
-    const encodedOrgName = safeEncodeKey(activeOrgName);
+    const encodedOrgName = sanitizeOrgName(activeOrgName);
     const receiptsRef = ref(db, `orgData/${encodedOrgName}/vaccineReceipts/${fiscalYearClean}`);
     
     const unsubscribe = onValue(receiptsRef, (snapshot) => {
@@ -274,7 +274,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
         supplyExpensesToSave[s.name] = supplyExpenses[s.name] || 0;
       });
 
-      const encodedOrgName = safeEncodeKey(activeOrgName);
+      const encodedOrgName = sanitizeOrgName(activeOrgName);
       const recordRef = ref(db, `orgData/${encodedOrgName}/vaccineReceipts/${fiscalYearClean}/${selectedMonth}`);
       
       await set(recordRef, {
@@ -304,7 +304,7 @@ export const VaccineInventoryMonthly: React.FC<VaccineInventoryMonthlyProps> = (
     }
 
     try {
-      const encodedOrgName = safeEncodeKey(activeOrgName);
+      const encodedOrgName = sanitizeOrgName(activeOrgName);
       const recordRef = ref(db, `orgData/${encodedOrgName}/vaccineReceipts/${fiscalYearClean}/${monthName}`);
       await remove(recordRef);
       setSuccessMsg(`${monthName} महिनाको रेकर्ड हटाइयो।`);

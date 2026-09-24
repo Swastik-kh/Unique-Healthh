@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firestore';
+import { sanitizeOrgName } from '../firebase';
 import { collection, doc, getDoc, setDoc, addDoc, query, getDocs, updateDoc, where, and } from 'firebase/firestore';
 import { VitaminATarget, FCHV, VitaminADistributionRecord, AgeGroupData } from '../types/vitaminATypes';
 import { Save, UserPlus, Plus, Printer } from 'lucide-react';
@@ -95,7 +96,7 @@ const sanitizeRecordData = (data: any): Record<string, AgeGroupData> => {
 };
 
 export const VitaminAProgram: React.FC<{ currentFiscalYear: string; activeOrgName: string; generalSettings?: any; currentUser?: any; allUsers?: any[] }> = ({ currentFiscalYear, activeOrgName, generalSettings, currentUser, allUsers = [] }) => {
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     const [targets, setTargets] = useState<VitaminATarget>({ 
         fiscalYear: currentFiscalYear, 
         target6to11Months: 0, 

@@ -14,7 +14,7 @@ import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { toNepaliNumber, parseNepaliNumber } from './nepaliUtils';
 import { FISCAL_YEARS } from '../constants';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { ref, onValue, set, push, remove } from 'firebase/database';
 import { getDriverMonthlyIncentive, isAmbulanceDriver, DriverIncentiveResult } from '../lib/ambulanceIncentiveUtils';
 import { sortUsersByHierarchy } from '../lib/userHierarchyUtils';
@@ -227,7 +227,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   } | null>(null);
 
   const effectiveOrgName = activeOrgName || currentUser?.organizationName || 'DefaultOrg';
-  const safeOrgName = effectiveOrgName.trim().replace(/[.#$[\]]/g, "_");
+  const safeOrgName = sanitizeOrgName(effectiveOrgName);
 
   const [ambulanceRecords, setAmbulanceRecords] = useState<any[]>([]);
   const [salaryScales, setSalaryScales] = useState<DesignationSalaryScale[]>([]);
@@ -691,7 +691,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
 
       // Save profiles as well for future months
       employeesList.forEach(emp => {
-        const profId = emp.userId || emp.employeeName.trim().replace(/[.#$[\]]/g, "_");
+        const profId = emp.userId || sanitizeOrgName(emp.employeeName);
         const profRef = ref(db, `orgData/${safeOrgName}/employeeSalaryProfiles/${profId}`);
         set(profRef, {
           id: profId,
@@ -850,7 +850,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       alert("कृपया पद (Designation) को नाम लेख्नुहोस्।");
       return;
     }
-    const cleanId = editingScale?.id || scaleForm.designation.trim().replace(/[.#$[\]/]/g, "_");
+    const cleanId = editingScale?.id || sanitizeOrgName(scaleForm.designation);
     const payload: DesignationSalaryScale = {
       id: cleanId,
       designation: scaleForm.designation.trim(),
@@ -911,7 +911,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
 
     try {
       for (const item of standardScales) {
-        const cleanId = item.designation.trim().replace(/[.#$[\]/]/g, "_");
+        const cleanId = sanitizeOrgName(item.designation);
         const scaleRef = ref(db, `orgData/${safeOrgName}/designationSalaryScales/${cleanId}`);
         await set(scaleRef, {
           id: cleanId,

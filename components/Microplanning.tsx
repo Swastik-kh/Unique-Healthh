@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { db, safeEncodeKey, safeDecodeKey } from '../firebase';
+import { db, safeEncodeKey, safeDecodeKey, sanitizeOrgName } from '../firebase';
 import { ref, get, set } from 'firebase/database';
 import { Save, Printer, ClipboardList, Settings, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { NATIONAL_IMMUNIZATION_SCHEDULE_TEMPLATE } from './ChildImmunizationRegistration';
@@ -171,7 +171,7 @@ export const Microplanning: React.FC<MicroplanningProps> = ({
     const fetchData = async () => {
       setLoading(true);
       try {
-        const safeSansthaKey = safeEncodeKey(selectedSanstha);
+        const safeSansthaKey = sanitizeOrgName(selectedSanstha);
         const pathPrefix = `microplanning/${safeSansthaKey}`;
 
         // 1. Fetch children records of the selected sanstha

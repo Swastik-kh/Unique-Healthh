@@ -8,7 +8,7 @@ import { LogoDisplay } from './LogoDisplay';
 import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
 import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { ref, set } from 'firebase/database';
 
 const COMMON_LAB_KWS = new Set([
@@ -1804,7 +1804,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               // Persist to Firebase orgData/{org}/generalSettings/ambulanceDriverIncentivePercent
               try {
                 const orgName = currentUser?.organizationName || generalSettings?.name || 'DefaultOrg';
-                const safeOrg = orgName.trim().replace(/[.#$[\]]/g, "_");
+                const safeOrg = sanitizeOrgName(orgName);
                 await set(ref(db, `orgData/${safeOrg}/generalSettings/ambulanceDriverIncentivePercent`), newPercent);
               } catch (err) {
                 console.error("Failed to update generalSettings incentive percent:", err);

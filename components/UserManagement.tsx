@@ -37,8 +37,7 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
 
   // 3. Traverse parent chain:
   // - If parent is SUPER_ADMIN and frozen -> freeze
-  // - If parent is non-superadmin: ONLY freeze if parent belongs to the SAME office/organization.
-  // - If parent belongs to a DIFFERENT office/organization, their freeze does NOT affect this user.
+  // - If parent is an ADMIN in the same office and frozen -> freeze
   let currentParentId = user.parentId;
   let depth = 0;
   const visited = new Set<string>([user.id]);
@@ -49,7 +48,7 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
       if (parent.role === 'SUPER_ADMIN') {
         if (parent.isFrozen) return true;
       } else {
-        if (parent.organizationName === user.organizationName && parent.isFrozen) {
+        if (parent.organizationName === user.organizationName && (parent.role === 'ADMIN' || parent.role === 'HEALTH_SECTION') && parent.isFrozen) {
           return true;
         }
       }
@@ -67,7 +66,7 @@ export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean =
  * Finds all subordinate users under a given target user:
  * 1. For SUPER_ADMIN: All non-superadmin users across all organizations.
  * 2. For ADMIN / HEALTH_SECTION: ONLY users belonging to the SAME office/organization.
- *    Users in different offices/organizations are NEVER included or affected.
+ * 3. For non-admin users (STAFF, STOREKEEPER, ACCOUNT, APPROVAL, etc.): None (empty array).
  */
 export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] => {
   if (!targetUser || !allUsers || allUsers.length === 0) return [];
@@ -76,15 +75,18 @@ export const getSubordinateUsers = (targetUser: User, allUsers: User[]): User[] 
     return allUsers.filter(u => u.id !== targetUser.id && u.role !== 'SUPER_ADMIN' && !isSystemManagerUser(u));
   }
 
-  // For ADMIN or HEALTH_SECTION:
-  // ONLY return users belonging to the SAME office/organization.
-  // Users in a different organization are strictly excluded.
-  return allUsers.filter(u => 
-    u.organizationName === targetUser.organizationName && 
-    u.id !== targetUser.id && 
-    u.role !== 'SUPER_ADMIN' && 
-    !isSystemManagerUser(u)
-  );
+  // ONLY return subordinates for ADMIN or HEALTH_SECTION users.
+  // Non-admin users do not have office subordinates.
+  if (targetUser.role === 'ADMIN' || targetUser.role === 'HEALTH_SECTION') {
+    return allUsers.filter(u => 
+      u.organizationName === targetUser.organizationName && 
+      u.id !== targetUser.id && 
+      u.role !== 'SUPER_ADMIN' && 
+      !isSystemManagerUser(u)
+    );
+  }
+
+  return [];
 };
 
 import { initializeApp, getApps } from 'firebase/app';
@@ -1561,22 +1563,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                             onClick={async () => {
                                                 const willFreeze = !user.isFrozen;
                                                 const action = willFreeze ? 'फ्रिज' : 'अनफ्रिज';
-                                                const isAdminType = user.role === 'ADMIN' || user.role === 'HEALTH_SECTION';
+                                                const isAdminType = user.role === 'ADMIN' || user.role === 'HEALTH_SECTION' || user.role === 'SUPER_ADMIN';
                                                 
                                                 let confirmMsg = '';
                                                 if (willFreeze) {
                                                     if (isAdminType && subordinates.length > 0) {
                                                         confirmMsg = `के तपाईं कार्यालय "${user.organizationName}" का एडमिन "${user.fullName}" (@${user.username}) र यस कार्यालय मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nएडमिन फ्रिज भएपछि उक्त कार्यालय मातहतका सम्पूर्ण प्रयोगकर्ताहरू स्वतः फ्रिज हुनेछन् र कसैले पनि लगइन गर्न पाउने छैनन्।`;
-                                                    } else if (subordinates.length > 0) {
-                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यी सबै प्रयोगकर्ता प्रणालीमा लगइन गर्न सक्ने छैनन्।`;
                                                     } else {
                                                         confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई फ्रिज गर्न चाहनुहुन्छ?\n\nफ्रिज भएपछि यो खाताबाट लगइन गर्न मिल्ने छैन।`;
                                                     }
                                                 } else {
                                                     if (isAdminType && subordinates.length > 0) {
                                                         confirmMsg = `के तपाईं कार्यालय "${user.organizationName}" का एडमिन "${user.fullName}" (@${user.username}) र यस कार्यालय मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई अनफ्रिज गर्न चाहनुहुन्छ?`;
-                                                    } else if (subordinates.length > 0) {
-                                                        confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) र यस मातहतका सबै (${subordinates.length} जना) प्रयोगकर्ताहरूलाई अनफ्रिज गर्न चाहनुहुन्छ?`;
                                                     } else {
                                                         confirmMsg = `के तपाईं प्रयोगकर्ता "${user.fullName}" (@${user.username}) लाई अनफ्रिज गर्न चाहनुहुन्छ?`;
                                                     }
@@ -1587,21 +1585,21 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                                                         // 1. Update the target user
                                                         await onUpdateUser({ ...user, isFrozen: willFreeze });
                                                         
-                                                        // 2. Cascade update to all subordinates in the office
-                                                        if (subordinates.length > 0) {
+                                                        // 2. Cascade update to all subordinates in the office ONLY for Admin user
+                                                        if (isAdminType && subordinates.length > 0) {
                                                             await Promise.all(
                                                                 subordinates.map(sub => onUpdateUser({ ...sub, isFrozen: willFreeze }))
                                                             );
                                                         }
                                                         
-                                                        alert(`प्रयोगकर्ता "${user.fullName}" ${subordinates.length > 0 ? `र यस कार्यालय/मातहतका ${subordinates.length} जना प्रयोगकर्ताहरू` : ''} सफलतापूर्वक ${action} गरियो।`);
+                                                        alert(`प्रयोगकर्ता "${user.fullName}" ${isAdminType && subordinates.length > 0 ? `र यस कार्यालय/मातहतका ${subordinates.length} जना प्रयोगकर्ताहरू` : ''} सफलतापूर्वक ${action} गरियो।`);
                                                     } catch (err: any) {
                                                         alert(`त्रुटि: ${action} गर्न सकिएन। (${err.message || 'त्रुटि'})`);
                                                     }
                                                 }
                                             }} 
                                             className={`${user.isFrozen ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 bg-emerald-50/50' : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50 bg-amber-50/50'} p-1.5 rounded-full border ${user.isFrozen ? 'border-emerald-200' : 'border-amber-200'} transition-colors`}
-                                            title={user.isFrozen ? 'अनफ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)' : 'फ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)'}
+                                            title={user.isFrozen ? ((user.role === 'ADMIN' || user.role === 'HEALTH_SECTION') && subordinates.length > 0 ? 'अनफ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)' : 'अनफ्रिज गर्नुहोस्') : ((user.role === 'ADMIN' || user.role === 'HEALTH_SECTION') && subordinates.length > 0 ? 'फ्रिज गर्नुहोस् (यस कार्यालय/मातहतका सबै प्रयोगकर्ता सहित)' : 'फ्रिज गर्नुहोस्')}
                                         >
                                             {user.isFrozen ? <Unlock size={17}/> : <Lock size={17}/>}
                                         </button>

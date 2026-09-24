@@ -3877,7 +3877,7 @@ export const CBIMNCISewa: React.FC<CBIMNCISewaProps> = ({
                     </div>
                   </div>
                   <div className="w-24 h-24 flex justify-end">
-                    {generalSettings?.provinceLogoUrl && (
+                    {generalSettings?.provinceLogoUrl && !generalSettings?.disableProvinceLogo && !generalSettings?.hideProvinceLogo && (
                       <img 
                         src={generalSettings.provinceLogoUrl} 
                         alt="Province Logo" 

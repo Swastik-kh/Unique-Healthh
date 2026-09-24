@@ -1048,7 +1048,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   <p className="text-xs text-cyan-800 font-bold mt-1.5 uppercase tracking-wider">अक्सिजन सिलिन्डर वितरण तथा सेवा शुल्क इनभ्वाइस</p>
                 </div>
                 <div className="w-20 shrink-0 flex justify-end">
-                  {generalSettings?.provinceLogoUrl ? (
+                  {generalSettings?.provinceLogoUrl && !generalSettings?.disableProvinceLogo && !generalSettings?.hideProvinceLogo ? (
                     <img 
                       src={generalSettings.provinceLogoUrl} 
                       alt="Province Logo" 

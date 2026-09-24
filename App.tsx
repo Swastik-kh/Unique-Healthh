@@ -18,7 +18,7 @@ import {
   ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry,
   OxygenCylinderRecord, OxygenDistributionRecord
 } from './types';
-import { auth, signInAnonymously, onAuthStateChanged, db, connectedRef } from './firebase';
+import { auth, signInAnonymously, onAuthStateChanged, db, connectedRef, sanitizeOrgName } from './firebase';
 import { hashPassword } from './lib/crypto';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push, onDisconnect } from "firebase/database";
 import { logUserActivity } from './lib/logger';
@@ -202,26 +202,26 @@ const App: React.FC = () => {
 
   const handleSaveGaunGharClinicRecord = async (r: GaunGharClinicRecord) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     await set(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${r.id}`), r);
   };
 
   const handleDeleteGaunGharClinicRecord = async (id: string) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     await remove(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${id}`));
   };
 
   const handleSavePaymentRequest = async (r: Omit<PaymentRequest, 'id'>) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     const id = `PR-${Date.now()}`;
     await set(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), { ...r, id });
   };
 
   const handleSaveAllowance = async (a: Omit<AllowanceRecord, 'id'>) => {
     if (!currentUser) return;
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     const id = `ALW-${Date.now()}`;
     await set(ref(db, `orgData/${safeOrgName}/allowances/${id}`), { ...a, id });
   };
@@ -247,7 +247,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const item = paymentRequests.find(p => p.id === id);
     const targetOrg = item?._orgName || activeOrgName;
-    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(targetOrg);
     await update(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`), cleanObject(r));
   };
 
@@ -255,7 +255,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const item = allowances.find(al => al.id === id);
     const targetOrg = item?._orgName || activeOrgName;
-    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(targetOrg);
     await update(ref(db, `orgData/${safeOrgName}/allowances/${id}`), cleanObject(a));
   };
 
@@ -263,7 +263,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const item = paymentRequests.find(p => p.id === id);
     const targetOrg = item?._orgName || activeOrgName;
-    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(targetOrg);
     await remove(ref(db, `orgData/${safeOrgName}/paymentRequests/${id}`));
   };
 
@@ -271,7 +271,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const item = allowances.find(al => al.id === id);
     const targetOrg = item?._orgName || activeOrgName;
-    const safeOrgName = targetOrg.trim().replace(/[.#$[\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(targetOrg);
     await remove(ref(db, `orgData/${safeOrgName}/allowances/${id}`));
   };
 
@@ -673,10 +673,6 @@ const App: React.FC = () => {
       });
     };
   }, [currentUser]);
-
-  const sanitizeOrgName = (name: string) => {
-    return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
-  };
 
   const getOrgRef = (subPath: string, targetOrgName?: string) => {
       let org = targetOrgName || activeOrgName;
@@ -1762,7 +1758,7 @@ const App: React.FC = () => {
           await Promise.all(deleteUserPromises);
 
           // Delete organization data from orgData
-          const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(orgName);
           await remove(ref(db, `orgData/${safeOrgName}`));
 
           alert(`संस्था "${orgName}" र यसका सबै डाटा तथा प्रयोगकर्ताहरू सफलतापूर्वक हटाइयो।`);
@@ -2008,7 +2004,7 @@ const App: React.FC = () => {
   const handleSaveMagForm = async (f: MagFormEntry) => {
       if (!currentUser) return;
       try {
-          const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(currentUser.organizationName);
           const orgPath = `orgData/${safeOrgName}`;
           const updates: Record<string, any> = {};
           updates[`${orgPath}/magForms/${f.id}`] = f;
@@ -2046,7 +2042,7 @@ const App: React.FC = () => {
   const handleUpdateIssueReport = async (report: IssueReportEntry) => {
       if (!currentUser) return;
       try {
-          const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(currentUser.organizationName);
           const orgPath = `orgData/${safeOrgName}`;
           const updates: Record<string, any> = {};
           updates[`${orgPath}/issueReports/${report.id}`] = report;
@@ -2106,7 +2102,7 @@ const App: React.FC = () => {
   const handleApproveStockEntry = async (requestId: string, approverName: string, approverDesignation: string) => {
       if (!currentUser) return;
       try {
-          const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(currentUser.organizationName);
           const orgPath = `orgData/${safeOrgName}`;
           const requestSnap = await get(ref(db, `${orgPath}/stockRequests/${requestId}`));
           if (!requestSnap.exists()) return;
@@ -2153,7 +2149,7 @@ const App: React.FC = () => {
   const handleUploadDatabase = async (sectionId: string, data: any[], extraMeta?: any) => {
     if (!currentUser) return;
     try {
-        const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+        const safeOrgName = sanitizeOrgName(currentUser.organizationName);
         const orgPath = `orgData/${safeOrgName}`;
         const updates: Record<string, any> = {};
 
@@ -2226,7 +2222,7 @@ const App: React.FC = () => {
   const handleSaveReturnEntry = async (entry: ReturnEntry) => {
       if (!currentUser) return;
       try {
-          const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(currentUser.organizationName);
           const orgPath = `orgData/${safeOrgName}`;
           const updates: Record<string, any> = {};
           
@@ -2298,7 +2294,7 @@ const App: React.FC = () => {
   const handleSaveDhuliyaunaEntry = async (entry: DhuliyaunaEntry) => {
       if (!currentUser) return;
       try {
-          const safeOrgName = currentUser.organizationName.trim().replace(/[.#$[\]]/g, "_");
+          const safeOrgName = sanitizeOrgName(currentUser.organizationName);
           const orgPath = `orgData/${safeOrgName}`;
           const updates: Record<string, any> = {};
           
@@ -2501,7 +2497,7 @@ const App: React.FC = () => {
             if (p.serviceSeekerId) {
               await update(getOrgRef(`serviceSeekerRecords/${p.serviceSeekerId}`), { status: 'Completed' });
             }
-          }} onUpdateTbPatient={(p, sourceOrgName) => set(sourceOrgName ? ref(db, `orgData/${sourceOrgName.trim().replace(/[.#$[\]]/g, "_")}/tbPatients/${p.id}`) : getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} 
+          }} onUpdateTbPatient={(p, sourceOrgName) => set(sourceOrgName ? ref(db, `orgData/${sanitizeOrgName(sourceOrgName)}/tbPatients/${p.id}`) : getOrgRef(`tbPatients/${p.id}`), JSON.parse(JSON.stringify(p)))} 
           onDeleteTbPatient={async (id) => {
             try {
               // 1. Remove associated inter-facility requests

@@ -145,6 +145,8 @@ export interface OrganizationSettings {
   enableEnglishDate: string;
   logoUrl: string;
   provinceLogoUrl?: string;
+  disableProvinceLogo?: boolean;
+  hideProvinceLogo?: boolean;
   availableServices?: string[];
   allServiceOptions?: string[]; // Master list of services
 

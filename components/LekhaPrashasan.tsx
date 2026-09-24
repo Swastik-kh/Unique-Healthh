@@ -22,7 +22,7 @@ import { NepaliDatePicker } from './NepaliDatePicker';
 import { motion, AnimatePresence } from 'framer-motion';
 import NepaliDate from 'nepali-date-converter';
 import { toNepaliNumber, parseNepaliNumber } from './nepaliUtils';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { ref, onValue, remove, get } from 'firebase/database';
 
 interface LekhaPrashasanProps {
@@ -172,7 +172,7 @@ export const LekhaPrashasan: React.FC<LekhaPrashasanProps> = ({
     if (window.confirm('के तपाईं निश्चित रूपमा यो गोश्वारा भौचर हटाउन चाहनुहुन्छ?')) {
       const orgName = generalSettings.orgNameEnglish;
       if (!orgName) return;
-      const safeOrgName = orgName.trim().replace(/[.#$[\]]/g, "_");
+      const safeOrgName = sanitizeOrgName(orgName);
       try {
         await remove(ref(db, `orgData/${safeOrgName}/goswaraVouchers/${id}`));
       } catch (error) {

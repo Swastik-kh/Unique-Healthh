@@ -470,14 +470,6 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
               <span className="w-3 h-3 rounded-full bg-purple-500 border-2 border-white inline-block"></span>
               <span>कुष्ठरोग (Leprosy Patient)</span>
             </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[11px] text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-              <span>उपचार पुरा (Completed)</span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
-              <span>डिफल्टर (Loss / Defaulter)</span>
-            </div>
           </div>
 
           {/* Selected Patient Floating Info Card */}

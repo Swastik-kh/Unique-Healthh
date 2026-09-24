@@ -39,6 +39,16 @@ export const getConnectionStatusRef = () => ref(db, '.info/connected');
 export { signInAnonymously, onAuthStateChanged };
 
 /**
+ * Canonical organization name sanitization function matching Android app implementation.
+ * Replaces forbidden characters (. # $ [ ] /) with underscores and trims whitespace.
+ * Fallback for blank/empty names is "default_org".
+ */
+export const sanitizeOrgName = (name: string): string => {
+  if (!name || !name.trim()) return "default_org";
+  return name.replace(/[.#$[\]/]/g, "_").trim();
+};
+
+/**
  * Encodes keys to be safe for Firebase Realtime Database
  * (replaces forbidden characters: ., #, $, /, [, ])
  */

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Syringe, Plus, Search, Calendar, Users, MapPin, Printer, Save, Trash2, Info, ChevronRight, Filter, Download } from 'lucide-react';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { ref, onValue, push, set, remove, get } from 'firebase/database';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
@@ -66,10 +66,11 @@ export const KhopAbhiyan: React.FC<{
   const [reportCampaignId, setReportCampaignId] = useState('all');
   const [reportCenter, setReportCenter] = useState('all');
   const [reportType, setReportType] = useState<'statistical' | 'detail'>('statistical');
+  const safeOrgName = sanitizeOrgName(activeOrgName);
 
   useEffect(() => {
-    const campaignsRef = ref(db, `orgData/${activeOrgName}/khop_campaigns`);
-    const recordsRef = ref(db, `orgData/${activeOrgName}/khop_records`);
+    const campaignsRef = ref(db, `orgData/${safeOrgName}/khop_campaigns`);
+    const recordsRef = ref(db, `orgData/${safeOrgName}/khop_records`);
 
     const unsubCampaigns = onValue(campaignsRef, (snapshot) => {
       const data = snapshot.val();
@@ -127,7 +128,7 @@ export const KhopAbhiyan: React.FC<{
     const validAgeGroups = ageGroups.filter(g => g.trim() !== '');
     if (validAgeGroups.length === 0) return alert('कमसेकम एउटा उमेर समूह थप्नुहोस्');
 
-    const campaignsRef = ref(db, `orgData/${activeOrgName}/khop_campaigns`);
+    const campaignsRef = ref(db, `orgData/${safeOrgName}/khop_campaigns`);
     const newCampaignRef = push(campaignsRef);
     await set(newCampaignRef, {
       name: campaignName,
@@ -148,11 +149,11 @@ export const KhopAbhiyan: React.FC<{
 
   const deleteCampaign = async (id: string) => {
     if (window.confirm('के तपाइँ यो अभियान हटाउन चाहनुहुन्छ? यससँग सम्बन्धित सबै रेकर्डहरू पनि हट्नेछन्।')) {
-      await remove(ref(db, `orgData/${activeOrgName}/khop_campaigns/${id}`));
+      await remove(ref(db, `orgData/${safeOrgName}/khop_campaigns/${id}`));
       // Also delete records associated with this campaign
       const campaignRecords = records.filter(r => r.campaignId === id);
       for (const r of campaignRecords) {
-        await remove(ref(db, `orgData/${activeOrgName}/khop_records/${r.id}`));
+        await remove(ref(db, `orgData/${safeOrgName}/khop_records/${r.id}`));
       }
     }
   };
@@ -162,7 +163,7 @@ export const KhopAbhiyan: React.FC<{
       return alert('सबै क्षेत्रहरू भर्नुहोस्');
     }
 
-    const recordsRef = ref(db, `orgData/${activeOrgName}/khop_records`);
+    const recordsRef = ref(db, `orgData/${safeOrgName}/khop_records`);
     const newRecordRef = push(recordsRef);
     await set(newRecordRef, {
       campaignId: selectedCampaignId,
@@ -184,7 +185,7 @@ export const KhopAbhiyan: React.FC<{
 
   const deleteRecord = async (id: string) => {
     if (window.confirm('के तपाइँ यो रेकर्ड हटाउन चाहनुहुन्छ?')) {
-      await remove(ref(db, `orgData/${activeOrgName}/khop_records/${id}`));
+      await remove(ref(db, `orgData/${safeOrgName}/khop_records/${id}`));
     }
   };
 
@@ -621,7 +622,7 @@ export const KhopAbhiyan: React.FC<{
                   <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || ''}</p>
                 </div>
                 <div className="w-24 h-24 flex justify-end">
-                  {generalSettings?.provinceLogoUrl && (
+                  {generalSettings?.provinceLogoUrl && !generalSettings?.disableProvinceLogo && !generalSettings?.hideProvinceLogo && (
                     <img 
                       src={generalSettings.provinceLogoUrl} 
                       alt="Province Logo" 

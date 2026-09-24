@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ref, set, onValue, update, remove, off } from 'firebase/database';
-import { db } from '../firebase';
+import { db, sanitizeOrgName } from '../firebase';
 import { 
   Truck, 
   MapPin, 
@@ -145,10 +145,6 @@ export const AmbulanceTracker: React.FC<AmbulanceTrackerProps> = ({ currentUser,
     }
 
     return `${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
-  };
-  // Sanitize and derive organization key for private namespace
-  const sanitizeOrgName = (name: string) => {
-    return name.trim().replace(/[.#$[\]]/g, "_") || "unknown";
   };
   const orgTitle = currentUser?.organizationName || generalSettings?.orgName || "Swasthya_Sewa_Default";
   const safeOrg = sanitizeOrgName(orgTitle);

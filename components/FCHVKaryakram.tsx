@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firestore';
+import { sanitizeOrgName } from '../firebase';
 import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { FCHV } from '../types/vitaminATypes';
 import { UserPlus, Save, Trash2, Edit2, Users, ClipboardList, LayoutDashboard } from 'lucide-react';
 import { FCHVReportForm } from './FCHVReportForm';
 
 export const FCHVKaryakram: React.FC<{ activeOrgName: string; currentFiscalYear: string }> = ({ activeOrgName, currentFiscalYear }) => {
-    const safeOrgName = activeOrgName.trim().replace(/[.#$[\\]]/g, "_");
+    const safeOrgName = sanitizeOrgName(activeOrgName);
     const [fchvs, setFchvs] = useState<FCHV[]>([]);
     const [newFchv, setNewFchv] = useState({ name: '', wardNumber: '' });
     const [editingFchvId, setEditingFchvId] = useState<string | null>(null);

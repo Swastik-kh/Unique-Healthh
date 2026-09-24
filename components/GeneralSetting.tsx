@@ -925,6 +925,31 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
                         <span className="text-xs font-medium text-primary-600">नयाँ लोगो अपलोड गर्नुहोस्</span>
                     </div>
                 </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between bg-slate-50 p-3 rounded-lg">
+                    <label htmlFor="disable-province-logo" className="flex items-center gap-3 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            id="disable-province-logo"
+                            checked={!!(localSettings.disableProvinceLogo || localSettings.hideProvinceLogo)}
+                            onChange={(e) => {
+                                const isDisable = e.target.checked;
+                                const updatedSettings = { 
+                                    ...localSettings, 
+                                    disableProvinceLogo: isDisable, 
+                                    hideProvinceLogo: isDisable 
+                                };
+                                setLocalSettings(updatedSettings);
+                                onUpdateSettings(updatedSettings);
+                            }}
+                            className="w-4 h-4 text-primary-600 focus:ring-primary-500 border-slate-300 rounded cursor-pointer"
+                        />
+                        <div>
+                            <span className="text-sm font-bold text-slate-700 font-nepali">प्रदेश लोगो निष्कृय / लुकाउनुहोस् (Disable / Hide Province Logo)</span>
+                            <p className="text-xs text-slate-500 font-nepali">यो अप्सन टिक गर्दा रिपोर्ट तथा हेडरहरूमा प्रदेशको लोगो देखिने छैन।</p>
+                        </div>
+                    </label>
+                </div>
             </div>
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                     <div className="flex items-center gap-2">
