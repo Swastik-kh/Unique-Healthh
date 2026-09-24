@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { 
   MapPin, X, Filter, Search, Users, Stethoscope, CheckCircle2, 
-  AlertCircle, ChevronRight, Phone, Navigation, ExternalLink, Calendar, Plus, RefreshCw
+  AlertCircle, ChevronRight, Phone, Navigation, ExternalLink, Calendar, Plus, RefreshCw, Layers, Globe
 } from 'lucide-react';
 import L from 'leaflet';
 import { TBPatient } from '../types/healthTypes';
@@ -23,6 +23,9 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
 }) => {
   const [serviceTypeFilter, setServiceTypeFilter] = useState<'All' | 'TB' | 'Leprosy'>(initialServiceType);
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [regTypeFilter, setRegTypeFilter] = useState<string>('All');
+  const [classificationFilter, setClassificationFilter] = useState<string>('All');
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('hybrid');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedPatientCard, setSelectedPatientCard] = useState<TBPatient | null>(null);
   const [showPatientName, setShowPatientName] = useState<boolean>(true);
@@ -30,6 +33,8 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const labelLayerRef = useRef<L.TileLayer | null>(null);
 
   // Filter patients
   const filteredPatients = useMemo(() => {
@@ -47,6 +52,17 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
           return false;
         }
       }
+      // Reg Type Filter
+      if (regTypeFilter !== 'All' && p.regType !== regTypeFilter) {
+        return false;
+      }
+      // Classification / Leprosy Type Filter
+      if (classificationFilter !== 'All') {
+        const cls = p.classification || p.leprosyType;
+        if (cls !== classificationFilter) {
+          return false;
+        }
+      }
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -60,7 +76,7 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
       }
       return true;
     });
-  }, [patients, serviceTypeFilter, statusFilter, searchQuery]);
+  }, [patients, serviceTypeFilter, statusFilter, regTypeFilter, classificationFilter, searchQuery]);
 
   // Separate mapped and unmapped patients
   const mappedPatients = useMemo(() => {
@@ -96,11 +112,6 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
       zoomControl: true
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
     const layerGroup = L.layerGroup().addTo(map);
     markersLayerGroupRef.current = layerGroup;
     mapInstanceRef.current = map;
@@ -113,6 +124,49 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
       map.remove();
     };
   }, []);
+
+  // Handle Tile Layers (Standard / Satellite / Hybrid)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
+    }
+    if (labelLayerRef.current) {
+      map.removeLayer(labelLayerRef.current);
+      labelLayerRef.current = null;
+    }
+
+    if (mapType === 'satellite' || mapType === 'hybrid') {
+      tileLayerRef.current = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 19,
+          attribution: 'Tiles &copy; Esri'
+        }
+      ).addTo(map);
+
+      if (mapType === 'hybrid') {
+        labelLayerRef.current = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+          {
+            maxZoom: 19,
+            attribution: 'Labels &copy; Esri'
+          }
+        ).addTo(map);
+      }
+    } else {
+      tileLayerRef.current = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors'
+        }
+      ).addTo(map);
+    }
+  }, [mapType]);
 
   // Update map markers when mappedPatients change
   useEffect(() => {
@@ -288,9 +342,70 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
           </button>
         </div>
 
+        {/* Map Type Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 font-nepali font-semibold hidden lg:inline flex items-center gap-1">
+            <Globe size={13} className="text-emerald-400" />
+            <span>नक्सा प्रकार:</span>
+          </span>
+          <select
+            value={mapType}
+            onChange={e => setMapType(e.target.value as any)}
+            className="bg-slate-800 text-emerald-300 border border-emerald-700/60 px-3 py-1.5 rounded-xl font-nepali text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+          >
+            <option value="hybrid">🛰️ स्याटेलाइट हाइब्रिड (Satellite Hybrid)</option>
+            <option value="satellite">🌍 स्याटेलाइट मात्र (Satellite Only)</option>
+            <option value="standard">🗺️ साधारण नक्सा (Standard Map)</option>
+          </select>
+        </div>
+
+        {/* Registration Type Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 font-nepali font-semibold hidden lg:inline">दर्ता प्रकार:</span>
+          <select
+            value={regTypeFilter}
+            onChange={e => setRegTypeFilter(e.target.value)}
+            className="bg-slate-800 text-slate-100 border border-slate-700 px-3 py-1.5 rounded-xl font-nepali text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="All">सबै दर्ता प्रकार (All Reg Types)</option>
+            <option value="New">नयाँ (New)</option>
+            <option value="Relapse">दोहोरिएको (Relapse)</option>
+            <option value="TAF">उपचार असफल (TAF)</option>
+            <option value="TALF">उपचार पछि हराएको (TALF)</option>
+            <option value="OPT">अन्य पहिले उपचार गरिएको (OPT)</option>
+            <option value="UPTH">अज्ञात उपचार इतिहास (UPTH)</option>
+            <option value="Transferred In">सरुवा भई आएको (Transferred In)</option>
+          </select>
+        </div>
+
+        {/* Classification Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 font-nepali font-semibold hidden lg:inline">वर्गीकरण:</span>
+          <select
+            value={classificationFilter}
+            onChange={e => setClassificationFilter(e.target.value)}
+            className="bg-slate-800 text-slate-100 border border-slate-700 px-3 py-1.5 rounded-xl font-nepali text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="All">सबै वर्गीकरण (All Classifications)</option>
+            {(serviceTypeFilter === 'All' || serviceTypeFilter === 'TB') && (
+              <>
+                <option value="PBC">PBC (Bacteriologically Confirmed)</option>
+                <option value="PCD">PCD (Clinically Diagnosed)</option>
+                <option value="EP">EP (Extrapulmonary)</option>
+              </>
+            )}
+            {(serviceTypeFilter === 'All' || serviceTypeFilter === 'Leprosy') && (
+              <>
+                <option value="PB">PB (Paucibacillary)</option>
+                <option value="MB">MB (Multibacillary)</option>
+              </>
+            )}
+          </select>
+        </div>
+
         {/* Status Filter */}
         <div className="flex items-center gap-2">
-          <span className="text-slate-400 font-nepali font-semibold hidden sm:inline">स्थिति:</span>
+          <span className="text-slate-400 font-nepali font-semibold hidden lg:inline">स्थिति:</span>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
@@ -313,11 +428,11 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
             onChange={e => setShowPatientName(e.target.checked)}
             className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-900 border-slate-600 cursor-pointer"
           />
-          <span>बिरामीको नाम देखाउनुहोस् (Show Name)</span>
+          <span>बिरामीको नाम देखाउनुहोस्</span>
         </label>
 
         {/* Search input */}
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
