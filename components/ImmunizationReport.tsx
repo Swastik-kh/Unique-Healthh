@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Printer, Calendar, Filter, BarChart, BarChart3, Download, Baby, Droplets, Users, UsersRound, MapPinned, Search, RefreshCw, Plus, Building2 } from 'lucide-react';
 import { Select } from './Select';
+import { NepaliDatePicker } from './NepaliDatePicker';
 import { FISCAL_YEARS } from '../constants';
 import { ChildImmunizationRecord, GarbhawatiPatient, getChildDisplayName } from '../types/healthTypes';
 import { Option, OrganizationSettings, User } from '../types/coreTypes';
@@ -172,6 +173,14 @@ const isSameVaccine = (actualName: string, targetName: string) => {
   return nActual.includes(nTarget) || nTarget.includes(nActual);
 };
 
+const isDateInRange = (dateBs?: string | null, start?: string, end?: string): boolean => {
+    if (!dateBs) return false;
+    const d = dateBs.replace(/\//g, '-');
+    if (start && d < start.replace(/\//g, '-')) return false;
+    if (end && d > end.replace(/\//g, '-')) return false;
+    return true;
+};
+
 export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({ 
   currentFiscalYear, 
   bachhaRecords, 
@@ -192,6 +201,8 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
   });
   const [selectedFiscalYear, setSelectedFiscalYear] = useState(currentFiscalYear);
   const [selectedVaccineFilter, setSelectedVaccineFilter] = useState('all');
+  const [startDateBs, setStartDateBs] = useState('');
+  const [endDateBs, setEndDateBs] = useState('');
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
@@ -252,7 +263,11 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             const m = getMonthFromBsDate(v.givenDateBs);
             const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
-            if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+            const matchesTimeFilter = (startDateBs || endDateBs)
+              ? isDateInRange(v.givenDateBs, startDateBs, endDateBs)
+              : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+
+            if (matchesTimeFilter) {
               if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
                 hasVaccineThisMonth = true;
                 vaccinesGiven.push(v.vaccinationCenter && v.vaccinationCenter !== record.vaccinationCenter ? `${v.name} (${v.vaccinationCenter})` : v.name);
@@ -340,7 +355,12 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             if (v.status === 'Given' && !v.vaccinatedElsewhere && v.givenDateBs) {
               const m = getMonthFromBsDate(v.givenDateBs);
               const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
-              if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+              
+              const matchesTimeFilter = (startDateBs || endDateBs)
+                ? isDateInRange(v.givenDateBs, startDateBs, endDateBs)
+                : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+
+              if (matchesTimeFilter) {
                 if (v.givenBy) vaccinators.add(v.givenBy);
               }
             }
@@ -396,6 +416,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
           const matchesFY = matchesFiscalYear(dateBs, selectedFiscalYear, patient.fiscalYear);
           const matchesMonth = selectedMonth === 'all' || m === selectedMonth;
 
+          const matchesTimeFilter = (startDateBs || endDateBs)
+            ? isDateInRange(dateBs, startDateBs, endDateBs)
+            : matchesFY && matchesMonth;
+
           let matchesVax = false;
           if (selectedVaccine === 'all' || selectedVaccine === 'गर्भवती TD') {
             matchesVax = true;
@@ -407,7 +431,7 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             matchesVax = true;
           }
 
-          if (matchesFY && matchesMonth && matchesVax) {
+          if (matchesTimeFilter && matchesVax) {
             dosesGivenThisPeriod.push({
               doseName,
               dateBs,
@@ -731,7 +755,11 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             const m = getMonthFromBsDate(v.givenDateBs);
             const matchesFY = matchesFiscalYear(v.givenDateBs, selectedFiscalYear, record.fiscalYear);
             
-            if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+            const matchesTimeFilter = (startDateBs || endDateBs)
+              ? isDateInRange(v.givenDateBs, startDateBs, endDateBs)
+              : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+
+            if (matchesTimeFilter) {
               if (selectedVaccine === 'all' || (!selectedVaccine.startsWith('TD') && isSameVaccine(v.name, selectedVaccine))) {
                 receivedDoseThisMonth = true;
                 const nameLower = (v.name || '').toLowerCase();
@@ -836,7 +864,11 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
 
         // Check matching for the selected month and fiscal year for FIC tables
         const matchesFICFY = matchesFiscalYear(lastVaccineGivenDateBs, selectedFiscalYear, record.fiscalYear);
-        if (isFullyImmunized && (selectedMonth === 'all' || lastVaccineMonth === selectedMonth) && matchesFICFY) {
+        const matchesFICTime = (startDateBs || endDateBs)
+          ? isDateInRange(lastVaccineGivenDateBs, startDateBs, endDateBs)
+          : (selectedMonth === 'all' || lastVaccineMonth === selectedMonth) && matchesFICFY;
+
+        if (isFullyImmunized && matchesFICTime) {
             const code = record.jatCode || '06'; 
             const gender = record.gender === 'Female' ? 'female' : 'male';
             
@@ -871,7 +903,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         if (p.td1DateBs && !p.td1VaccinatedElsewhere) {
           const m = getMonthFromBsDate(p.td1DateBs);
           const matchesFY = matchesFiscalYear(p.td1DateBs, selectedFiscalYear, p.fiscalYear);
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+          const matchesTime = (startDateBs || endDateBs)
+            ? isDateInRange(p.td1DateBs, startDateBs, endDateBs)
+            : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+          if (matchesTime) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD1') {
               stats.maternal.td1++;
             }
@@ -880,7 +915,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         if (p.td2DateBs && !p.td2VaccinatedElsewhere) {
           const m = getMonthFromBsDate(p.td2DateBs);
           const matchesFY = matchesFiscalYear(p.td2DateBs, selectedFiscalYear, p.fiscalYear);
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+          const matchesTime = (startDateBs || endDateBs)
+            ? isDateInRange(p.td2DateBs, startDateBs, endDateBs)
+            : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+          if (matchesTime) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD2') {
               stats.maternal.td2++;
             }
@@ -889,7 +927,10 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
         if (p.tdBoosterDateBs && !p.tdBoosterVaccinatedElsewhere) {
           const m = getMonthFromBsDate(p.tdBoosterDateBs);
           const matchesFY = matchesFiscalYear(p.tdBoosterDateBs, selectedFiscalYear, p.fiscalYear);
-          if ((selectedMonth === 'all' || m === selectedMonth) && matchesFY) {
+          const matchesTime = (startDateBs || endDateBs)
+            ? isDateInRange(p.tdBoosterDateBs, startDateBs, endDateBs)
+            : (selectedMonth === 'all' || m === selectedMonth) && matchesFY;
+          if (matchesTime) {
             if (selectedVaccine === 'all' || selectedVaccine === 'TD Booster') {
               stats.maternal.tdBooster++;
             }
@@ -1200,7 +1241,33 @@ export const ImmunizationReport: React.FC<ImmunizationReportProps> = ({
             </div>
           )}
           <div className="w-40"><Select label="आर्थिक वर्ष" options={FISCAL_YEARS} value={selectedFiscalYear} onChange={(e) => setSelectedFiscalYear(e.target.value)} icon={<Calendar size={18} />} /></div>
-          <div className="w-48"><Select label="महिना" options={nepaliMonthOptions} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} icon={<Filter size={18} />} /></div>
+          {!startDateBs && !endDateBs && (
+            <div className="w-48"><Select label="महिना" options={nepaliMonthOptions} value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} icon={<Filter size={18} />} /></div>
+          )}
+          <div className="w-48">
+            <NepaliDatePicker 
+              label="सुरु मिति" 
+              value={startDateBs} 
+              onChange={setStartDateBs} 
+              inputClassName="py-1.5"
+            />
+          </div>
+          <div className="w-48">
+            <NepaliDatePicker 
+              label="अन्तिम मिति" 
+              value={endDateBs} 
+              onChange={setEndDateBs} 
+              inputClassName="py-1.5"
+            />
+          </div>
+          {(startDateBs || endDateBs) && (
+            <button 
+              onClick={() => { setStartDateBs(''); setEndDateBs(''); }}
+              className="text-[10px] font-bold text-rose-600 hover:text-rose-700 underline font-nepali self-center mt-4"
+            >
+              महिना फिल्टरमा फर्कनुहोस्
+            </button>
+          )}
           <div className="w-48">
             <Select 
                 label="खोप केन्द्र" 
