@@ -478,17 +478,6 @@ export const PatientMapView: React.FC<PatientMapViewProps> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block"></span>
               <span>डिफल्टर (Loss / Defaulter)</span>
             </div>
-            <div className="pt-2 border-t border-slate-800">
-              <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-200 hover:text-white select-none">
-                <input
-                  type="checkbox"
-                  checked={showPatientName}
-                  onChange={e => setShowPatientName(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-indigo-500 focus:ring-indigo-400 bg-slate-800 border-slate-600 cursor-pointer"
-                />
-                <span>बिरामीको नाम देखाउनुहोस्</span>
-              </label>
-            </div>
           </div>
 
           {/* Selected Patient Floating Info Card */}
