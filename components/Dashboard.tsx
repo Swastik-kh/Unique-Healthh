@@ -1616,6 +1616,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = (props) => {
       case 'change_password': return <ChangePassword currentUser={currentUser} users={users} onChangePassword={onChangePassword} onUpdateUser={onUpdateUser} />;
       case 'store_setup': return <StoreSetup currentUser={currentUser} currentFiscalYear={currentFiscalYear} stores={stores} onAddStore={onAddStore} onUpdateStore={onUpdateStore} onDeleteStore={onDeleteStore} inventoryItems={inventoryItems} onUpdateInventoryItem={onUpdateInventoryItem} />;
       case 'tb_leprosy': return <TBPatientRegistration 
+                                  activeOrgName={activeOrgName}
                                   currentFiscalYear={currentFiscalYear} 
                                   patients={tbPatients} 
                                   inventoryItems={inventoryItems}

@@ -76,6 +76,19 @@ export interface InterFacilityRequest {
   completedDateBs?: string;
 }
 
+export interface ContactTracingRecord {
+  id: string;
+  dateBs: string;
+  contactName: string;
+  age: string;
+  gender: 'Male' | 'Female' | 'Other';
+  relationToIndexCase: string;
+  symptoms?: string;
+  screeningResult: 'Positive' | 'Negative' | 'Pending';
+  referralStatus?: string;
+  remarks?: string;
+}
+
 export interface TBPatient {
   id: string;
   patientId: string;
@@ -107,6 +120,7 @@ export interface TBPatient {
   status?: 'Active' | 'Transfer Out' | 'Completed' | 'Died' | 'Loss to Follow-up';
   statusDateBs?: string | null; // Date when the status was changed
   interFacilityRequests?: InterFacilityRequest[];
+  contactTracingRecords?: ContactTracingRecord[];
   intensivePhaseExtensionDays?: number;
   continuationPhaseExtensionDays?: number;
   latitude?: number;

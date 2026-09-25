@@ -4,13 +4,13 @@ import {
   Save, RotateCcw, Activity, UserPlus, List, Phone, MapPin, 
   Calendar, FileDigit, User as UserIcon, Stethoscope, Users, TrendingUp, 
   FlaskConical, AlertCircle, X, ChevronRight, Microscope, 
-  CheckCircle2, Eye, Search, ClipboardList, History, Clock, Trash2, Pencil, Scale, Pill, MoreVertical, ExternalLink
+  CheckCircle2, Eye, Search, ClipboardList, History, Clock, Trash2, Pencil, Scale, Pill, MoreVertical, ExternalLink, Printer
 } from 'lucide-react';
 import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { Option, User, OrganizationSettings, ServiceSeekerRecord } from '../types/coreTypes';
-import { TBPatient, TBReport, InterFacilityRequest } from '../types/healthTypes';
+import { TBPatient, TBReport, InterFacilityRequest, ContactTracingRecord } from '../types/healthTypes';
 import { InventoryItem } from '../types/inventoryTypes';
 import { calculatePatientRequirements, MedicineRequirement, checkDefaulter } from '../lib/medicineUtils';
 import { MedicineStatusReport } from './MedicineStatusReport';
@@ -40,6 +40,7 @@ interface TBPatientRegistrationProps {
   currentUser: User | null;
   generalSettings: OrganizationSettings;
   serviceSeekerRecords: ServiceSeekerRecord[];
+  activeOrgName?: string;
   onUpdateGeneralSettings: (settings: OrganizationSettings) => void;
   onAddPatient: (patient: TBPatient) => void;
   onUpdatePatient: (patient: TBPatient, sourceOrgName?: string) => void;
@@ -57,6 +58,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   currentUser,
   generalSettings,
   serviceSeekerRecords = [],
+  activeOrgName,
   onUpdateGeneralSettings,
   onAddPatient, 
   onUpdatePatient,
@@ -110,7 +112,24 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   const [selectedPatientForLocationPicker, setSelectedPatientForLocationPicker] = useState<TBPatient | null>(null);
   const [showPickerForFormData, setShowPickerForFormData] = useState(false);
 
+  // Contact Tracing State
+  const [showContactTracingModal, setShowContactTracingModal] = useState(false);
+  const [selectedPatientForContactTracing, setSelectedPatientForContactTracing] = useState<TBPatient | null>(null);
+  const [contactTracingFormData, setContactTracingFormData] = useState<Partial<ContactTracingRecord>>({
+    contactName: '',
+    age: '',
+    gender: 'Male',
+    relationToIndexCase: '',
+    symptoms: '',
+    screeningResult: 'Pending',
+    remarks: ''
+  });
+
   // Filter Palikas (Users with role ADMIN or SUPER_ADMIN)
+  const handlePrint = () => {
+    window.print();
+  };
+
   const palikaOptions = useMemo(() => {
     return allUsers
       .filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN')
@@ -907,6 +926,49 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
     alert('रिपोर्ट सफलतापूर्वक प्रविष्ट गरियो।');
   };
 
+  const handleContactTracingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPatientForContactTracing) return;
+
+    if (!contactTracingFormData.contactName || !contactTracingFormData.relationToIndexCase) {
+      alert("कृपया सम्पर्क व्यक्तिको नाम र नाता भर्नुहोस्।");
+      return;
+    }
+
+    const newRecord: ContactTracingRecord = {
+      id: Date.now().toString(),
+      dateBs: todayBs,
+      contactName: contactTracingFormData.contactName || '',
+      age: contactTracingFormData.age || '',
+      gender: contactTracingFormData.gender as any || 'Male',
+      relationToIndexCase: contactTracingFormData.relationToIndexCase || '',
+      symptoms: contactTracingFormData.symptoms || '',
+      screeningResult: contactTracingFormData.screeningResult as any || 'Pending',
+      remarks: contactTracingFormData.remarks || ''
+    };
+
+    const updatedPatientRaw = {
+      ...selectedPatientForContactTracing,
+      contactTracingRecords: [...(selectedPatientForContactTracing.contactTracingRecords || []), newRecord]
+    };
+
+    const updatedPatient = JSON.parse(JSON.stringify(updatedPatientRaw));
+    onUpdatePatient(updatedPatient);
+    
+    setShowContactTracingModal(false);
+    setSelectedPatientForContactTracing(null);
+    setContactTracingFormData({
+      contactName: '',
+      age: '',
+      gender: 'Male',
+      relationToIndexCase: '',
+      symptoms: '',
+      screeningResult: 'Pending',
+      remarks: ''
+    });
+    alert('सम्पर्क ट्रेसिङ (Contact Tracing) रेकर्ड सफलतापूर्वक सुरक्षित गरियो।');
+  };
+
   const handleToggleDailyDose = (date: string) => {
     if (!selectedPatientForTreatmentCard) return;
     
@@ -1365,32 +1427,47 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       </div>
 
       {/* Patient List */}
-      <div className="bg-white border rounded-2xl shadow-sm overflow-visible">
-          <div className="p-4 bg-slate-50 border-b flex justify-between items-center">
+      <div className="bg-white border rounded-2xl shadow-sm overflow-visible print:border-none print:shadow-none">
+          <div className="p-4 bg-slate-50 border-b flex justify-between items-center no-print">
               <h3 className="font-bold text-slate-700 font-nepali">हालै दर्ता भएका बिरामीहरू ({activeTab})</h3>
-              <div className="relative w-64">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
+              <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition-all font-bold text-xs"
+                  >
+                    <Printer size={14}/> प्रिन्ट (Print)
+                  </button>
+                  <div className="relative w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
+                  </div>
               </div>
           </div>
-          <table className="w-full text-sm text-left">
+
+          <div className="hidden print:block mb-6 text-center border-b pb-4">
+              <h2 className="text-2xl font-bold font-nepali text-slate-800">{activeOrgName || generalSettings.orgNameNepali || 'स्वास्थ्य संस्था'}</h2>
+              <h3 className="text-xl font-bold font-nepali text-slate-700 mt-1">दर्ता भएका बिरामीहरूको सूची ({activeTab})</h3>
+              <p className="text-xs font-bold font-nepali text-slate-500 mt-2">आर्थिक वर्ष: {currentFiscalYear} | छापिएको मिति: {todayBs}</p>
+          </div>
+
+          <table className="w-full text-sm text-left print:text-xs">
               <thead className="bg-white text-slate-500 font-bold border-b">
                   <tr>
-                      <th className="px-6 py-3">ID</th>
-                      <th className="px-6 py-3">बिरामी विवरण</th>
-                      <th className="px-6 py-3">दर्ता प्रकार</th>
-                      <th className="px-6 py-3">वर्गीकरण</th>
-                      <th className="px-6 py-3">अवस्था</th>
-                      <th className="px-6 py-3">रिपोर्टहरू</th>
-                      <th className="px-6 py-3">मिति</th>
-                      <th className="px-6 py-3 text-right">कार्य</th>
+                      <th className="px-6 py-3 print:px-2">ID</th>
+                      <th className="px-6 py-3 print:px-2">बिरामी विवरण</th>
+                      <th className="px-6 py-3 print:px-2">दर्ता प्रकार</th>
+                      <th className="px-6 py-3 print:px-2">वर्गीकरण</th>
+                      <th className="px-6 py-3 print:px-2">अवस्था</th>
+                      <th className="px-6 py-3 print:px-2 no-print">रिपोर्टहरू</th>
+                      <th className="px-6 py-3 print:px-2">मिति</th>
+                      <th className="px-6 py-3 text-right no-print">कार्य</th>
                   </tr>
               </thead>
               <tbody className="divide-y">
                   {(patients || []).filter(p => p.fiscalYear === currentFiscalYear && p.serviceType === activeTab && (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.address.toLowerCase().includes(searchTerm.toLowerCase()) || p.patientId.toLowerCase().includes(searchTerm.toLowerCase()))).map(p => ( // Defensive check
                       <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="px-6 py-4 font-mono font-bold text-indigo-600 text-xs">{p.patientId}</td>
-                          <td className="px-6 py-4 cursor-pointer hover:bg-slate-100" onClick={() => setSelectedPatientForDetails(p)}>
+                          <td className="px-6 py-4 font-mono font-bold text-indigo-600 text-xs print:px-2">{p.patientId}</td>
+                          <td className="px-6 py-4 cursor-pointer hover:bg-slate-100 print:px-2" onClick={() => setSelectedPatientForDetails(p)}>
                               <div className="font-bold text-slate-800">{p.name}</div>
                               <div className="text-[10px] text-slate-400">{p.age} Yrs | {p.address} | {p.phone}</div>
                               {typeof p.latitude === 'number' && typeof p.longitude === 'number' ? (
@@ -1416,17 +1493,17 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                 </div>
                               )}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 print:px-2">
                               <span className="px-2 py-0.5 rounded text-[10px] font-black border bg-slate-50 text-slate-700 border-slate-200">
                                   {regTypes.find(r => r.value === p.regType)?.label || p.regType}
                               </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 print:px-2">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${activeTab === 'TB' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
                                   {activeTab === 'TB' ? p.classification : p.leprosyType}
                               </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 print:px-2">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                                   p.status === 'Active' ? 'bg-green-50 text-green-700 border-green-200' : 
                                   p.status === 'Transfer Out' ? 'bg-orange-50 text-orange-700 border-orange-200' :
@@ -1439,7 +1516,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                   )}
                               </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 no-print">
                               <div className="flex flex-wrap gap-1">
                                   {(p.reports || []).map((r, idx) => {
                                       const grading = r.result.includes('Positive') ? (r.result.match(/\(([^)]+)\)/)?.[1] || 'Pos') : 'Neg';
@@ -1459,13 +1536,13 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                   {(!p.reports || p.reports.length === 0) && <span className="text-slate-300">-</span>}
                               </div>
                           </td>
-                          <td className="px-6 py-4 text-[10px] text-slate-500 font-nepali">
+                          <td className="px-6 py-4 text-[10px] text-slate-500 font-nepali print:px-2">
                               <div className="flex flex-col">
                                   <span>दर्ता: {p.registrationDate}</span>
                                   {p.treatmentStartDate && <span className="text-indigo-600 font-bold">सुरु: {p.treatmentStartDate}</span>}
                               </div>
                           </td>
-                          <td className="px-6 py-4 text-right relative">
+                          <td className="px-6 py-4 text-right relative no-print">
                               <div className="flex justify-end gap-2">
                                   <button onClick={() => {
                                       setActiveMenuPatientId(activeMenuPatientId === p.id ? null : p.id);
@@ -1505,6 +1582,13 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                                 </>
                                               )}
                                               <button onClick={() => {
+                                                  setSelectedPatientForContactTracing(p);
+                                                  setShowContactTracingModal(true);
+                                                  setActiveMenuPatientId(null);
+                                              }} className="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+                                                  <Users size={14}/> सम्पर्क ट्रेसिङ (Contact Tracing)
+                                              </button>
+                                              <button onClick={() => {
                                                   setSelectedPatientForLocationPicker(p);
                                                   setActiveMenuPatientId(null);
                                               }} className="w-full text-left px-4 py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 flex items-center gap-2">
@@ -1527,6 +1611,103 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               </tbody>
           </table>
       </div>
+
+      {/* Contact Tracing Modal */}
+      {showContactTracingModal && selectedPatientForContactTracing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowContactTracingModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b bg-rose-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-rose-100 p-2 rounded-lg text-rose-600"><Users size={20}/></div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg font-nepali">सम्पर्क ट्रेसिङ (Contact Tracing)</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Index Case: {selectedPatientForContactTracing.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowContactTracingModal(false)} className="p-2 hover:bg-white/50 rounded-full"><X size={20}/></button>
+            </div>
+
+            <form onSubmit={handleContactTracingSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input 
+                  label="सम्पर्क व्यक्तिको नाम" 
+                  required 
+                  value={contactTracingFormData.contactName} 
+                  onChange={(e) => setContactTracingFormData(prev => ({ ...prev, contactName: e.target.value }))} 
+                />
+                <Input 
+                  label="उमेर (वर्ष)" 
+                  type="number"
+                  value={contactTracingFormData.age} 
+                  onChange={(e) => setContactTracingFormData(prev => ({ ...prev, age: e.target.value }))} 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Select 
+                  label="लिङ्ग" 
+                  options={[
+                    { id: 'm', label: 'पुरुष', value: 'Male' },
+                    { id: 'f', label: 'महिला', value: 'Female' },
+                    { id: 'o', label: 'अन्य', value: 'Other' }
+                  ]} 
+                  value={contactTracingFormData.gender} 
+                  onChange={(val) => setContactTracingFormData(prev => ({ ...prev, gender: val as any }))} 
+                />
+                <Input 
+                  label="इन्डेक्स केससँगको नाता" 
+                  required
+                  placeholder="उदा: छोरा, छोरी, श्रीमान्..."
+                  value={contactTracingFormData.relationToIndexCase} 
+                  onChange={(e) => setContactTracingFormData(prev => ({ ...prev, relationToIndexCase: e.target.value }))} 
+                />
+              </div>
+
+              <Input 
+                label="लक्ष्यणहरू (Symptoms)" 
+                placeholder="केही लक्षण देखिएको भए उल्लेख गर्नुहोस्"
+                value={contactTracingFormData.symptoms} 
+                onChange={(e) => setContactTracingFormData(prev => ({ ...prev, symptoms: e.target.value }))} 
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <Select 
+                  label="स्क्रीनिंग नतिजा" 
+                  options={[
+                    { id: 'p', label: 'पोजिटिभ (Positive)', value: 'Positive' },
+                    { id: 'n', label: 'नेगेटिभ (Negative)', value: 'Negative' },
+                    { id: 'pn', label: 'पेन्डिङ (Pending)', value: 'Pending' }
+                  ]} 
+                  value={contactTracingFormData.screeningResult} 
+                  onChange={(val) => setContactTracingFormData(prev => ({ ...prev, screeningResult: val as any }))} 
+                />
+                <Input 
+                  label="कैफियत" 
+                  value={contactTracingFormData.remarks} 
+                  onChange={(e) => setContactTracingFormData(prev => ({ ...prev, remarks: e.target.value }))} 
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setShowContactTracingModal(false)}
+                  className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  रद्द गर्नुहोस्
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-200 flex items-center justify-center gap-2 transition-all"
+                >
+                  <Save size={18}/> सुरक्षित गर्नुहोस्
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Report Center Modal (Combined Recent & History) */}
       {showReportCenter && (
@@ -2001,6 +2182,33 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                                   </li>
                               ))}
                           </ul>
+                      </div>
+
+                      {/* Contact Tracing History Section */}
+                      <div className="mt-4 pt-4 border-t space-y-3">
+                        <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                          <Users size={16} className="text-rose-600" />
+                          सम्पर्क ट्रेसिङ रेकर्डहरू (Contact Tracing Records)
+                        </h4>
+                        <div className="space-y-2">
+                          {(selectedPatientForDetails.contactTracingRecords || []).map((record) => (
+                            <div key={record.id} className="p-3 bg-rose-50 border border-rose-100 rounded-xl space-y-1 text-xs">
+                              <div className="flex justify-between items-start">
+                                <span className="font-bold text-slate-800">{record.contactName} ({record.age}Y, {record.gender})</span>
+                                <span className="text-slate-500 font-mono">{record.dateBs}</span>
+                              </div>
+                              <div className="text-slate-600">
+                                <b>नाता:</b> {record.relationToIndexCase} | 
+                                <b> नतिजा:</b> <span className={record.screeningResult === 'Positive' ? 'text-red-600 font-bold' : 'text-green-600 font-bold'}>{record.screeningResult}</span>
+                              </div>
+                              {record.symptoms && <div><b>लक्षणहरू:</b> {record.symptoms}</div>}
+                              {record.remarks && <div><b>कैफियत:</b> {record.remarks}</div>}
+                            </div>
+                          ))}
+                          {(!selectedPatientForDetails.contactTracingRecords || selectedPatientForDetails.contactTracingRecords.length === 0) && (
+                            <p className="text-slate-400 italic text-center py-2 text-[11px]">कुनै सम्पर्क ट्रेसिङ रेकर्ड उपलब्ध छैन।</p>
+                          )}
+                        </div>
                       </div>
                   </div>
                   <div className="p-6 border-t flex justify-end">
