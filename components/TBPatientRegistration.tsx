@@ -1033,6 +1033,15 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
+            onClick={handlePrint}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold font-nepali transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Printer size={18} />
+            <span>बिरामी सूची प्रिन्ट (Print Patient List)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowPatientMap(true)}
             className="px-4 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-indigo-600 hover:from-red-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold font-nepali transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
           >
@@ -1430,17 +1439,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       <div className="bg-white border rounded-2xl shadow-sm overflow-visible print:border-none print:shadow-none">
           <div className="p-4 bg-slate-50 border-b flex justify-between items-center no-print">
               <h3 className="font-bold text-slate-700 font-nepali">हालै दर्ता भएका बिरामीहरू ({activeTab})</h3>
-              <div className="flex items-center gap-3">
-                  <button 
-                    onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition-all font-bold text-xs"
-                  >
-                    <Printer size={14}/> प्रिन्ट (Print)
-                  </button>
-                  <div className="relative w-64">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
-                  </div>
+              <div className="relative w-64">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
               </div>
           </div>
 
