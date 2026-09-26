@@ -1021,7 +1021,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       {/* Header & Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 gap-4 no-print">
         <div className="flex items-center gap-3">
             <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><Activity size={24} /></div>
             <div>
@@ -1031,15 +1031,6 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold font-nepali transition-all flex items-center gap-2 shadow-sm"
-          >
-            <Printer size={18} />
-            <span>बिरामी सूची प्रिन्ट (Print Patient List)</span>
-          </button>
-
           <button
             type="button"
             onClick={() => setShowPatientMap(true)}
@@ -1057,7 +1048,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       </div>
 
       {/* Stats Section */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 no-print">
         <div className="bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between">
             <div>
                 <p className="text-slate-500 text-xs font-bold font-nepali mb-1">कुल दर्ता ({activeTab})</p>
@@ -1170,7 +1161,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       </div>
 
       {/* Registration Form */}
-      <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
+      <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6 no-print">
         <div className="flex flex-col md:flex-row items-end gap-4 bg-slate-50 p-4 rounded-xl border border-indigo-100">
           <div className="flex-1">
             <label className="block text-xs font-bold text-slate-500 mb-1 font-nepali">बिरामी परिचय नं. वा दर्ता नं. राख्नुहोस् (Patient ID / Reg No)</label>
@@ -1439,9 +1430,17 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       <div className="bg-white border rounded-2xl shadow-sm overflow-visible print:border-none print:shadow-none">
           <div className="p-4 bg-slate-50 border-b flex justify-between items-center no-print">
               <h3 className="font-bold text-slate-700 font-nepali">हालै दर्ता भएका बिरामीहरू ({activeTab})</h3>
-              <div className="relative w-64">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
+              <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg transition-all font-bold text-xs"
+                  >
+                    <Printer size={14}/> प्रिन्ट (Print)
+                  </button>
+                  <div className="relative w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="नाम वा ठेगाना..." className="w-full pl-9 pr-4 py-1.5 rounded-lg border text-xs focus:ring-2 focus:ring-indigo-500/20" />
+                  </div>
               </div>
           </div>
 
