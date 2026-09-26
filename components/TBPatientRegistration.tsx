@@ -114,7 +114,9 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
   // Contact Tracing State
   const [showContactTracingModal, setShowContactTracingModal] = useState(false);
+  const [showContactTracingListModal, setShowContactTracingListModal] = useState(false);
   const [selectedPatientForContactTracing, setSelectedPatientForContactTracing] = useState<TBPatient | null>(null);
+  const [editingContactTracingId, setEditingContactTracingId] = useState<string | null>(null);
   const [contactTracingFormData, setContactTracingFormData] = useState<Partial<ContactTracingRecord>>({
     contactName: '',
     age: '',
@@ -935,21 +937,36 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       return;
     }
 
-    const newRecord: ContactTracingRecord = {
-      id: Date.now().toString(),
-      dateBs: todayBs,
-      contactName: contactTracingFormData.contactName || '',
-      age: contactTracingFormData.age || '',
-      gender: contactTracingFormData.gender as any || 'Male',
-      relationToIndexCase: contactTracingFormData.relationToIndexCase || '',
-      symptoms: contactTracingFormData.symptoms || '',
-      screeningResult: contactTracingFormData.screeningResult as any || 'Pending',
-      remarks: contactTracingFormData.remarks || ''
-    };
+    let updatedRecords = [...(selectedPatientForContactTracing.contactTracingRecords || [])];
+    if (editingContactTracingId) {
+      updatedRecords = updatedRecords.map(r => r.id === editingContactTracingId ? {
+        ...r,
+        contactName: contactTracingFormData.contactName || '',
+        age: contactTracingFormData.age || '',
+        gender: contactTracingFormData.gender as any || 'Male',
+        relationToIndexCase: contactTracingFormData.relationToIndexCase || '',
+        symptoms: contactTracingFormData.symptoms || '',
+        screeningResult: contactTracingFormData.screeningResult as any || 'Pending',
+        remarks: contactTracingFormData.remarks || ''
+      } : r);
+    } else {
+      const newRecord: ContactTracingRecord = {
+        id: Date.now().toString(),
+        dateBs: todayBs,
+        contactName: contactTracingFormData.contactName || '',
+        age: contactTracingFormData.age || '',
+        gender: contactTracingFormData.gender as any || 'Male',
+        relationToIndexCase: contactTracingFormData.relationToIndexCase || '',
+        symptoms: contactTracingFormData.symptoms || '',
+        screeningResult: contactTracingFormData.screeningResult as any || 'Pending',
+        remarks: contactTracingFormData.remarks || ''
+      };
+      updatedRecords.push(newRecord);
+    }
 
     const updatedPatientRaw = {
       ...selectedPatientForContactTracing,
-      contactTracingRecords: [...(selectedPatientForContactTracing.contactTracingRecords || []), newRecord]
+      contactTracingRecords: updatedRecords
     };
 
     const updatedPatient = JSON.parse(JSON.stringify(updatedPatientRaw));
@@ -957,6 +974,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
     
     setShowContactTracingModal(false);
     setSelectedPatientForContactTracing(null);
+    setEditingContactTracingId(null);
     setContactTracingFormData({
       contactName: '',
       age: '',
@@ -967,6 +985,34 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       remarks: ''
     });
     alert('सम्पर्क ट्रेसिङ (Contact Tracing) रेकर्ड सफलतापूर्वक सुरक्षित गरियो।');
+  };
+
+  const handleDeleteContactTracing = (patientId: string, recordId: string) => {
+    if (!confirm('के तपाईं यो सम्पर्क ट्रेसिङ रेकर्ड मेटाउन चाहनुहुन्छ?')) return;
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return;
+
+    const updatedPatientRaw = {
+      ...patient,
+      contactTracingRecords: (patient.contactTracingRecords || []).filter(r => r.id !== recordId)
+    };
+    const updatedPatient = JSON.parse(JSON.stringify(updatedPatientRaw));
+    onUpdatePatient(updatedPatient);
+  };
+
+  const handleEditContactTracing = (patient: TBPatient, record: ContactTracingRecord) => {
+    setSelectedPatientForContactTracing(patient);
+    setEditingContactTracingId(record.id);
+    setContactTracingFormData({
+      contactName: record.contactName,
+      age: record.age,
+      gender: record.gender,
+      relationToIndexCase: record.relationToIndexCase,
+      symptoms: record.symptoms,
+      screeningResult: record.screeningResult,
+      remarks: record.remarks
+    });
+    setShowContactTracingModal(true);
   };
 
   const handleToggleDailyDose = (date: string) => {
@@ -1031,6 +1077,15 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowContactTracingListModal(true)}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold font-nepali transition-all flex items-center gap-2 shadow-md hover:shadow-lg no-print"
+          >
+            <Users size={18} />
+            <span>सम्पर्क ट्रेसिङ सूची (Contact Tracing List)</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setShowPatientMap(true)}
@@ -2459,6 +2514,113 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
           }}
           onClose={() => setShowPickerForFormData(false)}
         />
+      )}
+
+      {/* Contact Tracing List Modal */}
+      {showContactTracingListModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowContactTracingListModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b bg-rose-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-rose-100 p-2 rounded-lg text-rose-600"><Users size={20}/></div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg font-nepali">सम्पर्क ट्रेसिङ रेकर्डहरूको सूची ({activeTab})</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">आर्थिक वर्ष: {currentFiscalYear}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowContactTracingListModal(false)} className="p-2 hover:bg-white/50 rounded-full"><X size={20}/></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              <div className="border rounded-xl overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 font-bold text-slate-600 border-b">
+                    <tr>
+                      <th className="p-3">मिति</th>
+                      <th className="p-3">इन्डेक्स केस (बिरामी)</th>
+                      <th className="p-3">सम्पर्क व्यक्तिको नाम</th>
+                      <th className="p-3">उमेर/लिङ्ग</th>
+                      <th className="p-3">नाता</th>
+                      <th className="p-3">लक्षणहरू</th>
+                      <th className="p-3">स्क्रीनिंग नतिजा</th>
+                      <th className="p-3">कैफियत</th>
+                      <th className="p-3 text-right">कार्य</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {patients
+                      .filter(p => p.fiscalYear === currentFiscalYear && p.serviceType === activeTab && p.contactTracingRecords && p.contactTracingRecords.length > 0)
+                      .flatMap(p => (p.contactTracingRecords || []).map(r => ({ record: r, patient: p })))
+                      .map(({ record, patient }, index) => (
+                        <tr key={record.id || index} className="hover:bg-slate-50">
+                          <td className="p-3 font-mono">{record.dateBs}</td>
+                          <td className="p-3 font-bold text-slate-800">
+                            {patient.name} <span className="text-[10px] font-mono text-indigo-600">({patient.patientId})</span>
+                          </td>
+                          <td className="p-3 font-bold text-slate-700">{record.contactName}</td>
+                          <td className="p-3">{record.age} Y / {record.gender}</td>
+                          <td className="p-3">{record.relationToIndexCase}</td>
+                          <td className="p-3 text-slate-600">{record.symptoms || '-'}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${
+                              record.screeningResult === 'Positive' ? 'bg-red-50 text-red-700 border-red-200' :
+                              record.screeningResult === 'Negative' ? 'bg-green-50 text-green-700 border-green-200' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {record.screeningResult}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-500">{record.remarks || '-'}</td>
+                          <td className="p-3 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              <button 
+                                onClick={() => {
+                                  setShowContactTracingListModal(false);
+                                  handleEditContactTracing(patient, record);
+                                }}
+                                className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+                                title="सम्पादन (Edit)"
+                              >
+                                <Pencil size={14}/>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteContactTracing(patient.id, record.id)}
+                                className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all"
+                                title="मेटाउने (Delete)"
+                              >
+                                <Trash2 size={14}/>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                    ))}
+                    {patients.filter(p => p.fiscalYear === currentFiscalYear && p.serviceType === activeTab && p.contactTracingRecords && p.contactTracingRecords.length > 0).length === 0 && (
+                      <tr>
+                        <td colSpan={9} className="text-center py-8 text-slate-400 italic">कुनै पनि सम्पर्क ट्रेसिङ रेकर्ड फेला परेन।</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t bg-slate-50 flex justify-between items-center">
+              <button 
+                onClick={() => window.print()}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all flex items-center gap-2"
+              >
+                <Printer size={16}/> प्रिन्ट गर्नुहोस्
+              </button>
+              <button 
+                onClick={() => setShowContactTracingListModal(false)}
+                className="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition-all"
+              >
+                बन्द गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
