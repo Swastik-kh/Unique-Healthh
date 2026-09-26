@@ -1482,7 +1482,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
       </div>
 
       {/* Patient List */}
-      <div className="bg-white border rounded-2xl shadow-sm overflow-visible print:border-none print:shadow-none">
+      <div className={`bg-white border rounded-2xl shadow-sm overflow-visible print:border-none print:shadow-none ${showContactTracingListModal ? 'print:hidden' : ''}`}>
           <div className="p-4 bg-slate-50 border-b flex justify-between items-center no-print">
               <h3 className="font-bold text-slate-700 font-nepali">हालै दर्ता भएका बिरामीहरू ({activeTab})</h3>
               <div className="flex items-center gap-3">
@@ -2518,10 +2518,10 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
 
       {/* Contact Tracing List Modal */}
       {showContactTracingListModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowContactTracingListModal(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b bg-rose-50 flex justify-between items-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 print:fixed print:inset-0 print:p-0 print:bg-white print:z-50">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm no-print" onClick={() => setShowContactTracingListModal(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:w-full print:h-full">
+            <div className="px-6 py-4 border-b bg-rose-50 flex justify-between items-center no-print">
               <div className="flex items-center gap-3">
                 <div className="bg-rose-100 p-2 rounded-lg text-rose-600"><Users size={20}/></div>
                 <div>
@@ -2532,20 +2532,26 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               <button onClick={() => setShowContactTracingListModal(false)} className="p-2 hover:bg-white/50 rounded-full"><X size={20}/></button>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              <div className="border rounded-xl overflow-hidden">
+            <div className="p-6 overflow-y-auto flex-1 space-y-4 print:p-2 print:overflow-visible">
+              <div className="hidden print:block mb-4 text-center border-b pb-3">
+                <h2 className="text-xl font-bold font-nepali text-slate-800">{activeOrgName || generalSettings.orgNameNepali || 'स्वास्थ्य संस्था'}</h2>
+                <h3 className="text-lg font-bold font-nepali text-slate-700 mt-1">सम्पर्क ट्रेसिङ रेकर्डहरूको सूची ({activeTab})</h3>
+                <p className="text-xs font-bold font-nepali text-slate-500 mt-1">आर्थिक वर्ष: {currentFiscalYear} | छापिएको मिति: {todayBs}</p>
+              </div>
+
+              <div className="border rounded-xl overflow-hidden print:border-none">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 font-bold text-slate-600 border-b">
+                  <thead className="bg-slate-50 font-bold text-slate-600 border-b print:bg-slate-100">
                     <tr>
-                      <th className="p-3">मिति</th>
-                      <th className="p-3">इन्डेक्स केस (बिरामी)</th>
-                      <th className="p-3">सम्पर्क व्यक्तिको नाम</th>
-                      <th className="p-3">उमेर/लिङ्ग</th>
-                      <th className="p-3">नाता</th>
-                      <th className="p-3">लक्षणहरू</th>
-                      <th className="p-3">स्क्रीनिंग नतिजा</th>
-                      <th className="p-3">कैफियत</th>
-                      <th className="p-3 text-right">कार्य</th>
+                      <th className="p-3 print:p-1.5">मिति</th>
+                      <th className="p-3 print:p-1.5">इन्डेक्स केस (बिरामी)</th>
+                      <th className="p-3 print:p-1.5">सम्पर्क व्यक्तिको नाम</th>
+                      <th className="p-3 print:p-1.5">उमेर/लिङ्ग</th>
+                      <th className="p-3 print:p-1.5">नाता</th>
+                      <th className="p-3 print:p-1.5">लक्षणहरू</th>
+                      <th className="p-3 print:p-1.5">स्क्रीनिंग नतिजा</th>
+                      <th className="p-3 print:p-1.5">कैफियत</th>
+                      <th className="p-3 text-right no-print">कार्य</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -2554,15 +2560,15 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                       .flatMap(p => (p.contactTracingRecords || []).map(r => ({ record: r, patient: p })))
                       .map(({ record, patient }, index) => (
                         <tr key={record.id || index} className="hover:bg-slate-50">
-                          <td className="p-3 font-mono">{record.dateBs}</td>
-                          <td className="p-3 font-bold text-slate-800">
+                          <td className="p-3 print:p-1.5 font-mono">{record.dateBs}</td>
+                          <td className="p-3 print:p-1.5 font-bold text-slate-800">
                             {patient.name} <span className="text-[10px] font-mono text-indigo-600">({patient.patientId})</span>
                           </td>
-                          <td className="p-3 font-bold text-slate-700">{record.contactName}</td>
-                          <td className="p-3">{record.age} Y / {record.gender}</td>
-                          <td className="p-3">{record.relationToIndexCase}</td>
-                          <td className="p-3 text-slate-600">{record.symptoms || '-'}</td>
-                          <td className="p-3">
+                          <td className="p-3 print:p-1.5 font-bold text-slate-700">{record.contactName}</td>
+                          <td className="p-3 print:p-1.5">{record.age} Y / {record.gender}</td>
+                          <td className="p-3 print:p-1.5">{record.relationToIndexCase}</td>
+                          <td className="p-3 print:p-1.5 text-slate-600">{record.symptoms || '-'}</td>
+                          <td className="p-3 print:p-1.5">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-black border ${
                               record.screeningResult === 'Positive' ? 'bg-red-50 text-red-700 border-red-200' :
                               record.screeningResult === 'Negative' ? 'bg-green-50 text-green-700 border-green-200' :
@@ -2571,8 +2577,8 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
                               {record.screeningResult}
                             </span>
                           </td>
-                          <td className="p-3 text-slate-500">{record.remarks || '-'}</td>
-                          <td className="p-3 text-right">
+                          <td className="p-3 print:p-1.5 text-slate-500">{record.remarks || '-'}</td>
+                          <td className="p-3 text-right no-print">
                             <div className="flex justify-end gap-1.5">
                               <button 
                                 onClick={() => {
@@ -2605,7 +2611,7 @@ export const TBPatientRegistration: React.FC<TBPatientRegistrationProps> = ({
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t bg-slate-50 flex justify-between items-center">
+            <div className="px-6 py-4 border-t bg-slate-50 flex justify-between items-center no-print">
               <button 
                 onClick={() => window.print()}
                 className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all flex items-center gap-2"
