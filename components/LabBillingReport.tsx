@@ -154,7 +154,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         if (!gender) gender = seeker.gender;
       }
     }
-    const ageStr = age ? formatNumberValue(age) : '';
+    const ageStr = age ? toNepaliDigits(age) : '';
     const genderStr = gender || '';
     if (ageStr && genderStr) return `${ageStr} / ${genderStr}`;
     return ageStr || genderStr || '-';
@@ -1143,15 +1143,16 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const renderPrintPageHeaderRow = (colSpan: number, subTitleText?: string) => {
     const isAllMonths = selectedMonth === 'all';
     const monthName = isAllMonths ? 'वार्षिक (सबै महिना)' : `${NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र'} महिना`;
-    const displayFiscalYear = useNepaliNumerals ? toNepaliDigits(selectedFiscalYear) : selectedFiscalYear;
-    const title = subTitleText || activeReportTitle;
+    const displayFiscalYear = toNepaliDigits(selectedFiscalYear);
+    const rawTitle = subTitleText || activeReportTitle;
+    const title = useNepaliNumerals ? toNepaliDigits(rawTitle) : rawTitle;
 
     return (
       <tr className="bg-slate-100 text-slate-900 border-2 border-slate-950 font-nepali">
         <th colSpan={colSpan} className="border-2 border-slate-950 px-3 py-1.5 text-xs font-bold tracking-wide">
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-slate-800">
             <span className="text-left font-semibold whitespace-nowrap">
-              आ.व.: <strong className="text-slate-950 font-mono font-black">{displayFiscalYear}</strong>
+              आ.व.: <strong className={`text-slate-950 font-black ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>{displayFiscalYear}</strong>
             </span>
             <span className="text-center font-black text-slate-950 text-xs md:text-sm">
               {title}
@@ -2167,7 +2168,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       )}
 
       {/* Printable Sheet */}
-      <div className="bg-white p-6 md:p-12 border border-slate-200 rounded-3xl shadow-xs print:shadow-none print:border-none print:p-0">
+      <div className="bg-white p-6 md:p-12 border border-slate-200 rounded-3xl shadow-xs print:shadow-none print:border-none print:p-0 font-nepali">
         
         {/* Government Style Header with Logo */}
         <div className="relative flex flex-col items-center mb-6 border-b-2 border-slate-950 pb-4">
@@ -2207,7 +2208,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             {reportSource === 'Protsahan' ? 'प्रयोगशाला (ल्याब) सेवा प्रोत्साहन विवरण' : reportSource === 'AmbulanceProtsahan' ? 'एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण' : reportSource === 'Sewa' ? (categorySuffix === 'सेवा बिलिङ' ? 'ल्याब / अन्य स्वास्थ्य सेवा' : categorySuffix) : 'एम्बुलेन्स सेवा'}
           </h2>
           <p className="text-sm font-bold font-nepali text-slate-800 mt-2.5">
-            {activeReportTitle}
+            {useNepaliNumerals ? toNepaliDigits(activeReportTitle) : activeReportTitle}
           </p>
         </div>
 
@@ -2636,12 +2637,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               <tbody>
                 {filteredRecords.length > 0 ? (
                   filteredRecords.map((record, index) => {
-                    const sNoStr = formatNumberValue(index + 1);
+                    const sNoStr = toNepaliDigits(index + 1);
                     const clientName = record.patientName || '-';
                     const ageGenderStr = getRecordAgeGender(record);
                     const cleanBillNo = (record.invoiceNumber || '').replace('DB-', '').replace('DIR-', '');
-                    const displayBillNo = useNepaliNumerals ? toNepaliDigits(cleanBillNo) : cleanBillNo;
-                    const displayDate = formatRawDateToNepaliUi(record.billDate);
+                    const displayBillNo = toNepaliDigits(cleanBillNo);
+                    const displayDate = toNepaliDigits(formatRawDateToNepaliUi(record.billDate));
                     const filteredItemsForList = selectedCategory === 'All'
                       ? record.items
                       : record.items?.filter(item => getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category) === selectedCategory);
@@ -2661,7 +2662,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal);
                     const referrerName = referrerUser ? referrerUser.fullName : (referrerVal || '-');
                     const priceTotal = getRecordAmountForSelectedService(record);
-                    const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
+                    const formattedPrice = toNepaliDigits(priceTotal.toFixed(2));
                     const baseRemarks = record.remarks || '';
                     const discountVal = getRecordDiscountForSelectedService(record);
                     let discountNote = '';
@@ -2669,7 +2670,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                       const recVal = record.discountRecommendedBy;
                       const recUser = users.find(u => u.id === recVal || u.username === recVal);
                       const recName = recUser ? recUser.fullName : (recVal || '');
-                      const formattedDiscount = useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2);
+                      const formattedDiscount = toNepaliDigits(discountVal.toFixed(2));
                       discountNote = `रु. ${formattedDiscount} छुट${recName ? ` (सिफारिस: ${recName})` : ''}`;
                     }
                     const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
@@ -2685,7 +2686,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border border-slate-950 p-2 text-center font-medium">
                           {ageGenderStr}
                         </td>
-                        <td className="border border-slate-950 p-2 text-center font-mono font-medium">
+                        <td className={`border border-slate-950 p-2 text-center font-medium ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                           {displayBillNo}
                         </td>
                         <td className="border border-slate-950 p-2 text-center font-medium">
@@ -2697,7 +2698,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                         <td className="border border-slate-950 p-2 font-medium">
                           {referrerName}
                         </td>
-                        <td className="border border-slate-950 p-2 text-right font-bold font-mono">
+                        <td className={`border border-slate-950 p-2 text-right font-bold ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                           {formattedPrice}
                         </td>
                         <td className="border border-slate-950 p-2 text-slate-700 italic select-all">
@@ -2718,8 +2719,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   <td colSpan={7} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा रकम (Grand Total):
                   </td>
-                  <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">
-                    {formatNumberValue(totalAmountSum.toFixed(2))}
+                  <td className={`border-2 border-slate-950 p-2.5 text-right font-black ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
+                    {toNepaliDigits(totalAmountSum.toFixed(2))}
                   </td>
                   <td className="border-2 border-slate-950 p-2.5"></td>
                 </tr>
@@ -3099,7 +3100,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             <p className="font-bold text-slate-900 font-nepali text-sm">{preparerName}</p>
             <p className="text-xs text-slate-600 font-nepali mt-0.5">{preparerDesignation}</p>
             <p className="text-xs font-bold font-nepali text-slate-800 mt-2">तयार गर्ने</p>
-            <p className="text-[10px] text-slate-500 mt-1">मिति: {useNepaliNumerals && curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : (curNepaliDate?.format('YYYY-MM-DD') || '-')}</p>
+            <p className="text-[10px] text-slate-500 mt-1">मिति: {curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : '-'}</p>
           </div>
 
           {/* Pramanit Garne (Right) */}
@@ -3107,7 +3108,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             <p className="font-bold text-slate-900 font-nepali text-sm">{approverName}</p>
             <p className="text-xs text-slate-600 font-nepali mt-0.5">{approverDesignation}</p>
             <p className="text-xs font-bold font-nepali text-slate-800 mt-2">प्रमाणित गर्ने / स्वीकृत गर्ने</p>
-            <p className="text-[10px] text-slate-500 mt-1">मिति: {useNepaliNumerals && curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : (curNepaliDate?.format('YYYY-MM-DD') || '-')}</p>
+            <p className="text-[10px] text-slate-500 mt-1">मिति: {curNepaliDate ? toNepaliDigits(curNepaliDate.format('YYYY/MM/DD')) : '-'}</p>
           </div>
         </div>
 

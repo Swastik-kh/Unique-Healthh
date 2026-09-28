@@ -2608,37 +2608,33 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               <p className="text-xs font-bold text-slate-600 mb-0.5">{generalSettings?.subTitleNepali4 || ''}</p>
               <p className="text-xs font-bold text-slate-500 mt-1">{generalSettings?.address || currentUser?.address || ''}</p>
               <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-500 mt-1">
-                {generalSettings?.phone && <p>फोन नं: {generalSettings.phone}</p>}
-                {generalSettings?.panNo && <p>PAN No: {generalSettings.panNo}</p>}
+                {generalSettings?.phone && <p>फोन नं: {toNepaliDigits(generalSettings.phone)}</p>}
+                {generalSettings?.panNo && <p>PAN No: {toNepaliDigits(generalSettings.panNo)}</p>}
               </div>
               <h2 className="text-lg font-bold mt-2 border-2 border-slate-800 inline-block px-4 py-1 rounded">INVOICE</h2>
             </div>
             <div className="w-24 text-right text-xs space-y-0.5">
-              {generalSettings?.panNo && <p><strong>PAN:</strong> {generalSettings.panNo}</p>}
-              {generalSettings?.phone && <p><strong>फोन:</strong> {generalSettings.phone}</p>}
+              {generalSettings?.panNo && <p><strong>PAN:</strong> {toNepaliDigits(generalSettings.panNo)}</p>}
+              {generalSettings?.phone && <p><strong>फोन:</strong> {toNepaliDigits(generalSettings.phone)}</p>}
             </div>
           </div>
 
           {/* Bill Info */}
           <div className="flex justify-between mb-6 text-sm">
             <div>
-              <p><strong>Invoice No:</strong> {currentBill?.invoiceNumber}</p>
-              <p><strong>मिति (Date):</strong> {(() => {
-                const dateStr = currentBill?.billDate || '';
-                const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
-                return dateStr.replace(/[0-9]/g, (digit) => nepaliDigits[parseInt(digit)]);
-              })()}</p>
+              <p><strong>Invoice No:</strong> {currentBill?.invoiceNumber ? toNepaliDigits(currentBill.invoiceNumber) : ''}</p>
+              <p><strong>मिति (Date):</strong> {currentBill?.billDate ? toNepaliDigits(currentBill.billDate) : ''}</p>
               <p><strong>Payment Mode:</strong> {currentBill?.paymentMode}</p>
               {currentBill?.paymentMode === 'Bima' && (
                 <>
-                  <p><strong>Insurance No:</strong> {currentBill?.insuranceNo || 'N/A'}</p>
-                  <p><strong>Claim Code (MR):</strong> {currentBill?.claimCode || 'Not Submitted'}</p>
+                  <p><strong>Insurance No:</strong> {currentBill?.insuranceNo ? toNepaliDigits(currentBill.insuranceNo) : 'N/A'}</p>
+                  <p><strong>Claim Code (MR):</strong> {currentBill?.claimCode ? toNepaliDigits(currentBill.claimCode) : 'Not Submitted'}</p>
                 </>
               )}
             </div>
             <div className="text-right">
               <p><strong>Patient Name:</strong> {currentBill?.patientName}</p>
-              <p><strong>Patient ID:</strong> {currentBill?.serviceSeekerId}</p>
+              <p><strong>Patient ID:</strong> {currentBill?.serviceSeekerId ? toNepaliDigits(currentBill.serviceSeekerId) : ''}</p>
               {currentPatient?.address && <p><strong>Address:</strong> {currentPatient?.address}</p>}
               {currentBill?.referredBy && (
                 <p>
@@ -2666,7 +2662,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                 const isItemRefunded = !!item.isRefunded;
                 return (
                   <tr key={idx} className={`border-b border-slate-200 ${isItemRefunded ? 'bg-red-50/50 text-slate-400 line-through' : ''}`}>
-                    <td className="py-2">{idx + 1}</td>
+                    <td className="py-2">{toNepaliDigits(idx + 1)}</td>
                     <td className="py-2">
                       {item.serviceName}
                       {isItemRefunded && (
@@ -2675,9 +2671,9 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                         </span>
                       )}
                     </td>
-                    <td className="py-2 text-right">{item.price.toFixed(2)}</td>
-                    <td className="py-2 text-center">{item.quantity}</td>
-                    <td className="py-2 text-right">{item.total.toFixed(2)}</td>
+                    <td className="py-2 text-right">{toNepaliDigits(item.price.toFixed(2))}</td>
+                    <td className="py-2 text-center">{toNepaliDigits(item.quantity)}</td>
+                    <td className="py-2 text-right">{toNepaliDigits(item.total.toFixed(2))}</td>
                     <td className="py-2 text-left px-2 text-xs italic">
                       {item.isRefunded ? (item.remarks || 'Refunded') : (item.remarks || '-')}
                     </td>
@@ -2706,25 +2702,25 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
             <div className="w-1/2 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Sub Total:</span>
-                <span className="font-bold">Rs. {currentBill?.subTotal.toFixed(2)}</span>
+                <span className="font-bold">रु. {currentBill?.subTotal !== undefined ? toNepaliDigits(currentBill.subTotal.toFixed(2)) : '०'}</span>
               </div>
               <div className="flex justify-between">
                 <span>
                   Discount
-                  {currentBill?.discountPercent ? ` (${currentBill.discountPercent}%)` : ''}
+                  {currentBill?.discountPercent ? ` (${toNepaliDigits(currentBill.discountPercent)}%)` : ''}
                   {currentBill?.discountRecommendedBy ? ` [सिफारिस: ${users.find(u => u.id === currentBill.discountRecommendedBy || u.username === currentBill.discountRecommendedBy)?.fullName || currentBill.discountRecommendedBy}]` : ''}:
                 </span>
-                <span>Rs. {currentBill?.discount.toFixed(2)}</span>
+                <span>रु. {currentBill?.discount !== undefined ? toNepaliDigits(currentBill.discount.toFixed(2)) : '०'}</span>
               </div>
               {currentBill?.refundedAmount && currentBill.refundedAmount > 0 && (
                 <div className="flex justify-between text-red-600 font-medium">
                   <span>Refunded Amount:</span>
-                  <span>- Rs. {currentBill.refundedAmount.toFixed(2)}</span>
+                  <span>- रु. {toNepaliDigits(currentBill.refundedAmount.toFixed(2))}</span>
                 </div>
               )}
               <div className="flex justify-between border-t border-slate-800 pt-2 text-lg font-bold">
                 <span>Grand Total:</span>
-                <span className="font-mono">Rs. {currentBill?.grandTotal.toFixed(2)}</span>
+                <span className="font-bold">रु. {currentBill?.grandTotal !== undefined ? toNepaliDigits(currentBill.grandTotal.toFixed(2)) : '०'}</span>
               </div>
             </div>
           </div>
@@ -2746,7 +2742,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           <div className="mt-12 pt-4 border-t border-slate-300 flex justify-between text-xs text-slate-500">
             <div>
               <p>Printed By: {currentUser?.username}</p>
-              <p>Printed On: {new Date().toLocaleString()}</p>
+              <p>Printed On: {toNepaliDigits(new Date().toLocaleString())}</p>
             </div>
             <div className="text-center">
               <p>Thank you for your visit.</p>
