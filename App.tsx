@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import axios from 'axios';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
 import { ECGWave } from './components/ECGWave';
@@ -99,9 +100,35 @@ const App: React.FC = () => {
         }
       });
 
+    // Set up global axios request interceptor to automatically attach Firebase ID token to all /api/ calls
+    const interceptor = axios.interceptors.request.use(
+      async (config) => {
+        if (config.url && config.url.startsWith('/api/')) {
+          try {
+            const token = await auth.currentUser?.getIdToken();
+            if (token) {
+              if (config.headers && typeof config.headers.set === 'function') {
+                config.headers.set('Authorization', `Bearer ${token}`);
+              } else {
+                config.headers = config.headers || ({} as any);
+                (config.headers as any)['Authorization'] = `Bearer ${token}`;
+              }
+            }
+          } catch (err) {
+            console.error("Axios interceptor token retrieval error:", err);
+          }
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
     return () => {
       isMounted = false;
       unsubscribe();
+      axios.interceptors.request.eject(interceptor);
     };
   }, []);
 

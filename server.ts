@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import axios from "axios";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
+import { getAuth } from "firebase-admin/auth";
 
 // Initialize Firebase Admin
 try {
@@ -21,6 +22,27 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json({ limit: '20mb' }));
+
+  // Middleware to enforce Firebase ID token authentication on all /api/* routes
+  const authenticateUser = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.warn(`[API Auth] Unauthenticated request blocked: ${req.method} ${req.path}`);
+        return res.status(401).json({ error: "Unauthorized: Missing authentication token" });
+      }
+
+      const token = authHeader.split("Bearer ")[1];
+      const decodedToken = await getAuth().verifyIdToken(token);
+      (req as any).user = decodedToken;
+      next();
+    } catch (err: any) {
+      console.error("[API Auth] Token verification failed:", err.message);
+      return res.status(401).json({ error: "Unauthorized: Invalid or expired authentication token" });
+    }
+  };
+
+  app.use("/api/*", authenticateUser);
 
   // HIB Helper to get auth header
   const getHIBAuth = (req: express.Request) => {

@@ -2708,14 +2708,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="border border-slate-950 p-10 text-center text-slate-400 italic">
+                    <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
                       चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।
                     </td>
                   </tr>
                 )}
                 {/* Grand Total Row */}
                 <tr className="bg-slate-50 font-bold">
-                  <td colSpan={6} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
+                  <td colSpan={7} className="border-2 border-slate-950 p-2.5 text-right font-black font-nepali">
                     कुल जम्मा रकम (Grand Total):
                   </td>
                   <td className="border-2 border-slate-950 p-2.5 text-right font-black font-mono">

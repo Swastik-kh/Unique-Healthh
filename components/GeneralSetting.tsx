@@ -10,7 +10,7 @@ import { MenuManagement } from './MenuManagement';
 import { SearchableSelect } from './SearchableSelect';
 import { DHIS2_DATA_ELEMENTS, DHIS2_COMBOS, DHIS2_SOURCE_KEYS, DHIS2_DATASETS } from '../constants/dhis2Metadata';
 import { db as localDb } from '../firestore';
-import { db as rtdb } from '../firebase';
+import { db as rtdb, auth } from '../firebase';
 import { ref, set } from 'firebase/database';
 import { sortUsersByHierarchy, getDefaultHierarchyOrder, getRoleRankWeight, getDesignationLevelWeight } from '../lib/userHierarchyUtils';
 
@@ -69,9 +69,14 @@ export const GeneralSetting: React.FC<GeneralSettingProps> = ({ currentUser, set
     setIsFetchingBalance(true);
     try {
       const keyToUse = localSettings.smsApiKey || '56A71A88EC9CA9';
+      const token = await auth.currentUser?.getIdToken();
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const res = await fetch('/api/sms/balance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ apiKey: keyToUse })
       });
       const data = await res.json();
