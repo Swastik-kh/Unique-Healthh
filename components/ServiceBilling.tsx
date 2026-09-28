@@ -1128,6 +1128,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const handleSaveBill = async () => {
     // Validate discount percentage against recommender-specific or general settings
     const selectedRecommender = isDirectBilling ? (directReferredBy || referredBy) : (referredBy || directReferredBy);
+    
+    if (discountAmount > 0 && !selectedRecommender) {
+      alert("कृपया पहिले छुट सिफारिसकर्ता (Discount Recommender) छान्नुहोस्।");
+      return;
+    }
     let limitPercent: number | undefined = undefined;
     if (selectedRecommender && generalSettings?.sewaDiscountLimits?.[selectedRecommender] !== undefined) {
       limitPercent = generalSettings.sewaDiscountLimits[selectedRecommender];
@@ -1171,6 +1176,10 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       }
       if (billingItems.length === 0) {
         alert("कृपया पहिले सेवा विवरण वा टेस्टहरू थप्नुहोस्।");
+        return;
+      }
+      if (!directTestReferredBy || !directTestReferredBy.trim()) {
+        alert("कृपया जाँचको लागि सिफारिसकर्ताको नाम प्रविष्ट वा चयन गर्नुहोस्।");
         return;
       }
 
@@ -1250,6 +1259,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     }
 
     if (!currentPatient || billingItems.length === 0 || isSaving) return;
+
+    if (!testReferredBy || !testReferredBy.trim()) {
+      alert("कृपया जाँचको लागि सिफारिसकर्ताको नाम प्रविष्ट वा चयन गर्नुहोस्।");
+      return;
+    }
 
     if (paymentMode === 'Bima' && !claimCode) {
       if (!window.confirm("तपाईंले यो बीमा दावी पेस गर्नुभएको छैन। दावी पेस नगरी बिल सुरक्षित गर्न चाहनुहुन्छ?")) {
@@ -1966,7 +1980,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
 
                      <div>
                        <label className="block text-sm font-medium text-slate-700 mb-2 font-nepali">
-                         जाँचको लागि सिफारिसकर्ता (Test Recommender)
+                         जाँचको लागि सिफारिसकर्ता (Test Recommender) <span className="text-rose-500">*</span>
                        </label>
                        <input
                          type="text"
@@ -2344,6 +2358,11 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                           type="number" 
                           value={discount} 
                           onChange={(e) => setDiscount(e.target.value)}
+                          onBlur={() => {
+                            if (isDiscountExceeded && effectiveMaxDiscountPercent !== undefined && maxAllowedDiscountAmount !== undefined) {
+                              alert(`माफ गर्नुहोला, सिफारिस गरिए भन्दा बढी छुट दिन मिल्दैन। अधिकतम छुट प्रतिशत ${effectiveMaxDiscountPercent}% र रकम रु. ${maxAllowedDiscountAmount.toFixed(2)} मात्र हो।`);
+                            }
+                          }}
                           className={`w-28 p-1.5 text-right border rounded-lg text-sm font-bold font-mono outline-none transition-all ${
                             isDiscountExceeded 
                               ? 'border-rose-500 text-rose-700 bg-rose-50 ring-2 ring-rose-400/30' 

@@ -2664,9 +2664,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     const formattedPrice = formatNumberValue(priceTotal.toFixed(2));
                     const baseRemarks = record.remarks || '';
                     const discountVal = getRecordDiscountForSelectedService(record);
-                    const discountNote = discountVal > 0 
-                      ? `रु. ${useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2)} छुट` 
-                      : '';
+                    let discountNote = '';
+                    if (discountVal > 0) {
+                      const recVal = record.discountRecommendedBy;
+                      const recUser = users.find(u => u.id === recVal || u.username === recVal);
+                      const recName = recUser ? recUser.fullName : (recVal || '');
+                      const formattedDiscount = useNepaliNumerals ? toNepaliDigits(discountVal.toFixed(2)) : discountVal.toFixed(2);
+                      discountNote = `रु. ${formattedDiscount} छुट${recName ? ` (सिफारिस: ${recName})` : ''}`;
+                    }
                     const clientRemarks = [baseRemarks, discountNote].filter(Boolean).join(', ') || '-';
 
                     return (
