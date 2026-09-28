@@ -179,7 +179,19 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
   const [directMiti, setDirectMiti] = useState(getInitialMitiValue);
   const [directRemarks, setDirectRemarks] = useState('');
   const [directReferredBy, setDirectReferredBy] = useState('');
+  const [directTestReferredBy, setDirectTestReferredBy] = useState('');
   const [referredBy, setReferredBy] = useState('');
+  const [testReferredBy, setTestReferredBy] = useState('');
+
+  const officeUsers = useMemo(() => {
+    if (!currentUser) return [];
+    return users.filter(u => 
+      u.organizationName === currentUser.organizationName && 
+      u.role !== 'SUPER_ADMIN' &&
+      u.username !== 'superadmin' &&
+      u.username !== 'admin'
+    );
+  }, [users, currentUser]);
 
   const [prevMiti, setPrevMiti] = useState('');
   const [prevIsDirect, setPrevIsDirect] = useState(false);
@@ -259,7 +271,8 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     setPaymentMode((bill.paymentMode as any) || 'Cash');
     setPrevMiti(bill.billDate || '');
     setPrevIsDirect(true);
-    setDirectReferredBy(bill.referredBy || '');
+    setDirectReferredBy(bill.discountRecommendedBy || bill.referredBy || '');
+    setDirectTestReferredBy(bill.referredBy || '');
   };
 
   const handleRefundClick = (bill: BillingRecord) => {
@@ -357,6 +370,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
     setPrevIsDirect(false);
     setDirectMiti(getInitialMitiValue());
     setDirectReferredBy('');
+    setDirectTestReferredBy('');
     
     // Reset standard form inputs too
     setNewItem({ serviceName: '', price: '', quantity: '1', remarks: '' });
@@ -1182,7 +1196,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
           createdBy: existingBill?.createdBy || currentUser?.username || 'Unknown',
           remarks: directRemarks || undefined,
           isDirectBilling: existingBill ? !!existingBill.isDirectBilling : true,
-          referredBy: directReferredBy || undefined,
+          referredBy: directTestReferredBy || undefined,
           discountRecommendedBy: directReferredBy || undefined,
           discountPercent: subTotal > 0 ? Number(((discountAmount / subTotal) * 100).toFixed(2)) : 0,
           insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
@@ -1213,6 +1227,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         setDirectBillNo('');
         setDirectRemarks('');
         setDirectReferredBy('');
+        setDirectTestReferredBy('');
         setPrevMiti('');
         setPrevIsDirect(false);
         setDirectMiti(getInitialMitiValue());
@@ -1263,7 +1278,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
         grandTotal: grandTotal,
         paymentMode: paymentMode,
         createdBy: currentUser?.username || 'Unknown',
-        referredBy: referredBy || undefined,
+        referredBy: testReferredBy || undefined,
         discountRecommendedBy: referredBy || undefined,
         discountPercent: subTotal > 0 ? Number(((discountAmount / subTotal) * 100).toFixed(2)) : 0,
         insuranceNo: paymentMode === 'Bima' ? insuranceNo : undefined,
@@ -1281,6 +1296,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
       setInsuranceNo('');
       setClaimCode('');
       setReferredBy('');
+      setTestReferredBy('');
       setClaimStatus('Draft');
       setFhirResponseLog('');
       
@@ -1480,35 +1496,7 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
                         maxDate={fiscalYearRange.max}
                       />
                     </div>
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-bold text-slate-600">
-                          छुट सिफारिसकर्ता (Discount Recommender)
-                        </label>
-                        {activeRecommender && effectiveMaxDiscountPercent !== undefined && (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                            छुट सीमा: {effectiveMaxDiscountPercent}%
-                          </span>
-                        )}
-                      </div>
-                      <select
-                        value={directReferredBy}
-                        onChange={(e) => handleRecommenderChange(e.target.value, true)}
-                        className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 font-medium"
-                      >
-                        <option value="">-- छुट सिफारिसकर्ता छान्नुहोस् (Select Recommender) --</option>
-                        {sewaDiscountRolesList.map((role) => {
-                          const limit = generalSettings?.sewaDiscountLimits?.[role] !== undefined 
-                            ? generalSettings.sewaDiscountLimits[role] 
-                            : (generalSettings?.discountLimits?.[role] ?? generalSettings?.maxSewaDiscountPercent);
-                          return (
-                            <option key={role} value={role}>
-                              {role} {limit !== undefined ? `(${limit}% छुट)` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
+
                     <div>
                       <label className="block text-xs font-bold text-slate-600 mb-1">कैफियत / विवरण (Remarks / Details)</label>
                       <textarea
@@ -1945,34 +1933,57 @@ export const ServiceBilling: React.FC<ServiceBillingProps> = ({
               {/* Summary & Actions */}
               <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                 <div className="w-full md:w-1/2 space-y-4">
-                   <div>
-                     <div className="flex justify-between items-center mb-2">
-                       <label className="block text-sm font-medium text-slate-700 font-nepali">
-                         छुट सिफारिसकर्ता (Discount Recommender)
-                       </label>
-                       {activeRecommender && effectiveMaxDiscountPercent !== undefined && (
-                         <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                           छुट सीमा: {effectiveMaxDiscountPercent}%
-                         </span>
-                       )}
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div>
+                       <div className="flex justify-between items-center mb-2">
+                         <label className="block text-sm font-medium text-slate-700 font-nepali">
+                           छुट सिफारिसकर्ता (Discount Recommender)
+                         </label>
+                         {activeRecommender && effectiveMaxDiscountPercent !== undefined && (
+                           <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                             छुट सीमा: {effectiveMaxDiscountPercent}%
+                           </span>
+                         )}
+                       </div>
+                       <select
+                         value={isDirectBilling ? directReferredBy : referredBy}
+                         onChange={(e) => handleRecommenderChange(e.target.value, isDirectBilling)}
+                         className="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none font-medium"
+                       >
+                         <option value="">-- छुट सिफारिसकर्ता छान्नुहोस् (Select Recommender) --</option>
+                         {sewaDiscountRolesList.map((role) => {
+                           const limit = generalSettings?.sewaDiscountLimits?.[role] !== undefined 
+                             ? generalSettings.sewaDiscountLimits[role] 
+                             : (generalSettings?.discountLimits?.[role] ?? generalSettings?.maxSewaDiscountPercent);
+                           return (
+                             <option key={role} value={role}>
+                               {role} {limit !== undefined ? `(${limit}% छुट)` : ''}
+                             </option>
+                           );
+                         })}
+                       </select>
                      </div>
-                     <select
-                       value={referredBy}
-                       onChange={(e) => handleRecommenderChange(e.target.value, false)}
-                       className="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none font-medium"
-                     >
-                       <option value="">-- छुट सिफारिसकर्ता छान्नुहोस् (Select Recommender) --</option>
-                       {sewaDiscountRolesList.map((role) => {
-                         const limit = generalSettings?.sewaDiscountLimits?.[role] !== undefined 
-                           ? generalSettings.sewaDiscountLimits[role] 
-                           : (generalSettings?.discountLimits?.[role] ?? generalSettings?.maxSewaDiscountPercent);
-                         return (
-                           <option key={role} value={role}>
-                             {role} {limit !== undefined ? `(${limit}% छुट)` : ''}
+
+                     <div>
+                       <label className="block text-sm font-medium text-slate-700 mb-2 font-nepali">
+                         जाँचको लागि सिफारिसकर्ता (Test Recommender)
+                       </label>
+                       <input
+                         type="text"
+                         list="normal-test-recommenders"
+                         value={isDirectBilling ? directTestReferredBy : testReferredBy}
+                         onChange={(e) => isDirectBilling ? setDirectTestReferredBy(e.target.value) : setTestReferredBy(e.target.value)}
+                         className="w-full p-2.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-4 focus:ring-emerald-500/10 outline-none font-medium font-nepali"
+                         placeholder="सिफारिसकर्ताको नाम प्रविष्ट वा चयन गर्नुहोस्"
+                       />
+                       <datalist id="normal-test-recommenders">
+                         {officeUsers.map((u) => (
+                           <option key={u.id} value={u.fullName}>
+                             {u.fullName} ({u.designation || 'कर्मचारी'})
                            </option>
-                         );
-                       })}
-                     </select>
+                         ))}
+                       </datalist>
+                     </div>
                    </div>
 
                    <div>

@@ -230,22 +230,28 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
 
   // 3. Referrer Groupings for the modal
   const modalProtsahanByReferrer = useMemo(() => {
-    const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number }>();
+    const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number; designation: string }>();
     modalProtsahanData.forEach(item => {
       const key = item.record.referredBy && item.record.referredBy !== 'All' && item.record.referredBy !== '-' ? item.referrerName : 'स्वतन्त्र (Self / direct)';
-      const existing = map.get(key) || { netLabAmount: 0, totalIncentive: 0, referrerShare: 0 };
+      const existing = map.get(key) || { netLabAmount: 0, totalIncentive: 0, referrerShare: 0, designation: '' };
       
       const refShareObj = item.recipientShares.find(s => s.isSystemReferrer);
       const refShareAmount = refShareObj ? refShareObj.shareAmount : 0;
 
+      // Find user designation (pad)
+      const referrerVal = item.record.referredBy;
+      const referrerUser = users.find(u => u.id === referrerVal || u.username === referrerVal || u.fullName === referrerVal);
+      const designation = referrerUser?.designation || existing.designation || 'सिफारिसकर्ता';
+
       map.set(key, {
         netLabAmount: existing.netLabAmount + item.netLabAmount,
         totalIncentive: existing.totalIncentive + item.totalIncentive,
-        referrerShare: existing.referrerShare + refShareAmount
+        referrerShare: existing.referrerShare + refShareAmount,
+        designation: designation
       });
     });
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
-  }, [modalProtsahanData]);
+  }, [modalProtsahanData, users]);
 
   // 4. Build the complete Bharpai rows
   const bharpaiRows: BharpaiRow[] = useMemo(() => {
@@ -264,7 +270,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
         id: rowId,
         sn: snCounter++,
         staffName: ref.name || 'अन्य सिफारिसकर्ता',
-        role: 'सिफारिसकर्ता',
+        role: ref.designation || 'सिफारिसकर्ता',
         grossLabAmount: grossAmt,
         incentiveAmount: incAmt,
         taxDeduction: taxAmt,
