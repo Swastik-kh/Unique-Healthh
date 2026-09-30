@@ -1,16 +1,20 @@
 import axios from 'axios';
+import { authenticateNetlifyRequest } from '../../lib/apiSecurity';
+
+const SMS_SEND_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'STAFF',
+  'ACCOUNT',
+  'HEALTH_SECTION',
+  'APPROVAL',
+  'STOREKEEPER'
+];
 
 export const handler = async (event: any, context: any) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-      },
-      body: ''
-    };
+  const authCheck = await authenticateNetlifyRequest(event, SMS_SEND_ROLES);
+  if (!authCheck.authorized) {
+    return authCheck.response!;
   }
 
   if (event.httpMethod !== 'POST') {
@@ -76,7 +80,7 @@ export const handler = async (event: any, context: any) => {
       if (successCount > 0) {
         return {
           statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             success: true,
             provider: "SMSBit / SMS Pasal",
@@ -89,7 +93,7 @@ export const handler = async (event: any, context: any) => {
         const safeDataStr = (lastError || 'Unknown Error').split(key).join('****').replace(/(key=)[^&]+/gi, '$1****');
         return {
           statusCode: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             error: `SMS पठाउन असफल भयो (${safeDataStr})`,
             rawError: safeDataStr
@@ -101,6 +105,7 @@ export const handler = async (event: any, context: any) => {
     if (!recipients || (Array.isArray(recipients) && recipients.length === 0) || !message) {
       return {
         statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: "Recipients and message body are required" })
       };
     }
@@ -113,6 +118,7 @@ export const handler = async (event: any, context: any) => {
     if (cleanedList.length === 0) {
       return {
         statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: "नेपाली १० अंकको मोबाइल नम्बर भेटिएन (उदा: 9841XXXXXX)" })
       };
     }
@@ -166,7 +172,7 @@ export const handler = async (event: any, context: any) => {
 
       return {
         statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           success: true,
           provider: "SMSBit / SMS Pasal",
@@ -186,7 +192,7 @@ export const handler = async (event: any, context: any) => {
 
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           error: userFriendlyError,
           rawError: safeDataStr,
@@ -197,7 +203,7 @@ export const handler = async (event: any, context: any) => {
   } catch (err: any) {
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: err.message || "Internal Server Error" })
     };
   }

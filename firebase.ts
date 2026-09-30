@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref } from "firebase/database";
 import { getStorage } from "firebase/storage";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged } from "firebase/auth";
 
 /**
  * Safely access Vite environment variables.
@@ -36,7 +36,7 @@ export const db = getDatabase(app);
 export const storage = getStorage(app);
 export const connectedRef = ref(db, '.info/connected');
 export const getConnectionStatusRef = () => ref(db, '.info/connected');
-export { signInAnonymously, onAuthStateChanged };
+export { signInWithCustomToken, signOut, onAuthStateChanged };
 
 /**
  * Canonical organization name sanitization function matching Android app implementation.

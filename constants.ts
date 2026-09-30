@@ -41,3 +41,42 @@ export const AVAILABLE_SERVICES = [
   "बिजुलि सेवा"
 
 ];
+
+/**
+ * Helper to identify ANC Package services across various naming conventions (English & Nepali)
+ */
+export const isAncPackageService = (serviceName?: string): boolean => {
+  if (!serviceName) return false;
+  const s = serviceName.trim().toLowerCase();
+
+  // Common direct matches
+  if (
+    s === 'anc' || 
+    s === 'anc package' || 
+    s === 'anc test' || 
+    s === 'anc profile' || 
+    s === 'anc package test' || 
+    s === 'anc जांच' || 
+    s === 'anc जाँच' || 
+    s === 'anc प्याकेज'
+  ) {
+    return true;
+  }
+
+  // Regex word-boundary match for "anc"
+  if (/\banc\b/i.test(s)) {
+    return true;
+  }
+
+  // Common variations with punctuation
+  if (s.includes('anc-package') || s.includes('anc_package') || s.includes('anc package')) {
+    return true;
+  }
+
+  // Devanagari script variations
+  if (s.includes('एएनसी') || s.includes('ए.एन.सी') || s.includes('ए एन सी') || s.includes('गर्भवती जाँच')) {
+    return true;
+  }
+
+  return false;
+};

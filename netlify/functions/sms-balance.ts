@@ -1,16 +1,12 @@
 import axios from 'axios';
+import { authenticateNetlifyRequest } from '../../lib/apiSecurity';
+
+const SMS_BALANCE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'ACCOUNT', 'STAFF', 'HEALTH_SECTION'];
 
 export async function handler(event: any) {
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      },
-      body: '',
-    };
+  const authCheck = await authenticateNetlifyRequest(event, SMS_BALANCE_ROLES);
+  if (!authCheck.authorized) {
+    return authCheck.response!;
   }
 
   try {
@@ -43,7 +39,7 @@ export async function handler(event: any) {
     if (typeof resData === 'string' && resData.includes('ERR:')) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           success: false,
           error: `SMS Pasal API त्रुटि: ${resData}`,
@@ -72,7 +68,7 @@ export async function handler(event: any) {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         success: true,
         provider: 'SMSBit / SMS Pasal',
@@ -86,7 +82,7 @@ export async function handler(event: any) {
     console.error('Netlify SMS Balance Check Error:', error.message);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         success: false,
         error: `SMS ब्यालेन्स चेक गर्न सकिएन: ${error.message}`

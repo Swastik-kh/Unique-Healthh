@@ -122,3 +122,26 @@ export const callPatientSpeech = (clickedPatient: { name: string; paloNo?: strin
   }
 };
 
+export const isAncPackageTest = (serviceName?: string | null): boolean => {
+  if (!serviceName) return false;
+  const s = serviceName.trim().toLowerCase();
+  return (
+    s === 'anc' ||
+    s.includes('anc package') ||
+    s.includes('anc profile') ||
+    s.includes('anc test') ||
+    s.includes('anc checkup') ||
+    s.includes('anc screening') ||
+    s.includes('anc lab') ||
+    s.startsWith('anc ') ||
+    s.endsWith(' anc') ||
+    s.includes(' anc ') ||
+    s.includes('(anc') ||
+    s.includes('anc)') ||
+    s.includes('antenatal') ||
+    s.includes('एएनसी') ||
+    s.includes('ए.एन.सी') ||
+    s.includes('ए एन सी')
+  );
+};
+

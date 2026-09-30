@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Printer, Download, X, Settings2, FileText, Check, Calendar, Filter } from 'lucide-react';
-import { FISCAL_YEARS } from '../constants';
+import { Printer, Download, X, Settings2, FileText, Check, Calendar, Filter, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { FISCAL_YEARS, isAncPackageService } from '../constants';
 import { BillingRecord, User } from '../types';
 
 const NEPALI_MONTH_OPTIONS = [
@@ -58,6 +58,9 @@ interface LabProtsahanBharpaiModalProps {
   protsahanRecipients: ProtsahanRecipient[];
   protsahanReportData?: any[];
   labIncentivePercent?: number;
+  ancPackageIncentiveRate?: number;
+  zeroTestRates?: { id: string; testName: string; rate: number }[];
+  includeZeroTestsInIncentive?: boolean;
   users?: User[];
   getServiceCategory?: (serviceName: string, categoryFromItem?: string) => string;
   useNepaliNumerals: boolean;
@@ -86,6 +89,9 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
   initialMonth = '04',
   protsahanRecipients = [],
   labIncentivePercent = 10,
+  ancPackageIncentiveRate = 0,
+  zeroTestRates = [],
+  includeZeroTestsInIncentive,
   users = [],
   getServiceCategory = (_serviceName?: string, _categoryFromItem?: string) => 'Other',
   useNepaliNumerals,
@@ -101,6 +107,34 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
   const [periodText, setPeriodText] = useState<string>('श्रावण र भाद्र');
   const [customRemarks, setCustomRemarks] = useState<Record<string, string>>({});
   const [isEditingSettings, setIsEditingSettings] = useState<boolean>(false);
+  const [excludedRowIds, setExcludedRowIds] = useState<string[]>([]);
+  const [ancRate, setAncRate] = useState<number>(() => {
+    if (typeof ancPackageIncentiveRate === 'number' && ancPackageIncentiveRate > 0) {
+      return ancPackageIncentiveRate;
+    }
+    const saved = localStorage.getItem('protsahan_anc_package_rate');
+    return saved ? Number(saved) : 0;
+  });
+
+  const effectiveIncludeZeroTests = useMemo(() => {
+    if (typeof includeZeroTestsInIncentive === 'boolean') return includeZeroTestsInIncentive;
+    const saved = localStorage.getItem('protsahan_include_zero_tests');
+    return saved !== 'false';
+  }, [includeZeroTestsInIncentive]);
+
+  const effectiveZeroTestRates = useMemo(() => {
+    if (zeroTestRates && zeroTestRates.length > 0) return zeroTestRates;
+    const saved = localStorage.getItem('protsahan_zero_test_rates');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error("Error parsing protsahan_zero_test_rates in modal", e);
+      }
+    }
+    return [];
+  }, [zeroTestRates]);
 
   // Sync initial values when modal opens
   useEffect(() => {
@@ -110,8 +144,20 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
         setSelectedPeriodValue(initialMonth);
         updatePeriodTextForValue(initialMonth);
       }
+      setExcludedRowIds([]);
+      if (typeof ancPackageIncentiveRate === 'number' && ancPackageIncentiveRate > 0) {
+        setAncRate(ancPackageIncentiveRate);
+      } else {
+        const saved = localStorage.getItem('protsahan_anc_package_rate');
+        if (saved) setAncRate(Number(saved));
+      }
     }
-  }, [isOpen, initialFiscalYear, initialMonth]);
+  }, [isOpen, initialFiscalYear, initialMonth, ancPackageIncentiveRate]);
+
+  // Reset excluded staff when changing fiscal year or month/period
+  useEffect(() => {
+    setExcludedRowIds([]);
+  }, [selectedFy, selectedPeriodValue]);
 
   const updatePeriodTextForValue = (val: string) => {
     const preset = PRESET_PERIODS.find(p => p.value === val);
@@ -186,15 +232,44 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
       let grossLabAmount = 0;
       record.items?.forEach(item => {
         if (item.isRefunded) return;
-        const cat = getServiceCategory((item.serviceName || '').toLowerCase().trim(), item.category);
-        if (cat === 'Lab') {
-          grossLabAmount += item.total || 0;
+        const rawName = (item.serviceName || '').trim();
+        const itemName = rawName.toLowerCase();
+        const cat = getServiceCategory(itemName, item.category);
+
+        if (cat === 'Lab' || isAncPackageService(rawName)) {
+          const qty = Number(item.quantity) || 1;
+          const itemTotal = Number(item.total) || 0;
+          const isAnc = isAncPackageService(rawName);
+
+          const matchedRule = effectiveZeroTestRates.find(r => 
+            r.testName.toLowerCase().trim() === itemName ||
+            (isAncPackageService(r.testName) && isAncPackageService(rawName))
+          );
+
+          if (effectiveIncludeZeroTests) {
+            if (matchedRule && matchedRule.rate > 0) {
+              if (itemTotal === 0 || matchedRule.rate > 0) {
+                grossLabAmount += (qty * matchedRule.rate);
+              } else {
+                grossLabAmount += itemTotal;
+              }
+            } else if (isAnc && ancRate > 0 && itemTotal === 0) {
+              grossLabAmount += (qty * ancRate);
+            } else {
+              grossLabAmount += itemTotal;
+            }
+          } else {
+            grossLabAmount += itemTotal;
+          }
         }
       });
 
-      const billSubTotal = record.subTotal || 1;
+      const billSubTotal = record.subTotal || 0;
       const billDiscount = record.discount || 0;
-      const proRatedDiscount = (grossLabAmount / billSubTotal) * billDiscount;
+      let proRatedDiscount = 0;
+      if (billDiscount > 0 && billSubTotal > 0) {
+        proRatedDiscount = Math.min(billDiscount, (grossLabAmount / Math.max(billSubTotal, grossLabAmount)) * billDiscount);
+      }
       const netLabAmount = Math.max(0, grossLabAmount - proRatedDiscount);
       const totalIncentive = netLabAmount * (labIncentivePercent / 100);
 
@@ -226,7 +301,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
         hasReferrer: !!referrerVal && referrerVal !== 'All' && referrerVal !== '-'
       };
     }).filter(d => d.grossLabAmount > 0);
-  }, [filteredModalRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory]);
+  }, [filteredModalRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory, ancRate, effectiveIncludeZeroTests, effectiveZeroTestRates]);
 
   // 3. Referrer Groupings for the modal
   const modalProtsahanByReferrer = useMemo(() => {
@@ -253,8 +328,8 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
   }, [modalProtsahanData, users]);
 
-  // 4. Build the complete Bharpai rows
-  const bharpaiRows: BharpaiRow[] = useMemo(() => {
+  // 4. Build the complete raw Bharpai rows
+  const rawBharpaiRows: BharpaiRow[] = useMemo(() => {
     const rows: BharpaiRow[] = [];
     let snCounter = 1;
 
@@ -332,6 +407,34 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
 
     return rows;
   }, [modalProtsahanByReferrer, protsahanRecipients, modalProtsahanData, taxPercent, customRemarks]);
+
+  // Filter out any employees/staff excluded by user and sequentially re-index SN
+  const bharpaiRows: BharpaiRow[] = useMemo(() => {
+    let snCounter = 1;
+    return rawBharpaiRows
+      .filter(r => !excludedRowIds.includes(r.id))
+      .map(r => ({
+        ...r,
+        sn: snCounter++
+      }));
+  }, [rawBharpaiRows, excludedRowIds]);
+
+  // List of excluded staff members for quick restoration
+  const excludedRows = useMemo(() => {
+    return rawBharpaiRows.filter(r => excludedRowIds.includes(r.id));
+  }, [rawBharpaiRows, excludedRowIds]);
+
+  const handleExcludeRow = (rowId: string) => {
+    setExcludedRowIds(prev => prev.includes(rowId) ? prev : [...prev, rowId]);
+  };
+
+  const handleIncludeRow = (rowId: string) => {
+    setExcludedRowIds(prev => prev.filter(id => id !== rowId));
+  };
+
+  const handleResetExcluded = () => {
+    setExcludedRowIds([]);
+  };
 
   // Grand Totals
   const grandGrossAmount = useMemo(() => {
@@ -485,7 +588,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                   प्रयोगशाला प्रोत्साहन रकमको भरपाई (Receipt / Bharpai Preview)
                 </h3>
                 <p className="text-xs text-slate-500 font-nepali font-medium">
-                  महिना र आ.व. अनुसार कर्मचारीहरूको प्रोत्साहन भुक्तानी र करकट्टी भरपाई।
+                  महिना र आ.व. अनुसार कर्मचारीहरूको प्रोत्साहन भुक्तानी र करकट्टी भरपाई। (आवश्यकता अनुसार कुनै कर्मचारी हटाएर प्रिन्ट गर्न सकिन्छ)
                 </p>
               </div>
             </div>
@@ -613,6 +716,24 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                 <span className="font-bold text-slate-600">%</span>
               </div>
 
+              <div className="flex items-center gap-2 bg-purple-50/70 border border-purple-200 px-3 py-1 rounded-xl">
+                <label className="font-bold text-purple-950 font-nepali text-xs">ANC दर (रू.):</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={ancRate || ''}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setAncRate(val);
+                    localStorage.setItem('protsahan_anc_package_rate', val.toString());
+                  }}
+                  placeholder="0"
+                  className="w-20 p-1 px-2 bg-white border border-purple-300 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-purple-500 text-right font-mono text-purple-900"
+                  title="प्रोत्साहन प्रयोजनको लागि मात्र ANC Package को दर"
+                />
+              </div>
+
               <button
                 type="button"
                 onClick={() => setIsEditingSettings(false)}
@@ -625,7 +746,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
           )}
 
           {/* Bharpai Document Print Sheet */}
-          <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-white print:p-0 print:overflow-visible bharpai-print-sheet">
+          <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-white print:p-0 print:overflow-visible bharpai-print-sheet font-nepali">
             <div className="max-w-5xl mx-auto space-y-4 print:w-full print:max-w-none">
               
               {/* Top Bharpai Official Header (Exact text matching screenshot) */}
@@ -634,6 +755,45 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                   आ.व. {displayFiscalYear} मिति {displayDecisionDate} गतेको निर्णयानुसार भुक्तानी भएको {periodText} महिनाको प्रयोगशाला प्रोत्साहन रकमको भरपाई
                 </h2>
               </div>
+
+              {/* Excluded Staff Restoration Banner - Hide on print */}
+              {excludedRows.length > 0 && (
+                <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3 px-4 flex flex-wrap items-center justify-between gap-3 print:hidden text-xs shadow-2xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-amber-900 font-nepali flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      भरपाईबाट हटाइएका कर्मचारी ({toNepaliDigits(excludedRows.length)} जना):
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {excludedRows.map(row => (
+                        <span
+                          key={row.id}
+                          className="inline-flex items-center gap-1.5 bg-white border border-amber-300 text-amber-950 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-2xs font-nepali"
+                        >
+                          <span>{row.staffName} <span className="text-[11px] text-amber-700">({row.role})</span></span>
+                          <button
+                            type="button"
+                            onClick={() => handleIncludeRow(row.id)}
+                            title="पुनः भरपाईमा समावेश गर्नुहोस्"
+                            className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 rounded px-1 py-0.5 transition-colors font-bold flex items-center gap-0.5 border border-emerald-200"
+                          >
+                            <Plus size={12} />
+                            <span className="text-[10px]">थप्नुहोस्</span>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetExcluded}
+                    className="text-xs font-bold text-amber-900 hover:text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-xl transition-all font-nepali flex items-center gap-1.5 ml-auto sm:ml-0"
+                  >
+                    <RotateCcw size={13} />
+                    सबै पुनः समावेश गर्नुहोस् (Restore All)
+                  </button>
+                </div>
+              )}
 
               {/* Exact Official Bharpai Table */}
               <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-950">
@@ -648,13 +808,28 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                     <th className="border-2 border-slate-950 p-2 text-right font-bold w-32">जम्मा बुझेको रकम</th>
                     <th className="border-2 border-slate-950 p-2 text-center font-bold w-24">हस्ताक्षर</th>
                     <th className="border-2 border-slate-950 p-2 text-left font-bold min-w-[120px]">कैफियत</th>
+                    <th className="border-2 border-slate-950 p-2 text-center font-bold w-14 print:hidden">हटाउने</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bharpaiRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="border border-slate-950 p-6 text-center text-slate-500 font-nepali">
-                        चयन गरिएको आर्थिक वर्ष ({displayFiscalYear}) र महिना ({periodText}) मा कुनै प्रयोगशाला प्रोत्साहन रेकर्ड फेला परेन।
+                      <td colSpan={10} className="border border-slate-950 p-6 text-center text-slate-500 font-nepali">
+                        {excludedRows.length > 0 ? (
+                          <div className="space-y-3 py-4">
+                            <p className="font-bold text-amber-800 text-sm">सबै कर्मचारीहरूलाई भरपाईबाट हटाइएको छ।</p>
+                            <button
+                              type="button"
+                              onClick={handleResetExcluded}
+                              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
+                            >
+                              <RotateCcw size={14} />
+                              सबै कर्मचारी पुनः समावेश गर्नुहोस्
+                            </button>
+                          </div>
+                        ) : (
+                          `चयन गरिएको आर्थिक वर्ष (${displayFiscalYear}) र महिना (${periodText}) मा कुनै प्रयोगशाला प्रोत्साहन रेकर्ड फेला परेन।`
+                        )}
                       </td>
                     </tr>
                   ) : (
@@ -675,16 +850,16 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                           <td className="border border-slate-950 p-1.5 md:p-2 text-center font-nepali">
                             {row.role}
                           </td>
-                          <td className="border border-slate-950 p-1.5 md:p-2 text-right font-mono font-medium">
+                          <td className={`border border-slate-950 p-1.5 md:p-2 text-right font-medium ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                             {grossFormatted ? (useNepaliNumerals ? toNepaliDigits(grossFormatted) : grossFormatted) : ''}
                           </td>
-                          <td className="border border-slate-950 p-1.5 md:p-2 text-right font-mono font-bold text-slate-950">
+                          <td className={`border border-slate-950 p-1.5 md:p-2 text-right font-bold text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                             {useNepaliNumerals ? toNepaliDigits(incFormatted || '0') : (incFormatted || '0')}
                           </td>
-                          <td className="border border-slate-950 p-1.5 md:p-2 text-right font-mono font-medium text-slate-900">
+                          <td className={`border border-slate-950 p-1.5 md:p-2 text-right font-medium text-slate-900 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                             {useNepaliNumerals ? toNepaliDigits(taxFormatted || '0') : (taxFormatted || '0')}
                           </td>
-                          <td className="border border-slate-950 p-1.5 md:p-2 text-right font-mono font-bold text-slate-950">
+                          <td className={`border border-slate-950 p-1.5 md:p-2 text-right font-bold text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                             {useNepaliNumerals ? toNepaliDigits(netPaidFormatted || '0') : (netPaidFormatted || '0')}
                           </td>
                           <td className="border border-slate-950 p-1.5 md:p-2 text-center">
@@ -705,6 +880,16 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                               className="w-full text-xs p-1 bg-transparent border-b border-transparent focus:border-indigo-400 outline-none print:hidden font-nepali"
                             />
                           </td>
+                          <td className="border border-slate-950 p-1 md:p-2 text-center print:hidden">
+                            <button
+                              type="button"
+                              onClick={() => handleExcludeRow(row.id)}
+                              title={`${row.staffName} लाई भरपाईबाट हटाउनुहोस्`}
+                              className="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all group"
+                            >
+                              <Trash2 size={15} className="group-hover:scale-110 transition-transform" />
+                            </button>
+                          </td>
                         </tr>
                       );
                     })
@@ -716,28 +901,29 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                       <td colSpan={3} className="border-2 border-slate-950 p-2 text-center font-black font-nepali text-slate-950">
                         जम्मा
                       </td>
-                      <td className="border-2 border-slate-950 p-2 text-right font-mono font-black text-slate-950">
+                      <td className={`border-2 border-slate-950 p-2 text-right font-black text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                         {useNepaliNumerals 
                           ? toNepaliDigits(formatSafeNumber(grandGrossAmount)) 
                           : formatSafeNumber(grandGrossAmount)}
                       </td>
-                      <td className="border-2 border-slate-950 p-2 text-right font-mono font-black text-slate-950">
+                      <td className={`border-2 border-slate-950 p-2 text-right font-black text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                         {useNepaliNumerals 
                           ? toNepaliDigits(formatSafeNumber(grandIncentiveAmount)) 
                           : formatSafeNumber(grandIncentiveAmount)}
                       </td>
-                      <td className="border-2 border-slate-950 p-2 text-right font-mono font-black text-slate-950">
+                      <td className={`border-2 border-slate-950 p-2 text-right font-black text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                         {useNepaliNumerals 
                           ? toNepaliDigits(formatSafeNumber(grandTaxAmount)) 
                           : formatSafeNumber(grandTaxAmount)}
                       </td>
-                      <td className="border-2 border-slate-950 p-2 text-right font-mono font-black text-slate-950">
+                      <td className={`border-2 border-slate-950 p-2 text-right font-black text-slate-950 ${useNepaliNumerals ? 'font-nepali' : 'font-mono'}`}>
                         {useNepaliNumerals 
                           ? toNepaliDigits(formatSafeNumber(grandNetPaidAmount)) 
                           : formatSafeNumber(grandNetPaidAmount)}
                       </td>
                       <td className="border-2 border-slate-950 p-2 text-center"></td>
                       <td className="border-2 border-slate-950 p-2 text-center"></td>
+                      <td className="border-2 border-slate-950 p-2 text-center print:hidden"></td>
                     </tr>
                   )}
                 </tbody>

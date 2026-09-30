@@ -1,36 +1,30 @@
 import axios from 'axios';
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
+import { applyCorsHeaders, authenticateServerlessRequest } from '../../lib/apiSecurity';
 
 // Initialize Firebase Admin
 if (getApps().length === 0) {
   try {
     initializeApp({
-      databaseURL: "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
+      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
     });
   } catch (e) {
     console.error("Firebase Admin Init Error:", e);
   }
 }
 
-export default async function handler(req: any, res: any) {
-  // Support CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
+const EMAIL_ROLES = ["SUPER_ADMIN", "ADMIN", "STAFF", "ACCOUNT", "HEALTH_SECTION", "APPROVAL", "STOREKEEPER", "ANONYMOUS"];
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
+export default async function handler(req: any, res: any) {
+  if (!applyCorsHeaders(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
+
+  const authResult = await authenticateServerlessRequest(req, res, EMAIL_ROLES);
+  if (!authResult.authorized) return;
 
   try {
     let { apiKey, senderAddress, senderName, to, subject, htmlBody, attachments } = req.body || {};

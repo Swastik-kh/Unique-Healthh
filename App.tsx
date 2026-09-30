@@ -19,7 +19,7 @@ import {
   ColdChainEquipment, ColdChainLogEntry, StoreRoom, StoreTemperatureLogEntry,
   OxygenCylinderRecord, OxygenDistributionRecord
 } from './types';
-import { auth, signInAnonymously, onAuthStateChanged, db, connectedRef, sanitizeOrgName } from './firebase';
+import { auth, signOut, onAuthStateChanged, db, connectedRef, sanitizeOrgName } from './firebase';
 import { hashPassword } from './lib/crypto';
 import { ref, onValue, set, remove, update, get, Unsubscribe, off, push, onDisconnect } from "firebase/database";
 import { logUserActivity } from './lib/logger';
@@ -72,40 +72,20 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthRetrying, setIsAuthRetrying] = useState(false);
 
-  // 1. Initial anonymous Firebase authentication layer
+  // 1. Secure Authentication & Session Verification Layer
   useEffect(() => {
     let isMounted = true;
 
-    // Track authentication state
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!isMounted) return;
-      if (user) {
-        setIsAuthReady(true);
-        setAuthError(null);
-      }
-    });
-
-    // Initiate anonymous authentication once on mount
-    signInAnonymously(auth)
-      .then(() => {
-        if (!isMounted) return;
-        setIsAuthReady(true);
-        setAuthError(null);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        console.error("Firebase anonymous sign-in failed on mount:", err);
-        if (!auth.currentUser) {
-          setAuthError("Connection issue, please retry");
-        }
-      });
-
-    // Set up global axios request interceptor to automatically attach Firebase ID token to all /api/ calls
+    // Set up global axios request interceptor to automatically attach Authorization token to all /api/ calls
     const interceptor = axios.interceptors.request.use(
       async (config) => {
         if (config.url && config.url.startsWith('/api/')) {
           try {
-            const token = await auth.currentUser?.getIdToken();
+            const savedToken = localStorage.getItem('auth_token');
+            let token = savedToken;
+            if (!token && auth.currentUser) {
+              token = await auth.currentUser.getIdToken().catch(() => null);
+            }
             if (token) {
               if (config.headers && typeof config.headers.set === 'function') {
                 config.headers.set('Authorization', `Bearer ${token}`);
@@ -125,6 +105,60 @@ const App: React.FC = () => {
       }
     );
 
+    // Initial session restoration from secure session token or Firebase Auth
+    const initSession = async () => {
+      const savedToken = localStorage.getItem('auth_token');
+      if (savedToken) {
+        try {
+          axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+          const res = await axios.get('/api/auth/me', {
+            headers: { Authorization: `Bearer ${savedToken}` }
+          });
+          if (res.data?.success && res.data.user) {
+            if (!isMounted) return;
+            setCurrentUser(res.data.user);
+            setActiveOrgName(res.data.user.organizationName || '');
+            const savedFy = localStorage.getItem('auth_fiscal_year');
+            if (savedFy) setCurrentFiscalYear(savedFy);
+            setIsAuthReady(true);
+            return;
+          }
+        } catch (err) {
+          console.warn("Session restore from stored token failed, clearing session:", err);
+          localStorage.removeItem('auth_token');
+          delete axios.defaults.headers.common['Authorization'];
+        }
+      }
+
+      if (isMounted) {
+        setIsAuthReady(true);
+        setAuthError(null);
+      }
+    };
+
+    initSession();
+
+    // Track Firebase Auth state (no anonymous sign-in; only authenticated accounts)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!isMounted) return;
+      if (user && !user.isAnonymous) {
+        try {
+          const res = await axios.get('/api/auth/me');
+          if (res.data?.success && res.data.user) {
+            if (!isMounted) return;
+            setCurrentUser(res.data.user);
+            setActiveOrgName(res.data.user.organizationName || '');
+            const savedFy = localStorage.getItem('auth_fiscal_year');
+            if (savedFy) setCurrentFiscalYear(savedFy);
+          }
+        } catch (e) {
+          console.warn("Firebase session verification failed:", e);
+        }
+      } else if (user?.isAnonymous) {
+        await signOut(auth).catch(() => {});
+      }
+    });
+
     return () => {
       isMounted = false;
       unsubscribe();
@@ -136,11 +170,16 @@ const App: React.FC = () => {
     setIsAuthRetrying(true);
     setAuthError(null);
     try {
-      await signInAnonymously(auth);
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        const res = await axios.get('/api/auth/me');
+        if (res.data?.success && res.data.user) {
+          setCurrentUser(res.data.user);
+        }
+      }
       setIsAuthReady(true);
       setAuthError(null);
     } catch (err: any) {
-      console.error("Firebase anonymous sign-in retry failed:", err);
+      console.error("Auth retry failed:", err);
       setAuthError("Connection issue, please retry");
     } finally {
       setIsAuthRetrying(false);
@@ -326,12 +365,25 @@ const App: React.FC = () => {
         setIsDbConnected(snap.val() === true);
     });
 
+    // ONLY fetch/subscribe to users if a valid authenticated user is logged in
+    if (!currentUser) {
+      setAllUsers([DEFAULT_ADMIN]);
+      return () => {
+        off(connectedRef, 'value', onConnect);
+      };
+    }
+
     const usersRef = ref(db, 'users');
     const unsubUsers = onValue(usersRef, (snap) => {
         try {
             const data = snap.val();
             if (data) {
-                const userList = Object.keys(data).map(key => ({ ...data[key], id: key }));
+                const userList = Object.keys(data).map(key => {
+                    const u = data[key];
+                    // Sanitize: strip password hashes on client receive
+                    const { password, resetTimestamps, codeHash, ...safe } = u;
+                    return { ...safe, id: key };
+                });
                 const hasAdmin = userList.some(u => u.username === 'admin');
                 setAllUsers(hasAdmin ? userList : [DEFAULT_ADMIN, ...userList]);
                 setIsDbLocked(false);
@@ -353,7 +405,7 @@ const App: React.FC = () => {
         off(connectedRef, 'value', onConnect);
         unsubUsers();
     };
-  }, [isAuthReady]);
+  }, [isAuthReady, currentUser]);
 
   useEffect(() => {
     if (!isAuthReady || !currentUser) {
@@ -596,7 +648,7 @@ const App: React.FC = () => {
   const connectedUnsubRef = useRef<Unsubscribe | null>(null);
   const sessionLoginTimeRef = useRef<number | null>(null);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (currentUser) {
       const user = currentUser;
       const userPresenceRef = ref(db, `presence/${user.id}`);
@@ -625,14 +677,23 @@ const App: React.FC = () => {
     }
     sessionLoginTimeRef.current = null;
 
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Firebase signOut error:", e);
+    }
+
     setCurrentUser(null);
+    setAllUsers([DEFAULT_ADMIN]);
     localStorage.removeItem('smart_inv_active_item');
+    localStorage.removeItem('auth_fiscal_year');
   };
 
   const handleLoginSuccess = (user: User, fiscalYear: string) => {
     setCurrentUser(user);
     setActiveOrgName(user.organizationName);
     setCurrentFiscalYear(fiscalYear);
+    localStorage.setItem('auth_fiscal_year', fiscalYear);
     localStorage.removeItem('smart_inv_active_item');
 
     const loginTimestamp = Date.now();

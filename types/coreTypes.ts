@@ -158,6 +158,7 @@ export interface OrganizationSettings {
   ambulanceSewaUserId?: string;
   ambulanceDriverIncentivePercent?: number; // default 15
   ambulanceProtsahanTdsPercent?: number; // default 15
+  ancPackageProtsahanRate?: number; // Custom rate for ANC Package used strictly for Lab Incentive calculations
 
   // ===== 3. 💰 डिस्काउन्ट/छुट नियमहरू (Discounts & Waivers) =====
   maxSewaDiscountPercent?: number;
