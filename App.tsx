@@ -105,32 +105,16 @@ const App: React.FC = () => {
       }
     );
 
-    // Initial session restoration from secure session token or Firebase Auth
+    // 1. Initial Authentication Layer: Always require Login Form on app reload/fresh start
     const initSession = async () => {
-      const savedToken = localStorage.getItem('auth_token');
-      if (savedToken) {
-        try {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-          const res = await axios.get('/api/auth/me', {
-            headers: { Authorization: `Bearer ${savedToken}` }
-          });
-          if (res.data?.success && res.data.user) {
-            if (!isMounted) return;
-            setCurrentUser(res.data.user);
-            setActiveOrgName(res.data.user.organizationName || '');
-            const savedFy = localStorage.getItem('auth_fiscal_year');
-            if (savedFy) setCurrentFiscalYear(savedFy);
-            setIsAuthReady(true);
-            return;
-          }
-        } catch (err) {
-          console.warn("Session restore from stored token failed, clearing session:", err);
-          localStorage.removeItem('auth_token');
-          delete axios.defaults.headers.common['Authorization'];
-        }
+      // Clear stored tokens and sessions on reload so user sees login form
+      localStorage.removeItem('auth_token');
+      delete axios.defaults.headers.common['Authorization'];
+      if (auth.currentUser) {
+        await signOut(auth).catch(() => {});
       }
-
       if (isMounted) {
+        setCurrentUser(null);
         setIsAuthReady(true);
         setAuthError(null);
       }
@@ -138,30 +122,8 @@ const App: React.FC = () => {
 
     initSession();
 
-    // Track Firebase Auth state (no anonymous sign-in; only authenticated accounts)
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!isMounted) return;
-      if (user && !user.isAnonymous) {
-        try {
-          const res = await axios.get('/api/auth/me');
-          if (res.data?.success && res.data.user) {
-            if (!isMounted) return;
-            setCurrentUser(res.data.user);
-            setActiveOrgName(res.data.user.organizationName || '');
-            const savedFy = localStorage.getItem('auth_fiscal_year');
-            if (savedFy) setCurrentFiscalYear(savedFy);
-          }
-        } catch (e) {
-          console.warn("Firebase session verification failed:", e);
-        }
-      } else if (user?.isAnonymous) {
-        await signOut(auth).catch(() => {});
-      }
-    });
-
     return () => {
       isMounted = false;
-      unsubscribe();
       axios.interceptors.request.eject(interceptor);
     };
   }, []);

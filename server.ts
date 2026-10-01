@@ -40,6 +40,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Trust reverse proxy for rate limiting (Cloud Run / AI Studio reverse proxy environment)
+  app.set("trust proxy", 1);
+
   // Security Headers via Helmet (relaxed CSP to ensure embedded/SPA operation in Vite/AI Studio)
   app.use(
     helmet({
