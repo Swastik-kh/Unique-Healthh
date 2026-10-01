@@ -2450,14 +2450,14 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               {zeroTestRates.length > 0 && (
                 zeroTestRates.map((rule) => (
                   <div key={rule.id} className="flex-1 min-w-[150px] p-3 rounded-2xl text-center border border-purple-200 bg-purple-50/60 transition-all">
-                    <span className="block text-[10px] text-purple-900 font-bold tracking-wider uppercase font-nepali truncate" title={rule.testName}>
-                      {rule.testName} प्रोत्साहन दर
+                    <span className="block text-[10px] text-purple-900 font-bold tracking-wider uppercase font-nepali truncate" title={`${rule.testName} दर`}>
+                      {rule.testName.toLowerCase().includes('दर') ? rule.testName : `${rule.testName} दर`}
                     </span>
                     <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">
                       रू. {toNepaliDigits(rule.rate)}
                     </span>
                     <span className="text-[10px] text-slate-500 font-nepali font-medium block mt-0.5">
-                      निश्चित प्रोत्साहन दर
+                      तोकिएको प्रोत्साहन दर
                     </span>
                   </div>
                 ))
