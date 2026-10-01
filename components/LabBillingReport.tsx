@@ -9,7 +9,7 @@ import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
 import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
 import { db, sanitizeOrgName } from '../firebase';
-import { ref, set } from 'firebase/database';
+import { ref, set, onValue } from 'firebase/database';
 
 const COMMON_LAB_KWS = new Set([
   'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain', 'anc', 'anc package', 'anc test', 'anc profile', 'anc package test', 'anc जाँच', 'anc प्याकेज'
@@ -170,6 +170,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     staffName?: string; // कर्मचारी वा व्यक्तिको नाम (Staff / Person Name - comma separated if multiple)
   }
 
+  interface ZeroTestIncentiveRate {
+    id: string;
+    testName: string;
+    rate: number;
+    includeInIncentive?: boolean;
+  }
+
   const parseStaffNames = (staffName?: string): string[] => {
     if (!staffName) return [];
     return staffName
@@ -186,6 +193,30 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [ancPackageIncentiveRate, setAncPackageIncentiveRate] = useState<number>(() => {
     const saved = localStorage.getItem('protsahan_anc_package_rate');
     return saved ? Number(saved) : 0;
+  });
+
+  // Zero-rated/Free Billed Test Incentive Rates state
+  const [zeroTestRates, setZeroTestRates] = useState<ZeroTestIncentiveRate[]>(() => {
+    const saved = localStorage.getItem('protsahan_zero_test_rates');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((r: any) => ({
+            ...r,
+            includeInIncentive: r.includeInIncentive !== undefined ? !!r.includeInIncentive : true
+          }));
+        }
+      } catch (e) {
+        console.error("Error parsing protsahan_zero_test_rates", e);
+      }
+    }
+    const savedAnc = localStorage.getItem('protsahan_anc_package_rate');
+    const ancVal = savedAnc ? Number(savedAnc) : 0;
+    if (ancVal > 0) {
+      return [{ id: 'anc_default', testName: 'ANC Package', rate: ancVal, includeInIncentive: true }];
+    }
+    return [];
   });
 
   const [protsahanRecipients, setProtsahanRecipients] = useState<ProtsahanRecipient[]>(() => {
@@ -213,11 +244,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   const [isSettingsEditing, setIsSettingsEditing] = useState<boolean>(false);
   const [tempIncentivePercent, setTempIncentivePercent] = useState<number>(10);
   const [tempAncRate, setTempAncRate] = useState<number>(0);
+  const [tempZeroTestRates, setTempZeroTestRates] = useState<ZeroTestIncentiveRate[]>([]);
+  const [newZeroTestName, setNewZeroTestName] = useState<string>('');
+  const [newZeroTestRate, setNewZeroTestRate] = useState<number | ''>('');
+  const [newZeroIncludeInIncentive, setNewZeroIncludeInIncentive] = useState<boolean>(true);
   const [tempRecipients, setTempRecipients] = useState<ProtsahanRecipient[]>([]);
   const [showBharpaiModal, setShowBharpaiModal] = useState<boolean>(false);
   const [showAmbulanceBharpaiModal, setShowAmbulanceBharpaiModal] = useState<boolean>(false);
 
-  // Drag and drop ordering for Referrer Summary table
+  // Global toggle for including zero-amount billed tests in incentive calculations
+  const [includeZeroTestsInIncentive, setIncludeZeroTestsInIncentive] = useState<boolean>(() => {
+    const saved = localStorage.getItem('protsahan_include_zero_tests');
+    return saved !== 'false';
+  });
   const [customReferrerOrder, setCustomReferrerOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('lab_referrer_custom_order');
@@ -239,6 +278,60 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }
   }, [customReferrerOrder]);
 
+  // Firebase Realtime DB Sync for Protsahan Settings
+  useEffect(() => {
+    const safeOrgName = sanitizeOrgName(currentUser?.organizationName || 'default');
+    const protsahanRef = ref(db, `orgData/${safeOrgName}/protsahanSettings`);
+    const unsub = onValue(protsahanRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data && typeof data === 'object') {
+          if (typeof data.labIncentivePercent === 'number') {
+            setLabIncentivePercent(data.labIncentivePercent);
+          }
+          if (typeof data.ancPackageIncentiveRate === 'number') {
+            setAncPackageIncentiveRate(data.ancPackageIncentiveRate);
+          }
+          if (Array.isArray(data.protsahanRecipients) && data.protsahanRecipients.length > 0) {
+            setProtsahanRecipients(data.protsahanRecipients);
+          }
+          setZeroTestRates(Array.isArray(data.zeroTestRates) ? data.zeroTestRates : []);
+          setIncludeZeroTestsInIncentive(typeof data.includeZeroTestsInIncentive === 'boolean' ? data.includeZeroTestsInIncentive : true);
+        }
+      }
+    });
+    return () => unsub();
+  }, [currentUser?.organizationName]);
+
+  const saveProtsahanDataToFirebaseAndLocal = useCallback((
+    percent: number,
+    ancRate: number,
+    recipients: ProtsahanRecipient[],
+    rates: ZeroTestIncentiveRate[],
+    includeZero: boolean
+  ) => {
+    try {
+      localStorage.setItem('protsahan_lab_incentive_percent', String(percent));
+      localStorage.setItem('protsahan_anc_package_rate', String(ancRate));
+      localStorage.setItem('protsahan_recipients', JSON.stringify(recipients));
+      localStorage.setItem('protsahan_zero_test_rates', JSON.stringify(rates));
+      localStorage.setItem('protsahan_include_zero_tests', includeZero ? 'true' : 'false');
+    } catch (e) {
+      console.error('Failed to save protsahan data to localStorage', e);
+    }
+
+    const safeOrgName = sanitizeOrgName(currentUser?.organizationName || 'default');
+    set(ref(db, `orgData/${safeOrgName}/protsahanSettings`), {
+      labIncentivePercent: percent,
+      ancPackageIncentiveRate: ancRate,
+      protsahanRecipients: recipients,
+      zeroTestRates: rates,
+      includeZeroTestsInIncentive: includeZero,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.fullName || currentUser?.username || 'user'
+    }).catch(err => console.error("Error saving protsahanSettings to Firebase", err));
+  }, [currentUser]);
+
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
 
@@ -256,13 +349,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       return;
     }
 
-    setLabIncentivePercent(tempIncentivePercent);
-    setAncPackageIncentiveRate(tempAncRate);
-    setProtsahanRecipients(tempRecipients);
+    // Sync ANC package rate if set in zeroTestRates
+    const ancRule = tempZeroTestRates.find(r => isAncPackageService(r.testName));
+    const effectiveAncRate = ancRule ? ancRule.rate : tempAncRate;
 
-    localStorage.setItem('protsahan_lab_incentive_percent', String(tempIncentivePercent));
-    localStorage.setItem('protsahan_anc_package_rate', String(tempAncRate));
-    localStorage.setItem('protsahan_recipients', JSON.stringify(tempRecipients));
+    setLabIncentivePercent(tempIncentivePercent);
+    setAncPackageIncentiveRate(effectiveAncRate);
+    setProtsahanRecipients(tempRecipients);
+    setZeroTestRates(tempZeroTestRates);
+
+    saveProtsahanDataToFirebaseAndLocal(
+      tempIncentivePercent,
+      effectiveAncRate,
+      tempRecipients,
+      tempZeroTestRates,
+      includeZeroTestsInIncentive
+    );
 
     setIsSettingsEditing(false);
   };
@@ -348,6 +450,31 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
     return [...billingRecords, ...virtualRecords];
   }, [billingRecords, serviceSeekerRecords, currentFiscalYear]);
+
+  const zeroBilledTestsList = useMemo(() => {
+    const set = new Set<string>();
+    // Collect tests billed with 0 amount/price
+    allBillingRecordsCombined.forEach(record => {
+      record.items?.forEach(item => {
+        const name = (item.serviceName || '').trim();
+        if (name && (item.total === 0 || item.price === 0)) {
+          set.add(name);
+        }
+      });
+    });
+
+    set.add('ANC Package');
+
+    serviceItems.forEach(item => {
+      const cat = normalizeCategory(item.category);
+      if (cat === 'Lab') {
+        set.add(item.serviceName.trim());
+        item.subTests?.forEach(st => set.add(st.testName.trim()));
+      }
+    });
+
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [allBillingRecordsCombined, serviceItems]);
 
   const hasSourceAccess = (source: 'Sewa' | 'Ambulance' | 'Protsahan' | 'AmbulanceProtsahan') => {
     if (!currentUser) return false;
@@ -520,10 +647,22 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       record.items?.forEach(item => {
         if (item.isRefunded) return;
         const rawName = (item.serviceName || '').trim();
-        if (isAncPackageService(rawName) && ancPackageIncentiveRate > 0) {
+        const itemLower = rawName.toLowerCase();
+
+        const testRule = zeroTestRates.find(r => 
+          r.testName.toLowerCase().trim() === itemLower || 
+          (isAncPackageService(r.testName) && isAncPackageService(rawName))
+        );
+
+        const itemTotal = Number(item.total) || 0;
+        const isIncluded = includeZeroTestsInIncentive;
+
+        if (testRule && testRule.rate > 0 && itemTotal === 0 && isIncluded) {
+          fullSub += (testRule.rate * (item.quantity || 1));
+        } else if (isAncPackageService(rawName) && ancPackageIncentiveRate > 0 && itemTotal === 0 && isIncluded) {
           fullSub += (ancPackageIncentiveRate * (item.quantity || 1));
         } else {
-          fullSub += (item.total || 0);
+          fullSub += itemTotal;
         }
       });
       return fullSub > 0 ? fullSub : (record.subTotal || 0);
@@ -1097,14 +1236,33 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
         if (cat === 'Lab' || isAncPackageService(rawName)) {
           const qty = Number(item.quantity) || 1;
+          const itemTotal = Number(item.total) || 0;
           const isAnc = isAncPackageService(rawName);
 
-          if (isAnc && ancPackageIncentiveRate > 0) {
-            hasAncItem = true;
-            ancCount += qty;
-            grossLabAmount += (qty * ancPackageIncentiveRate);
+          const matchedRule = zeroTestRates.find(r => 
+            r.testName.toLowerCase().trim() === itemName ||
+            (isAncPackageService(r.testName) && isAncPackageService(rawName))
+          );
+
+          if (includeZeroTestsInIncentive) {
+            if (matchedRule && matchedRule.rate > 0) {
+              if (itemTotal === 0 || matchedRule.rate > 0) {
+                hasAncItem = true;
+                ancCount += qty;
+                grossLabAmount += (qty * matchedRule.rate);
+              } else {
+                grossLabAmount += itemTotal;
+              }
+            } else if (isAnc && ancPackageIncentiveRate > 0 && itemTotal === 0) {
+              hasAncItem = true;
+              ancCount += qty;
+              grossLabAmount += (qty * ancPackageIncentiveRate);
+            } else {
+              grossLabAmount += itemTotal;
+            }
           } else {
-            grossLabAmount += (Number(item.total) || 0);
+            // When includeZeroTestsInIncentive is FALSE: zero amount items remain 0
+            grossLabAmount += itemTotal;
           }
         }
       });
@@ -1149,7 +1307,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         ancCount
       };
     }).filter(d => d.grossLabAmount > 0); // Only keep records that have lab services
-  }, [filteredRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory, ancPackageIncentiveRate]);
+  }, [filteredRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory, ancPackageIncentiveRate, includeZeroTestsInIncentive, zeroTestRates]);
 
   const protsahanByReferrerRaw = useMemo(() => {
     const map = new Map<string, { netLabAmount: number; totalIncentive: number; referrerShare: number }>();
@@ -1926,6 +2084,33 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       )}
 
       {reportSource === 'Protsahan' && (
+        <div className="bg-purple-50/90 border-2 border-purple-300 p-4 px-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden shadow-xs mb-6">
+          <label className="flex items-center gap-3 cursor-pointer font-bold text-xs md:text-sm text-purple-950 font-nepali select-none">
+            <input
+              type="checkbox"
+              checked={includeZeroTestsInIncentive}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setIncludeZeroTestsInIncentive(val);
+                saveProtsahanDataToFirebaseAndLocal(
+                  labIncentivePercent,
+                  ancPackageIncentiveRate,
+                  protsahanRecipients,
+                  zeroTestRates,
+                  val
+                );
+              }}
+              className="w-5 h-5 text-purple-700 rounded focus:ring-purple-500 cursor-pointer"
+            />
+            <span>तोकिएका जिरो/निःशुल्क (रु. ०) बिलिङ टेस्टहरू प्रोत्साहन (Incentive) मा समावेश गर्ने</span>
+          </label>
+          <span className={`text-xs font-bold px-3 py-1 rounded-xl border font-nepali shrink-0 ${includeZeroTestsInIncentive ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'}`}>
+            {includeZeroTestsInIncentive ? '✓ हाल प्रोत्साहनमा समावेश छ' : '✗ हाल प्रोत्साहनमा समावेश छैन'}
+          </span>
+        </div>
+      )}
+
+      {reportSource === 'Protsahan' && (
         <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl mb-6 print:hidden">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <div>
@@ -1938,28 +2123,12 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
             </div>
             {!isSettingsEditing && (
               <div className="flex flex-wrap items-center gap-2.5">
-                <div className="flex items-center gap-1.5 bg-white border border-purple-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                  <span className="text-xs font-bold text-purple-950 font-nepali whitespace-nowrap">ANC दर (रू.):</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={ancPackageIncentiveRate || ''}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setAncPackageIncentiveRate(val);
-                      localStorage.setItem('protsahan_anc_package_rate', val.toString());
-                    }}
-                    placeholder="0"
-                    className="w-20 text-xs px-2 py-1 bg-purple-50/60 border border-purple-200 rounded-lg font-bold font-mono text-right outline-none focus:ring-1 focus:ring-purple-500 text-purple-900"
-                    title="प्रोत्साहन प्रयोजनको लागि मात्र ANC Package को दर (डाइरेक्ट बिलिङमा ० भएपनि यसै अनुसार गणना हुनेछ)"
-                  />
-                </div>
                 <button
                   onClick={() => {
                     setTempIncentivePercent(labIncentivePercent);
                     setTempAncRate(ancPackageIncentiveRate);
-                    setTempRecipients([...protsahanRecipients]);
+                    setTempZeroTestRates(JSON.parse(JSON.stringify(zeroTestRates)));
+                    setTempRecipients(JSON.parse(JSON.stringify(protsahanRecipients)));
                     setIsSettingsEditing(true);
                   }}
                   className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-xl text-xs font-semibold transition-all"
@@ -1971,7 +2140,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </div>
 
           {isSettingsEditing ? (
-            <form onSubmit={handleSaveProtsahanSettings} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-5">
+            <form onSubmit={handleSaveProtsahanSettings} className="bg-white p-5 rounded-2xl border border-slate-200 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5 font-nepali">कुल प्रोत्साहन दर % (Total Incentive % of Lab Bill):</label>
@@ -1985,23 +2154,155 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                     required
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-purple-900 mb-1.5 font-nepali">
-                    ANC Package प्रोत्साहन दर (रू.) (Incentive Rate for ANC Package):
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={tempAncRate || ''}
-                    onChange={(e) => setTempAncRate(Number(e.target.value))}
-                    placeholder="उदा: 500, 700 (0 भए बिलको वास्तविक दर)"
-                    className="w-full text-xs p-2.5 bg-purple-50/40 border border-purple-300 rounded-xl font-bold focus:ring-2 focus:ring-purple-500 outline-none text-purple-950 font-mono"
-                  />
                   <p className="text-[10px] text-slate-500 mt-1 font-nepali">
-                    डाइरेक्ट वा सामान्य बिलिङमा ANC Package जुनसुकै दर (उदा: रू ०) मा बिल भए पनि प्रोत्साहन गणना यसै दर अनुसार हुनेछ।
+                    ल्याबको जम्मा खुद बिक्री रकमबाट प्रोत्साहन वितरण गरिने कुल प्रतिशत (उदा: १०%)
                   </p>
+                </div>
+              </div>
+
+              {/* Zero/Free Billed Test Incentive Rates Management */}
+              <div className="border-t border-purple-100 pt-4 bg-purple-50/30 p-4 rounded-2xl border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-purple-950 font-nepali">
+                      जिरो/निःशुल्क (रु. ०) मा सेभ भएका वा तोकिएका टेस्टहरूको प्रोत्साहन दर सेटिङ:
+                    </h4>
+                    <p className="text-[11px] text-purple-800 font-nepali mt-0.5">
+                      बिलिङमा जुन टेस्ट रु. ० (निःशुल्क/प्याकेज) मा सेभ भएको छ, सो टेस्ट छानी यहाँ दर तोकेपछि सो टेस्टका सबै रेकर्डमा त्यही दर अनुसार रकम कायम हुन्छ।
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add new zero test rate form */}
+                <div className="flex flex-col sm:flex-row items-end gap-2 bg-white p-3 rounded-xl border border-purple-200 mb-3 shadow-2xs">
+                  <div className="flex-1 w-full">
+                    <label className="block text-[10px] font-bold text-purple-900 mb-1 font-nepali">
+                      टेस्ट/प्याकेज छान्नुहोस् वा टाइप गर्नुहोस् (Select Test Name):
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        list="zero-billed-tests-datalist"
+                        value={newZeroTestName}
+                        onChange={(e) => setNewZeroTestName(e.target.value)}
+                        placeholder="उदा: ANC Package, Hemoglobin, Blood Sugar"
+                        className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg outline-none font-bold text-slate-800 focus:ring-1 focus:ring-purple-500 font-nepali"
+                      />
+                      <datalist id="zero-billed-tests-datalist">
+                        {zeroBilledTestsList.map(testName => (
+                          <option key={testName} value={testName}>
+                            {testName}
+                          </option>
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  <div className="w-full sm:w-36">
+                    <label className="block text-[10px] font-bold text-purple-900 mb-1 font-nepali">
+                      तोकिएको दर (रु.):
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={newZeroTestRate}
+                      onChange={(e) => setNewZeroTestRate(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="उदा: 100, 150"
+                      className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg outline-none font-bold text-right font-mono focus:ring-1 focus:ring-purple-500 text-purple-950"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newZeroTestName.trim()) {
+                        alert("कृपया टेस्ट वा प्याकेजको नाम प्रविष्ट गर्नुहोस्।");
+                        return;
+                      }
+                      if (typeof newZeroTestRate !== 'number' || newZeroTestRate <= 0) {
+                        alert("कृपया वैध दर (रु.) प्रविष्ट गर्नुहोस्।");
+                        return;
+                      }
+
+                      const trimmedName = newZeroTestName.trim();
+                      const existingIndex = tempZeroTestRates.findIndex(r => r.testName.toLowerCase().trim() === trimmedName.toLowerCase());
+                      
+                      if (existingIndex >= 0) {
+                        const updated = [...tempZeroTestRates];
+                        updated[existingIndex].rate = newZeroTestRate;
+                        setTempZeroTestRates(updated);
+                      } else {
+                        setTempZeroTestRates([
+                          ...tempZeroTestRates,
+                          {
+                            id: 'ztest_' + Date.now(),
+                            testName: trimmedName,
+                            rate: newZeroTestRate
+                          }
+                        ]);
+                      }
+
+                      setNewZeroTestName('');
+                      setNewZeroTestRate('');
+                    }}
+                    className="w-full sm:w-auto px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold transition-all shrink-0 flex items-center justify-center gap-1 shadow-2xs"
+                  >
+                    <Plus size={13} />
+                    <span>दर थप्नुहोस्</span>
+                  </button>
+                </div>
+
+                {/* Configured Zero Test Rates List */}
+                <div className="space-y-2">
+                  {tempZeroTestRates.length > 0 ? (
+                    tempZeroTestRates.map((rule, idx) => (
+                      <div key={rule.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 px-3 rounded-xl border border-purple-200 bg-white text-xs shadow-2xs transition-all">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="font-bold text-slate-800 font-nepali truncate" title={rule.testName}>
+                            {rule.testName}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200">
+                            <span className="text-xs font-bold text-purple-900 font-nepali">दर: रु.</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={rule.rate}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const updated = [...tempZeroTestRates];
+                                updated[idx] = { ...rule, rate: val };
+                                setTempZeroTestRates(updated);
+                              }}
+                              className="w-24 text-xs font-bold text-right font-mono bg-white border border-purple-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-purple-500 text-purple-950"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTempZeroTestRates(tempZeroTestRates.filter((_, i) => i !== idx));
+                            }}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="हटाउनुहोस्"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-purple-700 italic font-nepali bg-white p-3 rounded-xl border border-dashed border-purple-200 text-center">
+                      कुनै पनि तोकिएको टेस्ट दर राखिएको छैन। (माथिको फारमबाट रु. ० मा बिल हुने टेस्ट र त्यसको दर थप्नुहोस्)
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -2208,15 +2509,23 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <span className="block text-xl font-extrabold text-emerald-700 font-mono mt-1">{toNepaliDigits(labIncentivePercent)}%</span>
                 <span className="text-[10px] text-slate-500 font-nepali font-medium">ल्याब बिलको रकम</span>
               </div>
-              <div className="flex-1 min-w-[150px] bg-purple-50/60 border border-purple-200 p-3 rounded-2xl text-center">
-                <span className="block text-[10px] text-purple-900 font-bold tracking-wider uppercase font-nepali">ANC Package प्रोत्साहन दर</span>
-                <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">
-                  {ancPackageIncentiveRate > 0 ? `रू. ${toNepaliDigits(ancPackageIncentiveRate)}` : 'बिल अनुसार'}
-                </span>
-                <span className="text-[10px] text-slate-500 font-nepali font-medium">
-                  {ancPackageIncentiveRate > 0 ? 'प्रोत्साहन गणनाको दर' : 'कुनै विशेष दर नतोकिएको'}
-                </span>
-              </div>
+              
+              {zeroTestRates.length > 0 && (
+                zeroTestRates.map((rule) => (
+                  <div key={rule.id} className="flex-1 min-w-[150px] p-3 rounded-2xl text-center border border-purple-200 bg-purple-50/60 transition-all">
+                    <span className="block text-[10px] text-purple-900 font-bold tracking-wider uppercase font-nepali truncate" title={`${rule.testName} दर`}>
+                      {rule.testName.toLowerCase().includes('दर') ? rule.testName : `${rule.testName} दर`}
+                    </span>
+                    <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">
+                      रू. {toNepaliDigits(rule.rate)}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-nepali font-medium block mt-0.5">
+                      तोकिएको प्रोत्साहन दर
+                    </span>
+                  </div>
+                ))
+              )}
+
               {protsahanRecipients.map(recipient => {
                 const staffList = parseStaffNames(recipient.staffName);
                 const perPersonPercent = staffList.length > 1 ? (recipient.sharePercent / staffList.length) : recipient.sharePercent;
@@ -2348,14 +2657,6 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
                   </span>
                 </div>
-                {ancPackageIncentiveRate > 0 && (
-                  <div className="flex-1 min-w-[130px] bg-purple-50/50 border border-purple-200 p-3 rounded-xl text-center">
-                    <span className="block text-[10px] text-purple-800 font-bold tracking-wide uppercase font-nepali">ANC प्रोत्साहन दर</span>
-                    <span className="block text-sm font-black text-purple-700 font-mono mt-0.5">
-                      रू. {toNepaliDigits(ancPackageIncentiveRate)}
-                    </span>
-                  </div>
-                )}
                 {protsahanRecipients.map(recipient => {
                   const totalForRecipient = protsahanReportData.reduce((sum, d) => {
                     const share = d.recipientShares.find(s => s.id === recipient.id);
@@ -3261,6 +3562,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         protsahanRecipients={protsahanRecipients}
         labIncentivePercent={labIncentivePercent}
         ancPackageIncentiveRate={ancPackageIncentiveRate}
+        zeroTestRates={zeroTestRates}
+        includeZeroTestsInIncentive={includeZeroTestsInIncentive}
         users={users}
         getServiceCategory={getServiceCategory}
         useNepaliNumerals={useNepaliNumerals}
@@ -3283,6 +3586,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         generalSettings={generalSettings}
         currentUser={currentUser}
       />
+      <div className="text-[10px] text-slate-400 text-center py-2 print:hidden select-none font-mono">
+        Build: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'}
+      </div>
     </>
   );
 };
