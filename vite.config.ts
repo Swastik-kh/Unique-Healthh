@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+        __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+
         // Map Gemini API Key to process.env for SDK compatibility
         'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY || ''),
         

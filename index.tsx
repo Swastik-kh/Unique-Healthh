@@ -4,6 +4,8 @@ import axios from 'axios';
 import App from './App.tsx';
 import './print.css';
 
+console.log('Build:', typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev');
+
 // Set up dynamic baseURL for axios when running in Capacitor/Android native app
 if (typeof window !== 'undefined') {
   const isCapacitor = 

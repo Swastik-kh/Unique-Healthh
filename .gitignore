@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Helper & Temporary Scripts
+fix_*.js
+update_*.js
+out.txt
+datavalueset.json
+bun.lock

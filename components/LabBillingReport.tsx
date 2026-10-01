@@ -285,7 +285,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     const unsub = onValue(protsahanRef, (snap) => {
       if (snap.exists()) {
         const data = snap.val();
-        if (data) {
+        if (data && typeof data === 'object') {
           if (typeof data.labIncentivePercent === 'number') {
             setLabIncentivePercent(data.labIncentivePercent);
           }
@@ -295,12 +295,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           if (Array.isArray(data.protsahanRecipients) && data.protsahanRecipients.length > 0) {
             setProtsahanRecipients(data.protsahanRecipients);
           }
-          if (Array.isArray(data.zeroTestRates)) {
-            setZeroTestRates(data.zeroTestRates);
-          }
-          if (typeof data.includeZeroTestsInIncentive === 'boolean') {
-            setIncludeZeroTestsInIncentive(data.includeZeroTestsInIncentive);
-          }
+          setZeroTestRates(Array.isArray(data.zeroTestRates) ? data.zeroTestRates : []);
+          setIncludeZeroTestsInIncentive(typeof data.includeZeroTestsInIncentive === 'boolean' ? data.includeZeroTestsInIncentive : true);
         }
       }
     });
@@ -3590,6 +3586,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         generalSettings={generalSettings}
         currentUser={currentUser}
       />
+      <div className="text-[10px] text-slate-400 text-center py-2 print:hidden select-none font-mono">
+        Build: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'}
+      </div>
     </>
   );
 };
