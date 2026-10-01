@@ -9,7 +9,7 @@ import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
 import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
 import { db, sanitizeOrgName } from '../firebase';
-import { ref, set } from 'firebase/database';
+import { ref, set, onValue } from 'firebase/database';
 
 const COMMON_LAB_KWS = new Set([
   'cbc', 'complete blood count', 'hb', 'hemoglobin', 'wbc', 'total count', 'differential count', 'dc', 'tc', 'platelet', 'platelets', 'esr', 'blood group', 'blood grouping', 'rh factor', 'sugar', 'blood sugar', 'rbs', 'fbs', 'ppbs', 'urine', 'urine me', 'urine re', 'urine re/me', 'urine re & me', 'stool', 'stool me', 'stool re', 'lipid profile', 'cholesterol', 'tg', 'ldl', 'hdl', 'vldl', 'urea', 'blood urea', 'creatinine', 'serum creatinine', 'uric acid', 'serum uric acid', 'lft', 'liver function test', 'rft', 'renal function test', 'bilirubin', 's. bilirubin', 'serum bilirubin', 'sgot', 'sgpt', 'alkaline phosphatase', 'widal', 'widal test', 'typhoid', 'malaria', 'hcv', 'hbsag', 'hiv', 'hiv 1/2', 'calcium', 's. calcium', 'serum calcium', 'pregnancy test', 'upt', 'semen', 'semen analysis', 'mantoux', 'mantoux test', 'mt', 'crp', 'c-reactive protein', 'ra factor', 'aso', 'aso titer', 'tft', 'thyroid function test', 't3', 't4', 'tsh', 'vdrl', 'hba1c', 'urine sugar', 'urine protein', 'albumin', 'urine albumin', 'ketone', 'sodium', 'potassium', 'chloride', 'electrolytes', 's. electrolytes', 'culture', 'urine culture', 'blood culture', 'stool culture', 'gram stain', 'afb', 'afb stain', 'anc', 'anc package', 'anc test', 'anc profile', 'anc package test', 'anc जाँच', 'anc प्याकेज'
@@ -278,6 +278,64 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }
   }, [customReferrerOrder]);
 
+  // Firebase Realtime DB Sync for Protsahan Settings
+  useEffect(() => {
+    const safeOrgName = sanitizeOrgName(currentUser?.organizationName || 'default');
+    const protsahanRef = ref(db, `orgData/${safeOrgName}/protsahanSettings`);
+    const unsub = onValue(protsahanRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.val();
+        if (data) {
+          if (typeof data.labIncentivePercent === 'number') {
+            setLabIncentivePercent(data.labIncentivePercent);
+          }
+          if (typeof data.ancPackageIncentiveRate === 'number') {
+            setAncPackageIncentiveRate(data.ancPackageIncentiveRate);
+          }
+          if (Array.isArray(data.protsahanRecipients) && data.protsahanRecipients.length > 0) {
+            setProtsahanRecipients(data.protsahanRecipients);
+          }
+          if (Array.isArray(data.zeroTestRates)) {
+            setZeroTestRates(data.zeroTestRates);
+          }
+          if (typeof data.includeZeroTestsInIncentive === 'boolean') {
+            setIncludeZeroTestsInIncentive(data.includeZeroTestsInIncentive);
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, [currentUser?.organizationName]);
+
+  const saveProtsahanDataToFirebaseAndLocal = useCallback((
+    percent: number,
+    ancRate: number,
+    recipients: ProtsahanRecipient[],
+    rates: ZeroTestIncentiveRate[],
+    includeZero: boolean
+  ) => {
+    try {
+      localStorage.setItem('protsahan_lab_incentive_percent', String(percent));
+      localStorage.setItem('protsahan_anc_package_rate', String(ancRate));
+      localStorage.setItem('protsahan_recipients', JSON.stringify(recipients));
+      localStorage.setItem('protsahan_zero_test_rates', JSON.stringify(rates));
+      localStorage.setItem('protsahan_include_zero_tests', includeZero ? 'true' : 'false');
+    } catch (e) {
+      console.error('Failed to save protsahan data to localStorage', e);
+    }
+
+    const safeOrgName = sanitizeOrgName(currentUser?.organizationName || 'default');
+    set(ref(db, `orgData/${safeOrgName}/protsahanSettings`), {
+      labIncentivePercent: percent,
+      ancPackageIncentiveRate: ancRate,
+      protsahanRecipients: recipients,
+      zeroTestRates: rates,
+      includeZeroTestsInIncentive: includeZero,
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUser?.fullName || currentUser?.username || 'user'
+    }).catch(err => console.error("Error saving protsahanSettings to Firebase", err));
+  }, [currentUser]);
+
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
 
@@ -304,10 +362,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     setProtsahanRecipients(tempRecipients);
     setZeroTestRates(tempZeroTestRates);
 
-    localStorage.setItem('protsahan_lab_incentive_percent', String(tempIncentivePercent));
-    localStorage.setItem('protsahan_anc_package_rate', String(effectiveAncRate));
-    localStorage.setItem('protsahan_recipients', JSON.stringify(tempRecipients));
-    localStorage.setItem('protsahan_zero_test_rates', JSON.stringify(tempZeroTestRates));
+    saveProtsahanDataToFirebaseAndLocal(
+      tempIncentivePercent,
+      effectiveAncRate,
+      tempRecipients,
+      tempZeroTestRates,
+      includeZeroTestsInIncentive
+    );
 
     setIsSettingsEditing(false);
   };
@@ -2035,7 +2096,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               onChange={(e) => {
                 const val = e.target.checked;
                 setIncludeZeroTestsInIncentive(val);
-                localStorage.setItem('protsahan_include_zero_tests', val ? 'true' : 'false');
+                saveProtsahanDataToFirebaseAndLocal(
+                  labIncentivePercent,
+                  ancPackageIncentiveRate,
+                  protsahanRecipients,
+                  zeroTestRates,
+                  val
+                );
               }}
               className="w-5 h-5 text-purple-700 rounded focus:ring-purple-500 cursor-pointer"
             />
