@@ -1,0 +1,12 @@
+{
+  "dataSet": "a2JkM9Uvfa2",
+  "completeDate": "2026-07-31",
+  "period": "208304",
+  "orgUnit": "fBTyYLt6u8l",
+  "dataValues": [
+    { "dataElement": "fuHbV1eiKs0", "categoryOptionCombo": "ye1QuAMRG5Z", "value": "10"},
+    { "dataElement": "fuHbV1eiKs0", "categoryOptionCombo": "PflKpozpO7b", "value": "15"},
+    { "dataElement": "qQ8UCWW6YUs", "categoryOptionCombo": "ye1QuAMRG5Z", "value": "5"},
+    { "dataElement": "qQ8UCWW6YUs", "categoryOptionCombo": "PflKpozpO7b", "value": "8"}
+  ]
+}

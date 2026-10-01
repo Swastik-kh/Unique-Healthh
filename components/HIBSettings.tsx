@@ -13,6 +13,8 @@ interface HIBSettingsProps {
 export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings, onUpdateSettings }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
+  const [outboundIp, setOutboundIp] = useState<string | null>(null);
+  const [isCheckingIp, setIsCheckingIp] = useState(false);
 
   // Security Guard: Admin and Super Admin only (or those with specific permission if we add it)
   const isAuthorized = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.allowedMenus?.includes('hib_settings');
@@ -50,6 +52,24 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
     }
   };
 
+  const handleCheckIp = async () => {
+    setIsCheckingIp(true);
+    try {
+        const res = await axios.get('/api/debug/ip');
+        if (res.data.outboundIp) {
+            setOutboundIp(res.data.outboundIp);
+        } else {
+            throw new Error("IP not found in response");
+        }
+    } catch (error: any) {
+        console.error("IP Check Error:", error);
+        const errMsg = error.response?.data?.details || error.message;
+        alert(`सर्भर IP चेक गर्न सकिएन: ${errMsg}`);
+    } finally {
+        setIsCheckingIp(false);
+    }
+  };
+
   const fillTestData = () => {
     setLocalSettings(prev => ({
         ...prev,
@@ -75,6 +95,15 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
         </div>
         <div className="flex gap-2">
             <button 
+                type="button"
+                onClick={handleCheckIp}
+                disabled={isCheckingIp}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+                {isCheckingIp ? <RefreshCw size={14} className="animate-spin" /> : <Globe size={14} />}
+                Check Server IP
+            </button>
+            <button 
                 type="button" 
                 onClick={fillTestData}
                 className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -83,6 +112,16 @@ export const HIBSettings: React.FC<HIBSettingsProps> = ({ currentUser, settings,
             </button>
         </div>
       </div>
+
+      {outboundIp && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 animate-in zoom-in-95">
+            <Info className="text-emerald-600 shrink-0 mt-0.5" size={20} />
+            <div>
+                <p className="text-sm font-bold text-emerald-900 font-nepali">तपाइँको सर्भरको IP: <code className="bg-emerald-100 px-2 py-0.5 rounded ml-1 font-mono">{outboundIp}</code></p>
+                <p className="text-xs text-emerald-700 mt-1">HIB प्रणालीमा यो IP लाई **Whitelist** गर्न अनुरोध गर्नुहोस्।</p>
+            </div>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="max-w-4xl space-y-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">

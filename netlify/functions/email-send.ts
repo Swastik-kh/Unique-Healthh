@@ -1,25 +1,30 @@
 import axios from 'axios';
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
-import { authenticateNetlifyRequest } from '../../lib/apiSecurity';
 
 // Initialize Firebase Admin
 if (getApps().length === 0) {
   try {
     initializeApp({
-      databaseURL: process.env.FIREBASE_DATABASE_URL || "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
+      databaseURL: "https://smart-health-dce40-default-rtdb.asia-southeast1.firebasedatabase.app"
     });
   } catch (e) {
     console.error("Firebase Admin Init Error:", e);
   }
 }
 
-const EMAIL_ROLES = ["SUPER_ADMIN", "ADMIN", "STAFF", "ACCOUNT", "HEALTH_SECTION", "APPROVAL", "STOREKEEPER", "ANONYMOUS"];
-
 export const handler = async (event: any, context: any) => {
-  const authCheck = await authenticateNetlifyRequest(event, EMAIL_ROLES);
-  if (!authCheck.authorized) {
-    return authCheck.response!;
+  // Support CORS
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+      },
+      body: ''
+    };
   }
 
   if (event.httpMethod !== 'POST') {
@@ -49,7 +54,7 @@ export const handler = async (event: any, context: any) => {
     if (!apiKey || !senderAddress || !to || !subject || !htmlBody) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         body: JSON.stringify({ error: "Missing required fields: apiKey, senderAddress, to, subject, and htmlBody are required." })
       };
     }
@@ -75,7 +80,7 @@ export const handler = async (event: any, context: any) => {
       if (response.status >= 200 && response.status < 300) {
         return {
           statusCode: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
           body: JSON.stringify({
             success: true,
             id: response.data.id,
@@ -90,7 +95,7 @@ export const handler = async (event: any, context: any) => {
 
         return {
           statusCode: response.status,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
           body: JSON.stringify({
             error: `Resend API Error: ${safeErrorStr}`,
             status: response.status
@@ -103,7 +108,7 @@ export const handler = async (event: any, context: any) => {
       
       return {
         statusCode: 500,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         body: JSON.stringify({
           error: `Network Error while calling Resend: ${safeErrMessage}`
         })
@@ -112,7 +117,7 @@ export const handler = async (event: any, context: any) => {
   } catch (err: any) {
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: err.message || "Internal Server Error" })
     };
   }

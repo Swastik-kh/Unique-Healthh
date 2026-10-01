@@ -1,16 +1,16 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { User } from '../types/coreTypes';
+import { User } from '../types/coreTypes'; // Corrected import path
 import { Input } from './Input';
 import { Select } from './Select';
-import { KeyRound, Save, AlertCircle, CheckCircle2, Lock, UserCog, ShieldAlert, Shield, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import { KeyRound, Save, AlertCircle, CheckCircle2, Lock, UserCog, ShieldAlert, Shield } from 'lucide-react';
+import { hashPassword } from '../lib/crypto';
 
 interface ChangePasswordProps {
   currentUser: User;
   users: User[];
-  onChangePassword?: (userId: string, newPassword: string) => void;
+  onChangePassword: (userId: string, newPassword: string) => void;
   onUpdateUser?: (user: User) => void;
 }
 
@@ -26,7 +26,6 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Filter users that this user is allowed to manage
   const userOptions = useMemo(() => {
@@ -46,20 +45,27 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
       }));
   }, [users, currentUser]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
     // 1. Validation Logic
     if (isPrivileged && selectedUserId) {
+        // Mode: Admin Resetting Someone Else
         if (!formData.newPassword || !formData.confirmPassword) {
             setError('कृपया नयाँ पासवर्ड भर्नुहोस्');
             return;
         }
     } else {
+        // Mode: User Changing Their Own Password
         if (!formData.currentPassword) {
             setError('हालको पासवर्ड आवश्यक छ');
+            return;
+        }
+        const hashedCurrent = hashPassword(formData.currentPassword);
+        if (hashedCurrent !== currentUser.password && formData.currentPassword !== currentUser.password) {
+            setError('हालको पासवर्ड मिलेन');
             return;
         }
     }
@@ -70,44 +76,30 @@ export const ChangePassword: React.FC<ChangePasswordProps> = ({ currentUser, use
     }
 
     if (formData.newPassword.length < 4) {
-        setError('पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्छ');
+        setError('पासवर्ड कम्तिमा ४ अक्षरको हुनुपर्sछ');
         return;
     }
 
-    // 2. Execution via secure backend endpoint
+    // 2. Execution
     const targetUserId = (isPrivileged && selectedUserId) ? selectedUserId : currentUser.id;
     const targetUser = users.find(u => u.id === targetUserId);
 
-    setIsLoading(true);
-
-    try {
-      const response = await axios.post('/api/auth/change-password', {
-        targetUserId,
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
-      });
-
-      if (response.data?.success) {
-        setSuccess(
-          (isPrivileged && selectedUserId && targetUser)
-          ? `${targetUser.fullName} को पासवर्ड सफलतापूर्वक रिसेट भयो`
-          : 'तपाईंको पासवर्ड सफलतापूर्वक परिवर्तन भयो'
-        );
-        if (onChangePassword) {
-          onChangePassword(targetUserId, formData.newPassword);
-        }
-        // Reset Form
-        setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        if (!selectedUserId) setSelectedUserId('');
-      } else {
-        throw new Error(response.data?.error || 'पासवर्ड परिवर्तन गर्न सकिएन');
-      }
-    } catch (err: any) {
-      const errMsg = err.response?.data?.error || err.message || 'पासवर्ड परिवर्तन गर्न सकिएन';
-      setError(errMsg);
-    } finally {
-      setIsLoading(false);
+    if (!targetUser) {
+        setError('प्रयोगकर्ता फेला परेन');
+        return;
     }
+
+    onChangePassword(targetUserId, formData.newPassword);
+    
+    setSuccess(
+        (isPrivileged && selectedUserId)
+        ? `${targetUser.fullName} को पासवर्ड सफलतापूर्वक रिसेट भयो`
+        : 'तपाईंको पासवर्ड सफलतापूर्वक परिवर्तन भयो'
+    );
+
+    // Reset Form
+    setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    if (!selectedUserId) setSelectedUserId('');
   };
 
   return (

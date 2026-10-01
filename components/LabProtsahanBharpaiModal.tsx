@@ -59,8 +59,6 @@ interface LabProtsahanBharpaiModalProps {
   protsahanReportData?: any[];
   labIncentivePercent?: number;
   ancPackageIncentiveRate?: number;
-  zeroTestRates?: { id: string; testName: string; rate: number }[];
-  includeZeroTestsInIncentive?: boolean;
   users?: User[];
   getServiceCategory?: (serviceName: string, categoryFromItem?: string) => string;
   useNepaliNumerals: boolean;
@@ -90,8 +88,6 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
   protsahanRecipients = [],
   labIncentivePercent = 10,
   ancPackageIncentiveRate = 0,
-  zeroTestRates = [],
-  includeZeroTestsInIncentive,
   users = [],
   getServiceCategory = (_serviceName?: string, _categoryFromItem?: string) => 'Other',
   useNepaliNumerals,
@@ -115,26 +111,6 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
     const saved = localStorage.getItem('protsahan_anc_package_rate');
     return saved ? Number(saved) : 0;
   });
-
-  const effectiveIncludeZeroTests = useMemo(() => {
-    if (typeof includeZeroTestsInIncentive === 'boolean') return includeZeroTestsInIncentive;
-    const saved = localStorage.getItem('protsahan_include_zero_tests');
-    return saved !== 'false';
-  }, [includeZeroTestsInIncentive]);
-
-  const effectiveZeroTestRates = useMemo(() => {
-    if (zeroTestRates && zeroTestRates.length > 0) return zeroTestRates;
-    const saved = localStorage.getItem('protsahan_zero_test_rates');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        console.error("Error parsing protsahan_zero_test_rates in modal", e);
-      }
-    }
-    return [];
-  }, [zeroTestRates]);
 
   // Sync initial values when modal opens
   useEffect(() => {
@@ -238,28 +214,12 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
 
         if (cat === 'Lab' || isAncPackageService(rawName)) {
           const qty = Number(item.quantity) || 1;
-          const itemTotal = Number(item.total) || 0;
           const isAnc = isAncPackageService(rawName);
 
-          const matchedRule = effectiveZeroTestRates.find(r => 
-            r.testName.toLowerCase().trim() === itemName ||
-            (isAncPackageService(r.testName) && isAncPackageService(rawName))
-          );
-
-          if (effectiveIncludeZeroTests) {
-            if (matchedRule && matchedRule.rate > 0) {
-              if (itemTotal === 0 || matchedRule.rate > 0) {
-                grossLabAmount += (qty * matchedRule.rate);
-              } else {
-                grossLabAmount += itemTotal;
-              }
-            } else if (isAnc && ancRate > 0 && itemTotal === 0) {
-              grossLabAmount += (qty * ancRate);
-            } else {
-              grossLabAmount += itemTotal;
-            }
+          if (isAnc && ancRate > 0) {
+            grossLabAmount += (qty * ancRate);
           } else {
-            grossLabAmount += itemTotal;
+            grossLabAmount += (Number(item.total) || 0);
           }
         }
       });
@@ -301,7 +261,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
         hasReferrer: !!referrerVal && referrerVal !== 'All' && referrerVal !== '-'
       };
     }).filter(d => d.grossLabAmount > 0);
-  }, [filteredModalRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory, ancRate, effectiveIncludeZeroTests, effectiveZeroTestRates]);
+  }, [filteredModalRecords, labIncentivePercent, protsahanRecipients, users, getServiceCategory, ancRate]);
 
   // 3. Referrer Groupings for the modal
   const modalProtsahanByReferrer = useMemo(() => {

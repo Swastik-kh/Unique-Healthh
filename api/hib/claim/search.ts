@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { applyCorsHeaders, authenticateServerlessRequest } from '../../../lib/apiSecurity';
 
 function getHIBHeaders(req: any) {
   const headerUser = req.headers['x-hib-username'] as string;
@@ -33,10 +32,18 @@ function getHIBHeaders(req: any) {
 }
 
 export default async function handler(req: any, res: any) {
-  if (!applyCorsHeaders(req, res)) return;
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-hib-username, x-hib-password, x-hib-remote-user, x-hib-partner-id, x-hib-location-id, x-hib-base-url'
+  );
 
-  const authResult = await authenticateServerlessRequest(req, res, ['SUPER_ADMIN', 'ADMIN', 'STAFF', 'ACCOUNT', 'HEALTH_SECTION']);
-  if (!authResult.authorized) return;
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   try {
     const { chfid, date_claimed } = req.query;

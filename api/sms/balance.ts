@@ -1,11 +1,19 @@
 import axios from 'axios';
-import { applyCorsHeaders, authenticateServerlessRequest } from '../../lib/apiSecurity';
 
 export default async function handler(req: any, res: any) {
-  if (!applyCorsHeaders(req, res)) return;
+  // Support CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-  const authResult = await authenticateServerlessRequest(req, res, ['SUPER_ADMIN', 'ADMIN', 'ACCOUNT', 'STAFF', 'HEALTH_SECTION']);
-  if (!authResult.authorized) return;
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   try {
     const rawKey = req.body?.apiKey || req.query?.apiKey || req.query?.key || process.env.SMS_PASAL_KEY || '56A71A88EC9CA9';

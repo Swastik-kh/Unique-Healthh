@@ -86,58 +86,9 @@ export const sortUsersByHierarchy = (users: User[], hierarchyOrder?: string[]): 
 };
 
 /**
- * Checks if a user is frozen directly or via their current active organization/admin hierarchy.
- * If an admin is frozen, only users belonging to that SAME office/organization are frozen.
- * Users belonging to a DIFFERENT office/organization are NEVER frozen even if created by that admin.
- */
-export const isUserFrozenInHierarchy = (user: User, allUsers: User[]): boolean => {
-  if (!user) return false;
-  if (user.role === 'SUPER_ADMIN') return false;
-  if (user.id === 'superadmin' || user.username === 'admin') return false;
-  
-  // 1. Direct freeze
-  if (user.isFrozen) return true;
-
-  // 2. Check current office/organization's Admin / Health Section users
-  const orgAdmins = allUsers.filter(u => 
-    u.organizationName === user.organizationName && 
-    (u.role === 'ADMIN' || u.role === 'HEALTH_SECTION') && 
-    u.id !== user.id
-  );
-  if (orgAdmins.some(admin => admin.isFrozen)) {
-    return true;
-  }
-
-  // 3. Traverse parent chain:
-  let currentParentId = user.parentId;
-  let depth = 0;
-  const visited = new Set<string>([user.id]);
-  while (currentParentId && depth < 20 && !visited.has(currentParentId)) {
-    visited.add(currentParentId);
-    const parent = allUsers.find(u => u.id === currentParentId);
-    if (parent) {
-      if (parent.role === 'SUPER_ADMIN') {
-        if (parent.isFrozen) return true;
-      } else {
-        if (parent.organizationName === user.organizationName && (parent.role === 'ADMIN' || parent.role === 'HEALTH_SECTION') && parent.isFrozen) {
-          return true;
-        }
-      }
-      currentParentId = parent.parentId;
-      depth++;
-    } else {
-      break;
-    }
-  }
-
-  return false;
-};
-
-/**
  * Computes a smart default hierarchy order (array of user IDs)
  */
 export const getDefaultHierarchyOrder = (users: User[]): string[] => {
   const sorted = sortUsersByHierarchy(users, []);
   return sorted.map(u => u.id).filter(Boolean);
 };
-

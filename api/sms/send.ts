@@ -1,23 +1,23 @@
 import axios from 'axios';
-import { applyCorsHeaders, authenticateServerlessRequest } from '../../lib/apiSecurity';
 
 export default async function handler(req: any, res: any) {
-  if (!applyCorsHeaders(req, res)) return;
+  // Support CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
-
-  const authResult = await authenticateServerlessRequest(req, res, [
-    'SUPER_ADMIN',
-    'ADMIN',
-    'STAFF',
-    'ACCOUNT',
-    'HEALTH_SECTION',
-    'APPROVAL',
-    'STOREKEEPER'
-  ]);
-  if (!authResult.authorized) return;
 
   try {
     const { provider, apiKey, senderId, apiUrl, recipients, message, items, campaign: reqCampaign, routeid: reqRouteid } = req.body || {};
