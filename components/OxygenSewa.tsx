@@ -1172,8 +1172,8 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
       {/* Invoice Print Modal */}
       {printingDist && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden print:shadow-none print:border-none print:w-full print:max-w-none">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] overflow-y-auto p-4 md:p-6 print:p-0 print:bg-white print:static">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl border border-slate-200 overflow-hidden mx-auto my-4 md:my-8 print:shadow-none print:border-none print:w-full print:max-w-none print:my-0">
             {/* Modal Header controls (Hidden during print) */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
               <h3 className="font-bold text-lg flex items-center gap-2">
@@ -1408,8 +1408,8 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
       {/* Distribution Log Report Print Modal */}
       {isLogPrintModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static oxygen-log-modal-overlay">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden print:shadow-none print:border-none print:w-full print:max-w-none">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] overflow-y-auto p-4 md:p-6 print:p-0 print:bg-white print:static oxygen-log-modal-overlay">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden mx-auto my-4 md:my-8 print:shadow-none print:border-none print:w-full print:max-w-none print:my-0">
             {/* Control Bar (Hidden during print) */}
             <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 print:hidden font-nepali">
               <div className="flex items-center gap-2">
@@ -1490,7 +1490,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                     <p className="text-xs text-slate-600 font-medium mt-0.5">{generalSettings?.address || 'नेपाल'}</p>
                   )}
                   <h3 className="text-sm md:text-base font-black text-cyan-900 mt-2 uppercase tracking-wide">
-                    अक्सिजन सिलिन्डर वितरण लग प्रतिवेदन {selectedMonth !== 'all' ? `- ${NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name} महिना` : ''} {selectedFiscalYear !== 'all' ? `(आ.व. ${selectedFiscalYear})` : ''}
+                    अक्सिजन सिलिन्डर वितरण लग प्रतिवेदन {selectedMonth !== 'all' ? `- ${NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name} महिना` : ''} {selectedFiscalYear !== 'all' ? `(आ.व. ${toNepaliNumber(selectedFiscalYear)})` : ''}
                   </h3>
                 </div>
                 <div className="w-20 shrink-0"></div>
@@ -1627,10 +1627,43 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
         dangerouslySetInnerHTML={{
           __html: `
             @media print {
-              body.printing-oxygen-invoice > *:not(.printing-oxygen-invoice-area),
-              body.printing-oxygen-log > *:not(.printing-oxygen-log-area) {
-                display: none !important;
+              body.printing-oxygen-log *,
+              body.printing-oxygen-invoice * {
+                visibility: hidden;
               }
+              
+              body.printing-oxygen-log #printable-oxygen-log,
+              body.printing-oxygen-log #printable-oxygen-log * {
+                visibility: visible !important;
+              }
+
+              body.printing-oxygen-log #printable-oxygen-log {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 16px !important;
+                background: white !important;
+                color: black !important;
+              }
+
+              body.printing-oxygen-invoice #printable-oxygen-invoice,
+              body.printing-oxygen-invoice #printable-oxygen-invoice * {
+                visibility: visible !important;
+              }
+
+              body.printing-oxygen-invoice #printable-oxygen-invoice {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 16px !important;
+                background: white !important;
+                color: black !important;
+              }
+
               .print\\:hidden {
                 display: none !important;
               }
