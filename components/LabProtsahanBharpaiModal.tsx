@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Printer, Download, X, Settings2, FileText, Check, Calendar, Filter, Trash2, Plus, RotateCcw } from 'lucide-react';
+import { Printer, Download, X, Settings2, FileText, Check, Calendar, Filter, Trash2, Plus, RotateCcw, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { FISCAL_YEARS, isAncPackageService } from '../constants';
 import { BillingRecord, User } from '../types';
 
@@ -329,57 +329,27 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data }));
   }, [modalProtsahanData, users]);
 
-  // 4. Build the complete raw Bharpai rows
+  // 4. Build the complete raw Bharpai rows according to protsahanRecipients order
   const rawBharpaiRows: BharpaiRow[] = useMemo(() => {
     const rows: BharpaiRow[] = [];
     let snCounter = 1;
 
-    // 1. Referrers
-    modalProtsahanByReferrer.forEach((ref) => {
-      const grossAmt = typeof ref.netLabAmount === 'number' ? ref.netLabAmount : null;
-      const incAmt = Number(ref.referrerShare ?? (ref as any).incentiveAmount ?? ref.totalIncentive ?? 0) || 0;
-      const taxAmt = (incAmt * (taxPercent / 100)) || 0;
-      const netPaid = (incAmt - taxAmt) || 0;
-      const rowId = `ref_${ref.name || 'unnamed'}`;
-
-      rows.push({
-        id: rowId,
-        sn: snCounter++,
-        staffName: ref.name || 'अन्य सिफारिसकर्ता',
-        role: ref.designation || 'सिफारिसकर्ता',
-        grossLabAmount: grossAmt,
-        incentiveAmount: incAmt,
-        taxDeduction: taxAmt,
-        netPaidAmount: netPaid,
-        remarks: customRemarks[rowId] ?? ''
-      });
-    });
-
-    // 2. Other pooled recipients (Lab Staff, Helper/Cleaner, etc.)
-    const nonSystemRecipients = protsahanRecipients.filter(r => !r.isSystemReferrer);
-    
-    nonSystemRecipients.forEach(recipient => {
-      const totalForRecipient = modalProtsahanData.reduce((sum, d) => {
-        const share = d.recipientShares?.find((s: any) => s.id === recipient.id);
-        return sum + (share && typeof share.shareAmount === 'number' ? share.shareAmount : 0);
-      }, 0);
-
-      const staffList = parseStaffNames(recipient.staffName);
-
-      if (staffList.length > 0) {
-        const perPersonIncentive = staffList.length > 0 ? (totalForRecipient / staffList.length) : 0;
-        staffList.forEach((stName, idx) => {
-          const incAmt = Number(perPersonIncentive) || 0;
+    protsahanRecipients.forEach(recipient => {
+      if (recipient.isSystemReferrer) {
+        // Render referrers at this recipient position
+        modalProtsahanByReferrer.forEach((ref) => {
+          const grossAmt = typeof ref.netLabAmount === 'number' ? ref.netLabAmount : null;
+          const incAmt = Number(ref.referrerShare ?? (ref as any).incentiveAmount ?? ref.totalIncentive ?? 0) || 0;
           const taxAmt = (incAmt * (taxPercent / 100)) || 0;
           const netPaid = (incAmt - taxAmt) || 0;
-          const rowId = `staff_${recipient.id}_${idx}_${stName}`;
+          const rowId = `ref_${ref.name || 'unnamed'}`;
 
           rows.push({
             id: rowId,
             sn: snCounter++,
-            staffName: stName,
-            role: recipient.nameNe || 'प्रयोगशालाकर्मी',
-            grossLabAmount: null,
+            staffName: ref.name || 'अन्य सिफारिसकर्ता',
+            role: ref.designation || recipient.nameNe || 'सिफारिसकर्ता',
+            grossLabAmount: grossAmt,
             incentiveAmount: incAmt,
             taxDeduction: taxAmt,
             netPaidAmount: netPaid,
@@ -387,38 +357,116 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
           });
         });
       } else {
-        const incAmt = Number(totalForRecipient) || 0;
-        const taxAmt = (incAmt * (taxPercent / 100)) || 0;
-        const netPaid = (incAmt - taxAmt) || 0;
-        const rowId = `role_${recipient.id}`;
+        // Render pooled recipients (Lab Staff, Cleaner/Helper, etc.) at this recipient position
+        const totalForRecipient = modalProtsahanData.reduce((sum, d) => {
+          const share = d.recipientShares?.find((s: any) => s.id === recipient.id);
+          return sum + (share && typeof share.shareAmount === 'number' ? share.shareAmount : 0);
+        }, 0);
 
-        rows.push({
-          id: rowId,
-          sn: snCounter++,
-          staffName: recipient.nameNe || 'प्रयोगशालाकर्मी',
-          role: recipient.nameNe || 'प्रयोगशालाकर्मी',
-          grossLabAmount: null,
-          incentiveAmount: incAmt,
-          taxDeduction: taxAmt,
-          netPaidAmount: netPaid,
-          remarks: customRemarks[rowId] ?? ''
-        });
+        const staffList = parseStaffNames(recipient.staffName);
+
+        if (staffList.length > 0) {
+          const perPersonIncentive = staffList.length > 0 ? (totalForRecipient / staffList.length) : 0;
+          staffList.forEach((stName, idx) => {
+            const incAmt = Number(perPersonIncentive) || 0;
+            const taxAmt = (incAmt * (taxPercent / 100)) || 0;
+            const netPaid = (incAmt - taxAmt) || 0;
+            const rowId = `staff_${recipient.id}_${idx}_${stName}`;
+
+            rows.push({
+              id: rowId,
+              sn: snCounter++,
+              staffName: stName,
+              role: recipient.nameNe || 'प्रयोगशालाकर्मी',
+              grossLabAmount: null,
+              incentiveAmount: incAmt,
+              taxDeduction: taxAmt,
+              netPaidAmount: netPaid,
+              remarks: customRemarks[rowId] ?? ''
+            });
+          });
+        } else {
+          const incAmt = Number(totalForRecipient) || 0;
+          const taxAmt = (incAmt * (taxPercent / 100)) || 0;
+          const netPaid = (incAmt - taxAmt) || 0;
+          const rowId = `role_${recipient.id}`;
+
+          rows.push({
+            id: rowId,
+            sn: snCounter++,
+            staffName: recipient.nameNe || 'प्रयोगशालाकर्मी',
+            role: recipient.nameNe || 'प्रयोगशालाकर्मी',
+            grossLabAmount: null,
+            incentiveAmount: incAmt,
+            taxDeduction: taxAmt,
+            netPaidAmount: netPaid,
+            remarks: customRemarks[rowId] ?? ''
+          });
+        }
       }
     });
 
     return rows;
   }, [modalProtsahanByReferrer, protsahanRecipients, modalProtsahanData, taxPercent, customRemarks]);
 
-  // Filter out any employees/staff excluded by user and sequentially re-index SN
+  // Reordering state for Bharpai Modal rows
+  const [customBharpaiOrder, setCustomBharpaiOrder] = useState<string[]>([]);
+  const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
+  const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
+
+  // Filter out any employees/staff excluded by user, apply custom reorder, and sequentially re-index SN
   const bharpaiRows: BharpaiRow[] = useMemo(() => {
+    const active = rawBharpaiRows.filter(r => !excludedRowIds.includes(r.id));
+    if (customBharpaiOrder.length === 0) {
+      let snCounter = 1;
+      return active.map(r => ({ ...r, sn: snCounter++ }));
+    }
+
+    const rowMap = new Map<string, BharpaiRow>();
+    active.forEach(r => rowMap.set(r.id, r));
+
+    const ordered: BharpaiRow[] = [];
+    customBharpaiOrder.forEach(id => {
+      if (rowMap.has(id)) {
+        ordered.push(rowMap.get(id)!);
+        rowMap.delete(id);
+      }
+    });
+
+    active.forEach(r => {
+      if (rowMap.has(r.id)) {
+        ordered.push(r);
+      }
+    });
+
     let snCounter = 1;
-    return rawBharpaiRows
-      .filter(r => !excludedRowIds.includes(r.id))
-      .map(r => ({
-        ...r,
-        sn: snCounter++
-      }));
-  }, [rawBharpaiRows, excludedRowIds]);
+    return ordered.map(r => ({ ...r, sn: snCounter++ }));
+  }, [rawBharpaiRows, excludedRowIds, customBharpaiOrder]);
+
+  const handleReorderRows = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= bharpaiRows.length || toIdx >= bharpaiRows.length) return;
+    const currentOrder = bharpaiRows.map(r => r.id);
+    const updated = [...currentOrder];
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
+    setCustomBharpaiOrder(updated);
+  };
+
+  const handleMoveRowUp = (index: number) => {
+    if (index > 0) {
+      handleReorderRows(index, index - 1);
+    }
+  };
+
+  const handleMoveRowDown = (index: number) => {
+    if (index < bharpaiRows.length - 1) {
+      handleReorderRows(index, index + 1);
+    }
+  };
+
+  const handleResetRowOrder = () => {
+    setCustomBharpaiOrder([]);
+  };
 
   // List of excluded staff members for quick restoration
   const excludedRows = useMemo(() => {
@@ -796,6 +844,26 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                 </div>
               )}
 
+              {/* Drag and Drop Reordering Tip Banner - Hide on print */}
+              {bharpaiRows.length > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-indigo-50/80 border border-indigo-200 p-2.5 px-3.5 rounded-2xl print:hidden text-xs text-indigo-950 font-nepali shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <GripVertical size={16} className="text-indigo-600 shrink-0" />
+                    <span>कर्मचारीको नाम ड्र्याग गरेर (Drag & Drop) वा <b>क्रम (▲/▼)</b> बटन थिची भरपाईमा लहरको क्रम सच्याउन सकिन्छ।</span>
+                  </div>
+                  {customBharpaiOrder.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetRowOrder}
+                      className="px-2.5 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-300 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 shrink-0 shadow-2xs"
+                    >
+                      <RotateCcw size={12} />
+                      मूल क्रम बनाउनुहोस् (Reset Order)
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Exact Official Bharpai Table */}
               <table className="w-full border-collapse border-2 border-slate-950 text-xs md:text-sm text-slate-950">
                 <thead>
@@ -809,7 +877,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                     <th className="border-2 border-slate-950 p-2 text-right font-bold w-32">जम्मा बुझेको रकम</th>
                     <th className="border-2 border-slate-950 p-2 text-center font-bold w-24">हस्ताक्षर</th>
                     <th className="border-2 border-slate-950 p-2 text-left font-bold min-w-[120px]">कैफियत</th>
-                    <th className="border-2 border-slate-950 p-2 text-center font-bold w-14 print:hidden">हटाउने</th>
+                    <th className="border-2 border-slate-950 p-2 text-center font-bold w-20 print:hidden">क्रम / हटाउने</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -834,16 +902,58 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                       </td>
                     </tr>
                   ) : (
-                    bharpaiRows.map((row) => {
+                    bharpaiRows.map((row, index) => {
                       const grossFormatted = formatSafeNumber(row.grossLabAmount);
                       const incFormatted = formatSafeNumber(row.incentiveAmount);
                       const taxFormatted = formatSafeNumber(row.taxDeduction);
                       const netPaidFormatted = formatSafeNumber(row.netPaidAmount);
 
                       return (
-                        <tr key={row.id} className="hover:bg-slate-50/50">
+                        <tr
+                          key={row.id}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', index.toString());
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDraggedRowIndex(index);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverRowIndex !== index) {
+                              setDragOverRowIndex(index);
+                            }
+                          }}
+                          onDragLeave={() => {
+                            if (dragOverRowIndex === index) setDragOverRowIndex(null);
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const fromIdx = Number(e.dataTransfer.getData('text/plain'));
+                            handleReorderRows(fromIdx, index);
+                            setDraggedRowIndex(null);
+                            setDragOverRowIndex(null);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedRowIndex(null);
+                            setDragOverRowIndex(null);
+                          }}
+                          className={`hover:bg-slate-50/70 transition-colors ${
+                            draggedRowIndex === index ? 'opacity-40 bg-indigo-50 border-dashed border-indigo-400' : ''
+                          } ${
+                            dragOverRowIndex === index && draggedRowIndex !== index ? 'bg-indigo-100/80 border-t-2 border-indigo-600' : ''
+                          }`}
+                        >
                           <td className="border border-slate-950 p-1.5 md:p-2 text-center font-bold font-nepali">
-                            {toNepaliDigits(row.sn)}
+                            <div className="flex items-center justify-center gap-1">
+                              <span
+                                className="print:hidden cursor-grab active:cursor-grabbing text-slate-400 hover:text-indigo-600 transition-colors"
+                                title="समातेर ड्र्याग (Drag & Drop) गरी क्रम सच्याउनुहोस्"
+                              >
+                                <GripVertical size={13} />
+                              </span>
+                              <span>{toNepaliDigits(row.sn)}</span>
+                            </div>
                           </td>
                           <td className="border border-slate-950 p-1.5 md:p-2 font-bold font-nepali text-slate-950">
                             {row.staffName}
@@ -882,14 +992,36 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
                             />
                           </td>
                           <td className="border border-slate-950 p-1 md:p-2 text-center print:hidden">
-                            <button
-                              type="button"
-                              onClick={() => handleExcludeRow(row.id)}
-                              title={`${row.staffName} लाई भरपाईबाट हटाउनुहोस्`}
-                              className="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all group"
-                            >
-                              <Trash2 size={15} className="group-hover:scale-110 transition-transform" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <div className="flex items-center gap-0.5 border border-slate-300 rounded bg-slate-50 p-0.5">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => handleMoveRowUp(index)}
+                                  className="p-1 text-slate-600 hover:text-indigo-700 hover:bg-slate-200 disabled:opacity-20 disabled:hover:text-slate-600 rounded transition-colors"
+                                  title="माथि सार्नुहोस्"
+                                >
+                                  <ChevronUp size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={index === bharpaiRows.length - 1}
+                                  onClick={() => handleMoveRowDown(index)}
+                                  className="p-1 text-slate-600 hover:text-indigo-700 hover:bg-slate-200 disabled:opacity-20 disabled:hover:text-slate-600 rounded transition-colors"
+                                  title="तल सार्नुहोस्"
+                                >
+                                  <ChevronDown size={13} />
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleExcludeRow(row.id)}
+                                title={`${row.staffName} लाई भरपाईबाट हटाउनुहोस्`}
+                                className="inline-flex items-center justify-center p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all group"
+                              >
+                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
