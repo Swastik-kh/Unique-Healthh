@@ -360,6 +360,7 @@ export interface OxygenDistributionRecord {
   cylinderNo: string;
   patientName: string;
   patientPhone?: string;
+  patientAddress?: string;
   wardOrDept: string;
   issuedDateBs: string;
   returnDateBs?: string;
@@ -367,6 +368,7 @@ export interface OxygenDistributionRecord {
   issuedBy?: string;
   invoiceNo?: string;
   serviceFee?: number;
+  receivedAmount?: number;
   returnCondition?: string;
   remarks?: string;
   _orgName?: string;

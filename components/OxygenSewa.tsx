@@ -5,6 +5,54 @@ import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin,
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { LogoDisplay } from './LogoDisplay';
+import { FISCAL_YEARS } from '../constants';
+import { toNepaliNumber } from './nepaliUtils';
+
+const NEPALI_MONTH_OPTIONS = [
+  { value: 'all', label: 'सबै महिना (All Months)', name: 'वार्षिक / सबै महिना' },
+  { value: '04', label: 'श्रावण (Shrawan)', name: 'श्रावण' },
+  { value: '05', label: 'भाद्र (Bhadra)', name: 'भाद्र' },
+  { value: '06', label: 'असोज (Ashwin)', name: 'असोज' },
+  { value: '07', label: 'कार्तिक (Kartik)', name: 'कार्तिक' },
+  { value: '08', label: 'मंसिर (Mangsir)', name: 'मंसिर' },
+  { value: '09', label: 'पुष (Poush)', name: 'पुष' },
+  { value: '10', label: 'माघ (Magh)', name: 'माघ' },
+  { value: '11', label: 'फागुन (Falgun)', name: 'फागुन' },
+  { value: '12', label: 'चैत्र (Chaitra)', name: 'चैत्र' },
+  { value: '01', label: 'बैशाख (Baisakh)', name: 'बैशाख' },
+  { value: '02', label: 'जेठ (Jestha)', name: 'जेठ' },
+  { value: '03', label: 'असार (Ashadh)', name: 'असार' },
+];
+
+const extractFyFromDate = (dateBs?: string): string => {
+  if (!dateBs) return '';
+  const cleaned = dateBs.replace(/\//g, '-');
+  const parts = cleaned.split('-');
+  if (parts.length >= 2) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(y) && !isNaN(m)) {
+      if (m >= 4) {
+        return `${y}/${(y + 1).toString().slice(-3)}`;
+      } else {
+        return `${y - 1}/${y.toString().slice(-3)}`;
+      }
+    }
+  }
+  return '';
+};
+
+const extractMonthFromDate = (dateBs?: string): string => {
+  if (!dateBs) return '';
+  const cleaned = dateBs.replace(/\//g, '-');
+  const parts = cleaned.split('-');
+  if (parts.length >= 2) {
+    let m = parts[1].trim();
+    if (m.length === 1) m = '0' + m;
+    return m;
+  }
+  return '';
+};
 
 interface OxygenSewaProps {
   cylinders: OxygenCylinderRecord[];
@@ -34,6 +82,8 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
   const [activeTab, setActiveTab] = useState<'status' | 'distribution'>('status');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(currentFiscalYear || '2081/082');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   // Cylinder Modal State
   const [isCylinderModalOpen, setIsCylinderModalOpen] = useState(false);
@@ -55,13 +105,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
     cylinderNo: '',
     patientName: '',
     patientPhone: '',
-    wardOrDept: 'आपतकालीन (Emergency)',
+    wardOrDept: '',
     issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
     returnDateBs: '',
     status: 'Issued (वितरण गरिएको)',
     issuedBy: currentUser?.fullName || currentUser?.username || '',
     invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
     serviceFee: 1000,
+    receivedAmount: 1000,
     returnCondition: '',
     remarks: ''
   });
@@ -74,6 +125,9 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
   // Invoice Print Modal State
   const [printingDist, setPrintingDist] = useState<OxygenDistributionRecord | null>(null);
+
+  // Log Print Modal State
+  const [isLogPrintModalOpen, setIsLogPrintModalOpen] = useState(false);
 
   // Filtered Cylinders
   const filteredCylinders = useMemo(() => {
@@ -96,10 +150,30 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
         (d.wardOrDept || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (d.patientPhone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (d.invoiceNo || '').toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-      return matchesSearch && matchesStatus;
+
+      // Fiscal Year matching
+      let matchesFy = true;
+      if (selectedFiscalYear !== 'all') {
+        const recordFy = (d as any).fiscalYear || extractFyFromDate(d.issuedDateBs);
+        if (recordFy) {
+          const normRecordFy = recordFy.replace(/\//g, '-');
+          const normSelectedFy = selectedFiscalYear.replace(/\//g, '-');
+          matchesFy = normRecordFy === normSelectedFy;
+        }
+      }
+
+      // Month matching based on issuedDateBs (वितरण गरिएको मिति)
+      let matchesMonth = true;
+      if (selectedMonth !== 'all') {
+        const recordMonth = extractMonthFromDate(d.issuedDateBs);
+        matchesMonth = recordMonth === selectedMonth;
+      }
+
+      return matchesSearch && matchesStatus && matchesFy && matchesMonth;
     });
-  }, [distributionRecords, searchTerm, statusFilter]);
+  }, [distributionRecords, searchTerm, statusFilter, selectedFiscalYear, selectedMonth]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -197,13 +271,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
       cylinderNo: distForm.cylinderNo.trim(),
       patientName: distForm.patientName.trim(),
       patientPhone: distForm.patientPhone || '',
-      wardOrDept: distForm.wardOrDept || 'आपतकालीन',
+      wardOrDept: distForm.wardOrDept || '',
       issuedDateBs: distForm.issuedDateBs || new NepaliDate().format('YYYY-MM-DD'),
       returnDateBs: distForm.returnDateBs || '',
       status: distForm.status || 'Issued (वितरण गरिएको)',
       issuedBy: distForm.issuedBy || currentUser?.fullName || currentUser?.username || 'Admin',
       invoiceNo: distForm.invoiceNo || `OXY-INV-${Date.now().toString().slice(-6)}`,
       serviceFee: distForm.serviceFee !== undefined ? Number(distForm.serviceFee) : 1000,
+      receivedAmount: distForm.receivedAmount !== undefined ? Number(distForm.receivedAmount) : (distForm.serviceFee !== undefined ? Number(distForm.serviceFee) : 1000),
       returnCondition: distForm.returnCondition || '',
       remarks: distForm.remarks || '',
       _orgName: activeOrgName
@@ -218,7 +293,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
         let newLocation = targetCylinder.location;
         if (record.status.includes('Issued') || record.status.includes('वितरण गरिएको')) {
           newCylStatus = 'In Use (प्रयोगमा)';
-          newLocation = `वितरित - ${record.patientName} (${record.wardOrDept})`;
+          newLocation = `वितरित - ${record.patientName}${record.wardOrDept ? ` (${record.wardOrDept})` : ''}`;
         } else if (record.status.includes('Returned') || record.status.includes('फिर्ता आएको')) {
           newCylStatus = record.returnCondition || 'Empty (खाली)';
           newLocation = 'मुख्य स्टोर';
@@ -236,13 +311,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
         cylinderNo: '',
         patientName: '',
         patientPhone: '',
-        wardOrDept: 'आपतकालीन (Emergency)',
+        wardOrDept: '',
         issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
         returnDateBs: '',
         status: 'Issued (वितरण गरिएको)',
         issuedBy: currentUser?.fullName || currentUser?.username || '',
         invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
         serviceFee: 1000,
+        receivedAmount: 1000,
         returnCondition: '',
         remarks: ''
       });
@@ -280,6 +356,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
     window.print();
     setTimeout(() => {
       document.body.classList.remove('printing-oxygen-invoice');
+    }, 1500);
+  };
+
+  const handlePrintLog = () => {
+    document.body.classList.add('printing-oxygen-log');
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-oxygen-log');
     }, 1500);
   };
 
@@ -431,8 +515,8 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
       {/* Action Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
-        <div className="flex items-center gap-3 w-full md:w-auto flex-1">
-          <div className="relative flex-1 md:max-w-xs">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto flex-1">
+          <div className="relative flex-1 md:max-w-xs min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
@@ -442,10 +526,44 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
+
+          {/* Fiscal Year Filter (For Distribution Tab) */}
+          {activeTab === 'distribution' && (
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-slate-600 font-nepali">आ.व.:</span>
+              <select
+                value={selectedFiscalYear}
+                onChange={(e) => setSelectedFiscalYear(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none font-mono cursor-pointer"
+              >
+                <option value="all">सबै आ.व. (All FY)</option>
+                {FISCAL_YEARS.map(fy => (
+                  <option key={fy.id} value={fy.value}>{fy.label} ({fy.value})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Nepali Month Filter (For Distribution Tab) */}
+          {activeTab === 'distribution' && (
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5">
+              <span className="text-xs font-bold text-slate-600 font-nepali">महिना:</span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-900 focus:outline-none font-nepali cursor-pointer"
+              >
+                {NEPALI_MONTH_OPTIONS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
+            className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white cursor-pointer"
           >
             <option value="all">सबै स्थिति (All Status)</option>
             {activeTab === 'status' ? (
@@ -462,6 +580,21 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               </>
             )}
           </select>
+
+          {activeTab === 'distribution' && (selectedFiscalYear !== 'all' || selectedMonth !== 'all' || statusFilter !== 'all' || searchTerm !== '') && (
+            <button
+              onClick={() => {
+                setSelectedFiscalYear('all');
+                setSelectedMonth('all');
+                setStatusFilter('all');
+                setSearchTerm('');
+              }}
+              className="text-xs font-bold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-2 rounded-lg transition-colors font-nepali flex items-center gap-1 cursor-pointer"
+              title="सबै फिल्टर रिसेट गर्नुहोस्"
+            >
+              <RefreshCw size={13} /> रिसेट
+            </button>
+          )}
         </div>
 
         <div>
@@ -485,28 +618,38 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               <Plus size={18} /> नयाँ सिलिन्डर थप्नुहोस्
             </button>
           ) : (
-            <button
-              onClick={() => {
-                setEditingDist(null);
-                setDistForm({
-                  cylinderNo: '',
-                  patientName: '',
-                  patientPhone: '',
-                  wardOrDept: 'आपतकालीन (Emergency)',
-                  issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
-                  returnDateBs: '',
-                  status: 'Issued (वितरण गरिएको)',
-                  issuedBy: currentUser?.fullName || currentUser?.username || '',
-                  invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
-                  serviceFee: 1000,
-                  remarks: ''
-                });
-                setIsDistModalOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold text-sm shadow-sm transition-colors cursor-pointer"
-            >
-              <Plus size={18} /> सिलिन्डर वितरण रेकर्ड गर्नुहोस्
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setIsLogPrintModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                title="अक्सिजन सिलिन्डर वितरण लग रिपोर्ट प्रिन्ट गर्नुहोस्"
+              >
+                <Printer size={18} /> वितरण लग रिपोर्ट प्रिन्ट
+              </button>
+              <button
+                onClick={() => {
+                  setEditingDist(null);
+                  setDistForm({
+                    cylinderNo: '',
+                    patientName: '',
+                    patientPhone: '',
+                    wardOrDept: '',
+                    issuedDateBs: new NepaliDate().format('YYYY-MM-DD'),
+                    returnDateBs: '',
+                    status: 'Issued (वितरण गरिएको)',
+                    issuedBy: currentUser?.fullName || currentUser?.username || '',
+                    invoiceNo: `OXY-INV-${Date.now().toString().slice(-6)}`,
+                    serviceFee: 1000,
+                    receivedAmount: 1000,
+                    remarks: ''
+                  });
+                  setIsDistModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-bold text-sm shadow-sm transition-colors cursor-pointer"
+              >
+                <Plus size={18} /> सिलिन्डर वितरण रेकर्ड गर्नुहोस्
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -600,8 +743,9 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   <th className="p-3">सिलिन्डर नम्बर</th>
                   <th className="p-3">बिरामीको नाम</th>
                   <th className="p-3">सम्पर्क नं.</th>
-                  <th className="p-3">वार्ड / विभाग</th>
+                  <th className="p-3">ठेगाना</th>
                   <th className="p-3 text-center">सेवा शुल्क (रु)</th>
+                  <th className="p-3 text-center text-emerald-800">प्राप्त रकम (रु)</th>
                   <th className="p-3">स्थिति</th>
                   <th className="p-3">फिर्ता मिति</th>
                   <th className="p-3">वितरण गर्ने</th>
@@ -611,7 +755,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredDistributions.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="text-center py-12 text-slate-400">
+                    <td colSpan={13} className="text-center py-12 text-slate-400">
                       कुनै अक्सिजन वितरण लग फेला परेन।
                     </td>
                   </tr>
@@ -626,6 +770,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                       <td className="p-3 font-mono text-slate-600 text-xs">{dist.patientPhone || '-'}</td>
                       <td className="p-3 text-slate-700">{dist.wardOrDept}</td>
                       <td className="p-3 text-center font-mono font-bold text-slate-800">Rs. {dist.serviceFee ?? 1000}</td>
+                      <td className="p-3 text-center font-mono font-bold text-emerald-800 bg-emerald-50/30">Rs. {dist.receivedAmount ?? dist.serviceFee ?? 1000}</td>
                       <td className="p-3">
                         <div className="flex flex-col gap-1">
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold inline-flex items-center gap-1 w-fit ${
@@ -671,6 +816,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                               setDistForm({
                                 ...dist,
                                 serviceFee: dist.serviceFee ?? 1000,
+                                receivedAmount: dist.receivedAmount ?? dist.serviceFee ?? 1000,
                                 issuedBy: dist.issuedBy || currentUser?.fullName || currentUser?.username || ''
                               });
                               setIsDistModalOpen(true);
@@ -697,6 +843,20 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                   ))
                 )}
               </tbody>
+              {filteredDistributions.length > 0 && (
+                <tfoot>
+                  <tr className="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-800 text-xs">
+                    <td colSpan={7} className="p-3 text-right">कुल जम्मा (Total Sum):</td>
+                    <td className="p-3 text-center font-mono font-black text-slate-900">
+                      Rs. {filteredDistributions.reduce((sum, d) => sum + (d.serviceFee ?? 1000), 0)}
+                    </td>
+                    <td className="p-3 text-center font-mono font-black text-emerald-900 bg-emerald-100/50">
+                      Rs. {filteredDistributions.reduce((sum, d) => sum + (d.receivedAmount ?? d.serviceFee ?? 1000), 0)}
+                    </td>
+                    <td colSpan={5} className="p-3"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
@@ -886,10 +1046,10 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">वार्ड / विभाग</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">ठेगाना (Address)</label>
                   <input
                     type="text"
-                    placeholder="उदा. इमर्जेन्सी / वार्ड ३"
+                    placeholder="उदा. वडा नं. ३, काठमाडौँ"
                     value={distForm.wardOrDept || ''}
                     onChange={(e) => setDistForm({ ...distForm, wardOrDept: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
@@ -945,20 +1105,38 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                     type="number"
                     required
                     value={distForm.serviceFee ?? 1000}
-                    onChange={(e) => setDistForm({ ...distForm, serviceFee: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const fee = Number(e.target.value);
+                      setDistForm({
+                        ...distForm,
+                        serviceFee: fee,
+                        receivedAmount: distForm.receivedAmount !== undefined ? distForm.receivedAmount : fee
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none font-mono font-bold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">वितरण गर्ने कर्मचारी *</label>
+                  <label className="block text-xs font-bold text-emerald-800 mb-1">प्राप्त रकम (रु.) *</label>
                   <input
-                    type="text"
+                    type="number"
                     required
-                    value={distForm.issuedBy || currentUser?.fullName || currentUser?.username || ''}
-                    onChange={(e) => setDistForm({ ...distForm, issuedBy: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    value={distForm.receivedAmount ?? distForm.serviceFee ?? 1000}
+                    onChange={(e) => setDistForm({ ...distForm, receivedAmount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/50 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-emerald-900"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">वितरण गर्ने कर्मचारी *</label>
+                <input
+                  type="text"
+                  required
+                  value={distForm.issuedBy || currentUser?.fullName || currentUser?.username || ''}
+                  onChange={(e) => setDistForm({ ...distForm, issuedBy: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                />
               </div>
 
               <div>
@@ -1059,14 +1237,14 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               </div>
 
               {/* Line Muni (Below Header Line): Fiscal Year on Left & Invoice No on Right */}
-              <div className="flex items-center justify-between text-xs font-mono text-slate-700 border-b border-slate-200 pb-2 px-1">
+              <div className="flex items-center justify-between text-xs text-slate-700 border-b border-slate-200 pb-2 px-1">
                 <div className="font-bold text-slate-800">
                   <span className="font-nepali">आर्थिक वर्ष: </span>
-                  <span className="font-mono text-slate-900 font-black">{currentFiscalYear}</span>
+                  <span className="text-slate-900 font-black">{toNepaliNumber(currentFiscalYear)}</span>
                 </div>
                 <div className="font-black text-indigo-950 text-sm">
                   <span className="font-nepali text-slate-700 font-bold text-xs">बिल नं: </span>
-                  <span className="font-mono tracking-wide">{printingDist.invoiceNo || 'N/A'}</span>
+                  <span className="tracking-wide">{toNepaliNumber(printingDist.invoiceNo || 'N/A')}</span>
                 </div>
               </div>
 
@@ -1075,13 +1253,13 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 <div>
                   <p className="text-xs text-slate-500 font-bold uppercase">बिरामीको विवरण:</p>
                   <p className="font-bold text-slate-900 text-base mt-1">{printingDist.patientName}</p>
-                  <p className="text-xs text-slate-600 mt-0.5">सम्पर्क नं: <span className="font-mono">{printingDist.patientPhone || 'उपलब्ध छैन'}</span></p>
-                  <p className="text-xs text-slate-600 mt-0.5">वार्ड / विभाग: <span className="font-semibold">{printingDist.wardOrDept}</span></p>
+                  <p className="text-xs text-slate-600 mt-0.5">सम्पर्क नं: <span>{printingDist.patientPhone ? toNepaliNumber(printingDist.patientPhone) : 'उपलब्ध छैन'}</span></p>
+                  <p className="text-xs text-slate-600 mt-0.5">ठेगाना: <span className="font-semibold">{toNepaliNumber(printingDist.wardOrDept)}</span></p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-slate-500 font-bold uppercase">वितरण विवरण:</p>
-                  <p className="text-xs text-slate-700 mt-1">वितरण मिति (BS): <span className="font-mono font-bold">{printingDist.issuedDateBs}</span></p>
-                  <p className="text-xs text-slate-700 mt-0.5">फिर्ता मिति (BS): <span className="font-mono">{printingDist.returnDateBs || 'हाल फिर्ता भएको छैन'}</span></p>
+                  <p className="text-xs text-slate-700 mt-1">वितरण मिति (BS): <span className="font-bold">{toNepaliNumber(printingDist.issuedDateBs)}</span></p>
+                  <p className="text-xs text-slate-700 mt-0.5">फिर्ता मिति (BS): <span>{printingDist.returnDateBs ? toNepaliNumber(printingDist.returnDateBs) : 'हाल फिर्ता भएको छैन'}</span></p>
                   <p className="text-xs text-slate-700 mt-0.5">वितरण गर्ने: <span className="font-semibold">{printingDist.issuedBy || 'Admin'}</span></p>
                 </div>
               </div>
@@ -1099,24 +1277,30 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   <tr>
-                    <td className="p-3 text-center font-mono text-xs">1</td>
+                    <td className="p-3 text-center text-xs">{toNepaliNumber(1)}</td>
                     <td className="p-3">
                       <p className="font-bold text-slate-900">अक्सिजन सिलिन्डर वितरण तथा सेवा शुल्क</p>
                       <p className="text-xs text-slate-500">Oxygen Cylinder Rental & Refill Service Fee</p>
                     </td>
-                    <td className="p-3 text-center font-mono font-bold text-cyan-900">{printingDist.cylinderNo}</td>
+                    <td className="p-3 text-center font-bold text-cyan-900">{toNepaliNumber(printingDist.cylinderNo)}</td>
                     <td className="p-3 text-center">
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded text-xs font-bold">
                         {printingDist.status}
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900">Rs. {printingDist.serviceFee ?? 1000}.00</td>
+                    <td className="p-3 text-right font-bold text-slate-900">रु. {toNepaliNumber(printingDist.serviceFee ?? 1000)}</td>
                   </tr>
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-800 font-bold bg-slate-50">
                     <td colSpan={4} className="p-3 text-right">जम्मा सेवा शुल्क (Total Fee):</td>
-                    <td className="p-3 text-right font-mono text-base text-slate-900">Rs. {printingDist.serviceFee ?? 1000}.00</td>
+                    <td className="p-3 text-right text-base text-slate-900 font-black">रु. {toNepaliNumber(printingDist.serviceFee ?? 1000)}</td>
+                  </tr>
+                  <tr className="border-t border-slate-300 font-bold bg-emerald-50/60 text-emerald-950">
+                    <td colSpan={4} className="p-2.5 text-right">जम्मा प्राप्त रकम (Received Amount):</td>
+                    <td className="p-2.5 text-right text-base text-emerald-900 font-black">
+                      रु. {toNepaliNumber(printingDist.receivedAmount ?? printingDist.serviceFee ?? 1000)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -1177,7 +1361,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1">
                 <p>सिलिन्डर नं: <span className="font-mono font-bold text-cyan-900">{returningDist.cylinderNo}</span></p>
                 <p>बिरामी: <span className="font-semibold text-slate-800">{returningDist.patientName}</span></p>
-                <p>वार्ड/विभाग: <span className="font-semibold text-slate-700">{returningDist.wardOrDept}</span></p>
+                <p>ठेगाना: <span className="font-semibold text-slate-700">{returningDist.wardOrDept}</span></p>
               </div>
 
               <div>
@@ -1221,6 +1405,239 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
           </div>
         </div>
       )}
+
+      {/* Distribution Log Report Print Modal */}
+      {isLogPrintModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 overflow-y-auto print:p-0 print:bg-white print:static oxygen-log-modal-overlay">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl border border-slate-200 overflow-hidden print:shadow-none print:border-none print:w-full print:max-w-none">
+            {/* Control Bar (Hidden during print) */}
+            <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 print:hidden font-nepali">
+              <div className="flex items-center gap-2">
+                <Printer size={20} className="text-cyan-400" />
+                <h3 className="font-bold text-base md:text-lg">अक्सिजन सिलिन्डर वितरण लग प्रतिवेदन प्रिन्ट</h3>
+              </div>
+
+              {/* Filter controls inside print preview bar */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1">
+                  <span className="text-slate-300 font-bold">आ.व.:</span>
+                  <select
+                    value={selectedFiscalYear}
+                    onChange={(e) => setSelectedFiscalYear(e.target.value)}
+                    className="bg-transparent text-cyan-200 font-bold font-mono focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">सबै आ.व. (All FY)</option>
+                    {FISCAL_YEARS.map(fy => (
+                      <option key={fy.id} value={fy.value} className="bg-slate-900 text-white">{fy.label} ({fy.value})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1">
+                  <span className="text-slate-300 font-bold">महिना:</span>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-transparent text-cyan-200 font-bold focus:outline-none cursor-pointer"
+                  >
+                    {NEPALI_MONTH_OPTIONS.map(m => (
+                      <option key={m.value} value={m.value} className="bg-slate-900 text-white">{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePrintLog}
+                  className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm ml-2"
+                >
+                  <Printer size={16} /> लग प्रिन्ट गर्नुहोस्
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLogPrintModalOpen(false)}
+                  className="p-1.5 text-slate-300 hover:text-white rounded-lg cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Report Body */}
+            <div id="printable-oxygen-log" className="p-8 md:p-10 space-y-6 print:p-0 text-slate-900 bg-white font-nepali">
+              {/* Organization Header */}
+              <div className="flex items-center justify-between border-b-2 border-slate-800 pb-3">
+                <div className="w-20 shrink-0">
+                  <LogoDisplay settings={generalSettings} width={75} height={75} />
+                </div>
+                <div className="text-center flex-1 px-4">
+                  <h2 className="text-base sm:text-xl font-black text-slate-900 leading-tight">
+                    {generalSettings?.orgNameNepali || generalSettings?.organizationName || activeOrgName || 'स्वास्थ्य संस्था'}
+                  </h2>
+                  {generalSettings?.subTitleNepali && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali}</p>
+                  )}
+                  {generalSettings?.subTitleNepali2 && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali2}</p>
+                  )}
+                  {generalSettings?.subTitleNepali3 && (
+                    <p className="text-xs font-bold text-slate-700 leading-tight mt-0.5">{generalSettings.subTitleNepali3}</p>
+                  )}
+                  {generalSettings?.subTitleNepali4 && (
+                    <p className="text-xs font-bold text-slate-600 leading-tight mt-0.5">{generalSettings.subTitleNepali4}</p>
+                  )}
+                  {!generalSettings?.subTitleNepali && !generalSettings?.subTitleNepali2 && (
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">{generalSettings?.address || 'नेपाल'}</p>
+                  )}
+                  <h3 className="text-sm md:text-base font-black text-cyan-900 mt-2 uppercase tracking-wide">
+                    अक्सिजन सिलिन्डर वितरण लग प्रतिवेदन {selectedMonth !== 'all' ? `- ${NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name} महिना` : ''} {selectedFiscalYear !== 'all' ? `(आ.व. ${selectedFiscalYear})` : ''}
+                  </h3>
+                </div>
+                <div className="w-20 shrink-0"></div>
+              </div>
+
+              {/* Meta Row */}
+              <div className="flex flex-wrap items-center justify-between text-xs font-bold text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-300">
+                <div>आर्थिक वर्ष: <span className="text-cyan-950 font-black">{selectedFiscalYear === 'all' ? 'सबै आ.व.' : toNepaliNumber(selectedFiscalYear)}</span></div>
+                <div>मासिक अवधि: <span className="text-cyan-950 font-black">{NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name || 'सबै महिना'}</span></div>
+                <div>जम्मा वितरण संख्या: <span className="text-cyan-950 font-black">{toNepaliNumber(filteredDistributions.length)} वटा</span></div>
+                <div>प्रतिवेदन तयार मिति: <span className="text-slate-900">{toNepaliNumber(new NepaliDate().format('YYYY-MM-DD'))}</span></div>
+              </div>
+
+              {/* Summary Cards Row inside Report */}
+              <div className="grid grid-cols-3 gap-3 text-xs text-center">
+                <div className="bg-slate-50 border border-slate-300 p-2.5 rounded-xl">
+                  <span className="block text-[10px] text-slate-600 font-bold uppercase">जम्मा सेवा शुल्क</span>
+                  <span className="block text-sm font-black text-slate-900 mt-0.5">
+                    रु. {toNepaliNumber(filteredDistributions.reduce((sum, d) => sum + (d.serviceFee ?? 1000), 0))}
+                  </span>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-300 p-2.5 rounded-xl">
+                  <span className="block text-[10px] text-emerald-800 font-bold uppercase">जम्मा प्राप्त रकम (Received Amount)</span>
+                  <span className="block text-sm font-black text-emerald-900 mt-0.5">
+                    रु. {toNepaliNumber(filteredDistributions.reduce((sum, d) => sum + (d.receivedAmount ?? d.serviceFee ?? 1000), 0))}
+                  </span>
+                </div>
+                <div className="bg-amber-50 border border-amber-300 p-2.5 rounded-xl">
+                  <span className="block text-[10px] text-amber-800 font-bold uppercase">फिर्ता हुन बाँकी सिलिन्डर</span>
+                  <span className="block text-sm font-black text-amber-900 mt-0.5">
+                    {toNepaliNumber(filteredDistributions.filter(d => d.status?.includes('Issued') || d.status?.includes('वितरण')).length)} वटा
+                  </span>
+                </div>
+              </div>
+
+              {/* Report Table */}
+              <table className="w-full border-collapse border-2 border-slate-900 text-xs text-slate-900">
+                <thead>
+                  <tr className="bg-slate-100 font-bold">
+                    <th className="border border-slate-900 p-2 text-center w-10">क्र.सं.</th>
+                    <th className="border border-slate-900 p-2 text-center w-28">इनभ्वाइस नं.</th>
+                    <th className="border border-slate-900 p-2 text-center w-24">वितरण मिति</th>
+                    <th className="border border-slate-900 p-2 text-center w-24">सिलिन्डर नं.</th>
+                    <th className="border border-slate-900 p-2 text-left">बिरामीको नाम र फोन</th>
+                    <th className="border border-slate-900 p-2 text-left">ठेगाना</th>
+                    <th className="border border-slate-900 p-2 text-right w-24">सेवा शुल्क</th>
+                    <th className="border border-slate-900 p-2 text-right w-28 text-emerald-900">प्राप्त रकम</th>
+                    <th className="border border-slate-900 p-2 text-center w-24">स्थिति</th>
+                    <th className="border border-slate-900 p-2 text-center w-24">फिर्ता मिति</th>
+                    <th className="border border-slate-900 p-2 text-left w-24">वितरण गर्ने</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDistributions.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="border border-slate-900 p-6 text-center text-slate-400">
+                        कुनै वितरण रेकर्ड फेला परेन।
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDistributions.map((d, i) => (
+                      <tr key={d.id} className="hover:bg-slate-50">
+                        <td className="border border-slate-900 p-1.5 text-center">{toNepaliNumber(i + 1)}</td>
+                        <td className="border border-slate-900 p-1.5 text-center font-bold">{toNepaliNumber(d.invoiceNo || 'N/A')}</td>
+                        <td className="border border-slate-900 p-1.5 text-center">{toNepaliNumber(d.issuedDateBs)}</td>
+                        <td className="border border-slate-900 p-1.5 text-center font-bold text-cyan-950">{toNepaliNumber(d.cylinderNo)}</td>
+                        <td className="border border-slate-900 p-1.5 font-bold">
+                          {d.patientName}
+                          {d.patientPhone && <span className="block text-[10px] text-slate-600 font-normal">फोन: {toNepaliNumber(d.patientPhone)}</span>}
+                        </td>
+                        <td className="border border-slate-900 p-1.5">{toNepaliNumber(d.wardOrDept)}</td>
+                        <td className="border border-slate-900 p-1.5 text-right font-bold">रु. {toNepaliNumber(d.serviceFee ?? 1000)}</td>
+                        <td className="border border-slate-900 p-1.5 text-right font-black text-emerald-900 bg-emerald-50/40">
+                          रु. {toNepaliNumber(d.receivedAmount ?? d.serviceFee ?? 1000)}
+                        </td>
+                        <td className="border border-slate-900 p-1.5 text-center font-bold">
+                          {d.status}
+                        </td>
+                        <td className="border border-slate-900 p-1.5 text-center">{d.returnDateBs ? toNepaliNumber(d.returnDateBs) : '-'}</td>
+                        <td className="border border-slate-900 p-1.5">{d.issuedBy || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-100 font-bold border-t-2 border-slate-900">
+                    <td colSpan={6} className="border border-slate-900 p-2 text-right font-black">कुल जम्मा (Grand Total):</td>
+                    <td className="border border-slate-900 p-2 text-right font-black">
+                      रु. {toNepaliNumber(filteredDistributions.reduce((sum, d) => sum + (d.serviceFee ?? 1000), 0))}
+                    </td>
+                    <td className="border border-slate-900 p-2 text-right font-black text-emerald-900 bg-emerald-100/60">
+                      रु. {toNepaliNumber(filteredDistributions.reduce((sum, d) => sum + (d.receivedAmount ?? d.serviceFee ?? 1000), 0))}
+                    </td>
+                    <td colSpan={3} className="border border-slate-900 p-2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Signature Block */}
+              <div className="grid grid-cols-2 gap-12 pt-10 text-xs">
+                <div className="text-center border-t border-slate-800 pt-1.5">
+                  <p className="font-bold text-slate-900">तयार गर्ने कर्मचारीको सही</p>
+                  <p className="text-slate-600 mt-0.5">({currentUser?.fullName || currentUser?.username || 'फाँटवाला'})</p>
+                </div>
+                <div className="text-center border-t border-slate-800 pt-1.5">
+                  <p className="font-bold text-slate-900">प्रमाणित गर्ने / प्रमुखको सही</p>
+                  <p className="text-slate-600 mt-0.5">(कार्यालय प्रमुख / शाखा प्रमुख)</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="bg-slate-100 px-6 py-3 flex justify-end gap-3 border-t border-slate-200 print:hidden font-nepali">
+              <button
+                onClick={() => setIsLogPrintModalOpen(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-bold transition-colors cursor-pointer"
+              >
+                बन्द गर्नुहोस्
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintLog}
+                className="px-5 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              >
+                <Printer size={16} /> लग प्रिन्ट गर्नुहोस्
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clean Print Style */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media print {
+              body.printing-oxygen-invoice > *:not(.printing-oxygen-invoice-area),
+              body.printing-oxygen-log > *:not(.printing-oxygen-log-area) {
+                display: none !important;
+              }
+              .print\\:hidden {
+                display: none !important;
+              }
+            }
+          `
+        }}
+      />
     </div>
   );
 };
