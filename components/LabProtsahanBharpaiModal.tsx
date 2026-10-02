@@ -229,8 +229,7 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
   // 2. Compute Protsahan Report Data for the modal
   const modalProtsahanData = useMemo(() => {
     return filteredModalRecords.map(record => {
-      let regularGrossLabAmount = 0;
-      let directZeroTestIncentive = 0;
+      let grossLabAmount = 0;
 
       record.items?.forEach(item => {
         if (item.isRefunded) return;
@@ -251,17 +250,17 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
           if (effectiveIncludeZeroTests) {
             if (matchedRule && matchedRule.rate > 0) {
               if (itemTotal === 0 || matchedRule.rate > 0) {
-                directZeroTestIncentive += (qty * matchedRule.rate);
+                grossLabAmount += (qty * matchedRule.rate);
               } else {
-                regularGrossLabAmount += itemTotal;
+                grossLabAmount += itemTotal;
               }
             } else if (isAnc && ancRate > 0 && itemTotal === 0) {
-              directZeroTestIncentive += (qty * ancRate);
+              grossLabAmount += (qty * ancRate);
             } else {
-              regularGrossLabAmount += itemTotal;
+              grossLabAmount += itemTotal;
             }
           } else {
-            regularGrossLabAmount += itemTotal;
+            grossLabAmount += itemTotal;
           }
         }
       });
@@ -270,12 +269,10 @@ export const LabProtsahanBharpaiModal: React.FC<LabProtsahanBharpaiModalProps> =
       const billDiscount = record.discount || 0;
       let proRatedDiscount = 0;
       if (billDiscount > 0 && billSubTotal > 0) {
-        proRatedDiscount = Math.min(billDiscount, (regularGrossLabAmount / Math.max(billSubTotal, regularGrossLabAmount)) * billDiscount);
+        proRatedDiscount = Math.min(billDiscount, (grossLabAmount / Math.max(billSubTotal, grossLabAmount)) * billDiscount);
       }
-      const netLabAmount = Math.max(0, regularGrossLabAmount - proRatedDiscount);
-      const regularIncentive = netLabAmount * (labIncentivePercent / 100);
-      const totalIncentive = regularIncentive + directZeroTestIncentive;
-      const grossLabAmount = regularGrossLabAmount + directZeroTestIncentive;
+      const netLabAmount = Math.max(0, grossLabAmount - proRatedDiscount);
+      const totalIncentive = netLabAmount * (labIncentivePercent / 100);
 
       const recipientShares = protsahanRecipients.map(recipient => {
         const shareAmount = totalIncentive * (recipient.sharePercent / 100);
