@@ -1204,7 +1204,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Protsahan Report Data calculations
   const protsahanReportData = useMemo(() => {
     return filteredRecords.map(record => {
-      let grossLabAmount = 0;
+      let regularGrossLabAmount = 0;
+      let directZeroTestIncentive = 0;
       let hasAncItem = false;
       let ancCount = 0;
 
@@ -1249,20 +1250,20 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               if (itemTotal === 0 || matchedRule.rate > 0) {
                 hasAncItem = true;
                 ancCount += qty;
-                grossLabAmount += (qty * matchedRule.rate);
+                directZeroTestIncentive += (qty * matchedRule.rate);
               } else {
-                grossLabAmount += itemTotal;
+                regularGrossLabAmount += itemTotal;
               }
             } else if (isAnc && ancPackageIncentiveRate > 0 && itemTotal === 0) {
               hasAncItem = true;
               ancCount += qty;
-              grossLabAmount += (qty * ancPackageIncentiveRate);
+              directZeroTestIncentive += (qty * ancPackageIncentiveRate);
             } else {
-              grossLabAmount += itemTotal;
+              regularGrossLabAmount += itemTotal;
             }
           } else {
             // When includeZeroTestsInIncentive is FALSE: zero amount items remain 0
-            grossLabAmount += itemTotal;
+            regularGrossLabAmount += itemTotal;
           }
         }
       });
@@ -1271,11 +1272,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const billDiscount = record.discount || 0;
       let proRatedDiscount = 0;
       if (billDiscount > 0 && billSubTotal > 0) {
-        proRatedDiscount = Math.min(billDiscount, (grossLabAmount / Math.max(billSubTotal, grossLabAmount)) * billDiscount);
+        proRatedDiscount = Math.min(billDiscount, (regularGrossLabAmount / Math.max(billSubTotal, regularGrossLabAmount)) * billDiscount);
       }
-      const netLabAmount = Math.max(0, grossLabAmount - proRatedDiscount);
+      const netLabAmount = Math.max(0, regularGrossLabAmount - proRatedDiscount);
 
-      const totalIncentive = netLabAmount * (labIncentivePercent / 100);
+      const regularIncentive = netLabAmount * (labIncentivePercent / 100);
+      const totalIncentive = regularIncentive + directZeroTestIncentive;
+      const grossLabAmount = regularGrossLabAmount + directZeroTestIncentive;
 
       const recipientShares = protsahanRecipients.map(recipient => {
         const shareAmount = totalIncentive * (recipient.sharePercent / 100);
@@ -1299,6 +1302,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         grossLabAmount,
         proRatedDiscount,
         netLabAmount,
+        regularIncentive,
+        directZeroTestIncentive,
         totalIncentive,
         referrerName,
         recipientShares,
@@ -2510,21 +2515,42 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 <span className="text-[10px] text-slate-500 font-nepali font-medium">ल्याब बिलको रकम</span>
               </div>
               
-              {zeroTestRates.length > 0 && (
-                zeroTestRates.map((rule) => (
-                  <div key={rule.id} className="flex-1 min-w-[150px] p-3 rounded-2xl text-center border border-purple-200 bg-purple-50/60 transition-all">
-                    <span className="block text-[10px] text-purple-900 font-bold tracking-wider uppercase font-nepali truncate" title={`${rule.testName} दर`}>
-                      {rule.testName.toLowerCase().includes('दर') ? rule.testName : `${rule.testName} दर`}
+              {(zeroTestRates.length > 0 
+                ? zeroTestRates 
+                : (ancPackageIncentiveRate > 0 ? [{ id: 'anc_fallback', testName: 'ANC Package', rate: ancPackageIncentiveRate }] : [])
+              ).map((rule) => {
+                const ruleCount = protsahanReportData.reduce((count, d) => {
+                  let c = 0;
+                  d.record.items?.forEach(item => {
+                    if (item.isRefunded) return;
+                    const rawName = (item.serviceName || '').trim();
+                    const itemLower = rawName.toLowerCase();
+                    if (itemLower === rule.testName.toLowerCase().trim() || (isAncPackageService(rule.testName) && isAncPackageService(rawName))) {
+                      c += (item.quantity || 1);
+                    }
+                  });
+                  return count + c;
+                }, 0);
+
+                const ruleTotalIncentive = ruleCount * rule.rate;
+
+                return (
+                  <div key={rule.id} className="flex-1 min-w-[160px] p-3 rounded-2xl text-center border border-purple-200 bg-purple-50/70 transition-all shadow-2xs">
+                    <span className="block text-[10px] text-purple-950 font-bold tracking-wider uppercase font-nepali truncate" title={`${rule.testName} कुल प्रोत्साहन`}>
+                      {rule.testName.toLowerCase().includes('दर') || rule.testName.toLowerCase().includes('package') ? `${rule.testName} कुल प्रोत्साहन` : `${rule.testName} कुल प्रोत्साहन`}
                     </span>
                     <span className="block text-xl font-extrabold text-purple-700 font-mono mt-1">
-                      रू. {toNepaliDigits(rule.rate)}
+                      रू. {toNepaliDigits(ruleTotalIncentive.toFixed(2))}
                     </span>
-                    <span className="text-[10px] text-slate-500 font-nepali font-medium block mt-0.5">
-                      तोकिएको प्रोत्साहन दर
+                    <span className="text-[10px] text-purple-900 font-nepali font-semibold block mt-0.5">
+                      {ruleCount > 0 
+                        ? `${toNepaliDigits(ruleCount)} वटा × रू. ${toNepaliDigits(rule.rate)}`
+                        : `दर: रू. ${toNepaliDigits(rule.rate)} (फिल्टरमा: ० वटा)`
+                      }
                     </span>
                   </div>
-                ))
-              )}
+                );
+              })}
 
               {protsahanRecipients.map(recipient => {
                 const staffList = parseStaffNames(recipient.staffName);
@@ -2657,6 +2683,17 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                     रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + d.totalIncentive, 0).toFixed(2))}
                   </span>
                 </div>
+                {protsahanReportData.reduce((s, d) => s + (d.directZeroTestIncentive || 0), 0) > 0 && (
+                  <div className="flex-1 min-w-[140px] bg-purple-50/60 border border-purple-200 p-3 rounded-xl text-center">
+                    <span className="block text-[10px] text-purple-900 font-bold tracking-wide uppercase font-nepali">ANC Package कुल प्रोत्साहन</span>
+                    <span className="block text-sm font-black text-purple-700 font-mono mt-0.5">
+                      रू. {toNepaliDigits(protsahanReportData.reduce((s, d) => s + (d.directZeroTestIncentive || 0), 0).toFixed(2))}
+                    </span>
+                    <span className="text-[10px] text-purple-800 font-nepali block font-semibold">
+                      ({toNepaliDigits(protsahanReportData.reduce((s, d) => s + (d.ancCount || 0), 0))} जना/प्याकेज)
+                    </span>
+                  </div>
+                )}
                 {protsahanRecipients.map(recipient => {
                   const totalForRecipient = protsahanReportData.reduce((sum, d) => {
                     const share = d.recipientShares.find(s => s.id === recipient.id);
@@ -3587,7 +3624,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         currentUser={currentUser}
       />
       <div className="text-[10px] text-slate-400 text-center py-2 print:hidden select-none font-mono">
-        Build: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : 'dev'}
+        Build: {typeof (window as any).__BUILD_TIME__ !== 'undefined' ? (window as any).__BUILD_TIME__ : 'v2.1'}
       </div>
     </>
   );
