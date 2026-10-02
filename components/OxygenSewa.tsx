@@ -1490,7 +1490,7 @@ export const OxygenSewa: React.FC<OxygenSewaProps> = ({
                     <p className="text-xs text-slate-600 font-medium mt-0.5">{generalSettings?.address || 'नेपाल'}</p>
                   )}
                   <h3 className="text-sm md:text-base font-black text-cyan-900 mt-2 uppercase tracking-wide">
-                    अक्सिजन सिलिन्डर वितरण लग प्रतिवेदन {selectedMonth !== 'all' ? `- ${NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name} महिना` : ''} {selectedFiscalYear !== 'all' ? `(आ.व. ${toNepaliNumber(selectedFiscalYear)})` : ''}
+                    अक्सिजन सिलिन्डर वितरण  प्रतिवेदन {selectedMonth !== 'all' ? `- ${NEPALI_MONTH_OPTIONS.find(m => m.value === selectedMonth)?.name} महिना` : ''} {selectedFiscalYear !== 'all' ? `(आ.व. ${toNepaliNumber(selectedFiscalYear)})` : ''}
                   </h3>
                 </div>
                 <div className="w-20 shrink-0"></div>
