@@ -10,6 +10,7 @@ interface NepaliDatePickerProps {
   value: string; // Format: YYYY-MM-DD or YYYY/MM/DD
   onChange: (value: string) => void;
   label?: string;
+  placeholder?: string;
   required?: boolean;
   disabled?: boolean;
   format?: 'YYYY-MM-DD' | 'YYYY/MM/DD';
@@ -32,6 +33,7 @@ export const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
   value, 
   onChange, 
   label = "मिति (Date)",
+  placeholder,
   required = false,
   disabled = false,
   format = 'YYYY-MM-DD',
@@ -379,7 +381,7 @@ export const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
           type="text"
           readOnly
           value={displayValue || ''}
-          placeholder={format}
+          placeholder={placeholder || format}
           disabled={disabled}
           className={`
             w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition-all

@@ -396,6 +396,7 @@ export interface GaunGharClinicRecord {
   id: string;
   fiscalYear: string;
   dateBs: string;
+  clinicCenter?: string; // गाउँघर क्लिनिक केन्द्र
   patientName: string;
   age: string;
   gender: 'Male' | 'Female' | 'Other';
@@ -404,6 +405,8 @@ export interface GaunGharClinicRecord {
   serviceType: string;
   treatmentGiven: string;
   remarks?: string;
+  latitude?: number; // GPS Latitude
+  longitude?: number; // GPS Longitude
   createdBy?: string;
   _orgName?: string;
 }

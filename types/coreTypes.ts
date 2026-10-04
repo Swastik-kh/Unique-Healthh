@@ -176,6 +176,10 @@ export interface OrganizationSettings {
   vitaminAReportPreparerUserId?: string;
   vitaminAReportCertifierUserId?: string;
 
+  // ===== 4.1. 🏥 गाउँघर क्लिनिक केन्द्र तथा सञ्चालन मिति (GaunGhar Clinic Centers & Sessions) =====
+  gaunGharClinicCenters?: string[];
+  gaunGharClinicCenterDays?: Record<string, number[]>;
+
   // ===== 5. ❄️ कोल्ड चेन सेटिङ (Cold Chain & Temperature Monitoring) =====
   coldChainMinTempC?: number; // default 2
   coldChainMaxTempC?: number; // default 8

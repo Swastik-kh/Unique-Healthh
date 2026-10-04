@@ -2872,6 +2872,7 @@ ${receivedLetter.letterContent || 'विषयसम्बन्धमा ज�
                                         currentFiscalYear={currentFiscalYear} 
                                         currentUser={currentUser} 
                                         generalSettings={generalSettings} 
+                                        onUpdateGeneralSettings={onUpdateGeneralSettings}
                                       />;
       case 'log_book': return <LogBook currentUser={currentUser} currentFiscalYear={currentFiscalYear} inventoryItems={inventoryItems} logBookEntries={logBookEntries} onAddLogEntry={onSaveLogBookEntry} />;
       case 'report_tb_dst': return <TBDSTReport patients={tbPatients} currentFiscalYear={currentFiscalYear} />;

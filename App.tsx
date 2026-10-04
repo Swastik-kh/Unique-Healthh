@@ -229,13 +229,17 @@ const App: React.FC = () => {
 
   const handleSaveGaunGharClinicRecord = async (r: GaunGharClinicRecord) => {
     if (!currentUser) return;
-    const safeOrgName = sanitizeOrgName(activeOrgName);
-    await set(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${r.id}`), r);
+    const targetOrg = (r as any)._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+    const safeOrgName = sanitizeOrgName(targetOrg);
+    const cleaned = cleanObject({ ...r, _orgName: targetOrg });
+    await set(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${r.id}`), cleaned);
   };
 
   const handleDeleteGaunGharClinicRecord = async (id: string) => {
     if (!currentUser) return;
-    const safeOrgName = sanitizeOrgName(activeOrgName);
+    const rec = gaunGharClinicRecords.find(r => r.id === id);
+    const targetOrg = (rec as any)?._orgName || (activeOrgName && activeOrgName !== 'All' ? activeOrgName : currentUser.organizationName || 'default');
+    const safeOrgName = sanitizeOrgName(targetOrg);
     await remove(ref(db, `orgData/${safeOrgName}/gaunGharClinicRecords/${id}`));
   };
 
