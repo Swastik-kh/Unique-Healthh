@@ -484,7 +484,21 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const uniqueFiscalYears = useMemo(() => {
     const years = new Set<string>();
-    if (currentFiscalYear) years.add(currentFiscalYear);
+    if (currentFiscalYear) {
+      years.add(currentFiscalYear);
+      const parts = currentFiscalYear.split(/[-/]/);
+      if (parts.length >= 1) {
+        const currentStartYear = parseInt(parts[0].trim(), 10);
+        if (!isNaN(currentStartYear)) {
+          for (let i = 1; i <= 9; i++) {
+            const prevStartYear = currentStartYear - i;
+            const prevEndYear = (prevStartYear + 1) % 100;
+            const prevEndYearStr = prevEndYear < 10 ? `00${prevEndYear}` : (prevEndYear < 100 ? `0${prevEndYear}` : `${prevEndYear}`);
+            years.add(`${prevStartYear}/${prevEndYearStr}`);
+          }
+        }
+      }
+    }
     (records || []).forEach(r => { if (r.fiscalYear) years.add(r.fiscalYear); });
     (expenseRecords || []).forEach(e => { if (e.fiscalYear) years.add(e.fiscalYear); });
     return Array.from(years).sort().reverse();

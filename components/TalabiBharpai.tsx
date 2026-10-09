@@ -232,6 +232,8 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
 
   const [ambulanceRecords, setAmbulanceRecords] = useState<any[]>([]);
   const [printOptions, setPrintOptions] = useState({
+    includeAll: true,
+    includeInitialSalary: true,
     includeFestivalAllowance: true,
     includeIncentiveAllowance: true,
     includeFieldAllowance: true,
@@ -1239,7 +1241,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               <th rowspan="2">कर्मचारीको नाम</th>
               <th rowspan="2">पद / तह</th>
               <th rowspan="2">बैंक खाता नं.</th>
-              <th colspan="3">तलब विवरण</th>
+              ${printOptions.includeInitialSalary ? '<th colspan="3">तलब विवरण</th>' : ''}
               <th colspan="${1 + (printOptions.includeFestivalAllowance ? 1 : 0) + (printOptions.includeIncentiveAllowance ? 1 : 0) + (printOptions.includeOtherAllowances ? 1 : 0)}">भत्ता विवरण</th>
               <th rowspan="2">जम्मा पारिश्रमिक</th>
               <th colspan="${(printOptions.includePF ? 1 : 0) + (printOptions.includeCIT ? 1 : 0) + (printOptions.includeInsurance ? 1 : 0) + (printOptions.includeTax ? 1 : 0) + (printOptions.includeOtherDeductions ? 1 : 0)}">कट्टी विवरण</th>
@@ -1248,9 +1250,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               <th rowspan="2">बुझिलिनेको दस्तखत</th>
             </tr>
             <tr>
-              <th>सुरु तलब</th>
-              <th>ग्रेड</th>
-              <th>जम्मा तलब</th>
+              ${printOptions.includeInitialSalary ? '<th>सुरु तलब</th><th>ग्रेड</th><th>जम्मा तलब</th>' : ''}
               ${printOptions.includeFestivalAllowance ? '<th>चाडपर्व खर्च</th>' : ''}
               ${printOptions.includeIncentiveAllowance ? '<th>प्रोत्साहन/फिल्ड</th>' : ''}
               ${printOptions.includeOtherAllowances ? '<th>अन्य</th>' : ''}
@@ -1264,6 +1264,10 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
           </thead>
           <tbody>
             ${employeesList.map((emp, i) => {
+              const basicScale = printOptions.includeInitialSalary ? (emp.basicScale || 0) : 0;
+              const grade = printOptions.includeInitialSalary ? (emp.gradeAmount || 0) : 0;
+              const basicTotal = printOptions.includeInitialSalary ? (emp.totalBasicSalary || 0) : 0;
+              const dearness = emp.dearnessAllowance || 0;
               const festival = printOptions.includeFestivalAllowance ? (emp.festivalAllowance || 0) : 0;
               const incentive = printOptions.includeIncentiveAllowance ? ((emp.incentiveAllowance || 0) + (emp.fieldAllowance || 0)) : 0;
               const other = printOptions.includeOtherAllowances ? ((emp.dressAllowance || 0) + (emp.otherAllowances || 0) + (emp.medicalAllowance || 0)) : 0;
@@ -1273,7 +1277,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               const tax = printOptions.includeTax ? (emp.taxDeduction || 0) : 0;
               const otherDed = printOptions.includeOtherDeductions ? ((emp.loanOrAdvanceDeduction || 0) + (emp.otherDeductions || 0)) : 0;
               
-              const rowGross = emp.totalBasicSalary + festival + incentive + other + emp.dearnessAllowance;
+              const rowGross = basicTotal + festival + incentive + other + dearness;
               const rowDed = pf + cit + insurance + tax + otherDed;
               const rowNet = rowGross - rowDed;
 
@@ -1283,13 +1287,15 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                   <td class="text-left" style="font-weight: 600;">${emp.employeeName}</td>
                   <td class="text-left">${emp.designation} ${emp.level ? `(${emp.level})` : ''}</td>
                   <td class="text-left" style="font-size: 9px;">${emp.bankAccountNumber || '-'}</td>
-                  <td class="text-right">${toNepaliNumber(emp.basicScale.toLocaleString())}</td>
-                  <td class="text-right">${toNepaliNumber(emp.gradeAmount.toLocaleString())}</td>
-                  <td class="text-right" style="font-weight: 600;">${toNepaliNumber(emp.totalBasicSalary.toLocaleString())}</td>
+                  ${printOptions.includeInitialSalary ? `
+                    <td class="text-right">${toNepaliNumber(emp.basicScale.toLocaleString())}</td>
+                    <td class="text-right">${toNepaliNumber(emp.gradeAmount.toLocaleString())}</td>
+                    <td class="text-right" style="font-weight: 600;">${toNepaliNumber(emp.totalBasicSalary.toLocaleString())}</td>
+                  ` : ''}
                   ${printOptions.includeFestivalAllowance ? `<td class="text-right">${toNepaliNumber(festival.toLocaleString())}</td>` : ''}
                   ${printOptions.includeIncentiveAllowance ? `<td class="text-right">${toNepaliNumber(incentive.toLocaleString())}</td>` : ''}
                   ${printOptions.includeOtherAllowances ? `<td class="text-right">${toNepaliNumber(other.toLocaleString())}</td>` : ''}
-                  <td class="text-right">${toNepaliNumber(emp.dearnessAllowance.toLocaleString())}</td>
+                  <td class="text-right">${toNepaliNumber(dearness.toLocaleString())}</td>
                   <td class="text-right" style="font-weight: 700;">${toNepaliNumber(rowGross.toLocaleString())}</td>
                   ${printOptions.includePF ? `<td class="text-right">${toNepaliNumber(pf.toLocaleString())}</td>` : ''}
                   ${printOptions.includeCIT ? `<td class="text-right">${toNepaliNumber(cit.toLocaleString())}</td>` : ''}
@@ -3129,14 +3135,26 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm p-6">
             <h3 className="text-lg font-black text-slate-800 mb-4">प्रिन्ट विकल्पहरू</h3>
             <div className="space-y-2 text-xs">
-              {Object.keys(printOptions).map((key) => (
+              <label className="flex items-center gap-2 cursor-pointer font-bold border-b pb-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={printOptions.includeAll}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    const newOptions = Object.keys(printOptions).reduce((acc, key) => ({ ...acc, [key]: checked }), {});
+                    setPrintOptions(newOptions as any);
+                  }}
+                />
+                सबै समावेश गर्नुहोस् (Include All)
+              </label>
+              {Object.keys(printOptions).filter(key => key !== 'includeAll').map((key) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={printOptions[key as keyof typeof printOptions]}
                     onChange={() => setPrintOptions(prev => ({ ...prev, [key]: !prev[key as keyof typeof printOptions] }))}
                   />
-                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                  {key === 'includeInitialSalary' ? 'सुरु तलब (Initial Salary)' : key.replace(/([A-Z])/g, ' $1').trim()}
                 </label>
               ))}
             </div>
