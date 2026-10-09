@@ -672,6 +672,47 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     });
   }, [records, searchTerm, tripFiscalYearFilter, tripMonthFilter, currentFiscalYear]);
 
+  const summaryActiveFy = activeTab === 'expenses' ? expenseFiscalYearFilter : tripFiscalYearFilter;
+  const summaryActiveMonth = activeTab === 'expenses' ? expenseMonthFilter : tripMonthFilter;
+
+  const summaryTripRecords = useMemo(() => {
+    if (activeTab !== 'expenses') return filteredRecords;
+    const targetFyNorm = normalizeFiscalYearStr(expenseFiscalYearFilter);
+    return (records || []).filter(r => {
+      if (!r) return false;
+      if (targetFyNorm !== 'all') {
+        const recFy = r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear);
+        if (normalizeFiscalYearStr(recFy) !== targetFyNorm) return false;
+      }
+      if (expenseMonthFilter !== 'all') {
+        if (getMonthFromBsDate(r.dateBs) !== expenseMonthFilter) return false;
+      }
+      return true;
+    });
+  }, [activeTab, records, filteredRecords, expenseFiscalYearFilter, expenseMonthFilter, currentFiscalYear]);
+
+  const summaryExpenseRecords = useMemo(() => {
+    const targetFyNorm = normalizeFiscalYearStr(summaryActiveFy);
+    return (expenseRecords || []).filter(e => {
+      if (!e) return false;
+      if (targetFyNorm !== 'all') {
+        const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+        if (normalizeFiscalYearStr(recFy) !== targetFyNorm) return false;
+      }
+      if (summaryActiveMonth !== 'all') {
+        if (getMonthFromBsDate(e.dateBs) !== summaryActiveMonth) return false;
+      }
+      return true;
+    });
+  }, [expenseRecords, summaryActiveFy, summaryActiveMonth, currentFiscalYear]);
+
+  const totalSummaryCharge = summaryTripRecords.reduce((s, r) => s + (Number(r.amountCharged) || 0), 0);
+  const totalSummaryReceived = summaryTripRecords.reduce((s, r) => s + (Number(r.receivedAmount) || 0), 0);
+  const totalSummaryDiscount = summaryTripRecords.reduce((s, r) => s + (Number(r.discountAmount) || 0), 0);
+  const totalSummaryExpense = summaryExpenseRecords.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalSummaryDue = totalSummaryCharge - totalSummaryReceived - totalSummaryDiscount;
+  const netSavings = totalSummaryReceived - totalSummaryExpense;
+
   // Constants & memoized helpers for advanced log book filtering
 
   const uniqueLogBookDrivers = useMemo(() => {
@@ -1733,96 +1774,67 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         {/* Stats Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 print:hidden mb-4">
           <div className="col-span-1 sm:col-span-2 lg:col-span-6 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 font-medium">
-             फ़िल्टर: {tripFiscalYearFilter === 'all' ? 'सबै' : tripFiscalYearFilter} | महिना: {tripMonthFilter === 'all' ? 'सबै' : NEPALI_MONTHS.find(m => m.id === tripMonthFilter)?.name || tripMonthFilter}
+            फ़िल्टर: {summaryActiveFy === 'all' ? 'सबै' : summaryActiveFy} | महिना: {summaryActiveMonth === 'all' ? 'सबै' : NEPALI_MONTHS.find(m => m.id === summaryActiveMonth)?.name || summaryActiveMonth}
           </div>
+
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
-              <p className="text-lg font-extrabold text-rose-950 mt-1 font-mono">
-                रु. {filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-rose-950 mt-1 font-mono">रु. {totalSummaryCharge.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-rose-600 shadow-sm">
-              <Truck size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-rose-600 shadow-sm"><Truck size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 rounded-2xl border border-emerald-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-emerald-800">कुल प्राप्त भएको (Received)</p>
-              <p className="text-lg font-extrabold text-emerald-950 mt-1 font-mono">
-                रु. {filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-emerald-950 mt-1 font-mono">रु. {totalSummaryReceived.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
-              <Receipt size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm"><Receipt size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 rounded-2xl border border-amber-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-amber-800">बाँकी बक्यौता (Total Due)</p>
-              <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">
-                रु. {(filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - filteredRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0)).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">रु. {totalSummaryDue.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm">
-              <AlertCircle size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm"><AlertCircle size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-4 rounded-2xl border border-purple-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-purple-800">कुल छुट (Total Discount)</p>
-              <p className="text-lg font-extrabold text-purple-950 mt-1 font-mono">
-                रु. {filteredRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-purple-950 mt-1 font-mono">रु. {totalSummaryDiscount.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-purple-600 shadow-sm">
-              <Tag size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-purple-600 shadow-sm"><Tag size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4 rounded-2xl border border-indigo-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-indigo-800">कूल खर्च (Expense)</p>
-              <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">
-                रु. {(filteredExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">रु. {totalSummaryExpense.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
-              <Receipt size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm"><Receipt size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-sky-50 to-sky-100/50 p-4 rounded-2xl border border-sky-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-sky-800">खुद बचत (Net Savings)</p>
-              <p className="text-lg font-extrabold text-sky-950 mt-1 font-mono">
-                रु. {(filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (filteredExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold text-sky-950 mt-1 font-mono">रु. {netSavings.toLocaleString()}</p>
             </div>
-            <div className="p-2.5 bg-white rounded-xl text-sky-600 shadow-sm">
-              <Wallet size={18} />
-            </div>
+            <div className="p-2.5 bg-white rounded-xl text-sky-600 shadow-sm"><Wallet size={18} /></div>
           </div>
 
           <div className={`p-4 rounded-2xl border shadow-sm flex items-center justify-between ${
-            (currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)) >= 0
+            netSavings >= 0
               ? 'bg-gradient-to-br from-teal-50 to-teal-100/50 border-teal-200/60 text-teal-900'
               : 'bg-gradient-to-br from-rose-50 to-red-100/50 border-red-200/60 text-red-900'
           }`}>
             <div>
               <p className="text-xs font-bold font-nepali">बचत (Net Savings)</p>
-              <p className="text-lg font-extrabold mt-1 font-mono">
-                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)).toLocaleString()}
-              </p>
+              <p className="text-lg font-extrabold mt-1 font-mono">रु. {netSavings.toLocaleString()}</p>
             </div>
-            <div className={`p-2.5 bg-white rounded-xl shadow-sm ${
-              (currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)) >= 0
-                ? 'text-teal-600'
-                : 'text-red-600'
-            }`}>
+            <div className={`p-2.5 bg-white rounded-xl shadow-sm ${netSavings >= 0 ? 'text-teal-600' : 'text-red-600'}`}>
               <Wallet size={18} />
             </div>
           </div>
