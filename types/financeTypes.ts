@@ -156,6 +156,7 @@ export interface SalaryEmployeeItem {
   gradeAmount: number;
   totalBasicSalary: number;
   dearnessAllowance: number;
+  festivalAllowance?: number;
   incentiveAllowance: number;
   fieldAllowance: number;
   dressAllowance: number;
@@ -194,6 +195,7 @@ export interface MonthlySalaryReceipt {
   // Aggregates
   totalBasicSalary: number;
   totalGradeAmount: number;
+  totalFestivalAllowance?: number;
   totalAllowances: number;
   totalGrossSalary: number;
   totalDeductions: number;
@@ -228,6 +230,7 @@ export interface EmployeeSalaryProfile {
   gradeCount: number;
   gradeRate: number;
   dearnessAllowance: number;
+  festivalAllowance?: number;
   incentiveAllowance: number;
   fieldAllowance: number;
   dressAllowance: number;

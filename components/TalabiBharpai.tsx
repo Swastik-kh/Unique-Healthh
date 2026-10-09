@@ -198,6 +198,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     gradeAmount: 0,
     totalBasicSalary: 0,
     dearnessAllowance: 2000,
+    festivalAllowance: 0,
     incentiveAllowance: 0,
     fieldAllowance: 0,
     dressAllowance: 0,
@@ -360,8 +361,8 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     return sortUsersByHierarchy(rawList, generalSettings?.userHierarchyOrder);
   }, [users, allUsers, activeOrgName, generalSettings?.userHierarchyOrder]);
 
-  // Helper to Recalculate Employee Item
-  const calculateEmployeeNumbers = (data: Partial<SalaryEmployeeItem>): SalaryEmployeeItem => {
+  // Helper to compute auto tax deduction (1% on regular taxable + 1% on festivalAllowance + 15% on incentive)
+  const computeAutoTaxDeduction = (data: Partial<SalaryEmployeeItem>): number => {
     const basicScale = Number(data.basicScale) || 0;
     const gradeCount = Number(data.gradeCount) || 0;
     const gradeRate = Number(data.gradeRate) || 0;
@@ -369,6 +370,31 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const totalBasicSalary = basicScale + gradeAmount;
 
     const dearnessAllowance = Number(data.dearnessAllowance) || 0;
+    const festivalAllowance = Number(data.festivalAllowance) || 0;
+    const incentiveAllowance = Number(data.incentiveAllowance) || 0;
+    const fieldAllowance = Number(data.fieldAllowance) || 0;
+    const dressAllowance = Number(data.dressAllowance) || 0;
+    const medicalAllowance = Number(data.medicalAllowance) || 0;
+    const otherAllowances = Number(data.otherAllowances) || 0;
+
+    const regularTaxable = totalBasicSalary + dearnessAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+    const taxRemuneration = Math.round(regularTaxable * 0.01);
+    const taxFestival = Math.round(festivalAllowance * 0.01);
+    const taxIncentive = Math.round(incentiveAllowance * 0.15);
+
+    return taxRemuneration + taxFestival + taxIncentive;
+  };
+
+  // Helper to Recalculate Employee Item
+  const calculateEmployeeNumbers = (data: Partial<SalaryEmployeeItem>, forceAutoTax = false): SalaryEmployeeItem => {
+    const basicScale = Number(data.basicScale) || 0;
+    const gradeCount = Number(data.gradeCount) || 0;
+    const gradeRate = Number(data.gradeRate) || 0;
+    const gradeAmount = data.gradeAmount !== undefined ? Number(data.gradeAmount) : (gradeCount * gradeRate);
+    const totalBasicSalary = basicScale + gradeAmount;
+
+    const dearnessAllowance = Number(data.dearnessAllowance) || 0;
+    const festivalAllowance = Number(data.festivalAllowance) || 0;
     let incentiveAllowance = Number(data.incentiveAllowance) || 0;
     const fieldAllowance = Number(data.fieldAllowance) || 0;
     const dressAllowance = Number(data.dressAllowance) || 0;
@@ -394,7 +420,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       }
     }
 
-    const totalAllowances = dearnessAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+    const totalAllowances = dearnessAllowance + festivalAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
     const grossSalary = totalBasicSalary + totalAllowances;
 
     // Default PF 10% if Permanent and providentFund not explicitly 0
@@ -402,20 +428,22 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const citDeduction = Number(data.citDeduction) || 0;
     const insuranceDeduction = Number(data.insuranceDeduction) || 0;
     
-    // Tax calculation: 1% on regular taxable remuneration (totalBasicSalary + dearness + allowances excluding incentive) and 15% on incentive
-    const taxableRemuneration = totalBasicSalary + dearnessAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
-    const taxRemuneration = Math.round(taxableRemuneration * 0.01);
+    // Tax calculation: 1% on regular taxable remuneration, 1% on Chadparba Kharcha (festivalAllowance), and 15% on incentive
+    const regularTaxable = totalBasicSalary + dearnessAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+    const taxRemuneration = Math.round(regularTaxable * 0.01);
+    const taxFestival = Math.round(festivalAllowance * 0.01);
     const taxIncentive = Math.round(incentiveAllowance * 0.15);
+    const autoCalculatedTax = taxRemuneration + taxFestival + taxIncentive;
     
-    let taxDeduction = (data.taxDeduction !== undefined && data.taxDeduction !== null && data.taxDeduction !== 0) 
+    let taxDeduction = (!forceAutoTax && data.taxDeduction !== undefined && data.taxDeduction !== null && data.taxDeduction !== 0) 
       ? Number(data.taxDeduction) 
-      : (taxRemuneration + taxIncentive);
+      : autoCalculatedTax;
 
     const loanOrAdvanceDeduction = Number(data.loanOrAdvanceDeduction) || 0;
     const otherDeductions = Number(data.otherDeductions) || 0;
 
     if (taxDeduction === 0 && grossSalary > 0) {
-      taxDeduction = taxRemuneration + taxIncentive;
+      taxDeduction = autoCalculatedTax;
     }
 
     const totalDeductions = providentFund + citDeduction + insuranceDeduction + taxDeduction + loanOrAdvanceDeduction + otherDeductions;
@@ -440,6 +468,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       gradeAmount,
       totalBasicSalary,
       dearnessAllowance,
+      festivalAllowance,
       incentiveAllowance,
       fieldAllowance,
       dressAllowance,
@@ -465,6 +494,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       acc.totalGradeAmount += Number(emp.gradeAmount) || 0;
       acc.totalBasicSalary += Number(emp.totalBasicSalary) || 0;
       acc.totalDearness += Number(emp.dearnessAllowance) || 0;
+      acc.totalFestival += Number(emp.festivalAllowance) || 0;
       acc.totalIncentive += Number(emp.incentiveAllowance) || 0;
       acc.totalField += Number(emp.fieldAllowance) || 0;
       acc.totalDress += Number(emp.dressAllowance) || 0;
@@ -484,6 +514,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       totalGradeAmount: 0,
       totalBasicSalary: 0,
       totalDearness: 0,
+      totalFestival: 0,
       totalIncentive: 0,
       totalField: 0,
       totalDress: 0,
@@ -529,18 +560,20 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       const dearnessAllowance = profile?.dearnessAllowance !== undefined 
         ? profile.dearnessAllowance 
         : (matchedScale?.dearnessAllowance !== undefined ? matchedScale.dearnessAllowance : 2000);
+      const festivalAllowance = 0;
       const incentiveAllowance = profile?.incentiveAllowance || 0;
       const fieldAllowance = profile?.fieldAllowance || matchedScale?.fieldAllowance || 0;
       const dressAllowance = profile?.dressAllowance || matchedScale?.dressAllowance || 0;
       const medicalAllowance = profile?.medicalAllowance || 0;
       const otherAllowances = profile?.otherAllowances || 0;
-      const grossSalary = totalBasicSalary + dearnessAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+      const grossSalary = totalBasicSalary + dearnessAllowance + festivalAllowance + incentiveAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
 
       const isPermanent = (profile?.serviceType || user.serviceType) === 'Permanent';
       const providentFund = profile?.providentFund !== undefined ? profile.providentFund : (isPermanent ? Math.round(totalBasicSalary * 0.10) : 0);
       const citDeduction = profile?.citDeduction || 0;
       const insuranceDeduction = profile?.insuranceDeduction || (isPermanent ? 400 : 0);
-      const taxDeduction = profile?.taxDeduction !== undefined ? profile.taxDeduction : Math.round(grossSalary * 0.01);
+      const regularTaxable = totalBasicSalary + dearnessAllowance + fieldAllowance + dressAllowance + medicalAllowance + otherAllowances;
+      const taxDeduction = Math.round(regularTaxable * 0.01) + Math.round(festivalAllowance * 0.01) + Math.round(incentiveAllowance * 0.15);
       const loanOrAdvanceDeduction = profile?.loanOrAdvanceDeduction || 0;
       const otherDeductions = profile?.otherDeductions || 0;
       const totalDeductions = providentFund + citDeduction + insuranceDeduction + taxDeduction + loanOrAdvanceDeduction + otherDeductions;
@@ -565,6 +598,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
         gradeAmount,
         totalBasicSalary,
         dearnessAllowance,
+        festivalAllowance,
         incentiveAllowance,
         fieldAllowance,
         dressAllowance,
@@ -619,6 +653,30 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     setTimeout(() => setSaveSuccessMessage(null), 3500);
   };
 
+  // Toggle / Apply Chadparba Kharcha (Festival Allowance = 1 month totalBasicSalary) for all employees in current month
+  const handleToggleAllFestivalAllowance = () => {
+    if (employeesList.length === 0) return;
+    const allHaveFestival = employeesList.every(emp => (Number(emp.festivalAllowance) || 0) > 0);
+
+    if (allHaveFestival) {
+      const updated = employeesList.map(emp => {
+        const nextData = { ...emp, festivalAllowance: 0 };
+        return calculateEmployeeNumbers(nextData, true);
+      });
+      setEmployeesList(updated);
+      setSaveSuccessMessage("सबै कर्मचारीको चाडपर्व खर्च हटाइयो र कर कट्टी स्वतः अद्यावधिक गरियो!");
+    } else {
+      const updated = employeesList.map(emp => {
+        const festAmt = (Number(emp.basicScale) || 0) + (Number(emp.gradeAmount) || 0);
+        const nextData = { ...emp, festivalAllowance: festAmt };
+        return calculateEmployeeNumbers(nextData, true);
+      });
+      setEmployeesList(updated);
+      setSaveSuccessMessage("सबै कर्मचारीमा १ महिनाको तलब बराबर चाडपर्व खर्च र सोको १% कर कट्टी स्वतः लागू गरियो!");
+    }
+    setTimeout(() => setSaveSuccessMessage(null), 4000);
+  };
+
   // Copy From Previous Month
   const handleCopyFromPreviousMonth = () => {
     const currentMonthObj = NEPALI_MONTHS.find(m => m.code === selectedMonthCode);
@@ -667,7 +725,8 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       employees: employeesList,
       totalBasicSalary: grandTotals.totalBasicSalary,
       totalGradeAmount: grandTotals.totalGradeAmount,
-      totalAllowances: grandTotals.totalDearness + grandTotals.totalIncentive + grandTotals.totalField + grandTotals.totalDress + grandTotals.totalOtherAllowances,
+      totalFestivalAllowance: grandTotals.totalFestival,
+      totalAllowances: grandTotals.totalDearness + grandTotals.totalFestival + grandTotals.totalIncentive + grandTotals.totalField + grandTotals.totalDress + grandTotals.totalOtherAllowances,
       totalGrossSalary: grandTotals.totalGross,
       totalDeductions: grandTotals.totalDeductions,
       totalNetPayable: grandTotals.totalNetPayable,
@@ -982,6 +1041,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       'ग्रेड रकम': emp.gradeAmount,
       'जम्मा तलब': emp.totalBasicSalary,
       'महङ्गी भत्ता': emp.dearnessAllowance,
+      'चाडपर्व खर्च': emp.festivalAllowance || 0,
       'प्रोत्साहन/अन्य भत्ता': (emp.incentiveAllowance || 0) + (emp.fieldAllowance || 0) + (emp.dressAllowance || 0) + (emp.otherAllowances || 0),
       'जम्मा पारिश्रमिक': emp.grossSalary,
       'क.सं.को. कट्टी': emp.providentFund,
@@ -1161,7 +1221,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               <th rowspan="2">पद / तह</th>
               <th rowspan="2">बैंक खाता नं.</th>
               <th colspan="3">तलब विवरण</th>
-              <th colspan="3">भत्ता विवरण</th>
+              <th colspan="4">भत्ता विवरण</th>
               <th rowspan="2">जम्मा पारिश्रमिक</th>
               <th colspan="5">कट्टी विवरण</th>
               <th rowspan="2">जम्मा कट्टी</th>
@@ -1173,6 +1233,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               <th>ग्रेड</th>
               <th>जम्मा तलब</th>
               <th>महङ्गी</th>
+              <th>चाडपर्व खर्च</th>
               <th>प्रोत्साहन/फिल्ड</th>
               <th>अन्य</th>
               <th>क.सं.को.</th>
@@ -1193,6 +1254,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 <td class="text-right">${toNepaliNumber(emp.gradeAmount.toLocaleString())}</td>
                 <td class="text-right" style="font-weight: 600;">${toNepaliNumber(emp.totalBasicSalary.toLocaleString())}</td>
                 <td class="text-right">${toNepaliNumber(emp.dearnessAllowance.toLocaleString())}</td>
+                <td class="text-right">${toNepaliNumber((emp.festivalAllowance || 0).toLocaleString())}</td>
                 <td class="text-right">${toNepaliNumber(((emp.incentiveAllowance || 0) + (emp.fieldAllowance || 0)).toLocaleString())}</td>
                 <td class="text-right">${toNepaliNumber(((emp.dressAllowance || 0) + (emp.otherAllowances || 0) + (emp.medicalAllowance || 0)).toLocaleString())}</td>
                 <td class="text-right" style="font-weight: 700; background-color: #f8fafc;">${toNepaliNumber(emp.grossSalary.toLocaleString())}</td>
@@ -1212,6 +1274,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               <td class="text-right">${toNepaliNumber(grandTotals.totalGradeAmount.toLocaleString())}</td>
               <td class="text-right">${toNepaliNumber(grandTotals.totalBasicSalary.toLocaleString())}</td>
               <td class="text-right">${toNepaliNumber(grandTotals.totalDearness.toLocaleString())}</td>
+              <td class="text-right">${toNepaliNumber(grandTotals.totalFestival.toLocaleString())}</td>
               <td class="text-right">${toNepaliNumber((grandTotals.totalIncentive + grandTotals.totalField).toLocaleString())}</td>
               <td class="text-right">${toNepaliNumber((grandTotals.totalDress + grandTotals.totalOtherAllowances).toLocaleString())}</td>
               <td class="text-right" style="font-weight: 800;">${toNepaliNumber(grandTotals.totalGross.toLocaleString())}</td>
@@ -1353,6 +1416,12 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <span>महङ्गी भत्ता (Dearness):</span>
                     <span>रु. ${toNepaliNumber(emp.dearnessAllowance.toLocaleString())}</span>
                   </div>
+                  ${emp.festivalAllowance ? `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                      <span>चाडपर्व खर्च (Festival Allowance):</span>
+                      <span>रु. ${toNepaliNumber(emp.festivalAllowance.toLocaleString())}</span>
+                    </div>
+                  ` : ''}
                   ${emp.incentiveAllowance ? `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                       <span>प्रोत्साहन भत्ता:</span>
@@ -1462,10 +1531,14 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     // Month-wise summary
     const monthStats = NEPALI_MONTHS.map(m => {
       const receipt = yearReceipts.find(r => r.month === m.code);
+      const monthFestival = receipt?.totalFestivalAllowance !== undefined
+        ? receipt.totalFestivalAllowance
+        : (receipt?.employees || []).reduce((s, e) => s + (Number(e.festivalAllowance) || 0), 0);
       return {
         ...m,
         isCreated: !!receipt,
         employeeCount: receipt?.employees?.length || 0,
+        festivalAllowance: monthFestival,
         grossSalary: receipt?.totalGrossSalary || 0,
         totalDeductions: receipt?.totalDeductions || 0,
         netPayable: receipt?.totalNetPayable || 0,
@@ -1480,6 +1553,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       level: string;
       monthsCount: number;
       totalBasic: number;
+      totalFestival: number;
       totalGross: number;
       totalPF: number;
       totalCIT: number;
@@ -1497,6 +1571,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
           level: emp.level || '',
           monthsCount: 0,
           totalBasic: 0,
+          totalFestival: 0,
           totalGross: 0,
           totalPF: 0,
           totalCIT: 0,
@@ -1507,6 +1582,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
 
         existing.monthsCount += 1;
         existing.totalBasic += Number(emp.totalBasicSalary) || 0;
+        existing.totalFestival += Number(emp.festivalAllowance) || 0;
         existing.totalGross += Number(emp.grossSalary) || 0;
         existing.totalPF += Number(emp.providentFund) || 0;
         existing.totalCIT += Number(emp.citDeduction) || 0;
@@ -1518,6 +1594,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
       });
     });
 
+    const totalAnnualFestival = monthStats.reduce((sum, m) => sum + m.festivalAllowance, 0);
     const totalAnnualGross = monthStats.reduce((sum, m) => sum + m.grossSalary, 0);
     const totalAnnualDeductions = monthStats.reduce((sum, m) => sum + m.totalDeductions, 0);
     const totalAnnualNet = monthStats.reduce((sum, m) => sum + m.netPayable, 0);
@@ -1525,6 +1602,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     return {
       monthStats,
       employeeStats: Array.from(empMap.values()),
+      totalAnnualFestival,
       totalAnnualGross,
       totalAnnualDeductions,
       totalAnnualNet,
@@ -1702,6 +1780,22 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 >
                   <Copy size={15} /> अघिल्लो महिना कपी
                 </button>
+                {employeesList.length > 0 && (
+                  <button
+                    onClick={handleToggleAllFestivalAllowance}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                      employeesList.every(emp => (Number(emp.festivalAllowance) || 0) > 0)
+                        ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300'
+                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                    }`}
+                    title="सबै कर्मचारीमा १ महिनाको तलब बराबर चाडपर्व खर्च राख्नुहोस् वा हटाउनुहोस् (कर कट्टी स्वतः गणना हुन्छ)"
+                  >
+                    <Sparkles size={15} />
+                    {employeesList.every(emp => (Number(emp.festivalAllowance) || 0) > 0)
+                      ? 'चाडपर्व खर्च हटाउनुहोस्'
+                      : 'चाडपर्व खर्च राख्नुहोस्'}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setEditingEmployeeItem(null);
@@ -1722,6 +1816,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       gradeAmount: 0,
                       totalBasicSalary: 0,
                       dearnessAllowance: 0,
+                      festivalAllowance: 0,
                       incentiveAllowance: 0,
                       fieldAllowance: 0,
                       dressAllowance: 0,
@@ -1841,6 +1936,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <th className="p-2.5 text-right">ग्रेड रकम</th>
                     <th className="p-2.5 text-right bg-slate-100/60">जम्मा तलब</th>
                     <th className="p-2.5 text-right">महङ्गी भत्ता</th>
+                    <th className="p-2.5 text-right">चाडपर्व खर्च</th>
                     <th className="p-2.5 text-right">अन्य भत्ता</th>
                     <th className="p-2.5 text-right bg-blue-50/60 font-black text-blue-900">कुल तलब (Gross)</th>
                     <th className="p-2.5 text-right">क.सं.को.</th>
@@ -1871,6 +1967,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       <td className="p-2.5 text-right text-slate-600">{toNepaliNumber(emp.gradeAmount.toLocaleString())}</td>
                       <td className="p-2.5 text-right font-bold bg-slate-50">{toNepaliNumber(emp.totalBasicSalary.toLocaleString())}</td>
                       <td className="p-2.5 text-right">{toNepaliNumber(emp.dearnessAllowance.toLocaleString())}</td>
+                      <td className="p-2.5 text-right text-amber-800 font-medium">{toNepaliNumber((emp.festivalAllowance || 0).toLocaleString())}</td>
                       <td className="p-2.5 text-right text-slate-600">
                         {toNepaliNumber(((emp.incentiveAllowance || 0) + (emp.fieldAllowance || 0) + (emp.dressAllowance || 0) + (emp.otherAllowances || 0)).toLocaleString())}
                       </td>
@@ -1898,7 +1995,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                           <button
                             onClick={() => {
                               setEditingEmployeeItem(emp);
-                              setEmpForm({ ...emp });
+                              setEmpForm({ ...emp, festivalAllowance: emp.festivalAllowance || 0 });
                               setIsAddEmployeeModalOpen(true);
                             }}
                             className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -1920,7 +2017,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
 
                   {employeesList.length === 0 && (
                     <tr>
-                      <td colSpan={15} className="p-12 text-center text-slate-400 font-medium">
+                      <td colSpan={16} className="p-12 text-center text-slate-400 font-medium">
                         <Users size={36} className="mx-auto mb-2 text-slate-300" />
                         कुनै कर्मचारीको पारिश्रमिक थपिएको छैन। माथिको <b>'कर्मचारी लोड'</b> वा <b>'नयाँ कर्मचारी थप्नुहोस्'</b> बटन क्लिक गर्नुहोस्।
                       </td>
@@ -1935,6 +2032,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       <td className="p-3 text-right">{toNepaliNumber(grandTotals.totalGradeAmount.toLocaleString())}</td>
                       <td className="p-3 text-right bg-slate-200/60">{toNepaliNumber(grandTotals.totalBasicSalary.toLocaleString())}</td>
                       <td className="p-3 text-right">{toNepaliNumber(grandTotals.totalDearness.toLocaleString())}</td>
+                      <td className="p-3 text-right text-amber-900">{toNepaliNumber(grandTotals.totalFestival.toLocaleString())}</td>
                       <td className="p-3 text-right">{toNepaliNumber((grandTotals.totalIncentive + grandTotals.totalField + grandTotals.totalDress + grandTotals.totalOtherAllowances).toLocaleString())}</td>
                       <td className="p-3 text-right bg-blue-100/60 text-blue-950 font-black">{toNepaliNumber(grandTotals.totalGross.toLocaleString())}</td>
                       <td className="p-3 text-right">{toNepaliNumber(grandTotals.totalPF.toLocaleString())}</td>
@@ -2093,6 +2191,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <th className="p-2.5">महिना</th>
                     <th className="p-2.5 text-center">स्थिति</th>
                     <th className="p-2.5 text-center">कर्मचारी संख्या</th>
+                    <th className="p-2.5 text-right">चाडपर्व खर्च</th>
                     <th className="p-2.5 text-right">कुल तलब (Gross)</th>
                     <th className="p-2.5 text-right">कुल कट्टी (Deductions)</th>
                     <th className="p-2.5 text-right">पाउने खुद रकम (Net)</th>
@@ -2111,6 +2210,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                         </span>
                       </td>
                       <td className="p-2.5 text-center">{m.isCreated ? `${toNepaliNumber(m.employeeCount)} जना` : '-'}</td>
+                      <td className="p-2.5 text-right font-semibold text-amber-800">{m.isCreated ? `रु. ${toNepaliNumber(m.festivalAllowance.toLocaleString())}` : '-'}</td>
                       <td className="p-2.5 text-right font-semibold">{m.isCreated ? `रु. ${toNepaliNumber(m.grossSalary.toLocaleString())}` : '-'}</td>
                       <td className="p-2.5 text-right text-red-700">{m.isCreated ? `रु. ${toNepaliNumber(m.totalDeductions.toLocaleString())}` : '-'}</td>
                       <td className="p-2.5 text-right font-black text-emerald-800">{m.isCreated ? `रु. ${toNepaliNumber(m.netPayable.toLocaleString())}` : '-'}</td>
@@ -2131,6 +2231,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                 <tfoot className="bg-slate-100 font-black border-t-2 border-slate-300 text-slate-900">
                   <tr>
                     <td colSpan={3} className="p-3 text-center">वार्षिक कुल योग (Annual Total)</td>
+                    <td className="p-3 text-right text-amber-900">रु. {toNepaliNumber(annualSummary.totalAnnualFestival.toLocaleString())}</td>
                     <td className="p-3 text-right">रु. {toNepaliNumber(annualSummary.totalAnnualGross.toLocaleString())}</td>
                     <td className="p-3 text-right text-red-800">रु. {toNepaliNumber(annualSummary.totalAnnualDeductions.toLocaleString())}</td>
                     <td className="p-3 text-right text-emerald-900 text-sm">रु. {toNepaliNumber(annualSummary.totalAnnualNet.toLocaleString())}</td>
@@ -2155,6 +2256,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       <th className="p-2.5">कर्मचारीको नाम</th>
                       <th className="p-2.5">पद / तह</th>
                       <th className="p-2.5 text-center">भुक्तानी महिना</th>
+                      <th className="p-2.5 text-right">चाडपर्व खर्च</th>
                       <th className="p-2.5 text-right">वार्षिक कुल तलब</th>
                       <th className="p-2.5 text-right">वार्षिक क.सं.को.</th>
                       <th className="p-2.5 text-right">वार्षिक ना.ल.को.</th>
@@ -2170,6 +2272,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                         <td className="p-2.5 font-bold text-slate-800">{emp.name}</td>
                         <td className="p-2.5 text-slate-600">{emp.designation} {emp.level ? `(${emp.level})` : ''}</td>
                         <td className="p-2.5 text-center font-semibold">{toNepaliNumber(emp.monthsCount)} महिना</td>
+                        <td className="p-2.5 text-right font-semibold text-amber-800">रु. {toNepaliNumber(emp.totalFestival.toLocaleString())}</td>
                         <td className="p-2.5 text-right font-semibold">रु. {toNepaliNumber(emp.totalGross.toLocaleString())}</td>
                         <td className="p-2.5 text-right text-slate-600">रु. {toNepaliNumber(emp.totalPF.toLocaleString())}</td>
                         <td className="p-2.5 text-right text-slate-600">रु. {toNepaliNumber(emp.totalCIT.toLocaleString())}</td>
@@ -2714,11 +2817,14 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       value={empForm.basicScale || 0}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
-                        setEmpForm(prev => ({
-                          ...prev,
-                          basicScale: val,
-                          gradeRate: prev?.gradeRate || Math.round(val / 30)
-                        }));
+                        setEmpForm(prev => {
+                          const next = {
+                            ...prev,
+                            basicScale: val,
+                            gradeRate: prev?.gradeRate || Math.round(val / 30)
+                          };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
                       }}
                     />
                   </div>
@@ -2731,12 +2837,13 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                         const count = parseFloat(e.target.value) || 0;
                         setEmpForm(prev => {
                           const rate = prev?.gradeRate || Math.round((prev?.basicScale || 0) / 30);
-                          return {
+                          const next = {
                             ...prev,
                             gradeCount: count,
                             gradeRate: rate,
                             gradeAmount: count * rate
                           };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
                         });
                       }}
                     />
@@ -2746,7 +2853,13 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <Input
                       type="number"
                       value={empForm.gradeAmount || 0}
-                      onChange={(e) => setEmpForm(prev => ({ ...prev, gradeAmount: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEmpForm(prev => {
+                          const next = { ...prev, gradeAmount: val };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
+                      }}
                     />
                   </div>
                   <div>
@@ -2754,7 +2867,43 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <Input
                       type="number"
                       value={empForm.dearnessAllowance || 0}
-                      onChange={(e) => setEmpForm(prev => ({ ...prev, dearnessAllowance: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEmpForm(prev => {
+                          const next = { ...prev, dearnessAllowance: val };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-amber-900">चाडपर्व खर्च (Festival):</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEmpForm(prev => {
+                            const oneMonthSalary = (Number(prev.basicScale) || 0) + (Number(prev.gradeAmount) || 0);
+                            const next = { ...prev, festivalAllowance: oneMonthSalary };
+                            return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                          });
+                        }}
+                        className="text-[10px] text-amber-800 hover:text-amber-950 font-bold bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded border border-amber-300 transition-colors"
+                        title="१ महिनाको तलब (सुरु तलब + ग्रेड) बराबर चाडपर्व खर्च राख्नुहोस्"
+                      >
+                        १ महिना तलब बराबर
+                      </button>
+                    </div>
+                    <Input
+                      type="number"
+                      value={empForm.festivalAllowance || 0}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEmpForm(prev => {
+                          const next = { ...prev, festivalAllowance: val };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
+                      }}
                     />
                   </div>
                   <div>
@@ -2772,7 +2921,10 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                               selectedMonthCode,
                               driverIncentivePercent
                             );
-                            setEmpForm(prev => ({ ...prev, incentiveAllowance: res.incentiveAmount }));
+                            setEmpForm(prev => {
+                              const next = { ...prev, incentiveAllowance: res.incentiveAmount };
+                              return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                            });
                             setDriverIncentiveDebugInfo({
                               isDriver: true,
                               tripCount: res.tripCount,
@@ -2793,7 +2945,13 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <Input
                       type="number"
                       value={empForm.incentiveAllowance || 0}
-                      onChange={(e) => setEmpForm(prev => ({ ...prev, incentiveAllowance: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEmpForm(prev => {
+                          const next = { ...prev, incentiveAllowance: val };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
+                      }}
                     />
                     {isAmbulanceDriver(empForm.designation, empForm.employeeName) && (
                       <div className="mt-1.5 text-[11px]">
@@ -2830,7 +2988,13 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                     <Input
                       type="number"
                       value={empForm.otherAllowances || 0}
-                      onChange={(e) => setEmpForm(prev => ({ ...prev, otherAllowances: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setEmpForm(prev => {
+                          const next = { ...prev, otherAllowances: val };
+                          return { ...next, taxDeduction: computeAutoTaxDeduction(next) };
+                        });
+                      }}
                     />
                   </div>
                 </div>
@@ -2866,26 +3030,38 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
                       onChange={(e) => setEmpForm(prev => ({ ...prev, insuranceDeduction: parseFloat(e.target.value) || 0 }))}
                     />
                   </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">सा.सु.कर / TDS (आयकर):</label>
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-slate-700">सा.सु.कर / TDS (आयकर - चाडपर्व खर्च समेत):</label>
+                      <button
+                        type="button"
+                        onClick={() => setEmpForm(prev => ({ ...prev, taxDeduction: computeAutoTaxDeduction(prev) }))}
+                        className="text-[10px] text-red-700 hover:text-red-900 font-bold bg-red-100 px-2 py-0.5 rounded border border-red-200 transition-colors"
+                        title="तलब, चाडपर्व खर्च र भत्ताको आधारमा कर स्वतः गणना गर्नुहोस्"
+                      >
+                        स्वतः कर गणना
+                      </button>
+                    </div>
                     <Input
                       type="number"
                       value={empForm.taxDeduction || 0}
                       onChange={(e) => setEmpForm(prev => ({ ...prev, taxDeduction: parseFloat(e.target.value) || 0 }))}
                     />
-                    <div className="mt-1 text-[10px] text-slate-500 font-medium">
+                    <div className="mt-1 text-[10px] text-slate-600 font-medium">
                       {(() => {
                         const basic = Number(empForm.basicScale) || 0;
                         const grade = Number(empForm.gradeAmount) || 0;
                         const dearness = Number(empForm.dearnessAllowance) || 0;
+                        const festival = Number(empForm.festivalAllowance) || 0;
                         const other = Number(empForm.otherAllowances) || 0;
                         const inc = Number(empForm.incentiveAllowance) || 0;
                         const nonIncTaxable = basic + grade + dearness + other;
                         const taxRem = Math.round(nonIncTaxable * 0.01);
+                        const taxFest = Math.round(festival * 0.01);
                         const taxInc = Math.round(inc * 0.15);
                         return (
                           <span>
-                            (नियमित: रु. {nonIncTaxable.toLocaleString()} × १% = रु. {taxRem} + प्रोत्साहन: रु. {inc.toLocaleString()} × १५% = रु. {taxInc} ➔ जम्मा रु. {(taxRem + taxInc).toLocaleString()})
+                            (नियमित: रु. {nonIncTaxable.toLocaleString()} × १% = रु. {taxRem} + चाडपर्व खर्च: रु. {festival.toLocaleString()} × १% = रु. {taxFest} + प्रोत्साहन: रु. {inc.toLocaleString()} × १५% = रु. {taxInc} ➔ जम्मा कर: रु. {(taxRem + taxFest + taxInc).toLocaleString()})
                           </span>
                         );
                       })()}
