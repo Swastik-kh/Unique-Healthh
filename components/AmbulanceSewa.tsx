@@ -213,7 +213,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   
   // Trip filters
   const [tripFiscalYearFilter, setTripFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
-  const [tripMonthFilter, setTripMonthFilter] = useState<string>('all');
+  const [tripMonthFilter, setTripMonthFilter] = useState<string>(() => {
+    try { const m = (new NepaliDate().getMonth() + 1); return m < 10 ? `0${m}` : `${m}`; } catch { return 'all'; }
+  });
   
   // Expense related states
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -221,7 +223,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [expenseSearchTerm, setExpenseSearchTerm] = useState('');
   const [expenseFiscalYearFilter, setExpenseFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState<string>('all');
-  const [expenseMonthFilter, setExpenseMonthFilter] = useState<string>('all');
+  const [expenseMonthFilter, setExpenseMonthFilter] = useState<string>(() => {
+    try { const m = (new NepaliDate().getMonth() + 1); return m < 10 ? `0${m}` : `${m}`; } catch { return 'all'; }
+  });
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [showPaidToDropdown, setShowPaidToDropdown] = useState(false);
   const paidToDropdownRef = useRef<HTMLDivElement>(null);
@@ -559,25 +563,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const monthWiseExpenseCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     NEPALI_MONTHS.forEach(m => { counts[m.id] = 0; });
-    const targetFyNorm = normalizeFiscalYearStr(expenseFiscalYearFilter);
 
-    (expenseRecords || []).forEach(e => {
+    (filteredExpenseRecords || []).forEach(e => {
       if (!e) return;
-      if (targetFyNorm !== 'all') {
-        const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
-        const recFyNorm = normalizeFiscalYearStr(recFy);
-        if (recFyNorm !== targetFyNorm) return;
-      }
-      if (expenseCategoryFilter !== 'all') {
-        if (e.expenseCategory !== expenseCategoryFilter) return;
-      }
       const m = getMonthFromBsDate(e.dateBs);
       if (m && counts[m] !== undefined) {
         counts[m] += 1;
       }
     });
     return counts;
-  }, [expenseRecords, expenseFiscalYearFilter, expenseCategoryFilter, currentFiscalYear, NEPALI_MONTHS]);
+  }, [filteredExpenseRecords, NEPALI_MONTHS]);
 
   const allMonthsExpenseSummary = useMemo(() => {
     const summaryMap: Record<string, { fuel: number; maintenance: number; driver_allowance: number; other: number; total: number; fuelLiters: number }> = {};
@@ -1736,12 +1731,15 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         )}
 
         {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 print:hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 print:hidden mb-4">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-6 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 font-medium">
+             फ़िल्टर: {tripFiscalYearFilter === 'all' ? 'सबै' : tripFiscalYearFilter} | महिना: {tripMonthFilter === 'all' ? 'सबै' : NEPALI_MONTHS.find(m => m.id === tripMonthFilter)?.name || tripMonthFilter}
+          </div>
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-rose-800">कूल यात्रा आम्दानी (Total Charge)</p>
               <p className="text-lg font-extrabold text-rose-950 mt-1 font-mono">
-                रु. {currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
+                रु. {filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-rose-600 shadow-sm">
@@ -1753,7 +1751,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-emerald-800">कुल प्राप्त भएको (Received)</p>
               <p className="text-lg font-extrabold text-emerald-950 mt-1 font-mono">
-                रु. {currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
+                रु. {filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-emerald-600 shadow-sm">
@@ -1765,7 +1763,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-amber-800">बाँकी बक्यौता (Total Due)</p>
               <p className="text-lg font-extrabold text-amber-950 mt-1 font-mono">
-                रु. {(currentYearRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - currentYearRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0)).toLocaleString()}
+                रु. {(filteredRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0) - filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - filteredRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0)).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-sm">
@@ -1777,7 +1775,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-purple-800">कुल छुट (Total Discount)</p>
               <p className="text-lg font-extrabold text-purple-950 mt-1 font-mono">
-                रु. {currentYearRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0).toLocaleString()}
+                रु. {filteredRecords.reduce((sum, r) => sum + (r.discountAmount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-purple-600 shadow-sm">
@@ -1789,11 +1787,23 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             <div>
               <p className="text-xs font-bold text-indigo-800">कूल खर्च (Expense)</p>
               <p className="text-lg font-extrabold text-indigo-950 mt-1 font-mono">
-                रु. {(currentYearExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
+                रु. {(filteredExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0).toLocaleString()}
               </p>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-indigo-600 shadow-sm">
               <Receipt size={18} />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-sky-50 to-sky-100/50 p-4 rounded-2xl border border-sky-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-sky-800">खुद बचत (Net Savings)</p>
+              <p className="text-lg font-extrabold text-sky-950 mt-1 font-mono">
+                रु. {(filteredRecords.reduce((sum, r) => sum + (r.receivedAmount || 0), 0) - (filteredExpenseRecords || []).reduce((sum, r) => sum + (r.amount || 0), 0)).toLocaleString()}
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-sky-600 shadow-sm">
+              <Wallet size={18} />
             </div>
           </div>
 
@@ -1857,6 +1867,13 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
                   />
                 </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="text-sm font-bold text-slate-700">यात्रा विवरण सूची</h3>
+              <div className="text-xs font-bold bg-rose-50 text-rose-700 px-3 py-1 rounded-full border border-rose-100">
+                जम्मा यात्रा: {filteredRecords.length}
               </div>
             </div>
 
