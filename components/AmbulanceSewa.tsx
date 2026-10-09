@@ -211,6 +211,10 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
   const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
   
+  // Trip specific filters
+  const [tripsFiscalYearFilter, setTripsFiscalYearFilter] = useState<string>(() => currentFiscalYear || 'all');
+  const [tripsMonthFilter, setTripsMonthFilter] = useState<string>('all');
+  
   // Expense related states
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<AmbulanceExpenseRecord | null>(null);
@@ -621,17 +625,36 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       .slice(0, 8);
   }, [expenseFormData.paidTo, uniquePayeeSuggestions]);
 
-  const filteredRecords = (currentYearRecords || []).slice().reverse().filter(r => {
-    if (!r) return false;
+  const filteredRecords = useMemo(() => {
+    const targetFyNorm = normalizeFiscalYearStr(tripsFiscalYearFilter);
     const query = (searchTerm || '').toLowerCase();
-    return (
-      (r.patientName && String(r.patientName).toLowerCase().includes(query)) ||
-      (r.ambulanceNo && String(r.ambulanceNo).toLowerCase().includes(query)) ||
-      (r.driverName && String(r.driverName).toLowerCase().includes(query)) ||
-      (r.destination && String(r.destination).toLowerCase().includes(query)) ||
-      (r.phone && String(r.phone).includes(searchTerm))
-    );
-  });
+    
+    return (records || []).slice().reverse().filter(r => {
+      if (!r) return false;
+      
+      // 1. Fiscal Year Filter
+      if (targetFyNorm !== 'all') {
+        const recFy = r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear);
+        const recFyNorm = normalizeFiscalYearStr(recFy);
+        if (recFyNorm !== targetFyNorm) return false;
+      }
+      
+      // 2. Month Filter
+      if (tripsMonthFilter !== 'all') {
+        const m = getMonthFromBsDate(r.dateBs);
+        if (m !== tripsMonthFilter) return false;
+      }
+      
+      // 3. Search query
+      return (
+        (r.patientName && String(r.patientName).toLowerCase().includes(query)) ||
+        (r.ambulanceNo && String(r.ambulanceNo).toLowerCase().includes(query)) ||
+        (r.driverName && String(r.driverName).toLowerCase().includes(query)) ||
+        (r.destination && String(r.destination).toLowerCase().includes(query)) ||
+        (r.phone && String(r.phone).includes(searchTerm))
+      );
+    });
+  }, [records, tripsFiscalYearFilter, tripsMonthFilter, searchTerm, currentFiscalYear]);
 
   // Constants & memoized helpers for advanced log book filtering
 
@@ -1778,15 +1801,37 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <FileText className="text-slate-500 size-5" />
                 यात्रा विबरण सूची (Travel Logs List)
               </h3>
-              <div className="relative max-w-sm w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="खोज्नुहोस् (नाम, एम्बुलेन्स नं, चालक वा गन्तव्य...)"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
-                />
+              <div className="relative max-w-sm w-full flex items-center gap-2">
+                <select
+                  value={tripsFiscalYearFilter}
+                  onChange={e => setTripsFiscalYearFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl text-xs py-2 px-3 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                >
+                  <option value="all">सबै आ.व.</option>
+                  {[...new Set((records || []).map(r => r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear)))].sort().reverse().map(fy => (
+                    <option key={fy} value={fy}>{fy}</option>
+                  ))}
+                </select>
+                <select
+                  value={tripsMonthFilter}
+                  onChange={e => setTripsMonthFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl text-xs py-2 px-3 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                >
+                  <option value="all">सबै महिना</option>
+                  {NEPALI_MONTHS.map(m => (
+                    <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+                  ))}
+                </select>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="खोज्नुहोस्..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                  />
+                </div>
               </div>
             </div>
 

@@ -13,6 +13,8 @@ import { Input } from './Input';
 import { Select } from './Select';
 import { NepaliDatePicker } from './NepaliDatePicker';
 import { toNepaliNumber, parseNepaliNumber } from './nepaliUtils';
+import { PrintBharpaiOptionsModal, PrintBharpaiOptions } from './PrintBharpaiOptionsModal';
+import { getBharpaiPrintHtml } from './BharpaiPrintTemplate';
 import { FISCAL_YEARS } from '../constants';
 import { db, sanitizeOrgName } from '../firebase';
 import { ref, onValue, set, push, remove } from 'firebase/database';
@@ -178,6 +180,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   const [editingEmployeeItem, setEditingEmployeeItem] = useState<SalaryEmployeeItem | null>(null);
   const [selectedPaySlipEmployee, setSelectedPaySlipEmployee] = useState<SalaryEmployeeItem | null>(null);
   const [isPaySlipModalOpen, setIsPaySlipModalOpen] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   // Employee Form State (for modal)
@@ -1061,7 +1064,7 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
   };
 
   // Print Monthly Bharpai Sheet
-  const handlePrintMonthlyBharpai = () => {
+  const handlePrintMonthlyBharpai = (options?: PrintBharpaiOptions) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert("कृपया पप-अप विन्डोलाई अनुमति दिनुहोस्।");
@@ -1071,257 +1074,39 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
     const monthObj = NEPALI_MONTHS.find(m => m.code === selectedMonthCode);
     const totalWords = numberToNepaliWords(grandTotals.totalNetPayable);
 
-    const logoUrl = generalSettings?.logoUrl || 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Emblem_of_Nepal.svg/1200px-Emblem_of_Nepal.svg.png';
-    const provinceLogo = generalSettings?.provinceLogoUrl || logoUrl;
+    const opts: PrintBharpaiOptions = options || {
+      showDearness: true,
+      showFestival: true,
+      showIncentive: true,
+      showFieldDressMedicalOther: true,
+      showPF: true,
+      showCIT: true,
+      showInsurance: true,
+      showTax: true,
+      showDeductionsOther: true,
+    };
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>मासिक तलबी भरपाई - ${monthObj?.shortName} ${selectedFiscalYear}</title>
-        <meta charset="utf-8">
-        <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-        <style>
-          @page {
-            size: A4 landscape;
-            margin: 8mm 8mm 10mm 8mm;
-          }
-          body {
-            font-family: 'Mukta', sans-serif;
-            color: #111827;
-            background: #fff;
-            margin: 0;
-            padding: 4px;
-            font-size: 11px;
-            line-height: 1.25;
-          }
-          .header-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            border-bottom: 1.5px solid #dc2626;
-            padding-bottom: 4px;
-          }
-          .logo {
-            width: 70px;
-            height: 70px;
-            object-fit: contain;
-          }
-          .header-text {
-            flex: 1;
-            text-align: center;
-          }
-          .header-text h1 {
-            font-size: 18px;
-            font-weight: 800;
-            color: #b91c1c;
-            margin: 0 0 2px 0;
-          }
-          .header-text h2 {
-            font-size: 13px;
-            font-weight: 700;
-            color: #1e293b;
-            margin: 0 0 2px 0;
-          }
-          .header-text p {
-            font-size: 10.5px;
-            font-weight: 600;
-            color: #475569;
-            margin: 0;
-          }
-          .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 4px;
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-bottom: 6px;
-            font-size: 11px;
-            font-weight: 600;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-            font-size: 10px;
-          }
-          th, td {
-            border: 1px solid #475569;
-            padding: 7px 6px;
-            text-align: center;
-            line-height: 1.4;
-          }
-          th {
-            background-color: #f1f5f9;
-            font-weight: 700;
-            color: #0f172a;
-          }
-          .text-left { text-align: left; }
-          .text-right { text-align: right; }
-          .total-row {
-            background-color: #e2e8f0;
-            font-weight: 800;
-          }
-          .words-box {
-            border: 1px dashed #64748b;
-            background: #fdfdfd;
-            padding: 4px 8px;
-            font-size: 11px;
-            font-weight: 700;
-            margin-bottom: 12px;
-          }
-          .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 25px;
-            padding: 0 20px;
-            page-break-inside: avoid;
-          }
-          .sig-box {
-            text-align: center;
-            width: 220px;
-            border-top: 1px solid #111;
-            padding-top: 4px;
-            font-size: 11px;
-            font-weight: 600;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header-container" style="justify-content: center; text-align: center; position: relative;">
-          <img src="${logoUrl}" class="logo" style="position: absolute; left: 10px; top: 0;" />
-          <div class="header-text">
-            <h1>${generalSettings?.orgNameNepali || 'स्वास्थ्य संस्था व्यवस्थापन'}</h1>
-            <h2>${generalSettings?.subTitleNepali || ''} ${generalSettings?.subTitleNepali2 ? ', ' + generalSettings.subTitleNepali2 : ''}</h2>
-            <p>${generalSettings?.subTitleNepali3 || ''} ${generalSettings?.subTitleNepali4 || ''}</p>
-            <h2 style="margin-top: 3px; text-decoration: underline; color: #0f172a;">मासिक कर्मचारी तलबी भरपाई तथा निकासा विवरण</h2>
-          </div>
-        </div>
-
-        <div class="meta-grid">
-          <div><b>आर्थिक वर्ष:</b> ${toNepaliNumber(selectedFiscalYear)}</div>
-          <div><b>महिना:</b> ${monthObj?.shortName || ''}</div>
-          <div><b>भरपाई/निकासा नं.:</b> ${toNepaliNumber(receiptNumber || '-')}</div>
-          <div><b>मिति:</b> ${toNepaliNumber(currentReceiptDate)}</div>
-          <div><b>बजेट शीर्षक:</b> ${budgetHeadName || '२११११ - कर्मचारी पारिश्रमिक'}</div>
-          <div><b>भुक्तानी माध्यम:</b> ${paymentMethod === 'Bank' ? 'बैंक ट्रान्सफर' : paymentMethod === 'Cheque' ? 'चेक (Cheque)' : 'नगद'}</div>
-          <div><b>बैंकको नाम:</b> ${bankName || '-'}</div>
-          ${paymentMethod === 'Cheque' ? `<div><b>चेक नं.:</b> ${toNepaliNumber(chequeOrVoucherNo || '-')}</div>` : ''}
-          <div><b>जम्मा कर्मचारी:</b> ${toNepaliNumber(employeesList.length)} जना</div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th rowspan="2">क्र.सं.</th>
-              <th rowspan="2">कर्मचारीको नाम</th>
-              <th rowspan="2">पद / तह</th>
-              <th rowspan="2">बैंक खाता नं.</th>
-              <th colspan="3">तलब विवरण</th>
-              <th colspan="4">भत्ता विवरण</th>
-              <th rowspan="2">जम्मा पारिश्रमिक</th>
-              <th colspan="5">कट्टी विवरण</th>
-              <th rowspan="2">जम्मा कट्टी</th>
-              <th rowspan="2">पाउने खुद रकम</th>
-              <th rowspan="2">बुझिलिनेको दस्तखत</th>
-            </tr>
-            <tr>
-              <th>सुरु तलब</th>
-              <th>ग्रेड</th>
-              <th>जम्मा तलब</th>
-              <th>महङ्गी</th>
-              <th>चाडपर्व खर्च</th>
-              <th>प्रोत्साहन/फिल्ड</th>
-              <th>अन्य</th>
-              <th>क.सं.को.</th>
-              <th>ना.ल.को.</th>
-              <th>बीमा</th>
-              <th>सा.सु./आयकर</th>
-              <th>अन्य</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${employeesList.map((emp, i) => `
-              <tr>
-                <td>${toNepaliNumber(i + 1)}</td>
-                <td class="text-left" style="font-weight: 600;">${emp.employeeName}</td>
-                <td class="text-left">${emp.designation} ${emp.level ? `(${emp.level})` : ''}</td>
-                <td class="text-left" style="font-size: 9px;">${emp.bankAccountNumber || '-'}</td>
-                <td class="text-right">${toNepaliNumber(emp.basicScale.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.gradeAmount.toLocaleString())}</td>
-                <td class="text-right" style="font-weight: 600;">${toNepaliNumber(emp.totalBasicSalary.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.dearnessAllowance.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber((emp.festivalAllowance || 0).toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(((emp.incentiveAllowance || 0) + (emp.fieldAllowance || 0)).toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(((emp.dressAllowance || 0) + (emp.otherAllowances || 0) + (emp.medicalAllowance || 0)).toLocaleString())}</td>
-                <td class="text-right" style="font-weight: 700; background-color: #f8fafc;">${toNepaliNumber(emp.grossSalary.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.providentFund.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.citDeduction.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.insuranceDeduction.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(emp.taxDeduction.toLocaleString())}</td>
-                <td class="text-right">${toNepaliNumber(((emp.loanOrAdvanceDeduction || 0) + (emp.otherDeductions || 0)).toLocaleString())}</td>
-                <td class="text-right" style="font-weight: 700; color: #dc2626;">${toNepaliNumber(emp.totalDeductions.toLocaleString())}</td>
-                <td class="text-right" style="font-weight: 800; color: #16a34a; font-size: 11px;">${toNepaliNumber(emp.netPayable.toLocaleString())}</td>
-                <td></td>
-              </tr>
-            `).join('')}
-            <tr class="total-row">
-              <td colspan="4" style="text-align: center;">कुल जम्मा (Grand Total)</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalBasicScale.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalGradeAmount.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalBasicSalary.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalDearness.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalFestival.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber((grandTotals.totalIncentive + grandTotals.totalField).toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber((grandTotals.totalDress + grandTotals.totalOtherAllowances).toLocaleString())}</td>
-              <td class="text-right" style="font-weight: 800;">${toNepaliNumber(grandTotals.totalGross.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalPF.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalCIT.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalInsurance.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber(grandTotals.totalTax.toLocaleString())}</td>
-              <td class="text-right">${toNepaliNumber((grandTotals.totalAdvance + grandTotals.totalOtherDeductions).toLocaleString())}</td>
-              <td class="text-right" style="font-weight: 800; color: #dc2626;">${toNepaliNumber(grandTotals.totalDeductions.toLocaleString())}</td>
-              <td class="text-right" style="font-weight: 800; color: #16a34a; font-size: 11px;">${toNepaliNumber(grandTotals.totalNetPayable.toLocaleString())}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="words-box">
-          <b>अक्षरेपी कुल खुद भुक्तानी रकम:</b> ${totalWords}
-        </div>
-
-        <div class="signatures">
-          <div class="sig-box">
-            <p style="margin: 0 0 2px 0;"><strong>${preparedByName || 'तयार गर्ने'}</strong></p>
-            <p style="margin: 0;">${preparedByDesignation || 'पद: सहायक'}</p>
-            <p style="margin: 2px 0 0 0; font-size: 9px;">तयार गर्ने</p>
-          </div>
-          <div class="sig-box">
-            <p style="margin: 0 0 2px 0;"><strong>${verifiedByName || 'जाँच/पेश गर्ने'}</strong></p>
-            <p style="margin: 0;">${verifiedByDesignation || 'पद: लेखापाल'}</p>
-            <p style="margin: 2px 0 0 0; font-size: 9px;">जाँच / पेश गर्ने</p>
-          </div>
-          <div class="sig-box">
-            <p style="margin: 0 0 2px 0;"><strong>${approvedByName || 'स्वीकृत गर्ने'}</strong></p>
-            <p style="margin: 0;">${approvedByDesignation || 'पद: कार्यालय प्रमुख'}</p>
-            <p style="margin: 2px 0 0 0; font-size: 9px;">स्वीकृत गर्ने / कार्यालय प्रमुख</p>
-          </div>
-        </div>
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 600);
-          };
-        </script>
-      </body>
-      </html>
-    `;
+    const html = getBharpaiPrintHtml(
+      employeesList,
+      grandTotals,
+      opts,
+      monthObj,
+      selectedFiscalYear,
+      receiptNumber,
+      currentReceiptDate,
+      budgetHeadName,
+      paymentMethod,
+      bankName,
+      chequeOrVoucherNo,
+      generalSettings,
+      totalWords,
+      preparedByName,
+      preparedByDesignation,
+      verifiedByName,
+      verifiedByDesignation,
+      approvedByName,
+      approvedByDesignation
+    );
 
     printWindow.document.write(html);
     printWindow.document.close();
@@ -2120,12 +1905,21 @@ export const TalabiBharpai: React.FC<TalabiBharpaiProps> = ({
               </div>
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button
-                  onClick={handlePrintMonthlyBharpai}
+                  onClick={() => setShowPrintModal(true)}
                   disabled={employeesList.length === 0}
                   className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-sm font-bold shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <Printer size={16} /> प्रिन्ट भरपाई
                 </button>
+                {showPrintModal && (
+                  <PrintBharpaiOptionsModal
+                    onClose={() => setShowPrintModal(false)}
+                    onPrint={(options) => {
+                      setShowPrintModal(false);
+                      handlePrintMonthlyBharpai(options);
+                    }}
+                  />
+                )}
                 <button
                   onClick={handleSaveReceipt}
                   disabled={employeesList.length === 0}
