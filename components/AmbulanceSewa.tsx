@@ -211,9 +211,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
   const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
   
-  // Trip specific filters
-  const [tripsFiscalYearFilter, setTripsFiscalYearFilter] = useState<string>(() => currentFiscalYear || 'all');
-  const [tripsMonthFilter, setTripsMonthFilter] = useState<string>('all');
+  // Trip filters
+  const [tripFiscalYearFilter, setTripFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
+  const [tripMonthFilter, setTripMonthFilter] = useState<string>('all');
   
   // Expense related states
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -482,6 +482,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     return Array.from(years).sort().reverse();
   }, [expenseRecords, currentFiscalYear]);
 
+  const uniqueFiscalYears = useMemo(() => {
+    const years = new Set<string>();
+    if (currentFiscalYear) years.add(currentFiscalYear);
+    (records || []).forEach(r => { if (r.fiscalYear) years.add(r.fiscalYear); });
+    (expenseRecords || []).forEach(e => { if (e.fiscalYear) years.add(e.fiscalYear); });
+    return Array.from(years).sort().reverse();
+  }, [records, expenseRecords, currentFiscalYear]);
+
   const filteredExpenseRecords = useMemo(() => {
     const targetFyNorm = normalizeFiscalYearStr(expenseFiscalYearFilter);
     return (expenseRecords || [])
@@ -626,26 +634,25 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [expenseFormData.paidTo, uniquePayeeSuggestions]);
 
   const filteredRecords = useMemo(() => {
-    const targetFyNorm = normalizeFiscalYearStr(tripsFiscalYearFilter);
-    const query = (searchTerm || '').toLowerCase();
-    
+    const targetFyNorm = normalizeFiscalYearStr(tripFiscalYearFilter);
     return (records || []).slice().reverse().filter(r => {
       if (!r) return false;
-      
-      // 1. Fiscal Year Filter
+
+      // 1. Fiscal Year
       if (targetFyNorm !== 'all') {
         const recFy = r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear);
         const recFyNorm = normalizeFiscalYearStr(recFy);
         if (recFyNorm !== targetFyNorm) return false;
       }
-      
-      // 2. Month Filter
-      if (tripsMonthFilter !== 'all') {
+
+      // 2. Month
+      if (tripMonthFilter !== 'all') {
         const m = getMonthFromBsDate(r.dateBs);
-        if (m !== tripsMonthFilter) return false;
+        if (m !== tripMonthFilter) return false;
       }
-      
-      // 3. Search query
+
+      // 3. Search
+      const query = (searchTerm || '').toLowerCase();
       return (
         (r.patientName && String(r.patientName).toLowerCase().includes(query)) ||
         (r.ambulanceNo && String(r.ambulanceNo).toLowerCase().includes(query)) ||
@@ -654,7 +661,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         (r.phone && String(r.phone).includes(searchTerm))
       );
     });
-  }, [records, tripsFiscalYearFilter, tripsMonthFilter, searchTerm, currentFiscalYear]);
+  }, [records, searchTerm, tripFiscalYearFilter, tripMonthFilter, currentFiscalYear]);
 
   // Constants & memoized helpers for advanced log book filtering
 
@@ -669,8 +676,17 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [currentYearRecords]);
 
   const filteredLogBookRecords = useMemo(() => {
-    return (currentYearRecords || []).filter(r => {
+    const targetFyNorm = normalizeFiscalYearStr(tripFiscalYearFilter);
+    return (records || []).filter(r => {
       if (!r) return false;
+      
+      // 0. Fiscal Year
+      if (targetFyNorm !== 'all') {
+        const recFy = r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear);
+        const recFyNorm = normalizeFiscalYearStr(recFy);
+        if (recFyNorm !== targetFyNorm) return false;
+      }
+      
       // 1. General Search
       const searchLower = (searchTerm || '').toLowerCase();
       const matchesSearch = !searchTerm || 
@@ -684,14 +700,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
       // 2. Month Filter
       let matchesMonth = true;
-      if (logBookMonthFilter) {
-        const parts = (r.dateBs || '').split('-');
-        if (parts.length >= 2) {
-          const m = parts[1];
-          matchesMonth = m === logBookMonthFilter || Number(m) === Number(logBookMonthFilter);
-        } else {
-          matchesMonth = false;
-        }
+      if (tripMonthFilter !== 'all') {
+        const m = getMonthFromBsDate(r.dateBs);
+        matchesMonth = m === tripMonthFilter;
       }
 
       // 3. Driver Filter
@@ -702,7 +713,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
       return matchesSearch && matchesMonth && matchesDriver && matchesVehicle;
     });
-  }, [currentYearRecords, searchTerm, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter]);
+  }, [records, searchTerm, tripFiscalYearFilter, tripMonthFilter, logBookDriverFilter, logBookVehicleFilter, currentFiscalYear]);
 
   const monthlyFuelSummary = useMemo(() => {
     // Initialize standard 12 months sum
@@ -1801,28 +1812,28 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 <FileText className="text-slate-500 size-5" />
                 यात्रा विबरण सूची (Travel Logs List)
               </h3>
-              <div className="relative max-w-sm w-full flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <select
-                  value={tripsFiscalYearFilter}
-                  onChange={e => setTripsFiscalYearFilter(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-xl text-xs py-2 px-3 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                  value={tripFiscalYearFilter}
+                  onChange={e => setTripFiscalYearFilter(e.target.value)}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 >
-                  <option value="all">सबै आ.व.</option>
-                  {[...new Set((records || []).map(r => r.fiscalYear || getFiscalYearFromBsDate(r.dateBs, currentFiscalYear)))].sort().reverse().map(fy => (
-                    <option key={fy} value={fy}>{fy}</option>
+                  <option value="all">आ.व. (All)</option>
+                  {uniqueFiscalYears.map(fy => (
+                    <option key={fy} value={fy}>आ.व. {fy}</option>
                   ))}
                 </select>
                 <select
-                  value={tripsMonthFilter}
-                  onChange={e => setTripsMonthFilter(e.target.value)}
-                  className="bg-white border border-slate-200 rounded-xl text-xs py-2 px-3 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 transition-all font-semibold"
+                  value={tripMonthFilter}
+                  onChange={e => setTripMonthFilter(e.target.value)}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 >
-                  <option value="all">सबै महिना</option>
+                  <option value="all">महिना (All)</option>
                   {NEPALI_MONTHS.map(m => (
-                    <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>
+                    <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>
-                <div className="relative flex-1">
+                <div className="relative max-w-sm w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
                     type="text"
@@ -2778,19 +2789,27 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </table>
             </div>
 
-            {/* Print Signatures */}
-            <div className="hidden print:grid grid-cols-2 gap-10 mt-20 pt-10 text-center text-sm font-nepali">
-              <div className="space-y-1">
-                <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
-                <p className="font-bold text-slate-900">{assignedAmbulanceUser?.fullName || 'तयार गर्ने'}</p>
-                <p className="text-xs text-slate-500">{assignedAmbulanceUser?.designation || ''}</p>
-                <p className="text-xs text-slate-500">मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</p>
-              </div>
-              <div className="space-y-1">
-                <div className="w-48 mx-auto border-b border-dashed border-slate-900 h-10"></div>
-                <p className="font-bold text-slate-900">{currentUser?.fullName || 'स्वीकृत गर्ने अधिकारी'}</p>
-                <p className="text-xs text-slate-500">{currentUser?.designation || 'प्रशासकीय प्रमुख'}</p>
-                <p className="text-xs text-slate-500">मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</p>
+            {/* Print Signatures - Moved below table */}
+            <div className="hidden print:block mt-8 pt-4 border-t border-slate-300">
+              <div className="grid grid-cols-3 gap-6 text-center text-xs font-nepali">
+                {/* Prepared By */}
+                <div className="space-y-1">
+                  <div className="border-t border-slate-900 w-32 mx-auto mb-1"></div>
+                  <p className="font-bold text-slate-950">तयार गर्ने (Prepared By)</p>
+                  <p className="text-slate-900">{assignedAmbulanceUser?.fullName || '................'}</p>
+                </div>
+                {/* Checked By */}
+                <div className="space-y-1">
+                  <div className="border-t border-slate-900 w-32 mx-auto mb-1"></div>
+                  <p className="font-bold text-slate-950">जाँच गर्ने (Checked By)</p>
+                  <p className="text-slate-900">................</p>
+                </div>
+                {/* Approved By */}
+                <div className="space-y-1">
+                  <div className="border-t border-slate-900 w-32 mx-auto mb-1"></div>
+                  <p className="font-bold text-slate-950">प्रमाणित गर्ने (Approved By)</p>
+                  <p className="text-slate-900">{currentUser?.fullName || '................'}</p>
+                </div>
               </div>
             </div>
           </div>
