@@ -2862,7 +2862,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       {toNepaliDigits(filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0).toFixed(1))} KM
                     </td>
                     <td className="p-1 border-r-2 border-slate-900"></td>
-                    <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-black">
+                    <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-black print:hidden">
                       रु. {toNepaliDigits(filteredLogBookRecords.reduce((sum, r) => sum + (r.amountCharged || 0), 0).toFixed(2))}
                     </td>
                     <td className="p-1"></td>
