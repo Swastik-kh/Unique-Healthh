@@ -2740,7 +2740,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <div className="text-xs text-slate-700 font-bold flex flex-wrap items-center justify-center gap-6 mt-4 pt-2 border-t border-dashed border-slate-300">
                 <span>आर्थिक वर्ष: {toNepaliDigits(currentFiscalYear)}</span>
                 <span>छापिएको मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</span>
-                <span className="border border-slate-300 px-2 py-0.5 rounded">आ.व.: {logBookFiscalYearFilter === 'all' ? 'सबै' : logBookFiscalYearFilter}</span>
+                <span className="border border-slate-300 px-2 py-0.5 rounded">आ.व.: {logBookFiscalYearFilter === 'all' ? 'सबै' : toNepaliDigits(logBookFiscalYearFilter)}</span>
                 {logBookMonthFilter && (
                   <span className="border border-slate-300 px-2 py-0.5 rounded">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
                 )}
@@ -2769,14 +2769,14 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     {monthlyFuelSummary.map(item => (
                       <tr key={item.id} className="border-b border-slate-900">
                         <td className="p-1.5 border-r border-slate-900 text-center font-bold font-nepali">{item.name}</td>
-                        <td className="p-1.5 border-r border-slate-900 text-center font-mono font-bold text-amber-900">{item.liters.toFixed(1)} लिटर</td>
-                        <td className="p-1.5 text-right font-mono font-bold">रु. {item.cost.toFixed(2)}</td>
+                        <td className="p-1.5 border-r border-slate-900 text-center font-mono font-bold text-amber-900">{toNepaliDigits(item.liters.toFixed(1))} लिटर</td>
+                        <td className="p-1.5 text-right font-mono font-bold">रु. {toNepaliDigits(item.cost.toFixed(2))}</td>
                       </tr>
                     ))}
                     <tr className="bg-slate-100 font-extrabold font-mono border-t border-slate-900">
                       <td className="p-1.5 border-r border-slate-900 text-center font-nepali font-black">कुल योग (Total):</td>
-                      <td className="p-1.5 border-r border-slate-900 text-center font-mono font-black">{totalFuelLiters.toFixed(1)} L</td>
-                      <td className="p-1.5 text-right font-mono font-black">रु. {monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toFixed(2)}</td>
+                      <td className="p-1.5 border-r border-slate-900 text-center font-mono font-black">{toNepaliDigits(totalFuelLiters.toFixed(1))} L</td>
+                      <td className="p-1.5 text-right font-mono font-black">रु. {toNepaliDigits(monthlyFuelSummary.reduce((sum, i) => sum + i.cost, 0).toFixed(2))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -2784,13 +2784,13 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                 {/* Print Fuel Mileage Stats */}
                 <div className="mt-4 pt-3 border-t border-slate-900 grid grid-cols-3 gap-2 text-center text-[11px]">
                   <div>
-                    <span className="font-bold font-nepali">कूल यात्रा दूरी (Total Distance):</span> <span className="font-mono font-bold">{totalDrivenDistance.toFixed(1)} KM</span>
+                    <span className="font-bold font-nepali">कूल यात्रा दूरी (Total Distance):</span> <span className="font-mono font-bold">{toNepaliDigits(totalDrivenDistance.toFixed(1))} KM</span>
                   </div>
                   <div>
-                    <span className="font-bold font-nepali">कूल खपत इन्धन (Total Fuel):</span> <span className="font-mono font-bold">{totalFuelLiters.toFixed(1)} Liters</span>
+                    <span className="font-bold font-nepali">कूल खपत इन्धन (Total Fuel):</span> <span className="font-mono font-bold">{toNepaliDigits(totalFuelLiters.toFixed(1))} Liters</span>
                   </div>
                   <div>
-                    <span className="font-bold font-nepali">औसत माइलेज (Average Mileage):</span> <span className="font-mono font-black">{averageMileage > 0 ? averageMileage.toFixed(2) : '0.00'} KM/Ltr</span>
+                    <span className="font-bold font-nepali">औसत माइलेज (Average Mileage):</span> <span className="font-mono font-black">{toNepaliDigits(averageMileage > 0 ? averageMileage.toFixed(2) : '0.00')} KM/Ltr</span>
                   </div>
                 </div>
               </div>
