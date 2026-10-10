@@ -112,14 +112,15 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       let y1 = parts[0];
       let y2 = parts[1];
       if (y1.length === 2) y1 = '20' + y1;
-      if (y2.length === 2) y2 = '0' + y2;
+      if (y2.length === 3 && y2.startsWith('0')) y2 = y2.slice(1);
+      if (y2.length === 4) y2 = y2.slice(-2);
       return `${y1}/${y2}`;
     }
     return clean;
   };
 
   const getFiscalYearFromBsDate = (dateBs?: string, fallbackFy?: string): string => {
-    if (!dateBs) return fallbackFy || currentFiscalYear || '2083/084';
+    if (!dateBs) return normalizeFiscalYearStr(fallbackFy || currentFiscalYear || '2083/84');
     const cleanDate = normalizeToEngDigits(dateBs);
     const parts = cleanDate.split(/[-/.]/);
     if (parts.length >= 2) {
@@ -129,16 +130,16 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         if (monthNum >= 4) {
           const nextYearShort = (yearNum + 1) % 100;
           const nextYearStr = nextYearShort < 10 ? `0${nextYearShort}` : `${nextYearShort}`;
-          return `${yearNum}/0${nextYearStr}`; // e.g. "2083/084"
+          return `${yearNum}/${nextYearStr}`; // e.g. "2083/84"
         } else {
           const prevYear = yearNum - 1;
           const yearShort = yearNum % 100;
           const yearStr = yearShort < 10 ? `0${yearShort}` : `${yearShort}`;
-          return `${prevYear}/0${yearStr}`; // e.g. "2082/083"
+          return `${prevYear}/${yearStr}`; // e.g. "2082/83"
         }
       }
     }
-    return fallbackFy || currentFiscalYear || '2083/084';
+    return normalizeFiscalYearStr(fallbackFy || currentFiscalYear || '2083/84');
   };
 
   const getMonthFromBsDate = (dateBs?: string): string => {
@@ -210,6 +211,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   const [logBookMonthFilter, setLogBookMonthFilter] = useState('');
   const [logBookDriverFilter, setLogBookDriverFilter] = useState('');
   const [logBookVehicleFilter, setLogBookVehicleFilter] = useState('');
+  const [logBookFiscalYearFilter, setLogBookFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
   
   // Trip filters
   const [tripFiscalYearFilter, setTripFiscalYearFilter] = useState<string>(() => currentFiscalYear || '2083/084');
@@ -726,7 +728,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
   }, [currentYearRecords]);
 
   const filteredLogBookRecords = useMemo(() => {
-    const targetFyNorm = normalizeFiscalYearStr(tripFiscalYearFilter);
+    const targetFyNorm = normalizeFiscalYearStr(logBookFiscalYearFilter);
     return (records || []).filter(r => {
       if (!r) return false;
       
@@ -750,9 +752,9 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
       // 2. Month Filter
       let matchesMonth = true;
-      if (tripMonthFilter !== 'all') {
+      if (logBookMonthFilter) {
         const m = getMonthFromBsDate(r.dateBs);
-        matchesMonth = m === tripMonthFilter;
+        matchesMonth = m === logBookMonthFilter.padStart(2, '0');
       }
 
       // 3. Driver Filter
@@ -762,8 +764,25 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       const matchesVehicle = !logBookVehicleFilter || r.ambulanceNo === logBookVehicleFilter;
 
       return matchesSearch && matchesMonth && matchesDriver && matchesVehicle;
+    }).sort((a, b) => {
+      const dateA = a.dateBs || '';
+      const dateB = b.dateBs || '';
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return (a.id || '').localeCompare(b.id || '');
     });
-  }, [records, searchTerm, tripFiscalYearFilter, tripMonthFilter, logBookDriverFilter, logBookVehicleFilter, currentFiscalYear]);
+  }, [records, searchTerm, logBookFiscalYearFilter, logBookMonthFilter, logBookDriverFilter, logBookVehicleFilter, currentFiscalYear]);
+
+  const logBookExpenseRecords = useMemo(() => {
+    const targetFyNorm = normalizeFiscalYearStr(logBookFiscalYearFilter);
+    return (expenseRecords || []).filter(e => {
+      if (!e) return false;
+      if (targetFyNorm !== 'all') {
+        const recFy = e.fiscalYear || getFiscalYearFromBsDate(e.dateBs, currentFiscalYear);
+        if (normalizeFiscalYearStr(recFy) !== targetFyNorm) return false;
+      }
+      return true;
+    });
+  }, [expenseRecords, logBookFiscalYearFilter, currentFiscalYear]);
 
   const monthlyFuelSummary = useMemo(() => {
     // Initialize standard 12 months sum
@@ -773,7 +792,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     });
 
     // Sum fuel expenses with filters
-    (currentYearExpenseRecords || []).forEach(record => {
+    (logBookExpenseRecords || []).forEach(record => {
       if (record.expenseCategory === 'fuel') {
         // Vehicle Filter compatibility
         if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
@@ -812,7 +831,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       liters: monthlyData[m.id].liters,
       cost: monthlyData[m.id].cost
     })).filter(item => item.liters > 0 || item.cost > 0); // Only show months with data
-  }, [currentYearExpenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
+  }, [logBookExpenseRecords, NEPALI_MONTHS, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
   const totalDrivenDistance = useMemo(() => {
     return filteredLogBookRecords.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
@@ -820,7 +839,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
 
   const totalFuelLiters = useMemo(() => {
     let liters = 0;
-    (currentYearExpenseRecords || []).forEach(record => {
+    (logBookExpenseRecords || []).forEach(record => {
       if (record.expenseCategory === 'fuel' && record.fuelLiters) {
         // Vehicle Filter compatibility
         if (logBookVehicleFilter && record.ambulanceNo && record.ambulanceNo !== logBookVehicleFilter) {
@@ -845,7 +864,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
       }
     });
     return liters;
-  }, [currentYearExpenseRecords, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
+  }, [logBookExpenseRecords, logBookVehicleFilter, logBookDriverFilter, logBookMonthFilter]);
 
   const averageMileage = useMemo(() => {
     return totalFuelLiters > 0 ? (totalDrivenDistance / totalFuelLiters) : 0;
@@ -2474,7 +2493,25 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
             </div>
 
             {/* Advanced Filters Section */}
-            <div className="p-4 sm:p-5 bg-slate-50/40 border-b border-slate-150 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-4 gap-4 items-end print:hidden">
+            <div className="p-4 sm:p-5 bg-slate-50/40 border-b border-slate-150 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-5 gap-4 items-end print:hidden">
+              {/* Fiscal Year Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] sm:text-xs font-bold text-slate-500 font-nepali flex items-center gap-1.5">
+                  <Calendar size={13} className="text-amber-600" />
+                  आर्थिक वर्ष चयन गर्नुहोस् (Fiscal Year)
+                </label>
+                <select
+                  value={logBookFiscalYearFilter}
+                  onChange={e => setLogBookFiscalYearFilter(e.target.value)}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-700 cursor-pointer"
+                >
+                  <option value="all">सबै आर्थिक वर्ष (All)</option>
+                  {uniqueFiscalYears.map(fy => (
+                    <option key={fy} value={fy}>आ.व. {fy}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Month Selector */}
               <div className="space-y-1.5">
                 <label className="text-[11px] sm:text-xs font-bold text-slate-500 font-nepali flex items-center gap-1.5">
@@ -2530,7 +2567,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               </div>
 
               {/* Clear/Reset Option */}
-              {(logBookMonthFilter || logBookDriverFilter || logBookVehicleFilter || searchTerm) && (
+              {(logBookMonthFilter || logBookDriverFilter || logBookVehicleFilter || searchTerm || logBookFiscalYearFilter !== (currentFiscalYear || '2083/084')) && (
                 <div className="flex">
                   <button
                     onClick={() => {
@@ -2538,6 +2575,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                       setLogBookDriverFilter('');
                       setLogBookVehicleFilter('');
                       setSearchTerm('');
+                      setLogBookFiscalYearFilter(currentFiscalYear || '2083/084');
                     }}
                     className="text-xs text-rose-600 hover:text-rose-700 font-bold border border-rose-200 bg-rose-50 hover:bg-rose-100 px-4 py-2 rounded-xl transition-all w-full sm:w-auto text-center"
                   >
@@ -2702,6 +2740,7 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
               <div className="text-xs text-slate-700 font-bold flex flex-wrap items-center justify-center gap-6 mt-4 pt-2 border-t border-dashed border-slate-300">
                 <span>आर्थिक वर्ष: {toNepaliDigits(currentFiscalYear)}</span>
                 <span>छापिएको मिति: {toNepaliDigits(new NepaliDate().format('YYYY-MM-DD'))}</span>
+                <span className="border border-slate-300 px-2 py-0.5 rounded">आ.व.: {logBookFiscalYearFilter === 'all' ? 'सबै' : logBookFiscalYearFilter}</span>
                 {logBookMonthFilter && (
                   <span className="border border-slate-300 px-2 py-0.5 rounded">महिना: {NEPALI_MONTHS.find(m => m.id === logBookMonthFilter)?.name || logBookMonthFilter}</span>
                 )}
