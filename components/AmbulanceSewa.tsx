@@ -2770,8 +2770,8 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                     <th className="p-1 border-r-2 border-slate-900 font-nepali text-center">अन्तिम कि.मी.</th>
                     <th className="p-1 border-r-2 border-slate-900 font-nepali text-center">दूरी (KM)</th>
                     <th className="p-1 border-r-2 border-slate-900 font-nepali">चालक</th>
-                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-right text-red-700 font-bold">रकम</th>
-                    <th className="p-1 font-nepali">कैफियत</th>
+                    <th className="p-1 border-r-2 border-slate-900 font-nepali text-right text-red-700 font-bold print:hidden">रकम</th>
+                    <th className="p-1 font-nepali print:hidden">कैफियत</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-300">
@@ -2808,10 +2808,10 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
                           {record.distanceKm ? `${toNepaliDigits(record.distanceKm.toFixed(1))} KM` : '-'}
                         </td>
                         <td className="p-1 border-r-2 border-slate-900 font-semibold text-slate-800 font-nepali">{record.driverName}</td>
-                        <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-bold">
+                        <td className="p-1 border-r-2 border-slate-900 text-right font-nepali font-bold print:hidden">
                           रु. {toNepaliDigits((record.amountCharged || 0).toFixed(2))}
                         </td>
-                        <td className="p-1 text-slate-600 italic select-all text-[9px]">{record.remarks || '-'}</td>
+                        <td className="p-1 text-slate-600 italic select-all text-[9px] print:hidden">{record.remarks || '-'}</td>
                       </tr>
                     ))
                   )}
