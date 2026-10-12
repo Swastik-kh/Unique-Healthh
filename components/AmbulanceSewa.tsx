@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AmbulanceRecord, ServiceSeekerRecord, User, OrganizationSettings, AmbulanceExpenseRecord, AmbulanceOdometerRecord } from '../types';
-import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X, Eye, Tag } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Calendar, User as UserIcon, Phone, MapPin, Truck, AlertCircle, FileText, Info, Receipt, Navigation, RefreshCw, Radio, Compass, Gauge, Wallet, CheckCircle2, X, Eye, Tag, Briefcase } from 'lucide-react';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { NepaliDatePicker } from './NepaliDatePicker';
@@ -8,6 +8,7 @@ import { AmbulanceTracker } from './AmbulanceTracker';
 import { AmbulanceOdometerView } from './AmbulanceOdometerView';
 import { LogoDisplay } from './LogoDisplay';
 import { toNepaliDigits } from '../lib/tableUtils';
+import { getDriverMonthlyIncentive, isAmbulanceDriver } from '../lib/ambulanceIncentiveUtils';
 
 interface AmbulanceSewaProps {
   records: AmbulanceRecord[];
@@ -708,12 +709,94 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
     });
   }, [expenseRecords, summaryActiveFy, summaryActiveMonth, currentFiscalYear]);
 
+  const monthlySalary = useMemo(() => {
+    const driverName = generalSettings?.ambulanceDriverName || '';
+    try {
+      const keys = ['salaryReceipts', 'talabi_bharpai_receipts', 'employee_salary_profiles'];
+      for (const key of keys) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              const emps = item.employees || item.profiles || (Array.isArray(item) ? item : []);
+              if (Array.isArray(emps)) {
+                const found = emps.find((e: any) => 
+                  (driverName && (e.name || '').trim().toLowerCase() === driverName.trim().toLowerCase()) ||
+                  isAmbulanceDriver(e.designation, e.name)
+                );
+                if (found) {
+                  const sal = Number(found.basicSalary || found.totalBasicSalary || found.salary || found.grossSalary || 0);
+                  if (sal > 0) return sal;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 15000;
+  }, [generalSettings?.ambulanceDriverName]);
+
+  const driverCompensationSummary = useMemo(() => {
+    const driverName = generalSettings?.ambulanceDriverName || '';
+    const fy = summaryActiveFy === 'all' ? currentFiscalYear : summaryActiveFy;
+    const percent = generalSettings?.ambulanceDriverIncentivePercent || 15;
+    
+    if (!driverName) {
+      return {
+        remuneration: monthlySalary,
+        incentiveSummary: { tripCount: 0, totalFare: 0, incentiveAmount: 0 }
+      };
+    }
+
+    if (summaryActiveMonth === 'all') {
+      let totalTripCount = 0;
+      let totalFareSum = 0;
+      let totalIncentiveAmount = 0;
+      let monthsWithIncentiveCount = 0;
+      const allMatchedTrips: any[] = [];
+
+      for (let m = 1; m <= 12; m++) {
+        const mCode = String(m).padStart(2, '0');
+        const res = getDriverMonthlyIncentive(records || [], driverName, fy, mCode, percent);
+        if (res.incentiveAmount > 0 || res.tripCount > 0) {
+          monthsWithIncentiveCount++;
+          totalTripCount += res.tripCount;
+          totalFareSum += res.totalFare;
+          totalIncentiveAmount += res.incentiveAmount;
+          if (res.matchedTrips) {
+            allMatchedTrips.push(...res.matchedTrips);
+          }
+        }
+      }
+
+      return {
+        remuneration: monthlySalary * monthsWithIncentiveCount,
+        incentiveSummary: { matchedTrips: allMatchedTrips, tripCount: totalTripCount, totalFare: totalFareSum, incentiveAmount: totalIncentiveAmount }
+      };
+    } else {
+      const res = getDriverMonthlyIncentive(records || [], driverName, fy, summaryActiveMonth, percent);
+      return {
+        remuneration: monthlySalary,
+        incentiveSummary: res
+      };
+    }
+  }, [records, generalSettings, summaryActiveFy, summaryActiveMonth, currentFiscalYear, monthlySalary]);
+
+  const driverRemuneration = driverCompensationSummary.remuneration;
+  const driverIncentiveSummary = driverCompensationSummary.incentiveSummary;
+
+  const totalDriverCompensation = driverRemuneration + driverIncentiveSummary.incentiveAmount;
+
   const totalSummaryCharge = summaryTripRecords.reduce((s, r) => s + (Number(r.amountCharged) || 0), 0);
   const totalSummaryReceived = summaryTripRecords.reduce((s, r) => s + (Number(r.receivedAmount) || 0), 0);
   const totalSummaryDiscount = summaryTripRecords.reduce((s, r) => s + (Number(r.discountAmount) || 0), 0);
   const totalSummaryExpense = summaryExpenseRecords.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const totalSummaryDue = totalSummaryCharge - totalSummaryReceived - totalSummaryDiscount;
-  const netSavings = totalSummaryReceived - totalSummaryExpense;
+  const netSavings = totalSummaryReceived - (totalSummaryExpense + totalDriverCompensation);
 
   // Constants & memoized helpers for advanced log book filtering
 
@@ -1791,9 +1874,20 @@ export const AmbulanceSewa: React.FC<AmbulanceSewaProps> = ({
         )}
 
         {/* Stats Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 print:hidden mb-4">
-          <div className="col-span-1 sm:col-span-2 lg:col-span-6 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 font-medium">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-4 print:hidden mb-4">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-4 xl:col-span-7 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 font-medium">
             फ़िल्टर: {summaryActiveFy === 'all' ? 'सबै' : summaryActiveFy} | महिना: {summaryActiveMonth === 'all' ? 'सबै' : NEPALI_MONTHS.find(m => m.id === summaryActiveMonth)?.name || summaryActiveMonth}
+          </div>
+
+          <div className="bg-gradient-to-br from-teal-50 to-teal-100/50 p-4 rounded-2xl border border-teal-200/60 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-teal-800 font-nepali">चालक तलब तथा प्रोत्साहन</p>
+              <p className="text-lg font-extrabold text-teal-950 mt-1 font-mono">रु. {totalDriverCompensation.toLocaleString()}</p>
+              <p className="text-[10px] text-teal-700 font-nepali mt-0.5">
+                (तलबी: रु. {driverRemuneration.toLocaleString()} + प्रो.: रु. {driverIncentiveSummary.incentiveAmount.toLocaleString()})
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-teal-600 shadow-sm"><Briefcase size={18} /></div>
           </div>
 
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 p-4 rounded-2xl border border-rose-200/60 shadow-sm flex items-center justify-between">
