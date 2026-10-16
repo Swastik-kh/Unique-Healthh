@@ -588,6 +588,9 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
               padding: 2px 6px;
               margin-bottom: 3px;
             }
+            :root {
+              --row-h: 20px;
+            }
             table {
               width: 100%;
               border-collapse: collapse;
@@ -595,11 +598,11 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
             }
             th, td {
               border: 1px solid #334155;
-              padding: 1px 2px;
+              padding: 2px 2px;
               text-align: center;
-              font-size: 8.5px;
+              font-size: 9px;
               line-height: 1.15;
-              height: 16px;
+              height: var(--row-h);
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
@@ -608,7 +611,7 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
               background-color: #f1f5f9;
               font-weight: 700;
               font-size: 9px;
-              padding: 1.5px 2px;
+              padding: 2.5px 2px;
             }
             .bg-morning { background-color: #fef3c7 !important; }
             .bg-evening { background-color: #e0f2fe !important; }
@@ -621,8 +624,8 @@ export const StoreTemperatureLog: React.FC<StoreTemperatureLogProps> = ({
             .summary-row td {
               background-color: #f8fafc;
               font-weight: bold;
-              font-size: 8.5px;
-              height: 17px;
+              font-size: 9px;
+              height: 21px;
             }
             .signatures-grid {
               display: flex;
