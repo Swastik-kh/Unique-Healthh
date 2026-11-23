@@ -5,6 +5,7 @@ import { FISCAL_YEARS, isAncPackageService } from '../constants';
 // @ts-ignore
 import NepaliDate from 'nepali-date-converter';
 import { LogoDisplay } from './LogoDisplay';
+import { NepaliDatePicker } from './NepaliDatePicker';
 import { LabProtsahanBharpaiModal } from './LabProtsahanBharpaiModal';
 import { AmbulanceProtsahanBharpaiModal } from './AmbulanceProtsahanBharpaiModal';
 import { getDriverMonthlyIncentive } from '../lib/ambulanceIncentiveUtils';
@@ -108,6 +109,25 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     return '12'; // default to Chaitra
   }, [curNepaliDate]);
 
+  const defaultTodayBs = useMemo(() => {
+    if (curNepaliDate) {
+      const y = curNepaliDate.getYear();
+      const m = String(curNepaliDate.getMonth() + 1).padStart(2, '0');
+      const d = String(curNepaliDate.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return '';
+  }, [curNepaliDate]);
+
+  const defaultMonthStartBs = useMemo(() => {
+    if (curNepaliDate) {
+      const y = curNepaliDate.getYear();
+      const m = String(curNepaliDate.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}-01`;
+    }
+    return '';
+  }, [curNepaliDate]);
+
   // Filters state
   const [reportSource, setReportSource] = useState<'Sewa' | 'Ambulance' | 'Protsahan' | 'AmbulanceProtsahan'>('Sewa');
   const [ambulanceReportType, setAmbulanceReportType] = useState<'income' | 'expense'>('income');
@@ -116,7 +136,10 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   React.useEffect(() => {
     setSelectedFiscalYear(currentFiscalYear);
   }, [currentFiscalYear]);
+  const [dateFilterMode, setDateFilterMode] = useState<'month' | 'dateRange'>('month');
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
+  const [fromDateBs, setFromDateBs] = useState<string>(defaultMonthStartBs);
+  const [toDateBs, setToDateBs] = useState<string>(defaultTodayBs);
   const [billingType, setBillingType] = useState<'All' | 'Direct' | 'Regular'>('Direct');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedAmbulanceExpenseCategory, setSelectedAmbulanceExpenseCategory] = useState<string>('All');
@@ -783,19 +806,84 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }
   }, [reportSource, selectedCategory, selectedService]);
   
+  // Normalize BS date string (handles Nepali/English digits and -, /, . separators) to YYYY-MM-DD for reliable comparison
+  const normalizeBsDateForCompare = useCallback((dateStr?: string): string => {
+    if (!dateStr) return '';
+    const nepaliToEng: Record<string, string> = {
+      '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+      '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+    };
+    const engStr = String(dateStr).trim().replace(/[०-९]/g, d => nepaliToEng[d] || d);
+    const parts = engStr.split(/[-/.]/);
+    if (parts.length < 3) return '';
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return '';
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }, []);
+
+  const matchesPeriodFilter = useCallback((rawDate?: string, recordFiscalYear?: string): boolean => {
+    if (dateFilterMode === 'dateRange') {
+      const normFrom = normalizeBsDateForCompare(fromDateBs);
+      const normTo = normalizeBsDateForCompare(toDateBs);
+      if (!normFrom && !normTo) {
+        return recordFiscalYear?.trim() === selectedFiscalYear?.trim();
+      }
+      const normRec = normalizeBsDateForCompare(rawDate);
+      if (!normRec) return false;
+      if (normFrom && normRec < normFrom) return false;
+      if (normTo && normRec > normTo) return false;
+      return true;
+    }
+
+    const fyMatch = recordFiscalYear?.trim() === selectedFiscalYear?.trim();
+    if (!fyMatch) return false;
+
+    if (selectedMonth !== 'all') {
+      const nepaliToEng: Record<string, string> = {
+        '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+        '५': '5', '६': '6', '७': '7', '८': '8', '९': '9'
+      };
+      const engDateStr = String(rawDate || '').trim().replace(/[०-९]/g, d => nepaliToEng[d] || d);
+      const dateParts = engDateStr.split(/[-/.]/);
+      if (dateParts.length < 2) return false;
+      const targetMonthParsed = parseInt(selectedMonth, 10);
+      const recordMonthParsed = parseInt(dateParts[1], 10);
+      if (targetMonthParsed !== recordMonthParsed) return false;
+    }
+    return true;
+  }, [dateFilterMode, fromDateBs, toDateBs, selectedFiscalYear, selectedMonth, normalizeBsDateForCompare]);
+
   // Custom wording for header
-  const initialCustomTitle = useMemo(() => {
-    const isAllMonths = selectedMonth === 'all';
-    const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
-    const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
-    
+  const buildReportTitle = useCallback(() => {
+    let prefixText = '';
+    if (dateFilterMode === 'dateRange' && (fromDateBs || toDateBs)) {
+      const fromDisp = fromDateBs ? fromDateBs.replace(/-/g, '/') : '';
+      const toDisp = toDateBs ? toDateBs.replace(/-/g, '/') : '';
+      if (fromDisp && toDisp) {
+        prefixText = fromDisp === toDisp
+          ? `मिति ${fromDisp} को`
+          : `मिति ${fromDisp} देखि ${toDisp} सम्मको`;
+      } else if (fromDisp) {
+        prefixText = `मिति ${fromDisp} देखिको`;
+      } else {
+        prefixText = `मिति ${toDisp} सम्मको`;
+      }
+    } else {
+      const isAllMonths = selectedMonth === 'all';
+      const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
+      const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
+      prefixText = `आ.व. ${selectedFiscalYear} ${periodText}`;
+    }
+
     if (reportSource === 'Protsahan') {
-      return `आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`;
+      return `${prefixText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`;
     } else if (reportSource === 'AmbulanceProtsahan') {
       const driverSuffix = selectedAmbulanceDriver !== 'All' ? ` - चालक: ${selectedAmbulanceDriver}` : '';
-      return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण${driverSuffix}`;
+      return `${prefixText} एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण${driverSuffix}`;
     } else if (reportSource === 'Sewa') {
-      return `आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`;
+      return `${prefixText} ${categorySuffix} आय विवरण`;
     } else {
       let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
       if (ambulanceReportType === 'expense' && selectedAmbulanceExpenseCategory !== 'All') {
@@ -807,42 +895,19 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         };
         suffix = `${catLabels[selectedAmbulanceExpenseCategory] || ''} खर्च विवरण`;
       }
-      return `आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`;
+      return `${prefixText} एम्बुलेन्स सेवा ${suffix}`;
     }
+  }, [dateFilterMode, fromDateBs, toDateBs, selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory, selectedAmbulanceDriver]);
 
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory, selectedAmbulanceDriver]);
+  const initialCustomTitle = useMemo(() => buildReportTitle(), [buildReportTitle]);
 
   const [reportTitleCustom, setReportTitleCustom] = useState<string>('');
   const activeReportTitle = reportTitleCustom || initialCustomTitle;
 
-  // Sync custom title suggestion when month, fiscal year, reportSource, ambulanceReportType, or category/service changes
+  // Sync custom title suggestion when month, date range, fiscal year, reportSource, ambulanceReportType, or category/service changes
   React.useEffect(() => {
-    const isAllMonths = selectedMonth === 'all';
-    const monthName = isAllMonths ? '' : (NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र');
-    const periodText = isAllMonths ? 'वार्षिक' : `${monthName} महिनाको`;
-    
-    if (reportSource === 'Protsahan') {
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} प्रयोगशाला (ल्याब) सेवा प्रोत्साहन (Incentive) विवरण`);
-    } else if (reportSource === 'AmbulanceProtsahan') {
-      const driverSuffix = selectedAmbulanceDriver !== 'All' ? ` - चालक: ${selectedAmbulanceDriver}` : '';
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स चालक सेवा प्रोत्साहन (Driver Incentive) विवरण${driverSuffix}`);
-    } else if (reportSource === 'Sewa') {
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} ${categorySuffix} आय विवरण`);
-    } else {
-      let suffix = ambulanceReportType === 'expense' ? 'खर्च विवरण' : 'आय विवरण';
-      if (ambulanceReportType === 'expense' && selectedAmbulanceExpenseCategory !== 'All') {
-        const catLabels: {[key: string]: string} = {
-          fuel: 'इन्धन',
-          maintenance: 'मर्मत संभार',
-          driver_allowance: 'चालक भत्ता',
-          other: 'अन्य'
-        };
-        suffix = `${catLabels[selectedAmbulanceExpenseCategory] || ''} खर्च विवरण`;
-      }
-      setReportTitleCustom(`आ.व. ${selectedFiscalYear} ${periodText} एम्बुलेन्स सेवा ${suffix}`);
-    }
-
-  }, [selectedFiscalYear, selectedMonth, reportSource, ambulanceReportType, categorySuffix, selectedAmbulanceExpenseCategory, selectedAmbulanceDriver]);
+    setReportTitleCustom(buildReportTitle());
+  }, [buildReportTitle]);
 
   // Translate numeric helper
   const toNepaliDigits = (num: number | string): string => {
@@ -874,21 +939,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Filtered Billing Records
   const filteredRecords = useMemo(() => {
     return allBillingRecordsCombined.filter((record) => {
-      // 1. Fiscal Year Match (Check lowercase/trimmed comparisons)
-      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
-      if (!fyMatch) return false;
-
-      // 2. Month Match
-      if (selectedMonth !== 'all') {
-        const dateStr = record.billDate || '';
-        const dateParts = dateStr.split(/[-/]/);
-        if (dateParts.length < 2) return false;
-        const recordMonth = dateParts[1]; // e.g. "12" or "02"
-        
-        const targetMonthParsed = parseInt(selectedMonth);
-        const recordMonthParsed = parseInt(recordMonth);
-        if (targetMonthParsed !== recordMonthParsed) return false;
-      }
+      // 1 & 2. Fiscal Year / Month or Date Range Match
+      if (!matchesPeriodFilter(record.billDate, record.fiscalYear)) return false;
 
       // 3. Billing Type Filter
       const isDirect = !!record.isDirectBilling || 
@@ -981,26 +1033,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       // Sort by invoice number or date ascending for cleaner reporting
       return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
     });
-  }, [allBillingRecordsCombined, selectedFiscalYear, selectedMonth, billingType, searchQuery, selectedCategory, selectedService, selectedReferredBy, selectedGender, serviceSeekerRecords, testSubRelations, serviceCategoryMap, getServiceCategory]);
+  }, [allBillingRecordsCombined, matchesPeriodFilter, billingType, searchQuery, selectedCategory, selectedService, selectedReferredBy, selectedGender, serviceSeekerRecords, testSubRelations, serviceCategoryMap, getServiceCategory]);
 
   // Filtered Ambulance Records
   const filteredAmbulanceRecords = useMemo(() => {
     return (ambulanceRecords || []).filter((record) => {
-      // 1. Fiscal Year Match
-      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
-      if (!fyMatch) return false;
-
-      // 2. Month Match
-      if (selectedMonth !== 'all') {
-        const dateStr = record.dateBs || '';
-        const dateParts = dateStr.split(/[-/]/);
-        if (dateParts.length < 2) return false;
-        const recordMonth = dateParts[1];
-        
-        const targetMonthParsed = parseInt(selectedMonth);
-        const recordMonthParsed = parseInt(recordMonth);
-        if (targetMonthParsed !== recordMonthParsed) return false;
-      }
+      // 1 & 2. Fiscal Year / Month or Date Range Match
+      if (!matchesPeriodFilter(record.dateBs, record.fiscalYear)) return false;
 
       // 3. Search Query Match
       if (searchQuery.trim() !== '') {
@@ -1019,26 +1058,13 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }).sort((a, b) => {
       return (a.dateBs || '').localeCompare(b.dateBs || '');
     });
-  }, [ambulanceRecords, selectedFiscalYear, selectedMonth, searchQuery]);
+  }, [ambulanceRecords, matchesPeriodFilter, searchQuery]);
 
   // Filtered Ambulance Expenses
   const filteredAmbulanceExpenses = useMemo(() => {
     return (ambulanceExpenseRecords || []).filter((record) => {
-      // 1. Fiscal Year Match
-      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
-      if (!fyMatch) return false;
-
-      // 2. Month Match
-      if (selectedMonth !== 'all') {
-        const dateStr = record.dateBs || '';
-        const dateParts = dateStr.split(/[-/]/);
-        if (dateParts.length < 2) return false;
-        const recordMonth = dateParts[1];
-        
-        const targetMonthParsed = parseInt(selectedMonth);
-        const recordMonthParsed = parseInt(recordMonth);
-        if (targetMonthParsed !== recordMonthParsed) return false;
-      }
+      // 1 & 2. Fiscal Year / Month or Date Range Match
+      if (!matchesPeriodFilter(record.dateBs, record.fiscalYear)) return false;
 
       // 3. Search Query Match
       if (searchQuery.trim() !== '') {
@@ -1066,7 +1092,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }).sort((a,b) => {
       return (a.dateBs || '').localeCompare(b.dateBs || '');
     });
-  }, [ambulanceExpenseRecords, selectedFiscalYear, selectedMonth, searchQuery, selectedAmbulanceExpenseCategory]);
+  }, [ambulanceExpenseRecords, matchesPeriodFilter, searchQuery, selectedAmbulanceExpenseCategory]);
 
   // Driver options list
   const ambulanceDriverOptions = useMemo(() => {
@@ -1083,21 +1109,8 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   // Filtered trips for Ambulance Driver Protsahan
   const filteredAmbulanceDriverTrips = useMemo(() => {
     return (ambulanceRecords || []).filter((record) => {
-      // 1. Fiscal Year Match
-      const fyMatch = record.fiscalYear?.trim() === selectedFiscalYear?.trim();
-      if (!fyMatch) return false;
-
-      // 2. Month Match
-      if (selectedMonth !== 'all') {
-        const dateStr = record.dateBs || '';
-        const dateParts = dateStr.split(/[-/]/);
-        if (dateParts.length < 2) return false;
-        const recordMonth = dateParts[1];
-        
-        const targetMonthParsed = parseInt(selectedMonth);
-        const recordMonthParsed = parseInt(recordMonth);
-        if (targetMonthParsed !== recordMonthParsed) return false;
-      }
+      // 1 & 2. Fiscal Year / Month or Date Range Match
+      if (!matchesPeriodFilter(record.dateBs, record.fiscalYear)) return false;
 
       // 3. Driver Filter
       if (selectedAmbulanceDriver !== 'All') {
@@ -1124,7 +1137,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
     }).sort((a, b) => {
       return (a.dateBs || '').localeCompare(b.dateBs || '');
     });
-  }, [ambulanceRecords, selectedFiscalYear, selectedMonth, selectedAmbulanceDriver, searchQuery]);
+  }, [ambulanceRecords, matchesPeriodFilter, selectedAmbulanceDriver, searchQuery]);
 
   // Trip-level driver incentive calculated items
   const ambulanceDriverTripData = useMemo(() => {
@@ -1370,8 +1383,18 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
   };
 
   const renderPrintPageHeaderRow = (colSpan: number, subTitleText?: string) => {
+    const isDateRange = dateFilterMode === 'dateRange' && (fromDateBs || toDateBs);
     const isAllMonths = selectedMonth === 'all';
-    const monthName = isAllMonths ? 'वार्षिक (सबै महिना)' : `${NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र'} महिना`;
+    const monthName = isDateRange
+      ? (() => {
+          const f = fromDateBs ? formatNumberValue(fromDateBs.replace(/-/g, '/')) : '';
+          const t = toDateBs ? formatNumberValue(toDateBs.replace(/-/g, '/')) : '';
+          if (f && t) return f === t ? f : `${f} देखि ${t}`;
+          if (f) return `${f} देखि`;
+          return `${t} सम्म`;
+        })()
+      : (isAllMonths ? 'वार्षिक (सबै महिना)' : `${NEPALI_MONTH_NAMES[parseInt(selectedMonth) - 1] || 'चैत्र'} महिना`);
+    const periodLabel = isDateRange ? 'अवधि:' : 'महिना:';
     const displayFiscalYear = toNepaliDigits(selectedFiscalYear);
     const rawTitle = subTitleText || activeReportTitle;
     const title = useNepaliNumerals ? toNepaliDigits(rawTitle) : rawTitle;
@@ -1387,7 +1410,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
               {title}
             </span>
             <span className="text-right font-semibold whitespace-nowrap">
-              महिना: <strong className="text-slate-950 font-black">{monthName}</strong>
+              {periodLabel} <strong className="text-slate-950 font-black">{monthName}</strong>
             </span>
           </div>
         </th>
@@ -1397,6 +1420,9 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
   // Export to CSV function
   const handleExportCSV = () => {
+    const periodFileSuffix = dateFilterMode === 'dateRange'
+      ? `Date_${fromDateBs || 'start'}_to_${toDateBs || 'end'}`
+      : `Month_${selectedMonth}`;
     if (reportSource === 'AmbulanceProtsahan') {
       if (ambulanceDriverTripData.length === 0) {
         alert("निर्यात गर्नको लागि कुनै रेकर्डहरू फेला परेनन्।");
@@ -1440,7 +1466,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Ambulance_Driver_Incentive_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      link.setAttribute("download", `Ambulance_Driver_Incentive_Report_${selectedFiscalYear}_${periodFileSuffix}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1489,7 +1515,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Lab_Incentive_Protsahan_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      link.setAttribute("download", `Lab_Incentive_Protsahan_Report_${selectedFiscalYear}_${periodFileSuffix}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1540,7 +1566,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Service_Billing_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+      link.setAttribute("download", `Service_Billing_Report_${selectedFiscalYear}_${periodFileSuffix}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1581,7 +1607,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `Ambulance_Expense_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+        link.setAttribute("download", `Ambulance_Expense_Report_${selectedFiscalYear}_${periodFileSuffix}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1628,7 +1654,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `Ambulance_Sewa_Report_${selectedFiscalYear}_Month_${selectedMonth}.csv`);
+        link.setAttribute("download", `Ambulance_Sewa_Report_${selectedFiscalYear}_${periodFileSuffix}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1746,6 +1772,80 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
 
       {/* Filter panel - Hide on print */}
       <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-4 items-end print:hidden">
+        {/* Filter Method Switcher: Month vs Nepali Calendar Date Range */}
+        <div className="col-span-full flex flex-wrap items-center justify-between gap-2 pb-3 mb-1 border-b border-slate-200/80">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-600 font-nepali flex items-center gap-1.5">
+              <Calendar size={14} className="text-emerald-600" />
+              अवधि फिल्टर विधि (Filter Method):
+            </span>
+            <div className="inline-flex bg-white border border-slate-200 rounded-xl p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setDateFilterMode('month')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold font-nepali transition-all cursor-pointer ${
+                  dateFilterMode === 'month'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                महिना अनुसार (By Month)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateFilterMode('dateRange')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold font-nepali transition-all cursor-pointer ${
+                  dateFilterMode === 'dateRange'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                मिति दायरा (From - To Date)
+              </button>
+            </div>
+          </div>
+
+          {dateFilterMode === 'dateRange' && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (defaultTodayBs) {
+                    setFromDateBs(defaultTodayBs);
+                    setToDateBs(defaultTodayBs);
+                  }
+                }}
+                className="px-2.5 py-1 bg-white border border-slate-200 hover:border-emerald-400 hover:text-emerald-700 text-slate-600 rounded-lg text-[11px] font-bold font-nepali transition-colors cursor-pointer"
+              >
+                आज (Today)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFromDateBs(defaultMonthStartBs);
+                  setToDateBs(defaultTodayBs);
+                }}
+                className="px-2.5 py-1 bg-white border border-slate-200 hover:border-emerald-400 hover:text-emerald-700 text-slate-600 rounded-lg text-[11px] font-bold font-nepali transition-colors cursor-pointer"
+              >
+                यो महिना (This Month)
+              </button>
+              {(fromDateBs || toDateBs) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromDateBs('');
+                    setToDateBs('');
+                  }}
+                  className="px-2.5 py-1 bg-white border border-slate-200 hover:border-rose-400 hover:text-rose-600 text-slate-500 rounded-lg text-[11px] font-bold font-nepali transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <RotateCcw size={11} />
+                  खाली (Clear)
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="block text-xs font-bold text-slate-100 mb-1.5 bg-emerald-700 text-white px-2 py-0.5 rounded-sm">रिपोर्ट प्रकार (Report Type)</label>
           <div className="relative">
@@ -1823,41 +1923,82 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
           </>
         )}
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">आर्थिक वर्ष (Fiscal Year)</label>
-          <div className="relative">
-            <select
-              value={selectedFiscalYear}
-              onChange={(e) => setSelectedFiscalYear(e.target.value)}
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
-            >
-              {FISCAL_YEARS.map((fy) => (
-                <option key={fy.id} value={fy.value}>
-                  {fy.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
-          </div>
-        </div>
+        {dateFilterMode === 'month' ? (
+          <>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">आर्थिक वर्ष (Fiscal Year)</label>
+              <div className="relative">
+                <select
+                  value={selectedFiscalYear}
+                  onChange={(e) => setSelectedFiscalYear(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  {FISCAL_YEARS.map((fy) => (
+                    <option key={fy.id} value={fy.value}>
+                      {fy.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">नेपाली महिना (Nepali Month)</label>
-          <div className="relative">
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
-            >
-              {NEPALI_MONTH_OPTIONS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
-          </div>
-        </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">नेपाली महिना (Nepali Month)</label>
+              <div className="relative">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-emerald-500 outline-none appearance-none pr-8 cursor-pointer"
+                >
+                  {NEPALI_MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-3.5 text-slate-400 pointer-events-none" size={14} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 font-nepali">देखि मिति (From Date - BS)</label>
+              <NepaliDatePicker
+                value={fromDateBs}
+                onChange={(val) => {
+                  setFromDateBs(val);
+                  if (toDateBs && normalizeBsDateForCompare(val) > normalizeBsDateForCompare(toDateBs)) {
+                    setToDateBs(val);
+                  }
+                }}
+                label=""
+                placeholder="YYYY-MM-DD"
+                format="YYYY-MM-DD"
+                inputClassName="!text-xs !py-2.5 !rounded-xl !border-emerald-500 !border-2 font-bold text-emerald-900 focus:!ring-2 focus:!ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 font-nepali">सम्म मिति (To Date - BS)</label>
+              <NepaliDatePicker
+                value={toDateBs}
+                onChange={(val) => {
+                  setToDateBs(val);
+                  if (fromDateBs && normalizeBsDateForCompare(val) < normalizeBsDateForCompare(fromDateBs)) {
+                    setFromDateBs(val);
+                  }
+                }}
+                label=""
+                placeholder="YYYY-MM-DD"
+                format="YYYY-MM-DD"
+                popupAlign="right"
+                inputClassName="!text-xs !py-2.5 !rounded-xl !border-emerald-500 !border-2 font-bold text-emerald-900 focus:!ring-2 focus:!ring-emerald-500"
+              />
+            </div>
+          </>
+        )}
 
         {(reportSource === 'Sewa' || reportSource === 'Protsahan') ? (
           <>
@@ -3179,7 +3320,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
-                      चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।
+                      {dateFilterMode === 'dateRange' ? 'चयन गरिएको मिति अवधि र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।' : 'चयन गरिएको महिना र फिल्टर अनुसार कुनै आय विवरण रेकर्ड भेटिएन।'}
                     </td>
                   </tr>
                 )}
@@ -3284,7 +3425,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={9} className="border border-slate-950 p-10 text-center text-slate-400 italic">
-                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स खर्च विवरण रेकर्ड भेटिएन।
+                      {dateFilterMode === 'dateRange' ? 'चयन गरिएको मिति अवधि र फिल्टर अनुसार कुनै एम्बुलेन्स खर्च विवरण रेकर्ड भेटिएन।' : 'चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स खर्च विवरण रेकर्ड भेटिएन।'}
                     </td>
                   </tr>
                 )}
@@ -3404,7 +3545,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={10} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
-                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।
+                      {dateFilterMode === 'dateRange' ? 'चयन गरिएको मिति अवधि र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।' : 'चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स सेवा रेकर्ड भेटिएन।'}
                     </td>
                   </tr>
                 )}
@@ -3536,7 +3677,7 @@ export const LabBillingReport: React.FC<LabBillingReportProps> = ({
                 ) : (
                   <tr>
                     <td colSpan={11} className="border border-slate-950 p-10 text-center text-slate-400 italic font-nepali">
-                      चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स चालक प्रोत्साहन रेकर्ड भेटिएन।
+                      {dateFilterMode === 'dateRange' ? 'चयन गरिएको मिति अवधि र फिल्टर अनुसार कुनै एम्बुलेन्स चालक प्रोत्साहन रेकर्ड भेटिएन।' : 'चयन गरिएको महिना र फिल्टर अनुसार कुनै एम्बुलेन्स चालक प्रोत्साहन रेकर्ड भेटिएन।'}
                     </td>
                   </tr>
                 )}
